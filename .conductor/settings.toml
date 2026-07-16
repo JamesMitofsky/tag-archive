@@ -15,6 +15,6 @@ run_mode = "concurrent"
 #   db  -> `turso dev` serving local.db over http on CONDUCTOR_PORT+1
 #   web -> vite dev on CONDUCTOR_PORT, pointed at that DB
 [scripts.run.dev]
-command = "export DB_PORT=$((CONDUCTOR_PORT+1)); concurrently -k -n db,web -c magenta,cyan \"turso dev --db-file local.db --port $DB_PORT\" \"DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm dev --port $CONDUCTOR_PORT\""
+command = "export DB_PORT=$((CONDUCTOR_PORT+1)); pnpm exec concurrently -k -n db,web -c magenta,cyan \"turso dev --db-file local.db --port $DB_PORT\" \"DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm dev --port $CONDUCTOR_PORT\""
 default = true
 icon = "rocket"
