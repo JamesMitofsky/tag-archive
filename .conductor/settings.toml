@@ -1,0 +1,20 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+# Copy local, gitignored env files into every new workspace.
+file_include_globs = ".env\n.env.*\n!.env.example\n"
+
+[scripts]
+# Runs once when a workspace is created: install deps, build + seed the local
+# Turso (libsql) database file from data/artefacts.json.
+setup = "pnpm install && pnpm db:setup:local"
+# Each workspace gets its own worktree + its own local.db and port range, so
+# multiple workspaces can run at the same time.
+run_mode = "concurrent"
+
+# Spins up the local DB and the local site together.
+#   db  -> `turso dev` serving local.db over http on CONDUCTOR_PORT+1
+#   web -> vite dev on CONDUCTOR_PORT, pointed at that DB
+[scripts.run.dev]
+command = "export DB_PORT=$((CONDUCTOR_PORT+1)); concurrently -k -n db,web -c magenta,cyan \"turso dev --db-file local.db --port $DB_PORT\" \"DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm dev --port $CONDUCTOR_PORT\""
+default = true
+icon = "rocket"
