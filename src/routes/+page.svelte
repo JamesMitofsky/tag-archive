@@ -64,14 +64,12 @@
 		};
 	}
 
-	// Cards ride rounded-rectangle rings that echo the searchbar's wide, short
-	// silhouette (all vmin). The innermost ring already clears the bar footprint.
-	const RING_A = 44; // base half-width — wide, like the bar
-	const RING_B = 22; // base half-height — short, like the bar
-	const RING_GAP_A = 12; // each outer ring adds this much width
-	const RING_GAP_B = 9; // ...and this much height
-	const SUPERELLIPSE = 4; // >2 rounds toward a rectangle (2 = ellipse)
-	const CLAMP_X = 74;
+	// Cards fill a wide annulus around the bar (all vmin). A phyllotaxis (golden-
+	// angle) layout spreads them EVENLY — no clumps — inside a bar-shaped hole.
+	const R_MIN = 23; // inner radius: clears the searchbar
+	const R_MAX = 40; // outer radius: how far the cloud reaches
+	const ASPECT = 1.9; // widen x so the field echoes the bar's wide silhouette
+	const CLAMP_X = 82;
 	const CLAMP_Y = 44;
 
 	type Placed = {
@@ -84,31 +82,38 @@
 		style: string;
 	};
 
-	// Place each card purely from its artefact id, so a card keeps the SAME spot no
-	// matter which other results match. Only dropped cards move (they fly out); the
-	// survivors never jump.
+	// Lay cards out EVENLY with a phyllotaxis annulus. Position comes from each
+	// card's RANK within the current matches (ranked by id, so it's deterministic).
+	// When matches change, survivors glide to their new even slot (CSS transition on
+	// .anchor) rather than snapping — even spacing without jarring jumps.
+	const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 	function placeAll(items: Artefact[]): Placed[] {
-		return items.map((item) => {
+		const n = items.length;
+		// Stable ranks: order indices by artefact id.
+		const rankOf: number[] = [];
+		items
+			.map((it, idx) => ({ id: it.id, idx }))
+			.sort((x, y) => x.id - y.id)
+			.forEach((e, rank) => (rankOf[e.idx] = rank));
+
+		return items.map((item, idx) => {
 			const rnd = mulberry32(item.id * 2654435761 + 1);
-			// Trace a rounded-rectangle ring (superellipse) sized like the bar.
-			const layer = Math.floor(rnd() * 3); // which ring, 0..2
-			const theta = rnd() * Math.PI * 2; // where on the ring
-			const a = RING_A + layer * RING_GAP_A;
-			const b = RING_B + layer * RING_GAP_B;
-			const c = Math.cos(theta);
-			const s = Math.sin(theta);
-			const p = 2 / SUPERELLIPSE;
-			let dx = a * Math.sign(c) * Math.abs(c) ** p;
-			let dy = b * Math.sign(s) * Math.abs(s) ** p;
-			dx += (rnd() - 0.5) * 8; // loosen the ring so it reads organic
-			dy += (rnd() - 0.5) * 8;
+			const k = rankOf[idx];
+			// Even area fill of the annulus: r = sqrt(interp of r² over rank).
+			const rNorm = n > 1 ? (k + 0.5) / n : 0.5;
+			const r = Math.sqrt(R_MIN * R_MIN + rNorm * (R_MAX * R_MAX - R_MIN * R_MIN));
+			const theta = k * GOLDEN_ANGLE; // even angular spread
+			let dx = r * Math.cos(theta) * ASPECT;
+			let dy = r * Math.sin(theta);
+			dx += (rnd() - 0.5) * 4; // light organic jitter, keeps evenness
+			dy += (rnd() - 0.5) * 4;
 			dx = Math.max(-CLAMP_X, Math.min(CLAMP_X, dx));
 			dy = Math.max(-CLAMP_Y, Math.min(CLAMP_Y, dy));
 
 			// Fly in from whichever off-screen edge the anchor faces (px offset).
 			const offX = (dx >= 0 ? 1 : -1) * (900 + rnd() * 500);
 			const offY = (dy >= 0 ? 1 : -1) * (500 + rnd() * 400);
-			const enterDelay = (rnd() * 0.35).toFixed(2); // slight organic stagger
+			const enterDelay = (Math.min(k, 12) * 0.05).toFixed(2); // staggered cascade
 			const enterStyle = `--ex:${offX.toFixed(0)}px;--ey:${offY.toFixed(0)}px;--edelay:${enterDelay}s`;
 
 			// Per-card ambient drift (translate ±rem, rotate ±deg, timing).
@@ -129,14 +134,40 @@
 		debounce = setTimeout(() => runSearch(q), 200);
 		return () => clearTimeout(debounce);
 	});
+
+	// Ambient sky: a few soft cloud PNGs drifting very slowly left→right, forever.
+	// Negative delays pre-spread them across the viewport so the sky looks full at
+	// load instead of empty until the first cloud wanders in. Behind everything.
+	// Widths vary and run generally smaller; smaller clouds drift slower (longer dur),
+	// with a wide slow↔fast gap. All durations slow overall.
+	const clouds = [
+		{ src: '/clouds/cloud-1.png', top: 8, w: 20, dur: 300, delay: -20, op: 0.5 },
+		{ src: '/clouds/cloud-2.png', top: 21, w: 13, dur: 420, delay: -95, op: 0.4 },
+		{ src: '/clouds/cloud-3.png', top: 34, w: 26, dur: 240, delay: -70, op: 0.5 },
+		{ src: '/clouds/cloud-1.png', top: 55, w: 11, dur: 470, delay: -150, op: 0.35 },
+		{ src: '/clouds/cloud-2.png', top: 63, w: 23, dur: 270, delay: -120, op: 0.45 },
+		{ src: '/clouds/cloud-3.png', top: 74, w: 16, dur: 370, delay: -50, op: 0.45 }
+	];
 </script>
 
 <main class="forest relative min-h-screen overflow-hidden p-4">
+	<!-- Ambient sky: soft clouds drifting very slowly across, behind everything. -->
+	<div class="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+		{#each clouds as c}
+			<img
+				class="cloud"
+				src={c.src}
+				alt=""
+				style="top: {c.top}vh; width: {c.w}vw; opacity: {c.op}; --dur: {c.dur}s; --delay: {c.delay}s"
+			/>
+		{/each}
+	</div>
+
 	<!-- Searchbar: pinned to the exact center of the viewport, never moves. -->
 	<div class="fixed left-1/2 top-1/2 z-30 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
 		<!-- Static handwriting (recorded pen strokes) sits above the bar. -->
 		<svg
-			class="pointer-events-none mx-auto mb-4 block w-64 max-w-full text-[#262422]"
+			class="pointer-events-none mx-auto mb-1 block w-[28rem] max-w-full text-[#14120f]"
 			viewBox="{handwritingBox.x} {handwritingBox.y} {handwritingBox.width} {handwritingBox.height}"
 			fill="none"
 			stroke="currentColor"
@@ -182,10 +213,6 @@
 				aria-label="Search"
 				class="w-full rounded-lg border border-white/40 bg-white/25 py-3 pl-12 pr-4 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:outline-none focus:ring-1 focus:ring-white/50"
 			/>
-			<!-- Loading hint sits absolutely below the input so it never shifts the bar's center. -->
-			{#if searched && loading}
-				<p class="absolute left-0 right-0 top-full mt-3 text-center text-sm text-gray-700">Searching…</p>
-			{/if}
 		</div>
 	</div>
 
@@ -247,10 +274,14 @@
 		flex: none;
 	}
 
-	/* Scattered anchor point — static; the drift layer moves, not this. */
+	/* Anchor point. When the match set changes, ranks shift and this glides to the
+	   new even slot instead of snapping. */
 	.anchor {
 		position: absolute;
 		transform: translate(-50%, -50%);
+		transition:
+			left 700ms cubic-bezier(0.22, 1, 0.36, 1),
+			top 700ms cubic-bezier(0.22, 1, 0.36, 1);
 	}
 
 	/* Entrance: fly in once from an off-screen offset, then hold at rest. */
@@ -284,10 +315,32 @@
 		}
 	}
 
+	/* Ambient sky clouds: drift very slowly across the whole viewport, forever. */
+	.cloud {
+		position: absolute;
+		left: 0;
+		height: auto;
+		will-change: transform;
+		animation: cloud-drift var(--dur, 180s) linear var(--delay, 0s) infinite;
+	}
+
+	@keyframes cloud-drift {
+		from {
+			transform: translateX(-45vw);
+		}
+		to {
+			transform: translateX(145vw);
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.enter,
-		.drift {
+		.drift,
+		.cloud {
 			animation: none;
+		}
+		.anchor {
+			transition: none;
 		}
 	}
 
