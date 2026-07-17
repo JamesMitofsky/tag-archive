@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { confetti } from '@neoconfetti/svelte';
-	import PaperClipIcon from 'phosphor-svelte/lib/PaperClipIcon';
+	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
@@ -327,7 +327,7 @@
 											rel="noopener"
 											class="inline-flex items-center gap-1 text-gray-600 underline-offset-2 hover:text-gray-900 hover:underline"
 										>
-											<PaperClipIcon size={14} />
+											<PaperclipIcon size={14} />
 											{item.fileName ?? 'File'}
 										</a>
 									{/if}
