@@ -26,7 +26,9 @@
 	// True while the success confetti plays, just before the connected view mounts.
 	let otpCelebrating = $state(false);
 	const otpValue = $derived(otpDigits.join(''));
+	// Particles stay in the air this long; we bail off the page mid-flight (HOLD_MS).
 	const CONFETTI_MS = 2600;
+	const HOLD_MS = 1400;
 
 	function focusOtp(i: number) {
 		otpInputs[i]?.focus();
@@ -172,7 +174,7 @@
 								if (positive) {
 									// Code confirmed: swap the spinner for confetti, let it play, then reveal.
 									otpCelebrating = true;
-									await new Promise((r) => setTimeout(r, CONFETTI_MS));
+									await new Promise((r) => setTimeout(r, HOLD_MS));
 									await update();
 									return;
 								}
