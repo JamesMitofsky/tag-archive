@@ -246,7 +246,7 @@
 					aria-label="Close page"
 					transition:fade={{ duration: 250 }}
 					onclick={() => (selected = null)}
-					class="pointer-events-auto fixed inset-0 z-40 cursor-default bg-black/30"
+					class="pointer-events-auto fixed inset-0 z-40 cursor-default bg-black/25"
 				></button>
 			{/if}
 			{#each floating as p (p.item.id)}
@@ -295,7 +295,7 @@
 
 {#snippet page(item: ArtefactWithEvent)}
 	<div
-		class="flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5"
+		class="page-surface flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5"
 	>
 		<div class="border-b border-gray-200 pb-2">
 			<h2 class="line-clamp-2 text-sm leading-tight font-medium">{item.event}</h2>
@@ -363,6 +363,12 @@
 		height: min(90vh, 90vw * 297 / 210);
 		animation: none;
 		z-index: 50;
+	}
+
+	/* Floating cards are slightly translucent (clouds show through); the open page
+	   is solid so it reads as a real document. */
+	.selected .page-surface {
+		background-color: #fff;
 	}
 
 	/* Anchor point. When the match set changes, ranks shift and this glides to the

@@ -11,7 +11,7 @@ import type { Component } from 'svelte';
 import HammerIcon from 'phosphor-svelte/lib/HammerIcon';
 import BookOpenIcon from 'phosphor-svelte/lib/BookOpenIcon';
 import ShapesIcon from 'phosphor-svelte/lib/ShapesIcon';
-import SpotlightIcon from '$lib/icons/SpotlightIcon.svelte';
+import { Spotlight as SpotlightIcon } from '@lucide/svelte';
 import UsersThreeIcon from 'phosphor-svelte/lib/UsersThreeIcon';
 import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
 import CircleIcon from 'phosphor-svelte/lib/CircleIcon';

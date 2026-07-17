@@ -3,8 +3,11 @@
 	import { TagsInput } from '@skeletonlabs/skeleton-svelte';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
 	import Sky from '$lib/components/Sky.svelte';
+	import DateField from '$lib/components/DateField.svelte';
+	import ComboField from '$lib/components/ComboField.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -25,14 +28,8 @@
 			: []
 	);
 
-	// Location dropdown: preset options plus a "+ Option" escape hatch for a custom value.
+	// Location: preset options, but the combobox also accepts a typed-in custom value.
 	const LOCATION_OPTIONS = ['Binder', 'Bin'];
-	const CUSTOM_LOCATION = '__custom__';
-	let locationChoice = $state('Binder');
-	let customLocation = $state('');
-	const locationValue = $derived(
-		locationChoice === CUSTOM_LOCATION ? customLocation.trim() : locationChoice
-	);
 	const today = new Date().toISOString().slice(0, 10);
 	const artefactError = $derived(form && 'artefactError' in form ? form.artefactError : undefined);
 	// Kit flattens the action-data union, so restore the echoed values' shape.
@@ -40,9 +37,6 @@
 		form && 'values' in form && form.values ? (form.values as ArtefactFormValues) : undefined
 	);
 
-	// Plain input sitting on a white paper card.
-	const paperInput =
-		'w-full rounded-sm border-gray-300 bg-white text-base text-gray-900 placeholder:text-gray-400 focus:border-gray-500 focus:ring-gray-500';
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
 </script>
@@ -86,65 +80,52 @@
 						maxlength="200"
 						value={echoed?.artefact ?? ''}
 						placeholder="Symphonic Steep Program"
-						class="mt-1.5 {paperInput}"
+						class="input mt-1.5"
 					/>
 				</div>
 
 				<div>
-					<label for="event" class="block text-sm font-medium text-gray-700">Event</label>
-					<input
-						id="event"
+					<ComboField
 						name="event"
-						type="text"
-						list="event-options"
-						maxlength="200"
-						value={echoed?.event ?? ''}
+						label="Event"
 						placeholder="Search or add an event"
-						class="mt-1.5 {paperInput}"
+						options={data.events.map((e) => e.name)}
+						value={echoed?.event ?? ''}
 					/>
-					<datalist id="event-options">
-						{#each data.events as e (e.id)}
-							<option value={e.name}></option>
-						{/each}
-					</datalist>
-					<p class="mt-1 text-xs text-gray-500">
-						Pick an existing event or type a new one.
-					</p>
+					<p class="mt-1 text-xs text-gray-500">Pick an existing event or type a new one.</p>
 				</div>
 
 				<div>
-					<label for="date" class="block text-sm font-medium text-gray-700">Date</label>
-					<input
-						id="date"
-						name="date"
-						type="date"
-						value={echoed?.date ?? today}
-						class="mt-1.5 {paperInput}"
-					/>
+					<DateField name="date" label="Date" value={echoed?.date ?? today} />
 				</div>
 
 				<fieldset>
 					<legend class="block text-sm font-medium text-gray-700">Program areas</legend>
-					<div
-						class="mt-1.5 divide-y divide-gray-100 rounded-sm border border-gray-300"
-					>
+					<!-- Unconventional multiselect: each area is a near-square landscape card that
+					     toggles a hidden checkbox. Card carries the area's colour identity; a primary
+					     ring + check badge signals selection. -->
+					<div class="mt-1.5 grid grid-cols-2 gap-3 sm:grid-cols-3">
 						{#each PROGRAM_AREAS as area (area)}
 							{@const meta = PROGRAM_AREA_META[area]}
 							{@const Icon = meta.icon}
+							{@const selected = selectedAreas.includes(area)}
 							<label
-								class="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm text-gray-800 transition select-none hover:bg-gray-50"
+								class="relative flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg p-2 text-center text-white transition select-none {meta.accent} {selected
+									? 'shadow-md ring-2 ring-white/80'
+									: 'opacity-75 hover:opacity-40'}"
 							>
 								<input
 									type="checkbox"
 									name="programArea"
 									value={area}
 									bind:group={selectedAreas}
-									class="h-4 w-4 rounded border-gray-300 text-gray-800 focus:ring-gray-500"
+									class="sr-only"
 								/>
-								<span class="flex flex-1 items-center gap-1.5 rounded-full px-2 py-0.5 {meta.pill}">
-									<Icon size={16} weight="fill" />
-									{area}
-								</span>
+								{#if selected}
+									<CheckCircleIcon size={18} weight="fill" class="absolute top-1.5 right-1.5" />
+								{/if}
+								<Icon size={36} weight="fill" />
+								<span class="text-xs font-medium">{area}</span>
 							</label>
 						{/each}
 					</div>
@@ -191,31 +172,19 @@
 						name="description"
 						rows="3"
 						maxlength="2000"
-						placeholder="What it is, where it came from, anything worth remembering…"
-						class="mt-1.5 {paperInput}">{echoed?.description ?? ''}</textarea
+						placeholder="Neato, what've you got there..."
+						class="textarea mt-1.5">{echoed?.description ?? ''}</textarea
 					>
 				</div>
 
 				<div>
-					<label for="location" class="block text-sm font-medium text-gray-700">Location</label>
-					<select id="location" bind:value={locationChoice} class="mt-1.5 {paperInput}">
-						{#each LOCATION_OPTIONS as option (option)}
-							<option value={option}>{option}</option>
-						{/each}
-						<option value={CUSTOM_LOCATION}>+ Option</option>
-					</select>
-					{#if locationChoice === CUSTOM_LOCATION}
-						<input
-							type="text"
-							bind:value={customLocation}
-							maxlength="200"
-							placeholder="New location"
-							aria-label="Custom location"
-							class="mt-2 {paperInput}"
-						/>
-					{/if}
-					<!-- Resolved value the server reads; a preset name or the typed custom one. -->
-					<input type="hidden" name="location" value={locationValue} />
+					<ComboField
+						name="location"
+						label="Location"
+						placeholder="Search or add a location"
+						options={LOCATION_OPTIONS}
+						value={echoed?.location ?? 'Binder'}
+					/>
 				</div>
 
 				<div class="grid gap-4 sm:grid-cols-2">
@@ -228,7 +197,7 @@
 							maxlength="200"
 							value={echoed?.fileName ?? ''}
 							placeholder="TAG-001.jpg"
-							class="mt-1.5 {paperInput}"
+							class="input mt-1.5"
 						/>
 					</div>
 					<div>
@@ -239,7 +208,7 @@
 							type="url"
 							value={echoed?.fileUrl ?? ''}
 							placeholder="/artefacts/TAG-001.jpg"
-							class="mt-1.5 {paperInput}"
+							class="input mt-1.5"
 						/>
 					</div>
 				</div>
