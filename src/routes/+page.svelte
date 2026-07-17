@@ -1,12 +1,13 @@
 <script lang="ts">
-	import type { Artefact } from '$lib/server/db/schema';
+	import type { ArtefactWithEvent } from '$lib/server/db/schema';
 	import { fly } from 'svelte/transition';
 	import { cubicIn } from 'svelte/easing';
 	import { programAreaMeta } from '$lib/programAreas';
 	import { strokePaths, handwritingBox } from '$lib/handwriting';
+	import Sky from '$lib/components/Sky.svelte';
 
 	let query = $state('');
-	let results = $state<Artefact[]>([]);
+	let results = $state<ArtefactWithEvent[]>([]);
 	let loading = $state(false);
 	let searched = $state(false);
 
@@ -73,7 +74,7 @@
 	const CLAMP_Y = 44;
 
 	type Placed = {
-		item: Artefact;
+		item: ArtefactWithEvent;
 		dx: number;
 		dy: number;
 		offX: number;
@@ -87,7 +88,7 @@
 	// When matches change, survivors glide to their new even slot (CSS transition on
 	// .anchor) rather than snapping — even spacing without jarring jumps.
 	const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-	function placeAll(items: Artefact[]): Placed[] {
+	function placeAll(items: ArtefactWithEvent[]): Placed[] {
 		const n = items.length;
 		// Stable ranks: order indices by artefact id.
 		const rankOf: number[] = [];
@@ -134,37 +135,14 @@
 		debounce = setTimeout(() => runSearch(q), 200);
 		return () => clearTimeout(debounce);
 	});
-
-	// Ambient sky: a few soft cloud PNGs drifting very slowly left→right, forever.
-	// Negative delays pre-spread them across the viewport so the sky looks full at
-	// load instead of empty until the first cloud wanders in. Behind everything.
-	// Widths vary and run generally smaller; smaller clouds drift slower (longer dur),
-	// with a wide slow↔fast gap. All durations slow overall.
-	const clouds = [
-		{ src: '/clouds/cloud-1.png', top: 8, w: 20, dur: 300, delay: -20, op: 0.5 },
-		{ src: '/clouds/cloud-2.png', top: 21, w: 13, dur: 420, delay: -95, op: 0.4 },
-		{ src: '/clouds/cloud-3.png', top: 34, w: 26, dur: 240, delay: -70, op: 0.5 },
-		{ src: '/clouds/cloud-1.png', top: 55, w: 11, dur: 470, delay: -150, op: 0.35 },
-		{ src: '/clouds/cloud-2.png', top: 63, w: 23, dur: 270, delay: -120, op: 0.45 },
-		{ src: '/clouds/cloud-3.png', top: 74, w: 16, dur: 370, delay: -50, op: 0.45 }
-	];
 </script>
 
-<main class="forest relative min-h-screen overflow-hidden p-4">
-	<!-- Ambient sky: soft clouds drifting very slowly across, behind everything. -->
-	<div class="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
-		{#each clouds as c}
-			<img
-				class="cloud"
-				src={c.src}
-				alt=""
-				style="top: {c.top}vh; width: {c.w}vw; opacity: {c.op}; --dur: {c.dur}s; --delay: {c.delay}s"
-			/>
-		{/each}
-	</div>
+<main class="relative min-h-screen overflow-hidden p-4">
+	<!-- Ambient sky: watercolor paper + drifting clouds, shared component. -->
+	<Sky />
 
 	<!-- Searchbar: pinned to the exact center of the viewport, never moves. -->
-	<div class="fixed left-1/2 top-1/2 z-30 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
+	<div class="fixed top-1/2 left-1/2 z-30 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
 		<!-- Static handwriting (recorded pen strokes) sits above the bar. -->
 		<svg
 			class="pointer-events-none mx-auto mb-1 block w-[28rem] max-w-full text-[#14120f]"
@@ -181,11 +159,28 @@
 			<defs>
 				<filter id="graphite" x="-20%" y="-20%" width="140%" height="140%">
 					<!-- low-freq wobble = hand-drawn rough edge -->
-					<feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="2" seed="7" result="edge" />
+					<feTurbulence
+						type="fractalNoise"
+						baseFrequency="0.08"
+						numOctaves="2"
+						seed="7"
+						result="edge"
+					/>
 					<feDisplacementMap in="SourceGraphic" in2="edge" scale="2.5" result="rough" />
 					<!-- high-freq noise -> alpha mask = broken graphite coverage (paper tooth) -->
-					<feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="grain" />
-					<feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.4 1.15" result="grainMask" />
+					<feTurbulence
+						type="fractalNoise"
+						baseFrequency="0.9"
+						numOctaves="2"
+						seed="3"
+						result="grain"
+					/>
+					<feColorMatrix
+						in="grain"
+						type="matrix"
+						values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.4 1.15"
+						result="grainMask"
+					/>
 					<feComposite in="rough" in2="grainMask" operator="in" />
 				</filter>
 			</defs>
@@ -197,7 +192,7 @@
 		</svg>
 		<div class="relative">
 			<svg
-				class="pointer-events-none absolute left-4 top-1/2 z-10 size-5 -translate-y-1/2 text-gray-700"
+				class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 text-gray-700"
 				xmlns="http://www.w3.org/2000/svg"
 				fill="none"
 				viewBox="0 0 24 24"
@@ -205,13 +200,17 @@
 				stroke="currentColor"
 				aria-hidden="true"
 			>
-				<path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3m1.8-4.7a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					d="m21 21-4.3-4.3m1.8-4.7a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
+				/>
 			</svg>
 			<input
 				type="search"
 				bind:value={query}
 				aria-label="Search"
-				class="w-full rounded-lg border border-white/40 bg-white/25 py-3 pl-12 pr-4 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:outline-none focus:ring-1 focus:ring-white/50"
+				class="w-full rounded-lg border border-white/40 bg-white/25 py-3 pr-4 pl-12 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:ring-1 focus:ring-white/50 focus:outline-none"
 			/>
 		</div>
 	</div>
@@ -221,10 +220,7 @@
 		<div class="pointer-events-none fixed inset-0 z-10 overflow-hidden">
 			{#each floating as p (p.item.id)}
 				<!-- anchor: static scattered position, centered on its point -->
-				<div
-					class="anchor"
-					style="left: calc(50% + {p.dx}vmin); top: calc(50% + {p.dy}vmin)"
-				>
+				<div class="anchor" style="left: calc(50% + {p.dx}vmin); top: calc(50% + {p.dy}vmin)">
 					<!-- exit: |global so cards fly out even when the whole block unmounts
 					     (e.g. the search is cleared), not just on per-item removal -->
 					<div out:fly|global={{ x: p.offX, y: p.offY, duration: 450, easing: cubicIn }}>
@@ -242,10 +238,12 @@
 	{/if}
 </main>
 
-{#snippet page(item: Artefact)}
-	<div class="flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5">
+{#snippet page(item: ArtefactWithEvent)}
+	<div
+		class="flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5"
+	>
 		<div class="border-b border-gray-200 pb-2">
-			<h2 class="line-clamp-2 text-sm font-medium leading-tight">{item.event}</h2>
+			<h2 class="line-clamp-2 text-sm leading-tight font-medium">{item.event}</h2>
 			{#if item.date}
 				<p class="mt-1 text-[0.65rem] text-gray-500">{formatDate(item.date)}</p>
 			{/if}
@@ -256,10 +254,14 @@
 		{#if item.provenance.length || item.programArea.length}
 			<div class="mt-auto flex flex-wrap gap-1 pt-3">
 				{#each item.programArea as tag}
-					<span class="rounded-full px-1.5 py-0.5 text-[0.65rem] {programAreaMeta(tag).pill}">{tag}</span>
+					<span class="rounded-full px-1.5 py-0.5 text-[0.65rem] {programAreaMeta(tag).pill}"
+						>{tag}</span
+					>
 				{/each}
 				{#each item.provenance as person}
-					<span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[0.65rem] text-gray-600">{person}</span>
+					<span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[0.65rem] text-gray-600"
+						>{person}</span
+					>
 				{/each}
 			</div>
 		{/if}
@@ -315,43 +317,13 @@
 		}
 	}
 
-	/* Ambient sky clouds: drift very slowly across the whole viewport, forever. */
-	.cloud {
-		position: absolute;
-		left: 0;
-		height: auto;
-		will-change: transform;
-		animation: cloud-drift var(--dur, 180s) linear var(--delay, 0s) infinite;
-	}
-
-	@keyframes cloud-drift {
-		from {
-			transform: translateX(-45vw);
-		}
-		to {
-			transform: translateX(145vw);
-		}
-	}
-
 	@media (prefers-reduced-motion: reduce) {
 		.enter,
-		.drift,
-		.cloud {
+		.drift {
 			animation: none;
 		}
 		.anchor {
 			transition: none;
 		}
-	}
-
-	.forest {
-		background-color: #8ecbe6;
-		background-image:
-			/* cloud mottle — soft uneven pigment/fiber density (light + dark blotches) */
-			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='700' height='700'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.7' intercept='-0.2'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='700' height='700' filter='url(%23c)' opacity='0.22'/%3E%3C/svg%3E"),
-			/* tooth — cold-press speckle grain (white) */
-			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='t'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.16' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23t)' opacity='0.1'/%3E%3C/svg%3E"),
-			/* fine fiber grain (white) */
-			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23f)' opacity='0.08'/%3E%3C/svg%3E");
 	}
 </style>
