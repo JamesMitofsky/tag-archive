@@ -8,6 +8,7 @@ description: Guide for controlling caching on Netlify's CDN. Use when configurin
 ## Default Behavior
 
 **Static assets** are cached automatically:
+
 - CDN: cached for 1 year, invalidated on every deploy
 - Browser: always revalidates (`max-age=0, must-revalidate`)
 - No configuration needed
@@ -20,35 +21,35 @@ description: Guide for controlling caching on Netlify's CDN. Use when configurin
 
 Three headers control caching, from most to least specific:
 
-| Header | Who sees it | Use case |
-|---|---|---|
+| Header                      | Who sees it                                | Use case         |
+| --------------------------- | ------------------------------------------ | ---------------- |
 | `Netlify-CDN-Cache-Control` | Netlify CDN only (stripped before browser) | CDN-only caching |
-| `CDN-Cache-Control` | All CDN caches (stripped before browser) | Multi-CDN setups |
-| `Cache-Control` | Browser and all caches | General caching |
+| `CDN-Cache-Control`         | All CDN caches (stripped before browser)   | Multi-CDN setups |
+| `Cache-Control`             | Browser and all caches                     | General caching  |
 
 ### Common Patterns
 
 ```typescript
 // Cache at CDN for 1 hour, browser always revalidates
 return new Response(body, {
-  headers: {
-    "Netlify-CDN-Cache-Control": "public, s-maxage=3600, must-revalidate",
-    "Cache-Control": "public, max-age=0, must-revalidate",
-  },
+	headers: {
+		'Netlify-CDN-Cache-Control': 'public, s-maxage=3600, must-revalidate',
+		'Cache-Control': 'public, max-age=0, must-revalidate'
+	}
 });
 
 // Stale-while-revalidate (serve stale for 2 min while refreshing)
 return new Response(body, {
-  headers: {
-    "Netlify-CDN-Cache-Control": "public, max-age=60, stale-while-revalidate=120",
-  },
+	headers: {
+		'Netlify-CDN-Cache-Control': 'public, max-age=60, stale-while-revalidate=120'
+	}
 });
 
 // Durable cache (shared across edge nodes, serverless functions only)
 return new Response(body, {
-  headers: {
-    "Netlify-CDN-Cache-Control": "public, durable, max-age=60, stale-while-revalidate=120",
-  },
+	headers: {
+		'Netlify-CDN-Cache-Control': 'public, durable, max-age=60, stale-while-revalidate=120'
+	}
 });
 ```
 
@@ -70,21 +71,21 @@ Tag responses for selective cache invalidation:
 
 ```typescript
 return new Response(body, {
-  headers: {
-    "Netlify-Cache-Tag": "product,listing",
-    "Netlify-CDN-Cache-Control": "public, s-maxage=86400",
-  },
+	headers: {
+		'Netlify-Cache-Tag': 'product,listing',
+		'Netlify-CDN-Cache-Control': 'public, s-maxage=86400'
+	}
 });
 ```
 
 Purge by tag:
 
 ```typescript
-import { purgeCache } from "@netlify/functions";
+import { purgeCache } from '@netlify/functions';
 
 export default async () => {
-  await purgeCache({ tags: ["product"] });
-  return new Response("Purged", { status: 202 });
+	await purgeCache({ tags: ['product'] });
+	return new Response('Purged', { status: 202 });
 };
 ```
 
@@ -98,9 +99,9 @@ await purgeCache();
 
 ```typescript
 await purgeCache({
-  token: process.env.NETLIFY_PURGE_TOKEN, // a Netlify personal access token, from env
-  siteID: process.env.NETLIFY_SITE_ID,
-  tags: ["product"],
+	token: process.env.NETLIFY_PURGE_TOKEN, // a Netlify personal access token, from env
+	siteID: process.env.NETLIFY_SITE_ID,
+	tags: ['product']
 });
 ```
 
@@ -108,22 +109,22 @@ await purgeCache({
 
 ### Surviving deploys with `Netlify-Cache-ID`
 
-To keep a cached response *across* deploys, set a `Netlify-Cache-ID` header. A response carrying it is **excluded from automatic deploy-based invalidation** — it persists across deploys and clears only on explicit purge. The `Netlify-Cache-ID` value also auto-registers as a purge tag, so you purge it by that same id:
+To keep a cached response _across_ deploys, set a `Netlify-Cache-ID` header. A response carrying it is **excluded from automatic deploy-based invalidation** — it persists across deploys and clears only on explicit purge. The `Netlify-Cache-ID` value also auto-registers as a purge tag, so you purge it by that same id:
 
 ```typescript
 return new Response(body, {
-  headers: {
-    "Netlify-Cache-ID": "catalog",
-    "Netlify-CDN-Cache-Control": "public, s-maxage=86400",
-  },
+	headers: {
+		'Netlify-Cache-ID': 'catalog',
+		'Netlify-CDN-Cache-Control': 'public, s-maxage=86400'
+	}
 });
 ```
 
 ```typescript
-import { purgeCache } from "@netlify/functions";
+import { purgeCache } from '@netlify/functions';
 
 // Purge by the same id — it doubles as a purge tag.
-await purgeCache({ tags: ["catalog"] });
+await purgeCache({ tags: ['catalog'] });
 ```
 
 ## Cache Key Variation
@@ -132,9 +133,9 @@ await purgeCache({ tags: ["catalog"] });
 
 ```typescript
 return new Response(body, {
-  headers: {
-    "Netlify-Vary": "cookie=ab_test|is_logged_in",
-  },
+	headers: {
+		'Netlify-Vary': 'cookie=ab_test|is_logged_in'
+	}
 });
 ```
 
@@ -149,15 +150,19 @@ Combine dimensions by separating directives with commas — e.g. `Netlify-Vary: 
 ## Framework-Specific Caching
 
 ### Next.js
+
 ISR uses Netlify's durable cache automatically (runtime 5.5.0+). `revalidatePath` and `revalidateTag` trigger cache purge.
 
 ### Astro / Remix
+
 Full control over cache headers in server routes. Set `Netlify-CDN-Cache-Control` in responses for CDN caching.
 
 ### Nuxt
+
 Default Nitro preset handles caching. ISR-style patterns use `routeRules` with `swr` or `isr` options.
 
 ### Vite SPA
+
 Static assets are cached by default. API responses from Netlify Functions need explicit cache headers.
 
 **The full query string is part of the cache key by default.** With no `Netlify-Vary: query=` directive, every distinct query string is cached as a separate entry — so appending tracking or marketing params (`?utm_source=…`, `fbclid`, and the like) silently fragments the cache into many near-duplicate entries and lowers the hit rate, even when those params don't change the response. Add `Netlify-Vary: query=<names>` listing only the parameters that actually affect the output; the CDN then keys on just those and ignores all other query params, collapsing the variants onto one cache entry.

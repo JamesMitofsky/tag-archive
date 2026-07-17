@@ -23,10 +23,10 @@ Recommended `package.json` scripts:
 
 ```json
 {
-  "scripts": {
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "netlify database migrations apply"
-  }
+	"scripts": {
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "netlify database migrations apply"
+	}
 }
 ```
 

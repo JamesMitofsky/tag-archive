@@ -19,66 +19,67 @@ npm install @netlify/blobs
 
 ```typescript
 // netlify/functions/upload.ts
-import type { Context, Config } from "@netlify/functions";
-import { getStore } from "@netlify/blobs";
-import { randomUUID } from "crypto";
+import type { Context, Config } from '@netlify/functions';
+import { getStore } from '@netlify/blobs';
+import { randomUUID } from 'crypto';
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_SIZE = 4 * 1024 * 1024; // 4 MB
 
 export default async (req: Request, context: Context) => {
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
-  }
+	if (req.method !== 'POST') {
+		return new Response('Method not allowed', { status: 405 });
+	}
 
-  const formData = await req.formData();
-  const image = formData.get("image") as File;
+	const formData = await req.formData();
+	const image = formData.get('image') as File;
 
-  if (!image) return Response.json({ error: "No image provided" }, { status: 400 });
-  if (!ALLOWED_TYPES.includes(image.type)) return Response.json({ error: "Invalid type" }, { status: 400 });
-  if (image.size > MAX_SIZE) return Response.json({ error: "File too large" }, { status: 400 });
+	if (!image) return Response.json({ error: 'No image provided' }, { status: 400 });
+	if (!ALLOWED_TYPES.includes(image.type))
+		return Response.json({ error: 'Invalid type' }, { status: 400 });
+	if (image.size > MAX_SIZE) return Response.json({ error: 'File too large' }, { status: 400 });
 
-  const extension = image.name.split(".").pop() || "jpg";
-  const key = `${randomUUID()}.${extension}`;
-  const store = getStore({ name: "images", consistency: "strong" });
+	const extension = image.name.split('.').pop() || 'jpg';
+	const key = `${randomUUID()}.${extension}`;
+	const store = getStore({ name: 'images', consistency: 'strong' });
 
-  await store.set(key, image, {
-    metadata: {
-      contentType: image.type,
-      originalFilename: image.name,
-      uploadedAt: new Date().toISOString(),
-    },
-  });
+	await store.set(key, image, {
+		metadata: {
+			contentType: image.type,
+			originalFilename: image.name,
+			uploadedAt: new Date().toISOString()
+		}
+	});
 
-  return Response.json({ success: true, key, url: `/img/${key}` });
+	return Response.json({ success: true, key, url: `/img/${key}` });
 };
 
-export const config: Config = { path: "/api/upload", method: "POST" };
+export const config: Config = { path: '/api/upload', method: 'POST' };
 ```
 
 ## Serve Handler
 
 ```typescript
 // netlify/functions/serve-image.ts
-import type { Context, Config } from "@netlify/functions";
-import { getStore } from "@netlify/blobs";
+import type { Context, Config } from '@netlify/functions';
+import { getStore } from '@netlify/blobs';
 
 export default async (req: Request, context: Context) => {
-  const key = context.params.key;
-  const store = getStore({ name: "images", consistency: "strong" });
+	const key = context.params.key;
+	const store = getStore({ name: 'images', consistency: 'strong' });
 
-  const result = await store.getWithMetadata(key, { type: "stream" });
-  if (!result) return new Response("Not found", { status: 404 });
+	const result = await store.getWithMetadata(key, { type: 'stream' });
+	if (!result) return new Response('Not found', { status: 404 });
 
-  return new Response(result.data, {
-    headers: {
-      "Content-Type": result.metadata?.contentType || "image/jpeg",
-      "Cache-Control": "public, max-age=31536000, immutable",
-    },
-  });
+	return new Response(result.data, {
+		headers: {
+			'Content-Type': result.metadata?.contentType || 'image/jpeg',
+			'Cache-Control': 'public, max-age=31536000, immutable'
+		}
+	});
 };
 
-export const config: Config = { path: "/uploads/:key" };
+export const config: Config = { path: '/uploads/:key' };
 ```
 
 ## CDN Redirect
@@ -109,19 +110,19 @@ status = 200
 
 ```tsx
 function ImageUpload({ onUpload }: { onUpload: (url: string) => void }) {
-  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+	const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
 
-    const formData = new FormData();
-    formData.append("image", file);
+		const formData = new FormData();
+		formData.append('image', file);
 
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const { url } = await res.json();
-    onUpload(url);
-  };
+		const res = await fetch('/api/upload', { method: 'POST', body: formData });
+		const { url } = await res.json();
+		onUpload(url);
+	};
 
-  return <input type="file" accept="image/*" onChange={handleChange} />;
+	return <input type="file" accept="image/*" onChange={handleChange} />;
 }
 ```
 
@@ -129,22 +130,22 @@ function ImageUpload({ onUpload }: { onUpload: (url: string) => void }) {
 
 ```typescript
 // src/pages/api/upload.ts
-import type { APIRoute } from "astro";
-import { getStore } from "@netlify/blobs";
-import { randomUUID } from "crypto";
+import type { APIRoute } from 'astro';
+import { getStore } from '@netlify/blobs';
+import { randomUUID } from 'crypto';
 
 export const POST: APIRoute = async ({ request, redirect }) => {
-  const formData = await request.formData();
-  const image = formData.get("image") as File;
-  if (!image) return new Response("No image", { status: 400 });
+	const formData = await request.formData();
+	const image = formData.get('image') as File;
+	if (!image) return new Response('No image', { status: 400 });
 
-  const key = `${randomUUID()}.${image.name.split(".").pop() || "jpg"}`;
-  const store = getStore({ name: "images", consistency: "strong" });
-  await store.set(key, image, {
-    metadata: { contentType: image.type, originalFilename: image.name },
-  });
+	const key = `${randomUUID()}.${image.name.split('.').pop() || 'jpg'}`;
+	const store = getStore({ name: 'images', consistency: 'strong' });
+	await store.set(key, image, {
+		metadata: { contentType: image.type, originalFilename: image.name }
+	});
 
-  return redirect(`/gallery?uploaded=${key}`);
+	return redirect(`/gallery?uploaded=${key}`);
 };
 ```
 

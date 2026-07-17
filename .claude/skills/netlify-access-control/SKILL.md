@@ -9,22 +9,22 @@ description: Use when the task involves controlling who can reach a Netlify site
 
 ## The three layers
 
-| Layer | Answers | Who it's for | Plan | How it's configured |
-|---|---|---|---|---|
-| **Netlify Identity** | "Who is this user *inside my app*?" (signups, logins, roles; issues `nf_jwt`) | Your app's end users | All plans, free | Dashboard + `@netlify/identity` code |
-| **Password Protection** (Secure access to *sites*) | "Can this request even *load the site*?" | Basic: anyone with a shared password · Team login: Netlify team members | Basic: Pro+ · Team login: Enterprise | Dashboard-only |
-| **Team / Org SAML SSO** (Secure access to *Netlify*) | "Can you log in to the *Netlify dashboard*?" (and, with strict mode, pass the site gate) | Netlify team members, via a corporate SAML IdP | Enterprise | Dashboard-only |
+| Layer                                                | Answers                                                                                  | Who it's for                                                            | Plan                                 | How it's configured                  |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------ | ------------------------------------ |
+| **Netlify Identity**                                 | "Who is this user _inside my app_?" (signups, logins, roles; issues `nf_jwt`)            | Your app's end users                                                    | All plans, free                      | Dashboard + `@netlify/identity` code |
+| **Password Protection** (Secure access to _sites_)   | "Can this request even _load the site_?"                                                 | Basic: anyone with a shared password · Team login: Netlify team members | Basic: Pro+ · Team login: Enterprise | Dashboard-only                       |
+| **Team / Org SAML SSO** (Secure access to _Netlify_) | "Can you log in to the _Netlify dashboard_?" (and, with strict mode, pass the site gate) | Netlify team members, via a corporate SAML IdP                          | Enterprise                           | Dashboard-only                       |
 
 These are independent. The `nf_jwt` cookie is issued by app-level JWT auth: Netlify Identity, or a configured external JWT provider such as Auth0/Okta (the two are mutually exclusive); Password Protection and SAML SSO sessions are separate, with their own lifecycles, and do not populate `nf_jwt`.
 
-> **Note on terminology:** Netlify's docs file Identity, Password Protection, role-based access, and more under an umbrella called "Secure access to your sites," while SAML SSO lives under "Secure access to Netlify." So "Secure Access" is not one feature — when a user says it, find out whether they mean *gating site visitors* (Password Protection) or *gating dashboard login* (SAML SSO).
+> **Note on terminology:** Netlify's docs file Identity, Password Protection, role-based access, and more under an umbrella called "Secure access to your sites," while SAML SSO lives under "Secure access to Netlify." So "Secure Access" is not one feature — when a user says it, find out whether they mean _gating site visitors_ (Password Protection) or _gating dashboard login_ (SAML SSO).
 
 ## Why Google causes confusion
 
 The same provider can show up in two unrelated places:
 
 - **Google as a Netlify Identity OAuth provider** — your app's end users click "Log in with Google." Any Google account works, it creates an Identity user, and it issues an `nf_jwt`. This is app-level auth.
-- **Google Workspace as a SAML IdP for Team/Org SSO** — your *Netlify team members* log in to the dashboard (and, with strict mode + team-login, pass the site gate) using their corporate Google account. It does **not** create an Identity user and does **not** issue an `nf_jwt`.
+- **Google Workspace as a SAML IdP for Team/Org SSO** — your _Netlify team members_ log in to the dashboard (and, with strict mode + team-login, pass the site gate) using their corporate Google account. It does **not** create an Identity user and does **not** issue an `nf_jwt`.
 
 Both are "sign in with Google," but they target different populations and produce different sessions. Don't assume one implies the other.
 
@@ -58,7 +58,7 @@ Password Protection, Team/Org SAML SSO, and the Auth0 extension are all configur
 - **Do not** `curl https://api.netlify.com/...`, read tokens off disk, or probe for an undocumented endpoint to inspect or change access settings.
 - If a documented path fails, report it to the user with context (what you tried, the URL, the error) and stop — don't work around it.
 
-For the one piece an agent *can* read at runtime (which Identity providers are live), call `getSettings()` from `@netlify/identity` rather than hard-coding assumptions. It hits `/.netlify/identity/settings` and works against any origin serving the page, including localhost under `netlify dev` (which proxies to the live service). See the netlify-identity skill.
+For the one piece an agent _can_ read at runtime (which Identity providers are live), call `getSettings()` from `@netlify/identity` rather than hard-coding assumptions. It hits `/.netlify/identity/settings` and works against any origin serving the page, including localhost under `netlify dev` (which proxies to the live service). See the netlify-identity skill.
 
 ## References
 

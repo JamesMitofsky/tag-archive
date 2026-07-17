@@ -80,12 +80,12 @@ The one documented exception is a **one-time data import** during a provider swi
 
 The older **Netlify DB** extension (Beta) is **deprecated**. It is a separate product and must not be confused with Netlify Database. Do not recommend or install it for new projects.
 
-| | Netlify Database (GA, recommended) | Netlify DB extension (deprecated Beta) |
-|---|---|---|
-| Package | `@netlify/database` | `@netlify/neon` |
-| Env var | `NETLIFY_DB_URL` | `NETLIFY_DATABASE_URL` |
-| Setup | `netlify database init` or install the package — auto-provisioned at deploy | Historically `netlify db init` on older CLI versions, with a claim into the user's Neon account; that flow is no longer reachable from the current CLI |
-| Status | GA | Deprecated; new creation blocked as of April 2026 |
+|         | Netlify Database (GA, recommended)                                          | Netlify DB extension (deprecated Beta)                                                                                                                 |
+| ------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Package | `@netlify/database`                                                         | `@netlify/neon`                                                                                                                                        |
+| Env var | `NETLIFY_DB_URL`                                                            | `NETLIFY_DATABASE_URL`                                                                                                                                 |
+| Setup   | `netlify database init` or install the package — auto-provisioned at deploy | Historically `netlify db init` on older CLI versions, with a claim into the user's Neon account; that flow is no longer reachable from the current CLI |
+| Status  | GA                                                                          | Deprecated; new creation blocked as of April 2026                                                                                                      |
 
 If an existing project is already using the `@netlify/neon` extension, keep it working and encourage the user to switch. See `references/legacy-extension.md` for recognition and coexistence, and `references/migration-from-extension.md` for the full switching process (also covers switching from other external Postgres providers).
 
@@ -148,15 +148,15 @@ Create `db/schema.ts`. Define all tables here using Drizzle's schema builder.
 
 ```typescript
 // db/schema.ts
-import { boolean, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, pgTable, serial, text, timestamp, varchar } from 'drizzle-orm/pg-core';
 
-export const items = pgTable("items", {
-  id: serial().primaryKey(),
-  title: varchar({ length: 255 }).notNull(),
-  description: text(),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const items = pgTable('items', {
+	id: serial().primaryKey(),
+	title: varchar({ length: 255 }).notNull(),
+	description: text(),
+	isActive: boolean('is_active').notNull().default(true),
+	createdAt: timestamp('created_at').defaultNow(),
+	updatedAt: timestamp('updated_at').defaultNow()
 });
 
 export type Item = typeof items.$inferSelect;
@@ -171,8 +171,8 @@ Create `db/index.ts`. The adapter on `drizzle-orm/netlify-db` picks the right dr
 
 ```typescript
 // db/index.ts
-import { drizzle } from "drizzle-orm/netlify-db";
-import * as schema from "./schema";
+import { drizzle } from 'drizzle-orm/netlify-db';
+import * as schema from './schema';
 
 export const db = drizzle({ schema });
 ```
@@ -185,12 +185,12 @@ Create `drizzle.config.ts` at the project root. Set `out` to `netlify/database/m
 
 ```typescript
 // drizzle.config.ts
-import { defineConfig } from "drizzle-kit";
+import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
-  dialect: "postgresql",
-  schema: "./db/schema.ts",
-  out: "netlify/database/migrations",
+	dialect: 'postgresql',
+	schema: './db/schema.ts',
+	out: 'netlify/database/migrations'
 });
 ```
 
@@ -200,10 +200,10 @@ No `migrations` block is needed: `drizzle-kit generate` (the `@beta` line this s
 
 ```json
 {
-  "scripts": {
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "netlify database migrations apply"
-  }
+	"scripts": {
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "netlify database migrations apply"
+	}
 }
 ```
 
@@ -221,9 +221,9 @@ No `migrations` block is needed: `drizzle-kit generate` (the `@beta` line this s
 ### Query patterns
 
 ```typescript
-import { db } from "./db";
-import { items } from "./db/schema";
-import { eq, desc } from "drizzle-orm";
+import { db } from './db';
+import { items } from './db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 // Select all
 const all = await db.select().from(items);
@@ -235,10 +235,14 @@ const [one] = await db.select().from(items).where(eq(items.id, id)).limit(1);
 const recent = await db.select().from(items).orderBy(desc(items.createdAt)).limit(10);
 
 // Insert
-const [created] = await db.insert(items).values({ title: "New" }).returning();
+const [created] = await db.insert(items).values({ title: 'New' }).returning();
 
 // Update
-const [updated] = await db.update(items).set({ title: "Updated" }).where(eq(items.id, id)).returning();
+const [updated] = await db
+	.update(items)
+	.set({ title: 'Updated' })
+	.where(eq(items.id, id))
+	.returning();
 
 // Delete
 await db.delete(items).where(eq(items.id, id));
@@ -255,7 +259,7 @@ npm install @netlify/database
 ```
 
 ```typescript
-import { getDatabase } from "@netlify/database";
+import { getDatabase } from '@netlify/database';
 
 const db = getDatabase();
 
@@ -271,8 +275,8 @@ const [user] = await db.sql`
 
 // Bulk insert
 const rows = db.sql.values([
-  ["Ada", "ada@example.com"],
-  ["Bob", "bob@example.com"],
+	['Ada', 'ada@example.com'],
+	['Bob', 'bob@example.com']
 ]);
 await db.sql`INSERT INTO users (name, email) VALUES ${rows}`;
 ```
@@ -280,20 +284,20 @@ await db.sql`INSERT INTO users (name, email) VALUES ${rows}`;
 Transactions go through `db.pool` so `BEGIN`, the queries, and `COMMIT`/`ROLLBACK` all run on the same connection:
 
 ```typescript
-import { getDatabase } from "@netlify/database";
+import { getDatabase } from '@netlify/database';
 
 const db = getDatabase();
 const client = await db.pool.connect();
 try {
-  await client.query("BEGIN");
-  await client.query("INSERT INTO users (name, email) VALUES ($1, $2)", [name, email]);
-  await client.query("INSERT INTO posts (author_id, title) VALUES ($1, $2)", [id, title]);
-  await client.query("COMMIT");
+	await client.query('BEGIN');
+	await client.query('INSERT INTO users (name, email) VALUES ($1, $2)', [name, email]);
+	await client.query('INSERT INTO posts (author_id, title) VALUES ($1, $2)', [id, title]);
+	await client.query('COMMIT');
 } catch (e) {
-  await client.query("ROLLBACK");
-  throw e;
+	await client.query('ROLLBACK');
+	throw e;
 } finally {
-  client.release();
+	client.release();
 }
 ```
 
@@ -330,7 +334,7 @@ Each deploy preview runs against its own database branch forked from production 
 
 ## Changing existing data — production or preview?
 
-A request to change existing data — "rename this category", "update that record", "fix the broken row for user X" — is **ambiguous about where it should land**: production, or only the current preview branch. Resolve that fork *before* changing anything: if the prompt didn't say, ask whether it's production-bound or a preview-only edit — a terse "update that record" tells you *what*, not *where*. When acting on someone's behalf, default to **not** touching production unless they explicitly asked.
+A request to change existing data — "rename this category", "update that record", "fix the broken row for user X" — is **ambiguous about where it should land**: production, or only the current preview branch. Resolve that fork _before_ changing anything: if the prompt didn't say, ask whether it's production-bound or a preview-only edit — a terse "update that record" tells you _what_, not _where_. When acting on someone's behalf, default to **not** touching production unless they explicitly asked.
 
 Once it's production-bound, express it as a **DML migration**, never a direct write:
 

@@ -15,12 +15,12 @@ claude mcp add --transport http my-mcp https://<site>.netlify.app/mcp \
 
 ```json
 {
-  "mcpServers": {
-    "my-mcp": {
-      "url": "https://<site>.netlify.app/mcp",
-      "headers": { "Authorization": "Bearer <token>" }
-    }
-  }
+	"mcpServers": {
+		"my-mcp": {
+			"url": "https://<site>.netlify.app/mcp",
+			"headers": { "Authorization": "Bearer <token>" }
+		}
+	}
 }
 ```
 
@@ -32,16 +32,18 @@ For clients that only speak stdio, or can't set headers natively, `mcp-remote` b
 
 ```json
 {
-  "mcpServers": {
-    "my-mcp": {
-      "command": "npx",
-      "args": [
-        "-y", "mcp-remote",
-        "https://<site>.netlify.app/mcp",
-        "--header", "Authorization: Bearer <token>"
-      ]
-    }
-  }
+	"mcpServers": {
+		"my-mcp": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"mcp-remote",
+				"https://<site>.netlify.app/mcp",
+				"--header",
+				"Authorization: Bearer <token>"
+			]
+		}
+	}
 }
 ```
 

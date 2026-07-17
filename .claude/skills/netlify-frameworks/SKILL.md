@@ -15,14 +15,14 @@ During build, the framework adapter writes files to `.netlify/v1/` — functions
 
 Check these files to determine the framework:
 
-| File | Framework |
-|---|---|
-| `astro.config.*` | Astro |
-| `next.config.*` | Next.js |
-| `nuxt.config.*` | Nuxt |
-| `vite.config.*` + `react-router` | Vite + React (SPA or Remix) |
-| `vite.config.*` + `@tanstack/react-start` | TanStack Start |
-| `svelte.config.*` | SvelteKit |
+| File                                      | Framework                   |
+| ----------------------------------------- | --------------------------- |
+| `astro.config.*`                          | Astro                       |
+| `next.config.*`                           | Next.js                     |
+| `nuxt.config.*`                           | Nuxt                        |
+| `vite.config.*` + `react-router`          | Vite + React (SPA or Remix) |
+| `vite.config.*` + `@tanstack/react-start` | TanStack Start              |
+| `svelte.config.*`                         | SvelteKit                   |
 
 ## Framework Reference Guides
 
@@ -46,6 +46,7 @@ netlify dev
 ```
 
 Wraps the framework's own dev server and adds:
+
 - Environment variable injection
 - Functions and Edge Functions
 - Redirects and headers processing
@@ -96,12 +97,12 @@ status = 200
 
 Each framework exposes environment variables to client-side code differently:
 
-| Framework | Client prefix | Access pattern |
-|---|---|---|
-| Vite / React | `VITE_` | `import.meta.env.VITE_VAR` |
-| Astro | `PUBLIC_` | `import.meta.env.PUBLIC_VAR` |
-| Next.js | `NEXT_PUBLIC_` | `process.env.NEXT_PUBLIC_VAR` |
-| Nuxt | `NUXT_PUBLIC_` | `useRuntimeConfig().public.var` |
+| Framework    | Client prefix  | Access pattern                  |
+| ------------ | -------------- | ------------------------------- |
+| Vite / React | `VITE_`        | `import.meta.env.VITE_VAR`      |
+| Astro        | `PUBLIC_`      | `import.meta.env.PUBLIC_VAR`    |
+| Next.js      | `NEXT_PUBLIC_` | `process.env.NEXT_PUBLIC_VAR`   |
+| Nuxt         | `NUXT_PUBLIC_` | `useRuntimeConfig().public.var` |
 
 In server-side code, prefer `Netlify.env.get("VAR")` to read environment variables. `process.env.VAR` also works inside Netlify Functions, but Edge Functions expose only `Netlify.env.get` — the portable form keeps server code working in both.
 

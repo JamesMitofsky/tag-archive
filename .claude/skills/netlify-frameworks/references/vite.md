@@ -12,12 +12,12 @@ npm install -D @netlify/vite-plugin
 
 ```typescript
 // vite.config.ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import netlify from "@netlify/vite-plugin";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import netlify from '@netlify/vite-plugin';
 
 export default defineConfig({
-  plugins: [react(), netlify()],
+	plugins: [react(), netlify()]
 });
 ```
 
@@ -45,13 +45,13 @@ Write functions in `netlify/functions/` as usual. The Vite plugin makes them ava
 
 ```typescript
 // netlify/functions/api.ts
-import type { Config, Context } from "@netlify/functions";
+import type { Config, Context } from '@netlify/functions';
 
 export default async (req: Request, context: Context) => {
-  return Response.json({ message: "Hello from API" });
+	return Response.json({ message: 'Hello from API' });
 };
 
-export const config: Config = { path: "/api/hello" };
+export const config: Config = { path: '/api/hello' };
 ```
 
 ## Forms (AJAX Pattern)
@@ -61,22 +61,22 @@ Since Vite + React renders forms client-side, include a hidden HTML form for Net
 ```tsx
 // In your React component
 function ContactForm() {
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    await fetch("/", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams(formData as any).toString(),
-    });
-  };
+	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const formData = new FormData(e.currentTarget);
+		await fetch('/', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams(formData as any).toString()
+		});
+	};
 
-  return (
-    <form name="contact" method="POST" data-netlify="true" onSubmit={handleSubmit}>
-      <input type="hidden" name="form-name" value="contact" />
-      {/* fields */}
-    </form>
-  );
+	return (
+		<form name="contact" method="POST" data-netlify="true" onSubmit={handleSubmit}>
+			<input type="hidden" name="form-name" value="contact" />
+			{/* fields */}
+		</form>
+	);
 }
 ```
 
@@ -84,9 +84,9 @@ Also add a hidden form in `index.html`:
 
 ```html
 <form name="contact" netlify hidden>
-  <input type="text" name="name" />
-  <input type="email" name="email" />
-  <textarea name="message"></textarea>
+	<input type="text" name="name" />
+	<input type="email" name="email" />
+	<textarea name="message"></textarea>
 </form>
 ```
 

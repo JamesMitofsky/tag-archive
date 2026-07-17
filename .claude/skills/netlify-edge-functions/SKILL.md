@@ -14,14 +14,14 @@ For framework projects, check the framework reference (the **netlify-frameworks*
 ## Syntax
 
 ```typescript
-import type { Config, Context } from "@netlify/edge-functions";
+import type { Config, Context } from '@netlify/edge-functions';
 
 export default async (req: Request, context: Context) => {
-  return new Response("Hello from the edge!");
+	return new Response('Hello from the edge!');
 };
 
 export const config: Config = {
-  path: "/hello",
+	path: '/hello'
 };
 ```
 
@@ -31,11 +31,11 @@ Place files in `netlify/edge-functions/`. Uses `.ts`, `.js`, `.tsx`, or `.jsx` e
 
 ```typescript
 export const config: Config = {
-  path: "/api/*",                    // URLPattern path(s)
-  excludedPath: "/api/public/*",     // Exclusions
-  method: ["GET", "POST"],           // HTTP methods
-  onError: "bypass",                 // "fail" (default), "bypass", or "/error-page"
-  cache: "manual",                   // Enable response caching
+	path: '/api/*', // URLPattern path(s)
+	excludedPath: '/api/public/*', // Exclusions
+	method: ['GET', 'POST'], // HTTP methods
+	onError: 'bypass', // "fail" (default), "bypass", or "/error-page"
+	cache: 'manual' // Enable response caching
 };
 ```
 
@@ -69,7 +69,7 @@ To guarantee a specific order (e.g. an auth gate that must run before a personal
 
 In Netlify's request chain, edge functions execute **before** redirect and rewrite rules (`[[redirects]]`, `_redirects`). Two consequences bite often:
 
-- An edge function is matched against the **original** requested URL, not a redirect/rewrite destination. Scope its `path` to the URL the client actually requests — an edge function declared on the *target* of a rewrite will not fire for requests that only reach that target via the rewrite.
+- An edge function is matched against the **original** requested URL, not a redirect/rewrite destination. Scope its `path` to the URL the client actually requests — an edge function declared on the _target_ of a rewrite will not fire for requests that only reach that target via the rewrite.
 - If an edge function returns a `Response`, the request chain stops there and redirect rules for that path **never run**. Return `context.next()` (or `undefined`) if you want redirects to still apply.
 
 ## Middleware Pattern
@@ -78,17 +78,17 @@ Use `context.next()` to invoke the next handler in the chain and optionally modi
 
 ```typescript
 export default async (req: Request, context: Context) => {
-  // Before: modify request or short-circuit
-  if (!isAuthenticated(req)) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+	// Before: modify request or short-circuit
+	if (!isAuthenticated(req)) {
+		return new Response('Unauthorized', { status: 401 });
+	}
 
-  // Continue to origin/next function
-  const response = await context.next();
+	// Continue to origin/next function
+	const response = await context.next();
 
-  // After: modify response
-  response.headers.set("x-custom-header", "value");
-  return response;
+	// After: modify response
+	response.headers.set('x-custom-header', 'value');
+	return response;
 };
 ```
 
@@ -96,8 +96,8 @@ Return `undefined` to pass through without modification:
 
 ```typescript
 export default async (req: Request, context: Context) => {
-  if (!shouldHandle(req)) return; // continues to next handler
-  return new Response("Handled");
+	if (!shouldHandle(req)) return; // continues to next handler
+	return new Response('Handled');
 };
 ```
 
@@ -105,12 +105,12 @@ export default async (req: Request, context: Context) => {
 
 ```typescript
 export default async (req: Request, context: Context) => {
-  const { city, country, subdivision, timezone } = context.geo;
-  const ip = context.ip;
+	const { city, country, subdivision, timezone } = context.geo;
+	const ip = context.ip;
 
-  if (country?.code === "DE") {
-    return Response.redirect(new URL("/de", req.url));
-  }
+	if (country?.code === 'DE') {
+		return Response.redirect(new URL('/de', req.url));
+	}
 };
 ```
 
@@ -122,10 +122,10 @@ Read and write cookies through the `context.cookies` helper instead of hand-pars
 
 ```typescript
 export default async (req: Request, context: Context) => {
-  const bucket = context.cookies.get("bucket");            // read from the request
-  context.cookies.set({ name: "bucket", value: "a" });     // set on the response
-  context.cookies.delete("legacy_session");                // tell the client to delete it
-  return context.next();
+	const bucket = context.cookies.get('bucket'); // read from the request
+	context.cookies.set({ name: 'bucket', value: 'a' }); // set on the response
+	context.cookies.delete('legacy_session'); // tell the client to delete it
+	return context.next();
 };
 ```
 
@@ -138,7 +138,7 @@ export default async (req: Request, context: Context) => {
 Use `Netlify.env` (not `process.env` or `Deno.env`):
 
 ```typescript
-const secret = Netlify.env.get("API_SECRET");
+const secret = Netlify.env.get('API_SECRET');
 ```
 
 ## Module Support
@@ -162,19 +162,19 @@ For URL imports, use an import map:
 
 ## When to Use Edge vs Serverless
 
-| Use Edge Functions for | Use Serverless Functions for |
-|---|---|
-| Low-latency responses | Long-running operations (up to 15 min) |
-| Request/response manipulation | Complex Node.js dependencies |
-| Geolocation-based logic | Database-heavy operations |
-| Auth checks and redirects | Background/scheduled tasks |
-| A/B testing, personalization | Tasks needing > 512 MB memory |
+| Use Edge Functions for        | Use Serverless Functions for           |
+| ----------------------------- | -------------------------------------- |
+| Low-latency responses         | Long-running operations (up to 15 min) |
+| Request/response manipulation | Complex Node.js dependencies           |
+| Geolocation-based logic       | Database-heavy operations              |
+| Auth checks and redirects     | Background/scheduled tasks             |
+| A/B testing, personalization  | Tasks needing > 512 MB memory          |
 
 ## Limits
 
-| Resource | Limit |
-|---|---|
-| CPU time | 50 ms per request |
-| Memory | 512 MB per deployed set |
-| Response header timeout | 40 seconds |
-| Code size | 20 MB compressed |
+| Resource                | Limit                   |
+| ----------------------- | ----------------------- |
+| CPU time                | 50 ms per request       |
+| Memory                  | 512 MB per deployed set |
+| Response header timeout | 40 seconds              |
+| Code size               | 20 MB compressed        |
