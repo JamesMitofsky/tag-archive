@@ -9,12 +9,40 @@
 	let results = $state<Artefact[]>([]);
 	let loading = $state(false);
 	let searched = $state(false);
+	let selected = $state<number | null>(null);
+	let inputEl: HTMLInputElement | null = null;
+
+	// Persistent hover stacking: hovering a page grabs the next z-index and KEEPS
+	// it, so a card the user pulled forward stays forward until a new search resets
+	// the order. Later hovers grab higher values, layering on top of earlier ones.
+	let zOrder = $state<Record<number, number>>({});
+	let zTop = 0;
+	function bringForward(id: number) {
+		if (zOrder[id] === zTop) return; // already frontmost
+		zOrder = { ...zOrder, [id]: ++zTop };
+	}
+
+	// When nothing is open and the bar is empty, any printable keystroke should
+	// land in the search input — focus it mid-keydown so the char routes there.
+	function handleWindowKey(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			selected = null;
+			return;
+		}
+		if (selected !== null || query !== '') return;
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		if (e.key.length !== 1) return; // ignore Shift/Tab/arrows/etc.
+		if (document.activeElement === inputEl) return;
+		inputEl?.focus();
+	}
 
 	let debounce: ReturnType<typeof setTimeout>;
 	let requestId = 0;
 
 	async function runSearch(q: string) {
 		const trimmed = q.trim();
+		zOrder = {};
+		zTop = 0;
 		if (!trimmed) {
 			results = [];
 			searched = false;
@@ -31,6 +59,7 @@
 			if (id !== requestId) return;
 			results = data.results ?? [];
 			searched = true;
+			selected = null;
 		} finally {
 			if (id === requestId) loading = false;
 		}
@@ -51,6 +80,8 @@
 	// Only this many pages float in space; the bar reports the true total.
 	const CAP = 24;
 	let floating = $derived(placeAll(results.slice(0, CAP)));
+	// When one page is selected, the rest fly out and only it remains (expanded).
+	let shown = $derived(selected === null ? floating : floating.filter((p) => p.item.id === selected));
 
 	// Deterministic PRNG so a given artefact always lands + drifts the same way
 	// (stable across reactive re-renders — no jumping).
@@ -150,6 +181,8 @@
 	];
 </script>
 
+<svelte:window onkeydown={handleWindowKey} />
+
 <main class="forest relative min-h-screen overflow-hidden p-4">
 	<!-- Ambient sky: soft clouds drifting very slowly across, behind everything. -->
 	<div class="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
@@ -159,6 +192,13 @@
 				src={c.src}
 				alt=""
 				style="top: {c.top}vh; width: {c.w}vw; opacity: {c.op}; --dur: {c.dur}s; --delay: {c.delay}s"
+			/>
+			<!-- half-period twin: fills the dead gap so the row never empties -->
+			<img
+				class="cloud"
+				src={c.src}
+				alt=""
+				style="top: {c.top + 3}vh; width: {c.w * 0.9}vw; opacity: {c.op * 0.85}; --dur: {c.dur}s; --delay: {c.delay - c.dur / 2}s"
 			/>
 		{/each}
 	</div>
@@ -196,42 +236,87 @@
 			</g>
 		</svg>
 		<div class="relative">
-			<svg
-				class="pointer-events-none absolute left-4 top-1/2 z-10 size-5 -translate-y-1/2 text-gray-700"
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke-width="2"
-				stroke="currentColor"
-				aria-hidden="true"
-			>
-				<path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3m1.8-4.7a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
-			</svg>
+			{#if loading}
+				<svg
+					class="pointer-events-none absolute left-4 top-1/2 z-10 size-5 -translate-y-1/2 animate-spin text-gray-700"
+					xmlns="http://www.w3.org/2000/svg"
+					fill="none"
+					viewBox="0 0 24 24"
+					aria-hidden="true"
+				>
+					<circle class="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+					<path class="opacity-75" fill="currentColor" d="M12 3a9 9 0 0 1 9 9h-2a7 7 0 0 0-7-7V3Z" />
+				</svg>
+			{:else}
+				<svg
+					class="pointer-events-none absolute left-4 top-1/2 z-10 size-5 -translate-y-1/2 text-gray-700"
+					xmlns="http://www.w3.org/2000/svg"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke-width="2"
+					stroke="currentColor"
+					aria-hidden="true"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3m1.8-4.7a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
+				</svg>
+			{/if}
 			<input
 				type="search"
+				bind:this={inputEl}
 				bind:value={query}
 				aria-label="Search"
-				class="w-full rounded-lg border border-white/40 bg-white/25 py-3 pl-12 pr-4 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:outline-none focus:ring-1 focus:ring-white/50"
+				class="w-full rounded-lg border border-white/40 bg-white/25 py-3 pl-12 pr-4 text-base text-gray-800 caret-transparent shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:outline-none focus:ring-1 focus:ring-white/50"
 			/>
 		</div>
 	</div>
 
 	<!-- Pages float in space around the bar: fly in from off-screen, then drift forever. -->
 	{#if searched}
-		<div class="pointer-events-none fixed inset-0 z-10 overflow-hidden">
-			{#each floating as p (p.item.id)}
-				<!-- anchor: static scattered position, centered on its point -->
+		<div class="pointer-events-none fixed inset-0 z-10 overflow-hidden" class:z-40={selected !== null}>
+			<!-- Backdrop: only while a page is open. Click the blue background to close. -->
+			{#if selected !== null}
+				<div
+					class="pointer-events-auto fixed inset-0 z-40"
+					role="button"
+					tabindex="-1"
+					aria-label="Close page"
+					onclick={() => (selected = null)}
+					onkeydown={(e) => e.key === 'Escape' && (selected = null)}
+				></div>
+			{/if}
+			{#each shown as p (p.item.id)}
+				{@const isSel = selected === p.item.id}
+				<!-- anchor: scattered position, or dead-center when selected -->
 				<div
 					class="anchor"
-					style="left: calc(50% + {p.dx}vmin); top: calc(50% + {p.dy}vmin)"
+					style="left: calc(50% + {isSel ? 0 : p.dx}vmin); top: calc(50% + {isSel ? 0 : p.dy}vmin); z-index: {zOrder[p.item.id] ?? 0}"
+					onpointerenter={() => bringForward(p.item.id)}
 				>
 					<!-- exit: |global so cards fly out even when the whole block unmounts
 					     (e.g. the search is cleared), not just on per-item removal -->
 					<div out:fly|global={{ x: p.offX, y: p.offY, duration: 450, easing: cubicIn }}>
 						<!-- entrance: CSS keyframe flies the card in from off-screen, once -->
 						<div class="enter" style={p.enterStyle}>
-							<!-- drift: independent element runs the forever ambient motion -->
-							<div class="drift page pointer-events-auto" style={p.style}>
+							<!-- drift: independent element runs the forever ambient motion;
+							     paused/reset while this card is the selected one -->
+							<div
+								class="page pointer-events-auto"
+								class:drift={!isSel}
+								class:selected={isSel}
+								style={p.style}
+								role="button"
+								tabindex="0"
+								onclick={(e) => {
+									e.stopPropagation();
+									if (!isSel) selected = p.item.id;
+								}}
+								onkeydown={(e) => {
+									if ((e.key === 'Enter' || e.key === ' ') && !isSel) {
+										e.preventDefault();
+										selected = p.item.id;
+									}
+								}}
+							>
 								{@render page(p.item)}
 							</div>
 						</div>
@@ -272,6 +357,19 @@
 		width: 12rem;
 		height: calc(12rem * 297 / 210); /* ≈ 16.97rem — locks A4 ratio + uniform height */
 		flex: none;
+		cursor: pointer;
+		transition:
+			width 700ms cubic-bezier(0.22, 1, 0.36, 1),
+			height 700ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	/* Selected page: blow up to fill the viewport (keeps A4 ratio, capped by both
+	   axes) and stop drifting so it sits square in the center. */
+	.selected {
+		width: min(90vw, 90vh * 210 / 297);
+		height: min(90vh, 90vw * 297 / 210);
+		animation: none;
+		z-index: 50;
 	}
 
 	/* Anchor point. When the match set changes, ranks shift and this glides to the
@@ -322,6 +420,10 @@
 		height: auto;
 		will-change: transform;
 		animation: cloud-drift var(--dur, 180s) linear var(--delay, 0s) infinite;
+		pointer-events: none;
+		user-select: none;
+		-webkit-user-select: none;
+		-webkit-user-drag: none;
 	}
 
 	@keyframes cloud-drift {
