@@ -14,13 +14,31 @@
 	// Click a floating page to open it: it glides to dead-center and grows to fill
 	// the viewport while every other page flies out. Holds the open artefact's id.
 	let selected = $state<number | null>(null);
+	let inputEl: HTMLInputElement | null = null;
 
-	// Last-hovered page stays lifted to the front until another is hovered.
-	let frontId = $state<number | null>(null);
+	// Persistent hover stacking: hovering a page grabs the next z-index and KEEPS
+	// it, so a card the user pulled forward stays forward until a new search resets
+	// the order. Later hovers grab higher values, layering on top of earlier ones.
+	let zOrder = $state<Record<number, number>>({});
+	let zTop = 0;
+	function bringForward(id: number) {
+		if (zOrder[id] === zTop) return; // already frontmost
+		zOrder = { ...zOrder, [id]: ++zTop };
+	}
 
-	// Escape closes the open page.
+	// Escape closes the open page. When nothing is open and the bar is empty, any
+	// printable keystroke should land in the search input — focus it mid-keydown so
+	// the char routes there.
 	function handleWindowKey(e: KeyboardEvent) {
-		if (e.key === 'Escape') selected = null;
+		if (e.key === 'Escape') {
+			selected = null;
+			return;
+		}
+		if (selected !== null || query !== '') return;
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		if (e.key.length !== 1) return; // ignore Shift/Tab/arrows/etc.
+		if (document.activeElement === inputEl) return;
+		inputEl?.focus();
 	}
 
 	let debounce: ReturnType<typeof setTimeout>;
@@ -29,6 +47,8 @@
 	async function runSearch(q: string) {
 		const trimmed = q.trim();
 		selected = null; // a new query resets any open page
+		zOrder = {};
+		zTop = 0;
 		if (!trimmed) {
 			results = [];
 			searched = false;
@@ -206,23 +226,37 @@
 			</g>
 		</svg>
 		<div class="relative">
-			<svg
-				class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 text-gray-700"
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke-width="2"
-				stroke="currentColor"
-				aria-hidden="true"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					d="m21 21-4.3-4.3m1.8-4.7a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
-				/>
-			</svg>
+			{#if loading}
+				<svg
+					class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 animate-spin text-gray-700"
+					xmlns="http://www.w3.org/2000/svg"
+					fill="none"
+					viewBox="0 0 24 24"
+					aria-hidden="true"
+				>
+					<circle class="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+					<path class="opacity-75" fill="currentColor" d="M12 3a9 9 0 0 1 9 9h-2a7 7 0 0 0-7-7V3Z" />
+				</svg>
+			{:else}
+				<svg
+					class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 text-gray-700"
+					xmlns="http://www.w3.org/2000/svg"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke-width="2"
+					stroke="currentColor"
+					aria-hidden="true"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						d="m21 21-4.3-4.3m1.8-4.7a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
+					/>
+				</svg>
+			{/if}
 			<input
 				type="search"
+				bind:this={inputEl}
 				bind:value={query}
 				aria-label="Search"
 				class="w-full rounded-lg border border-white/40 bg-white/25 py-3 pr-4 pl-12 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:ring-1 focus:ring-white/50 focus:outline-none"
@@ -252,12 +286,14 @@
 			{#each floating as p (p.item.id)}
 				{@const isSel = selected === p.item.id}
 				<!-- anchor: scattered position, or dead-center when open. Glides between
-				     the two via the CSS transition on left/top. -->
+				     the two via the CSS transition on left/top. Persistent hover stacking
+				     raises z-index on pointer enter and keeps it. -->
 				<div
 					class="card-anchor"
 					style="left: calc(50% + {isSel ? 0 : p.dx}vmin); top: calc(50% + {isSel
 						? 0
-						: p.dy}vmin); z-index: {isSel ? 50 : p.item.id === frontId ? 20 : 1}"
+						: p.dy}vmin); z-index: {isSel ? 50 : (zOrder[p.item.id] ?? 0)}"
+					onpointerenter={() => bringForward(p.item.id)}
 				>
 					<!-- exit: |global so cards fly out even when the whole block unmounts
 					     (e.g. the search is cleared), not just on per-item removal -->
@@ -277,10 +313,8 @@
 									onclick={() => {
 										if (!isSel) selected = p.item.id;
 									}}
-									onpointerenter={() => (frontId = p.item.id)}
-									class="lift block h-full w-full text-left transition-transform focus-visible:outline-none"
+									class="block h-full w-full text-left transition-transform focus-visible:outline-none"
 									class:cursor-pointer={!isSel}
-									class:lifted={!isSel && p.item.id === frontId}
 								>
 									{@render page(p.item)}
 								</button>
@@ -295,7 +329,7 @@
 
 {#snippet page(item: ArtefactWithEvent)}
 	<div
-		class="page-surface flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5"
+		class="flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5"
 	>
 		<div class="border-b border-gray-200 pb-2">
 			<h2 class="line-clamp-2 text-sm leading-tight font-medium">{item.event}</h2>
@@ -330,12 +364,6 @@
 {/snippet}
 
 <style>
-	/* Hovering a page lifts it; it stays lifted (last-hovered wins) until
-	   another page is hovered — pairs with the raised z-index on its anchor. */
-	.lifted {
-		transform: scale(1.03);
-	}
-
 	/* Every result is an identical A4 document page (210:297 ≈ 1:1.414). The
 	   width/height transition is what makes an opened page GROW smoothly to the
 	   centered .selected size below. */
@@ -363,12 +391,6 @@
 		height: min(90vh, 90vw * 297 / 210);
 		animation: none;
 		z-index: 50;
-	}
-
-	/* Floating cards are slightly translucent (clouds show through); the open page
-	   is solid so it reads as a real document. */
-	.selected .page-surface {
-		background-color: #fff;
 	}
 
 	/* Anchor point. When the match set changes, ranks shift and this glides to the
