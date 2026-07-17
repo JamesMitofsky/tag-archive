@@ -1,0 +1,177 @@
+# Themes
+
+The Skeleton theme system.
+
+Skeleton themes utilize CSS custom properties to define core settings for your design system. A number of preset themes are offered out of the box. As well as access to a powerful theme generator to create your own. Enable one or more and quickly switch on-demand.
+
+## How Themes Work
+
+Skeleton themes are CSS files you import into your global stylesheet. They contain a number of [CSS Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascading_variables/Using_CSS_custom_properties) (aka variables). Skeleton's core package and CSS import sets the default values for the [Tailwind @theme directive](https://tailwindcss.com/docs/functions-and-directives#theme-directive), while themes override the defined values using your active theme.
+
+## Preset Themes
+
+Skeleton ships with an an array of hand curated themes. Tap the themes below to preview it live.
+
+<ThemeList />
+
+```css
+/* @import '@skeletonlabs/skeleton'; */
+@import '@skeletonlabs/skeleton/themes/{theme-name}';
+```
+
+> Make sure to replace `{theme-name}` with your desired theme names. Set all lower-case, such as `cerberus`.
+
+## Custom Themes
+
+Use our powerful Theme Generator to create your own themes.
+
+<figure class="linker bg-noise">
+  <a href="https://themes.skeleton.dev/" target="_blank" class="btn preset-filled">
+    Theme Generator
+  </a>
+</figure>
+
+1. Open the Theme Generator and customize to your preference.
+2. Make sure to set a unique name for your theme.
+3. Tap the "code" view from the menu at top-right corner.
+4. Tap the "copy" button just above the code block.
+5. Paste the contents into a new file at your project root, such as `my-theme-name.css` (any name is fine).
+6. Proceed below to learn how to register and activate each theme.
+
+## Register Themes
+
+You may register any number of themes by including multiple imports to your global stylesheet. Please note that each theme will slightly increase your project's CSS bundle size, so avoid including unused themes.
+
+```css
+/* @import '@skeletonlabs/skeleton'; */
+
+/* Register Preset Themes */
+@import '@skeletonlabs/skeleton/themes/cerberus';
+@import '@skeletonlabs/skeleton/themes/mona';
+@import '@skeletonlabs/skeleton/themes/vox';
+
+/* Register a Custom Themes */
+/* Make sure to resolve the relative path. */
+/* Note the .css extension is optional. */
+@import '../{my-theme-name}';
+```
+
+## Activate a Theme
+
+You may define the active theme using the `data-theme` attribute on your `<html>` element.
+
+```html
+<html data-theme="cerberus">
+	...
+</html>
+```
+
+> TIP: If you wish to create a [theme switcher](/docs/guides/cookbook/dynamic-theming), this is the value you should aim to modify.
+
+***
+
+## Customize and Extend
+
+### Modify Properties
+
+You can modify any preset theme's [CSS custom properties](/docs/\[framework]/get-started/core-api) on demand using the following technique. Simply add this to your global stylesheet. For custom themes, modify each property directly in the theme file.
+
+```css
+[data-theme='cerberus'] {
+	--spacing: 0.22rem;
+	--radius-container: 0.375rem;
+	--typo-heading--font-weight: bolder;
+}
+```
+
+### Target Themes
+
+If your application supports multiple themes, you may isolate selection using the `data-theme` attribute. Just make sure to account for light and dark mode color values using [Tailwind @variant directives](https://tailwindcss.com/docs/functions-and-directives#variant-directive).
+
+```css title="app.css"
+/** Target only Cerberus .h1 elements. */
+[data-theme='cerberus'] .h1 {
+	color: red;
+	@variant dark {
+		color: green;
+	}
+}
+/** Target only Mona .h1 elements. */
+[data-theme='mona'] .h1 {
+	color: blue;
+	@variant dark {
+		color: yellow;
+	}
+}
+```
+
+### Backgrounds
+
+Your app's light and dark mode background color values can be adjusted using the following [theme properties](/docs/\[framework]/get-started/core-api#colors).
+
+```css
+[data-theme='cerberus'] {
+	--color-root-bg-light: pink;
+	--color-root-bg-dark: green;
+}
+```
+
+Background images are supported, including mesh gradients. The following example is shown using theme-specific colors.
+
+```css
+[data-theme='cerberus'] body {
+	background-image:
+		radial-gradient(at 24% 25%, color-mix(in oklab, var(--color-primary-500) 30%, transparent) 0px, transparent 30%),
+		radial-gradient(at 35% 13%, color-mix(in oklab, var(--color-success-500) 18%, transparent) 0px, transparent 30%),
+		radial-gradient(at 100% 64%, color-mix(in oklab, var(--color-error-500) 3%, transparent) 0px, transparent 40%);
+	background-attachment: fixed;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: cover;
+}
+```
+
+We recommend Mesher for generating custom mesh gradients. This will generate colors using an RGB color format, but can be migrated to utilize `var()` for colors and `color-mix()` for transparency, per the example above.
+
+<figure class="linker bg-noise">
+  <a class="btn preset-filled" href="https://csshero.org/mesher/" target="_blank">
+    Mesher by CSS Hero
+  </a>
+</figure>
+
+### Custom Fonts
+
+Skeleton recommends the use of [Fontsource](https://fontsource.org/) for installing and managing custom fonts.
+
+<figure class="linker bg-noise">
+  <a class="btn preset-filled" href="https://fontsource.org/" target="_blank">
+    Browse Fontsource
+  </a>
+</figure>
+
+Install your font of choice.
+
+```bash
+npm install @fontsource/open-sans
+```
+
+Then import each font at the top of your global stylesheet, but below your Tailwind configuration.
+
+```css
+@import '@fontsource/open-sans';
+```
+
+Finally, use the following [theme properties](/docs/\[framework]/get-started/core-api#base-1) to set each respective font-family property. Note that for custom themes, these settings are can be defined directly within each respective theme file.
+
+```css
+[data-theme='cerberus'] {
+	--typo-heading--font-family: 'Open Sans', sans-serif;
+	--typo-base--font-family: 'Open Sans', sans-serif;
+	--typo-anchor--font-family: 'inherit';
+}
+```
+
+## Core API
+
+For more information on theme properties, please refer to the [Core API](/docs/\[framework]/get-started/core-api) documentation.
+

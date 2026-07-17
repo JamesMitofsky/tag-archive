@@ -10,14 +10,14 @@ description: Guide for writing Netlify serverless functions. Use when creating A
 Always use the modern default export + Config pattern. Never use the legacy `exports.handler` or named `handler` export.
 
 ```typescript
-import type { Context, Config } from "@netlify/functions";
+import type { Context, Config } from '@netlify/functions';
 
 export default async (req: Request, context: Context) => {
-  return new Response("Hello, world!");
+	return new Response('Hello, world!');
 };
 
 export const config: Config = {
-  path: "/api/hello",
+	path: '/api/hello'
 };
 ```
 
@@ -27,9 +27,9 @@ The bare default export shown above is the recommended form. The default export 
 
 ```typescript
 export default {
-  fetch(req: Request, context: Context) {
-    return new Response("Hello, world!");
-  },
+	fetch(req: Request, context: Context) {
+		return new Response('Hello, world!');
+	}
 };
 ```
 
@@ -54,11 +54,11 @@ Define custom paths via the `config` export:
 
 ```typescript
 export const config: Config = {
-  path: "/api/items",                    // Static path
-  // path: "/api/items/:id",            // Path parameter
-  // path: ["/api/items", "/api/items/:id"], // Multiple paths
-  // excludedPath: "/api/items/special", // Excluded paths
-  // preferStatic: true,                // Don't override static files
+	path: '/api/items' // Static path
+	// path: "/api/items/:id",            // Path parameter
+	// path: ["/api/items", "/api/items/:id"], // Multiple paths
+	// excludedPath: "/api/items/special", // Excluded paths
+	// preferStatic: true,                // Don't override static files
 };
 ```
 
@@ -69,8 +69,8 @@ Access path parameters via `context.params`:
 ```typescript
 // config: { path: "/api/items/:id" }
 export default async (req: Request, context: Context) => {
-  const { id } = context.params;
-  // ...
+	const { id } = context.params;
+	// ...
 };
 ```
 
@@ -78,17 +78,21 @@ export default async (req: Request, context: Context) => {
 
 ```typescript
 export default async (req: Request, context: Context) => {
-  switch (req.method) {
-    case "GET":    return handleGet(context.params.id);
-    case "POST":   return handlePost(await req.json());
-    case "DELETE": return handleDelete(context.params.id);
-    default:       return new Response("Method not allowed", { status: 405 });
-  }
+	switch (req.method) {
+		case 'GET':
+			return handleGet(context.params.id);
+		case 'POST':
+			return handlePost(await req.json());
+		case 'DELETE':
+			return handleDelete(context.params.id);
+		default:
+			return new Response('Method not allowed', { status: 405 });
+	}
 };
 
 export const config: Config = {
-  path: "/api/items/:id",
-  method: ["GET", "POST", "DELETE"],
+	path: '/api/items/:id',
+	method: ['GET', 'POST', 'DELETE']
 };
 ```
 
@@ -100,12 +104,12 @@ Enable background mode by setting `background: true` in config:
 
 ```typescript
 export default async (req: Request) => {
-  await someLongRunningTask();
+	await someLongRunningTask();
 };
 
 export const config: Config = {
-  path: "/process",
-  background: true,
+	path: '/process',
+	background: true
 };
 ```
 
@@ -143,12 +147,12 @@ Run on a cron schedule (UTC timezone):
 
 ```typescript
 export default async (req: Request) => {
-  const { next_run } = await req.json();
-  console.log("Next invocation at:", next_run);
+	const { next_run } = await req.json();
+	console.log('Next invocation at:', next_run);
 };
 
 export const config: Config = {
-  schedule: "@hourly", // or cron: "0 * * * *"
+	schedule: '@hourly' // or cron: "0 * * * *"
 };
 ```
 
@@ -162,10 +166,10 @@ Return a `ReadableStream` body for streamed responses (up to 20 MB):
 
 ```typescript
 export default async (req: Request) => {
-  const stream = new ReadableStream({ /* ... */ });
-  return new Response(stream, {
-    headers: { "Content-Type": "text/event-stream" },
-  });
+	const stream = new ReadableStream({/* ... */});
+	return new Response(stream, {
+		headers: { 'Content-Type': 'text/event-stream' }
+	});
 };
 ```
 
@@ -174,21 +178,21 @@ export default async (req: Request) => {
 A function can subscribe to platform events by exporting an object instead of a function as its default. Each event has a named handler property:
 
 ```typescript
-import type { DeploySucceededEvent, UserSignupEvent } from "@netlify/functions";
+import type { DeploySucceededEvent, UserSignupEvent } from '@netlify/functions';
 
 export default {
-  deploySucceeded(event: DeploySucceededEvent) {
-    console.log(`Deploy ${event.deploy.id} succeeded`);
-  },
+	deploySucceeded(event: DeploySucceededEvent) {
+		console.log(`Deploy ${event.deploy.id} succeeded`);
+	},
 
-  userSignup(event: UserSignupEvent) {
-    return {
-      user: {
-        ...event.user,
-        appMetadata: { ...event.user.appMetadata, roles: ["member"] },
-      },
-    };
-  },
+	userSignup(event: UserSignupEvent) {
+		return {
+			user: {
+				...event.user,
+				appMetadata: { ...event.user.appMetadata, roles: ['member'] }
+			}
+		};
+	}
 };
 ```
 
@@ -196,12 +200,12 @@ A single function can declare multiple handlers; multiple functions can also sub
 
 **Available handlers:**
 
-| Handler | Trigger |
-|---|---|
-| `fetch` | HTTP request (equivalent to a bare function default export) |
-| `deployBuilding` / `deploySucceeded` / `deployFailed` / `deployDeleted` / `deployLocked` / `deployUnlocked` | Deploy lifecycle |
-| `userSignup` / `userLogin` / `userValidate` / `userModified` / `userDeleted` | Identity lifecycle |
-| `formSubmitted` | Form submission verified |
+| Handler                                                                                                     | Trigger                                                     |
+| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `fetch`                                                                                                     | HTTP request (equivalent to a bare function default export) |
+| `deployBuilding` / `deploySucceeded` / `deployFailed` / `deployDeleted` / `deployLocked` / `deployUnlocked` | Deploy lifecycle                                            |
+| `userSignup` / `userLogin` / `userValidate` / `userModified` / `userDeleted`                                | Identity lifecycle                                          |
+| `formSubmitted`                                                                                             | Form submission verified                                    |
 
 ### Identity handlers: deny an action
 
@@ -209,11 +213,11 @@ A single function can declare multiple handlers; multiple functions can also sub
 
 ```typescript
 export default {
-  userLogin(event: UserLoginEvent) {
-    if (!event.user.email?.endsWith("@example.com")) {
-      return event.deny();
-    }
-  },
+	userLogin(event: UserLoginEvent) {
+		if (!event.user.email?.endsWith('@example.com')) {
+			return event.deny();
+		}
+	}
 };
 ```
 
@@ -221,17 +225,17 @@ If multiple functions subscribe to the same event, the first to call `event.deny
 
 ## Context Object
 
-| Property | Description |
-|---|---|
-| `context.params` | Path parameters from config |
-| `context.geo` | `{ city, country: {code, name}, latitude, longitude, subdivision, timezone, postalCode }` |
-| `context.ip` | Client IP address |
-| `context.cookies` | `.get()`, `.set()`, `.delete()` |
-| `context.deploy` | `{ context, id, published }` |
-| `context.site` | `{ id, name, url }` |
-| `context.account.id` | Team account ID |
-| `context.requestId` | Unique request ID |
-| `context.waitUntil(promise)` | Extend execution after response is sent |
+| Property                     | Description                                                                               |
+| ---------------------------- | ----------------------------------------------------------------------------------------- |
+| `context.params`             | Path parameters from config                                                               |
+| `context.geo`                | `{ city, country: {code, name}, latitude, longitude, subdivision, timezone, postalCode }` |
+| `context.ip`                 | Client IP address                                                                         |
+| `context.cookies`            | `.get()`, `.set()`, `.delete()`                                                           |
+| `context.deploy`             | `{ context, id, published }`                                                              |
+| `context.site`               | `{ id, name, url }`                                                                       |
+| `context.account.id`         | Team account ID                                                                           |
+| `context.requestId`          | Unique request ID                                                                         |
+| `context.waitUntil(promise)` | Extend execution after response is sent                                                   |
 
 **`context.geo` and `context.ip` are mocked under `netlify dev`.** Locally these return placeholder values, not your real location or client IP, so a value that looks "stuck" on a default country does not mean your geo code is broken — real geolocation is populated only for deployed functions. To exercise geo branching locally, start dev with the geo flags: `netlify dev --geo=mock --country=DE` forces mock data (`--geo=mock`) and sets the mock country (`--country`). Don't conclude `context.geo` is broken because local values never change.
 
@@ -240,12 +244,12 @@ If multiple functions subscribe to the same event, the first to call `event.deny
 Prefer `Netlify.env.get` inside functions:
 
 ```typescript
-const apiKey = Netlify.env.get("API_KEY");
+const apiKey = Netlify.env.get('API_KEY');
 ```
 
 `process.env` is also valid inside Functions and reads the same variables — prefer `Netlify.env.get` for cross-runtime and edge portability (a function you later move to an Edge Function keeps working, since Edge Functions expose **only** `Netlify.env.get`, not `process.env`).
 
-**Environment variables have a small total size budget.** Functions run on AWS Lambda, which caps the *combined* size of all environment variables at roughly 4 KB. A single large value — a service-account JSON credential, a PEM private key, a big config blob — can blow past that on its own and break the deploy or the function at runtime. Do not store large payloads in environment variables; keep only small secrets and config (API keys, connection strings) there and move anything large into a bundled file, Netlify Blobs, or a fetch at runtime. There is no Netlify setting that raises this cap.
+**Environment variables have a small total size budget.** Functions run on AWS Lambda, which caps the _combined_ size of all environment variables at roughly 4 KB. A single large value — a service-account JSON credential, a PEM private key, a big config blob — can blow past that on its own and break the deploy or the function at runtime. Do not store large payloads in environment variables; keep only small secrets and config (API keys, connection strings) there and move anything large into a bundled file, Netlify Blobs, or a fetch at runtime. There is no Netlify setting that raises this cap.
 
 ## Reading Files at Runtime
 
@@ -266,14 +270,14 @@ When the data is static, prefer importing it as a module (`import data from "./d
 
 ## Resource Limits
 
-| Resource | Limit |
-|---|---|
-| Synchronous timeout | 60 seconds |
-| Background timeout | 15 minutes |
-| Scheduled timeout | 30 seconds |
-| Memory | 1024 MB default; configurable 1024–4096 MB (see [Memory or vCPU](#memory-or-vcpu)) |
-| Buffered payload | 6 MB |
-| Streamed payload | 20 MB |
+| Resource            | Limit                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| Synchronous timeout | 60 seconds                                                                         |
+| Background timeout  | 15 minutes                                                                         |
+| Scheduled timeout   | 30 seconds                                                                         |
+| Memory              | 1024 MB default; configurable 1024–4096 MB (see [Memory or vCPU](#memory-or-vcpu)) |
+| Buffered payload    | 6 MB                                                                               |
+| Streamed payload    | 20 MB                                                                              |
 
 ## Framework Considerations
 

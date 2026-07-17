@@ -15,10 +15,10 @@ Add `data-netlify="true"` and a unique `name` to the form:
 
 ```html
 <form name="contact" method="POST" data-netlify="true">
-  <label>Name: <input type="text" name="name" /></label>
-  <label>Email: <input type="email" name="email" /></label>
-  <label>Message: <textarea name="message"></textarea></label>
-  <button type="submit">Send</button>
+	<label>Name: <input type="text" name="name" /></label>
+	<label>Email: <input type="email" name="email" /></label>
+	<label>Message: <textarea name="message"></textarea></label>
+	<button type="submit">Send</button>
 </form>
 ```
 
@@ -35,19 +35,20 @@ Create a static HTML file in `public/` (e.g. `public/__forms.html`) containing a
 ```html
 <!DOCTYPE html>
 <html>
-  <body>
-    <form name="contact" data-netlify="true" netlify-honeypot="bot-field" hidden>
-      <input type="hidden" name="form-name" value="contact" />
-      <input type="text" name="name" />
-      <input type="email" name="email" />
-      <textarea name="message"></textarea>
-      <input name="bot-field" />
-    </form>
-  </body>
+	<body>
+		<form name="contact" data-netlify="true" netlify-honeypot="bot-field" hidden>
+			<input type="hidden" name="form-name" value="contact" />
+			<input type="text" name="name" />
+			<input type="email" name="email" />
+			<textarea name="message"></textarea>
+			<input name="bot-field" />
+		</form>
+	</body>
 </html>
 ```
 
 **Rules:**
+
 - The form `name` must exactly match the `form-name` value used in your component's fetch call
 - Include every field your component submits — Netlify validates field names against the registered form
 - Without this file, Netlify cannot detect the form and submissions will silently fail
@@ -56,8 +57,8 @@ Your component must also include a hidden `form-name` input:
 
 ```jsx
 <form name="contact" method="POST" data-netlify="true">
-  <input type="hidden" name="form-name" value="contact" />
-  {/* ... fields ... */}
+	<input type="hidden" name="form-name" value="contact" />
+	{/* ... fields ... */}
 </form>
 ```
 
@@ -68,15 +69,15 @@ Your component must also include a hidden `form-name` input:
 ### Vanilla JavaScript
 
 ```javascript
-const form = document.querySelector("form");
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const formData = new FormData(form);
-  await fetch("/", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(formData).toString(),
-  });
+const form = document.querySelector('form');
+form.addEventListener('submit', async (e) => {
+	e.preventDefault();
+	const formData = new FormData(form);
+	await fetch('/', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+		body: new URLSearchParams(formData).toString()
+	});
 });
 ```
 
@@ -88,29 +89,29 @@ form.addEventListener("submit", async (e) => {
 
 ```tsx
 function ContactForm() {
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    // For SSR apps, use the skeleton file path instead of "/" (e.g. "/__forms.html")
-    const response = await fetch("/__forms.html", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams(formData as any).toString(),
-    });
-    if (response.ok) {
-      // Show success feedback
-    }
-  };
+	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const formData = new FormData(e.currentTarget);
+		// For SSR apps, use the skeleton file path instead of "/" (e.g. "/__forms.html")
+		const response = await fetch('/__forms.html', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams(formData as any).toString()
+		});
+		if (response.ok) {
+			// Show success feedback
+		}
+	};
 
-  return (
-    <form name="contact" method="POST" data-netlify="true" onSubmit={handleSubmit}>
-      <input type="hidden" name="form-name" value="contact" />
-      <input type="text" name="name" placeholder="Name" />
-      <input type="email" name="email" placeholder="Email" />
-      <textarea name="message" placeholder="Message" />
-      <button type="submit">Send</button>
-    </form>
-  );
+	return (
+		<form name="contact" method="POST" data-netlify="true" onSubmit={handleSubmit}>
+			<input type="hidden" name="form-name" value="contact" />
+			<input type="text" name="name" placeholder="Name" />
+			<input type="email" name="email" placeholder="Email" />
+			<textarea name="message" placeholder="Message" />
+			<button type="submit">Send</button>
+		</form>
+	);
 }
 ```
 
@@ -124,10 +125,10 @@ Netlify uses Akismet automatically. Add a honeypot field for extra protection:
 
 ```html
 <form name="contact" method="POST" netlify-honeypot="bot-field" data-netlify="true">
-  <p style="display:none">
-    <label>Don't fill this out: <input name="bot-field" /></label>
-  </p>
-  <!-- visible fields -->
+	<p style="display:none">
+		<label>Don't fill this out: <input name="bot-field" /></label>
+	</p>
+	<!-- visible fields -->
 </form>
 ```
 
@@ -141,16 +142,16 @@ By default Netlify provisions and verifies the reCAPTCHA for you — do **not** 
 
 ```html
 <form name="upload" enctype="multipart/form-data" data-netlify="true">
-  <input type="text" name="name" />
-  <input type="file" name="attachment" />
-  <button type="submit">Upload</button>
+	<input type="text" name="name" />
+	<input type="file" name="attachment" />
+	<button type="submit">Upload</button>
 </form>
 ```
 
 For AJAX file uploads, use `FormData` directly — do **not** set `Content-Type` (the browser sets it with the correct boundary):
 
 ```javascript
-await fetch("/", { method: "POST", body: new FormData(form) });
+await fetch('/', { method: 'POST', body: new FormData(form) });
 ```
 
 **Limits:** 8 MB max request size, 30-second timeout, one file per input field.
@@ -174,12 +175,12 @@ Authorization: Bearer <PERSONAL_ACCESS_TOKEN>
 
 Key endpoints:
 
-| Action | Method | Path |
-|---|---|---|
-| List forms | GET | `/api/v1/sites/{site_id}/forms` |
-| Get submissions | GET | `/api/v1/forms/{form_id}/submissions` |
-| Get spam | GET | `/api/v1/forms/{form_id}/submissions?state=spam` |
-| Delete submission | DELETE | `/api/v1/submissions/{id}` |
+| Action            | Method | Path                                             |
+| ----------------- | ------ | ------------------------------------------------ |
+| List forms        | GET    | `/api/v1/sites/{site_id}/forms`                  |
+| Get submissions   | GET    | `/api/v1/forms/{form_id}/submissions`            |
+| Get spam          | GET    | `/api/v1/forms/{form_id}/submissions?state=spam` |
+| Delete submission | DELETE | `/api/v1/submissions/{id}`                       |
 
 ### Pagination
 

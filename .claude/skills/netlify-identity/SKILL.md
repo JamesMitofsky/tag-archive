@@ -11,7 +11,7 @@ Netlify Identity is a user management service for signups, logins, password reco
 
 ## Identity is app-level — don't confuse it with site access control
 
-Netlify Identity manages **your app's end users** (signups, logins, roles) and issues the `nf_jwt` cookie. It is a different layer from **Secure Access / Password Protection**, which gates *who can load the site at all* (Basic shared-password is Pro+; team-login/SAML gating is Enterprise), and from **Team/Org SAML SSO**, which controls *who can log in to the Netlify dashboard*. The same provider can appear in more than one (Google, say): Google as an Identity OAuth provider signs in *app users*; Google as a SAML IdP signs in *Netlify team members*. They are unrelated systems with separate sessions, which is where the confusion comes from.
+Netlify Identity manages **your app's end users** (signups, logins, roles) and issues the `nf_jwt` cookie. It is a different layer from **Secure Access / Password Protection**, which gates _who can load the site at all_ (Basic shared-password is Pro+; team-login/SAML gating is Enterprise), and from **Team/Org SAML SSO**, which controls _who can log in to the Netlify dashboard_. The same provider can appear in more than one (Google, say): Google as an Identity OAuth provider signs in _app users_; Google as a SAML IdP signs in _Netlify team members_. They are unrelated systems with separate sessions, which is where the confusion comes from.
 
 If the task involves "lock this site to my company," "only employees can access it," password protection, or SSO at the site/team level, **read the `netlify-access-control` skill first** to pick the right layer. This skill covers the app-level user-management layer only.
 
@@ -40,9 +40,9 @@ There is no CLI command and no public API for any of these. **Do not** curl `htt
 
 ### Recommended settings per use case
 
-| Use case | Registration | Autoconfirm | External providers |
-|---|---|---|---|
-| Prototype / demo | Open | ON | as requested |
+| Use case                     | Registration               | Autoconfirm                   | External providers                                      |
+| ---------------------------- | -------------------------- | ----------------------------- | ------------------------------------------------------- |
+| Prototype / demo             | Open                       | ON                            | as requested                                            |
 | Production with email signup | Open or Invite per product | OFF (real email confirmation) | configured with custom email templates / SMTP as needed |
 
 ### Handoff checklist
@@ -74,7 +74,7 @@ If the prompt didn't already specify, ask the user a few short questions before 
 
 **If you don't have preferences here, tell me what you want overall and I'll pick sensible defaults** — typically email/password + Google OAuth, autoconfirm ON, registration Open for a prototype.
 
-Asking these *after* coding causes rework — both the auth UI shape and the dashboard config fall out of these answers.
+Asking these _after_ coding causes rework — both the auth UI shape and the dashboard config fall out of these answers.
 
 ## When something fails, surface and stop
 
@@ -101,27 +101,27 @@ Identity does **not** currently work with `netlify dev`. You must deploy to Netl
 Log in from the browser:
 
 ```typescript
-import { login, getUser } from '@netlify/identity'
+import { login, getUser } from '@netlify/identity';
 
-const user = await login('user@example.com', '<password>')
-console.log(`Hello, ${user.name}`)
+const user = await login('user@example.com', '<password>');
+console.log(`Hello, ${user.name}`);
 
 // Later, check auth state
-const currentUser = await getUser()
+const currentUser = await getUser();
 ```
 
 Protect a Netlify Function:
 
 ```typescript
 // netlify/functions/protected.mts
-import { getUser } from '@netlify/identity'
-import type { Context } from '@netlify/functions'
+import { getUser } from '@netlify/identity';
+import type { Context } from '@netlify/functions';
 
 export default async (req: Request, context: Context) => {
-  const user = await getUser()
-  if (!user) return new Response('Unauthorized', { status: 401 })
-  return Response.json({ id: user.id, email: user.email })
-}
+	const user = await getUser();
+	if (!user) return new Response('Unauthorized', { status: 401 });
+	return Response.json({ id: user.id, email: user.email });
+};
 ```
 
 `getUser()` reads the request's `nf_jwt` cookie automatically — no argument is needed in a function or edge function. Server-side auth (`getUser`, `login`, `admin.*`) requires a **modern v2 function** (`export default`); v1 Lambda-compatible functions (`export { handler }`) are not supported.
@@ -132,33 +132,33 @@ Import and use headless functions directly:
 
 ```typescript
 import {
-  getUser,
-  handleAuthCallback,
-  login,
-  logout,
-  signup,
-  oauthLogin,
-  onAuthChange,
-  getSettings,
-} from '@netlify/identity'
+	getUser,
+	handleAuthCallback,
+	login,
+	logout,
+	signup,
+	oauthLogin,
+	onAuthChange,
+	getSettings
+} from '@netlify/identity';
 ```
 
 ### Login
 
 ```typescript
-import { login, AuthError } from '@netlify/identity'
+import { login, AuthError } from '@netlify/identity';
 
 async function handleLogin(email: string, password: string) {
-  try {
-    const user = await login(email, password)
-    showSuccess(`Welcome back, ${user.name ?? user.email}`)
-  } catch (error) {
-    if (error instanceof AuthError) {
-      // Bad credentials → GoTrue returns 400 (invalid_grant) server-side; in the
-      // browser the status is undefined, so fall back to the message there.
-      showError(error.status === 400 ? 'Invalid email or password.' : error.message)
-    }
-  }
+	try {
+		const user = await login(email, password);
+		showSuccess(`Welcome back, ${user.name ?? user.email}`);
+	} catch (error) {
+		if (error instanceof AuthError) {
+			// Bad credentials → GoTrue returns 400 (invalid_grant) server-side; in the
+			// browser the status is undefined, so fall back to the message there.
+			showError(error.status === 400 ? 'Invalid email or password.' : error.message);
+		}
+	}
 }
 ```
 
@@ -167,46 +167,46 @@ async function handleLogin(email: string, password: string) {
 After signup, check `user.emailVerified` to determine if the user was auto-confirmed or needs to confirm their email.
 
 ```typescript
-import { signup, AuthError } from '@netlify/identity'
+import { signup, AuthError } from '@netlify/identity';
 
 async function handleSignup(email: string, password: string, name: string) {
-  try {
-    const user = await signup(email, password, { full_name: name })
-    if (user.emailVerified) {
-      // Autoconfirm ON — user is logged in immediately
-      showSuccess('Account created. You are now logged in.')
-    } else {
-      // Autoconfirm OFF — confirmation email sent
-      showSuccess('Check your email to confirm your account.')
-    }
-  } catch (error) {
-    if (error instanceof AuthError) {
-      showError(error.status === 403 ? 'Signups are not allowed.' : error.message)
-    }
-  }
+	try {
+		const user = await signup(email, password, { full_name: name });
+		if (user.emailVerified) {
+			// Autoconfirm ON — user is logged in immediately
+			showSuccess('Account created. You are now logged in.');
+		} else {
+			// Autoconfirm OFF — confirmation email sent
+			showSuccess('Check your email to confirm your account.');
+		}
+	} catch (error) {
+		if (error instanceof AuthError) {
+			showError(error.status === 403 ? 'Signups are not allowed.' : error.message);
+		}
+	}
 }
 ```
 
 ### Logout
 
 ```typescript
-import { logout } from '@netlify/identity'
+import { logout } from '@netlify/identity';
 
-await logout()
+await logout();
 ```
 
 ### OAuth
 
-**When Netlify Identity is the goal, never build a from-scratch third-party OAuth flow.** Don't tell the user to go register their own Google/GitHub OAuth app, don't ask for a `client_id`/`secret`, and don't write your own `/auth/callback` token-exchange handler. Identity already brokers the OAuth handshake: the provider is enabled in the dashboard with the **"Use Netlify's app"** option (no credentials needed — see the handoff checklist above), and your code just calls `oauthLogin(provider)` + `handleAuthCallback()`. Scaffolding raw OAuth alongside Identity is the single most common source of rework in this flow — it produces two competing auth systems that then have to be untangled by hand. Custom OAuth credentials exist only to *brand* the consent screen, and even then they're pasted into the dashboard, not wired into app code.
+**When Netlify Identity is the goal, never build a from-scratch third-party OAuth flow.** Don't tell the user to go register their own Google/GitHub OAuth app, don't ask for a `client_id`/`secret`, and don't write your own `/auth/callback` token-exchange handler. Identity already brokers the OAuth handshake: the provider is enabled in the dashboard with the **"Use Netlify's app"** option (no credentials needed — see the handoff checklist above), and your code just calls `oauthLogin(provider)` + `handleAuthCallback()`. Scaffolding raw OAuth alongside Identity is the single most common source of rework in this flow — it produces two competing auth systems that then have to be untangled by hand. Custom OAuth credentials exist only to _brand_ the consent screen, and even then they're pasted into the dashboard, not wired into app code.
 
 OAuth is a two-step flow: `oauthLogin(provider)` redirects away from the site, then `handleAuthCallback()` processes the redirect when the user returns.
 
 ```typescript
-import { oauthLogin } from '@netlify/identity'
+import { oauthLogin } from '@netlify/identity';
 
 // Step 1: Redirect to provider (navigates away — never returns)
 function handleOAuthClick(provider: 'google' | 'github' | 'gitlab' | 'bitbucket') {
-  oauthLogin(provider)
+	oauthLogin(provider);
 }
 ```
 
@@ -219,65 +219,65 @@ Email/password is always available as a login method — there is **no "Email pr
 Always call `handleAuthCallback()` on page load in any app that uses OAuth, password recovery, invites, or email confirmation. It processes all callback types via the URL hash.
 
 ```typescript
-import { handleAuthCallback, AuthError } from '@netlify/identity'
+import { handleAuthCallback, AuthError } from '@netlify/identity';
 
 async function processCallback() {
-  try {
-    const result = await handleAuthCallback()
-    if (!result) return // No callback hash — normal page load
+	try {
+		const result = await handleAuthCallback();
+		if (!result) return; // No callback hash — normal page load
 
-    switch (result.type) {
-      case 'oauth':
-        showSuccess(`Logged in as ${result.user?.email}`)
-        break
-      case 'confirmation':
-        showSuccess('Email confirmed. You are now logged in.')
-        break
-      case 'recovery':
-        // User is authenticated but must set a new password
-        showPasswordResetForm(result.user)
-        break
-      case 'invite':
-        // User must set a password to accept the invite
-        showInviteAcceptForm(result.token)
-        break
-      case 'email_change':
-        showSuccess('Email address updated.')
-        break
-    }
-  } catch (error) {
-    if (error instanceof AuthError) showError(error.message)
-  }
+		switch (result.type) {
+			case 'oauth':
+				showSuccess(`Logged in as ${result.user?.email}`);
+				break;
+			case 'confirmation':
+				showSuccess('Email confirmed. You are now logged in.');
+				break;
+			case 'recovery':
+				// User is authenticated but must set a new password
+				showPasswordResetForm(result.user);
+				break;
+			case 'invite':
+				// User must set a password to accept the invite
+				showInviteAcceptForm(result.token);
+				break;
+			case 'email_change':
+				showSuccess('Email address updated.');
+				break;
+		}
+	} catch (error) {
+		if (error instanceof AuthError) showError(error.message);
+	}
 }
 ```
 
 ### Auth State
 
 ```typescript
-import { getUser, onAuthChange, AUTH_EVENTS } from '@netlify/identity'
+import { getUser, onAuthChange, AUTH_EVENTS } from '@netlify/identity';
 
 // Check current user (never throws — returns null if not authenticated)
-const user = await getUser()
+const user = await getUser();
 
 // Subscribe to auth state changes (returns unsubscribe function)
 const unsubscribe = onAuthChange((event, user) => {
-  switch (event) {
-    case AUTH_EVENTS.LOGIN:
-      console.log('Logged in:', user?.email)
-      break
-    case AUTH_EVENTS.LOGOUT:
-      console.log('Logged out')
-      break
-    case AUTH_EVENTS.TOKEN_REFRESH:
-      break
-    case AUTH_EVENTS.USER_UPDATED:
-      console.log('Profile updated:', user?.email)
-      break
-    case AUTH_EVENTS.RECOVERY:
-      console.log('Password recovery initiated')
-      break
-  }
-})
+	switch (event) {
+		case AUTH_EVENTS.LOGIN:
+			console.log('Logged in:', user?.email);
+			break;
+		case AUTH_EVENTS.LOGOUT:
+			console.log('Logged out');
+			break;
+		case AUTH_EVENTS.TOKEN_REFRESH:
+			break;
+		case AUTH_EVENTS.USER_UPDATED:
+			console.log('Profile updated:', user?.email);
+			break;
+		case AUTH_EVENTS.RECOVERY:
+			console.log('Password recovery initiated');
+			break;
+	}
+});
 ```
 
 ### Settings-Driven UI
@@ -285,60 +285,60 @@ const unsubscribe = onAuthChange((event, user) => {
 You cannot see a project's live Identity configuration while you are writing the code — there is no API, MCP tool, or CLI command that reports whether Identity is enabled or which providers are on; that state lives in the dashboard. So **don't hard-code which providers exist.** Call `getSettings()` at startup and render the signup form and OAuth buttons from what it returns, so the UI matches whatever the user actually enabled — and a provider you assumed was on but isn't won't render a dead button. (`getSettings()` hits `/.netlify/identity/settings` and works against any origin serving the page, including localhost under `netlify dev`, which proxies to the live service — but it can't tell you anything pre-run, so ask the user what's configured while you're still scaffolding.)
 
 ```typescript
-import { getSettings } from '@netlify/identity'
+import { getSettings } from '@netlify/identity';
 
-const settings = await getSettings()
+const settings = await getSettings();
 // settings.autoconfirm — boolean
 // settings.disableSignup — boolean
 // settings.providers — Record<AuthProvider, boolean>
 
-if (!settings.disableSignup) showSignupForm()
+if (!settings.disableSignup) showSignupForm();
 
 for (const [provider, enabled] of Object.entries(settings.providers)) {
-  if (enabled) showOAuthButton(provider)
+	if (enabled) showOAuthButton(provider);
 }
 ```
 
 ## Minimal React Example
 
 ```tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 import {
-  getUser,
-  handleAuthCallback,
-  login,
-  logout,
-  oauthLogin,
-  onAuthChange,
-} from '@netlify/identity'
+	getUser,
+	handleAuthCallback,
+	login,
+	logout,
+	oauthLogin,
+	onAuthChange
+} from '@netlify/identity';
 
 function App() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+	const [user, setUser] = useState(null);
+	const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    ;(async () => {
-      await handleAuthCallback()
-      setUser(await getUser())
-      setLoading(false)
-    })()
-    return onAuthChange((_event, currentUser) => setUser(currentUser))
-  }, [])
+	useEffect(() => {
+		(async () => {
+			await handleAuthCallback();
+			setUser(await getUser());
+			setLoading(false);
+		})();
+		return onAuthChange((_event, currentUser) => setUser(currentUser));
+	}, []);
 
-  const handleLogin = async (email, password) => {
-    const currentUser = await login(email, password)
-    setUser(currentUser)
-  }
+	const handleLogin = async (email, password) => {
+		const currentUser = await login(email, password);
+		setUser(currentUser);
+	};
 
-  const handleGoogleLogin = () => oauthLogin('google')
+	const handleGoogleLogin = () => oauthLogin('google');
 
-  const handleSignOut = async () => {
-    await logout()
-    setUser(null)
-  }
+	const handleSignOut = async () => {
+		await logout();
+		setUser(null);
+	};
 
-  if (loading) return <p>Loading...</p>
-  // Render login form or user details based on `user` state
+	if (loading) return <p>Loading...</p>;
+	// Render login form or user details based on `user` state
 }
 ```
 
@@ -351,13 +351,13 @@ function App() {
 
 `getUser()` and `isAuthenticated()` never throw — they return `null` and `false` respectively on failure.
 
-| Status | Meaning |
-|--------|---------|
-| 400 | Invalid login credentials — wrong email/password (GoTrue `invalid_grant`) |
-| 401 | Missing, invalid, or expired bearer token on an authenticated endpoint |
-| 403 | Action not allowed (e.g., signups disabled) |
-| 422 | Validation error (e.g., weak password, malformed email) |
-| 404 | User or resource not found |
+| Status | Meaning                                                                   |
+| ------ | ------------------------------------------------------------------------- |
+| 400    | Invalid login credentials — wrong email/password (GoTrue `invalid_grant`) |
+| 401    | Missing, invalid, or expired bearer token on an authenticated endpoint    |
+| 403    | Action not allowed (e.g., signups disabled)                               |
+| 422    | Validation error (e.g., weak password, malformed email)                   |
+| 404    | User or resource not found                                                |
 
 Note: in the browser, `login()` surfaces gotrue-js failures as an `AuthError` with `status` **undefined** (the HTTP status isn't propagated), so don't branch on `status` for bad-credentials UX there — fall back to `error.message`. Server-side (`login()` in a Function) passes the real status through, so `400` is reliable.
 
@@ -369,13 +369,13 @@ The typed handler API below (the `userSignup`/`userValidate`/… object export, 
 
 **Available identity handlers:**
 
-| Handler | Trigger |
-|---|---|
-| `userValidate` | User attempts to sign up. Can deny. |
-| `userSignup` | User completes signup. Can deny or mutate. |
-| `userLogin` | User logs in. Can deny or mutate. |
+| Handler        | Trigger                                      |
+| -------------- | -------------------------------------------- |
+| `userValidate` | User attempts to sign up. Can deny.          |
+| `userSignup`   | User completes signup. Can deny or mutate.   |
+| `userLogin`    | User logs in. Can deny or mutate.            |
 | `userModified` | User profile is updated. Can deny or mutate. |
-| `userDeleted` | User is deleted. Notification only. |
+| `userDeleted`  | User is deleted. Notification only.          |
 
 Each handler receives a typed event with a parsed `user` object (camelCase fields: `appMetadata`, `userMetadata`, `confirmedAt`, etc.).
 
@@ -385,21 +385,21 @@ Return `{ user: ... }` to substitute the user record before it's persisted. This
 
 ```typescript
 // netlify/functions/identity.mts
-import type { UserSignupEvent } from '@netlify/functions'
+import type { UserSignupEvent } from '@netlify/functions';
 
 export default {
-  userSignup(event: UserSignupEvent) {
-    return {
-      user: {
-        ...event.user,
-        appMetadata: {
-          ...event.user.appMetadata,
-          roles: ['member'],
-        },
-      },
-    }
-  },
-}
+	userSignup(event: UserSignupEvent) {
+		return {
+			user: {
+				...event.user,
+				appMetadata: {
+					...event.user.appMetadata,
+					roles: ['member']
+				}
+			}
+		};
+	}
+};
 ```
 
 ### Deny an action
@@ -407,15 +407,15 @@ export default {
 Call `event.deny()` to reject a signup, login, validation, or modification. The end user receives a 401. Do not throw — `event.deny()` is the canonical denial mechanism and does not produce an error in observability.
 
 ```typescript
-import type { UserValidateEvent } from '@netlify/functions'
+import type { UserValidateEvent } from '@netlify/functions';
 
 export default {
-  userValidate(event: UserValidateEvent) {
-    if (!event.user.email?.endsWith('@example.com')) {
-      return event.deny()
-    }
-  },
-}
+	userValidate(event: UserValidateEvent) {
+		if (!event.user.email?.endsWith('@example.com')) {
+			return event.deny();
+		}
+	}
+};
 ```
 
 If multiple functions subscribe to the same event, the first to call `event.deny()` aborts the chain — subsequent functions are not invoked.

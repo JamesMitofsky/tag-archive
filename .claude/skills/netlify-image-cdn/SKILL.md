@@ -15,15 +15,15 @@ Every Netlify site has a built-in `/.netlify/images` endpoint for on-the-fly ima
 
 ## Query Parameters
 
-| Param | Description | Values |
-|---|---|---|
-| `url` | Source image path (required) | Relative path or absolute URL |
-| `w` | Width in pixels | Any positive integer |
-| `h` | Height in pixels | Any positive integer |
-| `fit` | Resize behavior | `contain` (default), `cover`, `fill` |
+| Param      | Description                   | Values                                               |
+| ---------- | ----------------------------- | ---------------------------------------------------- |
+| `url`      | Source image path (required)  | Relative path or absolute URL                        |
+| `w`        | Width in pixels               | Any positive integer                                 |
+| `h`        | Height in pixels              | Any positive integer                                 |
+| `fit`      | Resize behavior               | `contain` (default), `cover`, `fill`                 |
 | `position` | Crop alignment (with `cover`) | `center` (default), `top`, `bottom`, `left`, `right` |
-| `fm` | Output format | `avif`, `webp`, `jpg`, `png`, `gif`, `blurhash` |
-| `q` | Quality (lossy formats) | 1-100 (default: 75) |
+| `fm`       | Output format                 | `avif`, `webp`, `jpg`, `png`, `gif`, `blurhash`      |
+| `q`        | Quality (lossy formats)       | 1-100 (default: 75)                                  |
 
 When `fm` is omitted, Netlify auto-negotiates the best format based on browser support (preferring `webp`, then `avif`).
 
@@ -42,13 +42,15 @@ remote_images = ["https://example\\.com/.*", "https://cdn\\.images\\.com/.*"]
 
 Values are regex patterns.
 
-A remote source URL that does **not** match any `remote_images` pattern is rejected with a **404** — Netlify does not fetch or proxy it. This is a strict allowlist, not a fallback: there is no automatic proxying of arbitrary external hosts. Add the host (as an escaped regex) to `remote_images` *before* referencing it through `/.netlify/images`, or every transform request for that source will 404. (Local images on the same site never need allowlisting.)
+A remote source URL that does **not** match any `remote_images` pattern is rejected with a **404** — Netlify does not fetch or proxy it. This is a strict allowlist, not a fallback: there is no automatic proxying of arbitrary external hosts. Add the host (as an escaped regex) to `remote_images` _before_ referencing it through `/.netlify/images`, or every transform request for that source will 404. (Local images on the same site never need allowlisting.)
 
 When referencing an allow-listed remote image, **percent-encode the source URL** before placing it in the `url` parameter:
 
 ```html
 <!-- source: https://cdn.example.com/marketing/banner.jpg -->
-<img src="/.netlify/images?url=https%3A%2F%2Fcdn.example.com%2Fmarketing%2Fbanner.jpg&w=800&fm=webp&q=80" />
+<img
+	src="/.netlify/images?url=https%3A%2F%2Fcdn.example.com%2Fmarketing%2Fbanner.jpg&w=800&fm=webp&q=80"
+/>
 ```
 
 Percent-encode the source value (e.g. with `encodeURIComponent`) whenever it contains characters that would otherwise be read as Image CDN params — `?`, `&`, `=`, `#`, or whitespace. This applies to remote URLs and relative paths alike (a filename or user-generated key can contain them too, e.g. `url=/uploads/a%26b.jpg`). Basic paths without those characters don't need encoding.

@@ -1,3 +1,8 @@
 @import 'tailwindcss';
+@import '@skeletonlabs/skeleton';
+@import './tagarchive.css';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+
+/* Let Tailwind scan Skeleton Svelte component classes (path relative to this file) */
+@source '../../node_modules/@skeletonlabs/skeleton-svelte/dist';

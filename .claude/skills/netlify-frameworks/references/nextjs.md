@@ -29,11 +29,9 @@ publish = ".next"
 ```javascript
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "example.com" },
-    ],
-  },
+	images: {
+		remotePatterns: [{ protocol: 'https', hostname: 'example.com' }]
+	}
 };
 
 module.exports = nextConfig;
@@ -48,12 +46,12 @@ Next.js API routes work automatically — they are deployed as Netlify Functions
 ```typescript
 // app/api/items/route.ts (App Router)
 export async function GET() {
-  return Response.json({ items: [] });
+	return Response.json({ items: [] });
 }
 
 export async function POST(request: Request) {
-  const data = await request.json();
-  return Response.json({ created: data }, { status: 201 });
+	const data = await request.json();
+	return Response.json({ created: data }, { status: 201 });
 }
 ```
 
@@ -63,12 +61,12 @@ Next.js middleware is deployed as a Netlify Edge Function:
 
 ```typescript
 // middleware.ts
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // Runs at the edge on Netlify
-  return NextResponse.next();
+	// Runs at the edge on Netlify
+	return NextResponse.next();
 }
 ```
 

@@ -34,15 +34,15 @@ npm install openai
 ```
 
 ```typescript
-import OpenAI from "openai";
+import OpenAI from 'openai';
 
 const openai = new OpenAI();
 // `OPENAI_API_KEY` and `OPENAI_BASE_URL` are auto-injected; the SDK
 // reads both from the environment, so no constructor args are needed.
 
 const completion = await openai.chat.completions.create({
-  model: "gpt-4o-mini",
-  messages: [{ role: "user", content: "Hello!" }],
+	model: 'gpt-4o-mini',
+	messages: [{ role: 'user', content: 'Hello!' }]
 });
 ```
 
@@ -53,16 +53,16 @@ npm install @anthropic-ai/sdk
 ```
 
 ```typescript
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic();
 // `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are auto-injected; the SDK
 // reads both from the environment, so no constructor args are needed.
 
 const message = await client.messages.create({
-  model: "claude-sonnet-4-5-20250929",
-  max_tokens: 1024,
-  messages: [{ role: "user", content: "Hello!" }],
+	model: 'claude-sonnet-4-5-20250929',
+	max_tokens: 1024,
+	messages: [{ role: 'user', content: 'Hello!' }]
 });
 ```
 
@@ -75,7 +75,7 @@ npm install @google/genai
 ```
 
 ```typescript
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from '@google/genai';
 
 const ai = new GoogleGenAI({});
 // `GEMINI_API_KEY` and `GOOGLE_GEMINI_BASE_URL` are auto-injected. The SDK also
@@ -83,8 +83,8 @@ const ai = new GoogleGenAI({});
 // injection isn't shadowed.
 
 const response = await ai.models.generateContent({
-  model: "gemini-2.5-flash",
-  contents: "Hello!",
+	model: 'gemini-2.5-flash',
+	contents: 'Hello!'
 });
 
 const text = response.text;
@@ -93,26 +93,26 @@ const text = response.text;
 ## In a Netlify Function
 
 ```typescript
-import type { Config, Context } from "@netlify/functions";
-import OpenAI from "openai";
+import type { Config, Context } from '@netlify/functions';
+import OpenAI from 'openai';
 
 export default async (req: Request, context: Context) => {
-  const { prompt } = await req.json();
-  const openai = new OpenAI();
+	const { prompt } = await req.json();
+	const openai = new OpenAI();
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-  });
+	const completion = await openai.chat.completions.create({
+		model: 'gpt-4o-mini',
+		messages: [{ role: 'user', content: prompt }]
+	});
 
-  return Response.json({
-    response: completion.choices[0].message.content,
-  });
+	return Response.json({
+		response: completion.choices[0].message.content
+	});
 };
 
 export const config: Config = {
-  path: "/api/ai",
-  method: "POST",
+	path: '/api/ai',
+	method: 'POST'
 };
 ```
 
@@ -127,21 +127,19 @@ Both text-to-image and image-to-image use the same `generateContent` method as c
 ### Text-to-image
 
 ```typescript
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from '@google/genai';
 
 const ai = new GoogleGenAI({});
 
 const response = await ai.models.generateContent({
-  model: "gemini-3.1-flash-image",
-  contents: "A watercolor portrait of a corgi wearing a beret",
+	model: 'gemini-3.1-flash-image',
+	contents: 'A watercolor portrait of a corgi wearing a beret'
 });
 
-const imagePart = response.candidates[0].content.parts.find(
-  (p) => p.inlineData,
-);
+const imagePart = response.candidates[0].content.parts.find((p) => p.inlineData);
 const base64 = imagePart.inlineData.data;
 const mimeType = imagePart.inlineData.mimeType; // e.g. "image/png"
-const bytes = Buffer.from(base64, "base64");
+const bytes = Buffer.from(base64, 'base64');
 ```
 
 ### Image-to-image (edit / stylize an input image)
@@ -149,14 +147,14 @@ const bytes = Buffer.from(base64, "base64");
 Pass the source image as an additional content part with `inlineData`:
 
 ```typescript
-const sourceBase64 = sourceBuffer.toString("base64");
+const sourceBase64 = sourceBuffer.toString('base64');
 
 const response = await ai.models.generateContent({
-  model: "gemini-3.1-flash-image",
-  contents: [
-    { text: "Restyle this photo as a Picasso-era cubist portrait" },
-    { inlineData: { mimeType: "image/png", data: sourceBase64 } },
-  ],
+	model: 'gemini-3.1-flash-image',
+	contents: [
+		{ text: 'Restyle this photo as a Picasso-era cubist portrait' },
+		{ inlineData: { mimeType: 'image/png', data: sourceBase64 } }
+	]
 });
 ```
 
@@ -166,20 +164,20 @@ The response shape is the same — pull `base64` and `mimeType` off the first pa
 
 All of these are injected automatically by Netlify when AI is enabled. Setting your own value for any of the per-provider vars disables gateway routing.
 
-| Variable | Provider | Purpose |
-|---|---|---|
-| `OPENAI_BASE_URL` | OpenAI | Gateway endpoint |
-| `OPENAI_API_KEY` | OpenAI | Placeholder; satisfies the SDK's "key required" check |
-| `ANTHROPIC_BASE_URL` | Anthropic | Gateway endpoint |
-| `ANTHROPIC_API_KEY` | Anthropic | Placeholder; satisfies the SDK's "key required" check |
-| `GOOGLE_GEMINI_BASE_URL` | Google Gemini | Gateway endpoint |
-| `GEMINI_API_KEY` | Google Gemini | Placeholder; satisfies the SDK's "key required" check |
-| `NETLIFY_AI_GATEWAY_BASE_URL` | (universal) | Provider-agnostic gateway endpoint |
-| `NETLIFY_AI_GATEWAY_KEY` | (universal) | Provider-agnostic gateway key |
+| Variable                      | Provider      | Purpose                                               |
+| ----------------------------- | ------------- | ----------------------------------------------------- |
+| `OPENAI_BASE_URL`             | OpenAI        | Gateway endpoint                                      |
+| `OPENAI_API_KEY`              | OpenAI        | Placeholder; satisfies the SDK's "key required" check |
+| `ANTHROPIC_BASE_URL`          | Anthropic     | Gateway endpoint                                      |
+| `ANTHROPIC_API_KEY`           | Anthropic     | Placeholder; satisfies the SDK's "key required" check |
+| `GOOGLE_GEMINI_BASE_URL`      | Google Gemini | Gateway endpoint                                      |
+| `GEMINI_API_KEY`              | Google Gemini | Placeholder; satisfies the SDK's "key required" check |
+| `NETLIFY_AI_GATEWAY_BASE_URL` | (universal)   | Provider-agnostic gateway endpoint                    |
+| `NETLIFY_AI_GATEWAY_KEY`      | (universal)   | Provider-agnostic gateway key                         |
 
 The real upstream API keys live on Netlify's side. The per-provider `*_API_KEY` vars are placeholders so the SDKs construct successfully; the gateway authenticates server-side. You don't read these yourself — the SDK picks them up.
 
-When your own code needs some *other* environment value (a config flag, a model name you've parameterized), prefer `Netlify.env.get("VAR")` — it works in Netlify Functions and Edge Functions, and Edge Functions expose **only** `Netlify.env.get`. (In a framework's own server routes, use whatever that framework documents for env access — often `process.env`.)
+When your own code needs some _other_ environment value (a config flag, a model name you've parameterized), prefer `Netlify.env.get("VAR")` — it works in Netlify Functions and Edge Functions, and Edge Functions expose **only** `Netlify.env.get`. (In a framework's own server routes, use whatever that framework documents for env access — often `process.env`.)
 
 ## Local Development
 
@@ -220,11 +218,13 @@ Don't leave a slow synchronous generation unstreamed and assume it will finish �
 _Verified 2026-04-30 against the live AI Gateway providers list. The user-facing reference is https://docs.netlify.com/build/ai-gateway/overview/ — re-check before pinning a new model._
 
 ### Anthropic (chat)
+
 - `claude-haiku-4-5`, `claude-haiku-4-5-20251001`
 - `claude-sonnet-4-0`, `claude-sonnet-4-20250514`, `claude-sonnet-4-5`, `claude-sonnet-4-5-20250929`, `claude-sonnet-4-6`
 - `claude-opus-4-1-20250805`, `claude-opus-4-20250514`, `claude-opus-4-5`, `claude-opus-4-5-20251101`, `claude-opus-4-6`, `claude-opus-4-7`
 
 ### OpenAI (chat / reasoning / Codex)
+
 - gpt-4 family: `gpt-4o`, `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`
 - gpt-5: `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-5-pro`, `gpt-5-codex`; dated: `gpt-5-2025-08-07`, `gpt-5-mini-2025-08-07`
 - gpt-5.1: `gpt-5.1`, `gpt-5.1-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex-mini`; dated: `gpt-5.1-2025-11-13`
@@ -235,6 +235,6 @@ _Verified 2026-04-30 against the live AI Gateway providers list. The user-facing
 - Reasoning (o-series): `o3`, `o3-mini`, `o4-mini`
 
 ### Google Gemini (chat + image)
+
 - Chat: `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.5-pro`, `gemini-3-flash-preview`, `gemini-3.1-flash-lite`, `gemini-3.1-pro-preview`, `gemini-3.1-pro-preview-customtools`, `gemini-flash-latest`, `gemini-flash-lite-latest`
 - Image: `gemini-2.5-flash-image`, `gemini-3-pro-image`, `gemini-3.1-flash-image`, `gemini-3.1-flash-lite-image`
-

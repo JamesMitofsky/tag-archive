@@ -27,12 +27,12 @@ If the prompt didn't already specify, ask the user a few short questions before 
 ## Getting a Store
 
 ```typescript
-import { getStore } from "@netlify/blobs";
+import { getStore } from '@netlify/blobs';
 
-const store = getStore({ name: "my-store" });
+const store = getStore({ name: 'my-store' });
 
 // Use "strong" consistency when you need immediate reads after writes
-const store = getStore({ name: "my-store", consistency: "strong" });
+const store = getStore({ name: 'my-store', consistency: 'strong' });
 ```
 
 ## CRUD Operations
@@ -43,43 +43,43 @@ These are the **only** store methods. Do not invent others.
 
 ```typescript
 // String or binary data
-await store.set("key", "value");
-await store.set("key", fileBuffer);
+await store.set('key', 'value');
+await store.set('key', fileBuffer);
 
 // With metadata
-await store.set("key", data, {
-  metadata: { contentType: "image/png", uploadedAt: new Date().toISOString() },
+await store.set('key', data, {
+	metadata: { contentType: 'image/png', uploadedAt: new Date().toISOString() }
 });
 
 // JSON data
-await store.setJSON("key", { name: "Example", count: 42 });
+await store.setJSON('key', { name: 'Example', count: 42 });
 ```
 
 ### Read
 
 ```typescript
 // Text (default)
-const text = await store.get("key");                    // string | null
+const text = await store.get('key'); // string | null
 
 // Typed retrieval
-const json = await store.get("key", { type: "json" });  // object | null
-const stream = await store.get("key", { type: "stream" });
-const blob = await store.get("key", { type: "blob" });
-const buffer = await store.get("key", { type: "arrayBuffer" });
+const json = await store.get('key', { type: 'json' }); // object | null
+const stream = await store.get('key', { type: 'stream' });
+const blob = await store.get('key', { type: 'blob' });
+const buffer = await store.get('key', { type: 'arrayBuffer' });
 
 // With metadata
-const result = await store.getWithMetadata("key");
+const result = await store.getWithMetadata('key');
 // { data: any, etag: string, metadata: object } | null
 
 // Metadata only (no data download)
-const meta = await store.getMetadata("key");
+const meta = await store.getMetadata('key');
 // { etag: string, metadata: object } | null
 ```
 
 ### Delete
 
 ```typescript
-await store.delete("key");
+await store.delete('key');
 ```
 
 ### List
@@ -89,16 +89,16 @@ const { blobs } = await store.list();
 // blobs: [{ etag: string, key: string }, ...]
 
 // Filter by prefix
-const { blobs } = await store.list({ prefix: "uploads/" });
+const { blobs } = await store.list({ prefix: 'uploads/' });
 ```
 
 `store.list()` **auto-paginates**: a plain `await store.list()` transparently fetches every page and returns the complete `blobs` array — you do NOT hand-roll page cursors or offsets. For a very large store, pass `{ paginate: true }` to get an async iterator and stream results a page at a time instead of buffering every key in memory:
 
 ```typescript
 for await (const page of store.list({ paginate: true })) {
-  for (const { key } of page.blobs) {
-    // handle each key
-  }
+	for (const { key } of page.blobs) {
+		// handle each key
+	}
 }
 ```
 
@@ -109,19 +109,19 @@ Pass `{ directories: true }` to group keys by the `/` delimiter (folder-style): 
 - **Site-scoped** (`getStore()`): Persist across all deploys. Use for most cases.
 - **Deploy-scoped** (`getDeployStore()`): Tied to a specific deploy lifecycle.
 
-**A site-scoped store is shared across ALL deploy contexts.** Production, deploy previews, and branch deploys all read and write the *same* `getStore()` store — unlike Netlify Database, which forks a separate branch per preview, Blobs does not isolate previews. Code running on a deploy preview reads, overwrites, and deletes the same production data. Don't run destructive tests or seed throwaway data against a `getStore()` store from a preview — it hits production. When you need per-context isolation, use `getDeployStore()`, or partition by deploy context with a context-specific store `name` or key prefix.
+**A site-scoped store is shared across ALL deploy contexts.** Production, deploy previews, and branch deploys all read and write the _same_ `getStore()` store — unlike Netlify Database, which forks a separate branch per preview, Blobs does not isolate previews. Code running on a deploy preview reads, overwrites, and deletes the same production data. Don't run destructive tests or seed throwaway data against a `getStore()` store from a preview — it hits production. When you need per-context isolation, use `getDeployStore()`, or partition by deploy context with a context-specific store `name` or key prefix.
 
 ## Consistency and concurrency
 
 Blobs are **eventually consistent by default**: an immediate read right after a write may return the previous value or `null`. Opt into **strong** consistency when you need read-your-writes. You can set it once on the store, or request it per read:
 
 ```typescript
-import { getStore } from "@netlify/blobs";
+import { getStore } from '@netlify/blobs';
 
-const store = getStore({ name: "my-store", consistency: "strong" });
+const store = getStore({ name: 'my-store', consistency: 'strong' });
 
 // or just for a single read that must see the latest write:
-const fresh = await store.get("key", { consistency: "strong" });
+const fresh = await store.get('key', { consistency: 'strong' });
 ```
 
 Strong reads are **slower** than eventual reads, so don't make everything strong "to be safe" — reserve it for the reads that genuinely need the latest write (typically a read right after a write in the same request). For read-heavy access to data that rarely changes, the default eventual consistency is faster and is the right choice.
@@ -130,12 +130,12 @@ Blobs has **no concurrency control**: there is no locking and there are no trans
 
 ## Limits
 
-| Limit | Value |
-|---|---|
-| Max object size | 5 GB |
-| Metadata per object | 2 KB |
-| Store name max length | 64 bytes |
-| Key max length | 600 bytes |
+| Limit                 | Value     |
+| --------------------- | --------- |
+| Max object size       | 5 GB      |
+| Metadata per object   | 2 KB      |
+| Store name max length | 64 bytes  |
+| Key max length        | 600 bytes |
 
 Object metadata is capped at **2 KB per object** — it's for small descriptors (content type, size, timestamps, a status flag), not a place to stash large JSON. Anything bigger belongs in the blob value itself, not in `metadata`.
 
