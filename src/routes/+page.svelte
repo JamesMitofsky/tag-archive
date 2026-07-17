@@ -85,6 +85,11 @@
 	// Only this many pages float in space; the bar reports the true total.
 	const CAP = 24;
 	let floating = $derived(placeAll(results.slice(0, CAP)));
+	// Open a page and the rest scatter: only the selected card stays mounted, so
+	// every other one plays its off-screen fly-out.
+	let shown = $derived(
+		selected === null ? floating : floating.filter((p) => p.item.id === selected)
+	);
 
 	// Deterministic PRNG so a given artefact always lands + drifts the same way
 	// (stable across reactive re-renders — no jumping).
@@ -176,8 +181,12 @@
 	<!-- Ambient sky: watercolor paper + drifting clouds, shared component. -->
 	<Sky />
 
-	<!-- Searchbar: pinned to the exact center of the viewport, never moves. -->
-	<div class="fixed top-1/2 left-1/2 z-30 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
+	<!-- Searchbar + handwriting header: pinned to viewport center, never moves.
+	     Fades out while a page is open so the opened artefact stands alone. -->
+	<div
+		class="searchbar fixed top-1/2 left-1/2 z-30 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4"
+		class:hidden-ui={selected !== null}
+	>
 		<!-- Static handwriting (recorded pen strokes) sits above the bar. -->
 		<svg
 			class="pointer-events-none mx-auto mb-1 block w-[28rem] max-w-full text-[#14120f]"
@@ -283,7 +292,7 @@
 					class="pointer-events-auto fixed inset-0 z-40 cursor-default bg-black/25"
 				></button>
 			{/if}
-			{#each floating as p (p.item.id)}
+			{#each shown as p (p.item.id)}
 				{@const isSel = selected === p.item.id}
 				<!-- anchor: scattered position, or dead-center when open. Glides between
 				     the two via the CSS transition on left/top. Persistent hover stacking
@@ -308,16 +317,21 @@
 								class:paused={selected !== null && !isSel}
 								style={p.style}
 							>
-								<button
-									type="button"
-									onclick={() => {
-										if (!isSel) selected = p.item.id;
-									}}
-									class="block h-full w-full text-left transition-transform focus-visible:outline-none"
-									class:cursor-pointer={!isSel}
-								>
-									{@render page(p.item)}
-								</button>
+								{#if isSel}
+									<!-- Open page: plain container so text is selectable and a
+									     second click inside does nothing (no re-close). -->
+									<div class="block h-full w-full text-left select-text">
+										{@render page(p.item)}
+									</div>
+								{:else}
+									<button
+										type="button"
+										onclick={() => (selected = p.item.id)}
+										class="block h-full w-full cursor-pointer text-left transition-transform focus-visible:outline-none"
+									>
+										{@render page(p.item)}
+									</button>
+								{/if}
 							</div>
 						</div>
 					</div>
@@ -329,7 +343,7 @@
 
 {#snippet page(item: ArtefactWithEvent)}
 	<div
-		class="flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5"
+		class="sheet flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5"
 	>
 		<div class="border-b border-gray-200 pb-2">
 			<h2 class="line-clamp-2 text-sm leading-tight font-medium">{item.event}</h2>
@@ -391,6 +405,21 @@
 		height: min(90vh, 90vw * 297 / 210);
 		animation: none;
 		z-index: 50;
+	}
+
+	/* Floating pages are translucent (bg-white/95) so the sky reads through; the
+	   opened page goes fully opaque so its content isn't muddied by the backdrop. */
+	.selected .sheet {
+		background-color: #fff;
+	}
+
+	/* Header + searchbar fade out while a page is open, then fade back on close. */
+	.searchbar {
+		transition: opacity 300ms ease;
+	}
+	.searchbar.hidden-ui {
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	/* Anchor point. When the match set changes, ranks shift and this glides to the
