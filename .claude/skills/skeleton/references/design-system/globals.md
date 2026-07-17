@@ -1,0 +1,126 @@
+# Globals
+
+Skeleton's global default styles.
+
+The following represent all global defaults applied via the Skeleton stylesheet.
+
+## Customizing Globals
+
+Skeleton provides a very minimal set of global styles out of the box. However, you are encouraged to override these styles in your app's global stylesheet as you see desired. Refer to the [Core API](/docs/svelte/get-started/core-api) for details on the theme properties used below.
+
+## Root Element
+
+### Design Tokens
+
+```css
+:root {
+	/* Defines form field placeholder text styling. */
+	--field-placeholder: var(--color-surface-700-300);
+}
+```
+
+### Color Scheme
+
+Controls the [Tailwind color scheme](https://tailwindcss.com/docs/color-scheme) based on the current [dark mode configuration](/docs/guides/mode).
+
+```css
+:root {
+	color-scheme: light;
+	@variant dark {
+		color-scheme: dark;
+	}
+}
+```
+
+### Scrollbars
+
+Implements themed [scrollbar styling](https://developer.chrome.com/docs/css-ui/scrollbar-styling). We recommend a transparent track for the best aesthetics.
+
+```css
+:root {
+	scrollbar-width: thin;
+	/* thumb / track */
+	scrollbar-color: light-dark(var(--color-surface-300), var(--color-surface-700)) transparent;
+}
+```
+
+### Tap Highlight Color
+
+Implements a themed [tap highlight color](https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-tap-highlight-color). Shown briefly when tapping interactive elements such as buttons.
+
+> NOTE: This is a non-standard property and only supported by select mobile devices.
+
+```css
+:root {
+	-webkit-tap-highlight-color: color-mix(in oklab, var(--color-surface-50-950) 30%, transparent);
+}
+```
+
+## Html Element
+
+### Background Color
+
+Sets the app-wide background color for light and dark mode, using Skeleton theme properties.
+
+```css
+html {
+	background-color: light-dark(var(--color-root-bg-light), var(--color-root-bg-dark));
+}
+```
+
+## Body Element
+
+### Typography
+
+Sets the app-wide base typography settings, using Skeleton theme properties.
+
+```css
+body {
+	color: light-dark(var(--typo-base--color-light), var(--typo-base--color-dark));
+	font-family: var(--typo-base--font-family);
+	font-size: var(--typo-base--font-size);
+	line-height: var(--typo-base--line-height);
+	font-weight: var(--typo-base--font-weight);
+	font-style: var(--typo-base--font-style);
+	letter-spacing: var(--typo-base--letter-spacing);
+	font-stretch: var(--typo-base--font-stretch);
+	font-kerning: var(--typo-base--font-kerning);
+	text-shadow: var(--typo-base--text-shadow);
+	word-spacing: var(--typo-base--word-spacing);
+	hyphens: var(--typo-base--hyphens);
+	text-transform: var(--typo-base--text-transform);
+}
+```
+
+## Miscellaneous
+
+### Selection
+
+Implements themed styles for [selection](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/::selection).
+
+```css
+::selection {
+	background-color: color-mix(in oklab, light-dark(var(--color-brand-light), var(--color-brand-dark)) 50%, transparent);
+}
+```
+
+### Disabled State
+
+Implements the default [disabled](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/disabled) state styling and provides an optional utility class.
+
+```css
+*:disabled,
+.disabled {
+	box-shadow: none;
+	cursor: not-allowed;
+	opacity: 0.5;
+	& > * {
+		pointer-events: none;
+	}
+}
+```
+
+## Accessibility
+
+As a reminder, never disable `focus` or `outline` styles, as these would be harmful to [accessibility](http://www.outlinenone.com/).
+
