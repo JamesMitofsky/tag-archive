@@ -1,18 +1,17 @@
 <script lang="ts">
-	import type { ArtefactWithEvent } from '$lib/server/db/schema';
+	import type { EventItem } from '$lib/events';
 	import { fade, fly } from 'svelte/transition';
 	import { cubicIn } from 'svelte/easing';
-	import { programAreaMeta } from '$lib/programAreas';
 	import { strokePaths, handwritingBox } from '$lib/handwriting';
 	import Sky from '$lib/components/Sky.svelte';
 
 	let query = $state('');
-	let results = $state<ArtefactWithEvent[]>([]);
+	let results = $state<EventItem[]>([]);
 	let loading = $state(false);
 	let searched = $state(false);
 
 	// Click a floating page to open it: it glides to dead-center and grows to fill
-	// the viewport while every other page flies out. Holds the open artefact's id.
+	// the viewport while every other page flies out. Holds the open event's id.
 	let selected = $state<number | null>(null);
 
 	// Last-hovered page stays lifted to the front until another is hovered.
@@ -39,7 +38,7 @@
 		const id = ++requestId;
 		loading = true;
 		try {
-			const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`);
+			const res = await fetch(`/api/events?q=${encodeURIComponent(trimmed)}`);
 			const data = await res.json();
 			// Ignore out-of-order responses from earlier keystrokes.
 			if (id !== requestId) return;
@@ -66,7 +65,7 @@
 	const CAP = 24;
 	let floating = $derived(placeAll(results.slice(0, CAP)));
 
-	// Deterministic PRNG so a given artefact always lands + drifts the same way
+	// Deterministic PRNG so a given event always lands + drifts the same way
 	// (stable across reactive re-renders — no jumping).
 	function mulberry32(seed: number) {
 		let a = seed >>> 0;
@@ -87,7 +86,7 @@
 	const CLAMP_Y = 44;
 
 	type Placed = {
-		item: ArtefactWithEvent;
+		item: EventItem;
 		dx: number;
 		dy: number;
 		offX: number;
@@ -101,9 +100,9 @@
 	// When matches change, survivors glide to their new even slot (CSS transition on
 	// .card-anchor) rather than snapping — even spacing without jarring jumps.
 	const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-	function placeAll(items: ArtefactWithEvent[]): Placed[] {
+	function placeAll(items: EventItem[]): Placed[] {
 		const n = items.length;
-		// Stable ranks: order indices by artefact id.
+		// Stable ranks: order indices by event id.
 		const rankOf: number[] = [];
 		items
 			.map((it, idx) => ({ id: it.id, idx }))
@@ -224,7 +223,8 @@
 			<input
 				type="search"
 				bind:value={query}
-				aria-label="Search"
+				aria-label="Search events"
+				placeholder="Search U Street events…"
 				class="w-full rounded-lg border border-white/40 bg-white/25 py-3 pr-4 pl-12 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:ring-1 focus:ring-white/50 focus:outline-none"
 			/>
 		</div>
@@ -293,36 +293,25 @@
 	{/if}
 </main>
 
-{#snippet page(item: ArtefactWithEvent)}
+{#snippet page(item: EventItem)}
 	<div
 		class="flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5"
 	>
 		<div class="border-b border-gray-200 pb-2">
-			<h2 class="line-clamp-2 text-sm leading-tight font-medium">{item.event}</h2>
+			<h2 class="line-clamp-2 text-sm leading-tight font-medium">{item.title}</h2>
 			{#if item.date}
-				<p class="mt-1 text-[0.65rem] text-gray-500">{formatDate(item.date)}</p>
+				<p class="mt-1 text-[0.65rem] text-gray-500">
+					{formatDate(item.date)}{#if item.time} · {item.time}{/if}
+				</p>
 			{/if}
 		</div>
 		{#if item.description}
 			<p class="mt-1.5 line-clamp-5 text-xs leading-relaxed text-gray-800">{item.description}</p>
 		{/if}
-		{#if item.provenance.length || item.programArea.length}
+		{#if item.hosts.length}
 			<div class="mt-auto flex flex-wrap gap-1 pt-3">
-				{#each item.programArea as tag}
-					{@const Icon = programAreaMeta(tag).icon}
-					<span
-						class="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.65rem] {programAreaMeta(
-							tag
-						).pill}"
-					>
-						<Icon size={11} weight="fill" />
-						{tag}
-					</span>
-				{/each}
-				{#each item.provenance as person}
-					<span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[0.65rem] text-gray-600"
-						>{person}</span
-					>
+				{#each item.hosts as host}
+					<span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[0.65rem] text-gray-600">{host}</span>
 				{/each}
 			</div>
 		{/if}

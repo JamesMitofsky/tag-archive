@@ -79,14 +79,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Existing events + people power the searchable datalists.
 	const events = await db.select().from(event).orderBy(event.name);
 	const provenancePeople = await db.select().from(provenance).orderBy(provenance.name);
-	// Existing-artefact program areas power the low-emphasis per-area counts.
-	const artefactAreas = await db.select({ programArea: artefact.programArea }).from(artefact);
 
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
 		events,
-		provenancePeople,
-		artefactAreas
+		provenancePeople
 	};
 };
 

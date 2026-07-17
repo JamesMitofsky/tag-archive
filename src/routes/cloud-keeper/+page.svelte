@@ -304,7 +304,13 @@
 								{#if item.programArea.length > 0}
 									<div class="mt-3 flex flex-wrap gap-1.5">
 										{#each item.programArea as area (area)}
-											<span class="rounded-full px-2.5 py-0.5 text-xs {programAreaMeta(area).pill}">
+											{@const Icon = programAreaMeta(area).icon}
+											<span
+												class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs {programAreaMeta(
+													area
+												).pill}"
+											>
+												<Icon size={13} weight="fill" />
 												{area}
 											</span>
 										{/each}

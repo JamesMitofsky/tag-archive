@@ -31,6 +31,7 @@ Skeleton is a Tailwind-based design system + component suite. Two layers:
 - Global stylesheet: `src/routes/layout.css` (imported by `src/routes/+layout.svelte`)
 - Icons: **`phosphor-svelte`** is installed (NOT lucide)
 - `@tailwindcss/forms` + `@tailwindcss/typography` plugins active
+- Active theme: **custom `tagarchive`** (`src/routes/tagarchive.css`, `data-theme="tagarchive"` in `app.html`). Serif base font, squircle corners. Edit that file to tune colors/typography; don't reintroduce a preset theme import unless switching away.
 
 ### Adapting the reference docs to THIS project
 

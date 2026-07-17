@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { TagsInput } from '@skeletonlabs/skeleton-svelte';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
-	import { PROGRAM_AREAS } from '$lib/programAreas';
+	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
 	import Sky from '$lib/components/Sky.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
@@ -12,6 +13,18 @@
 	// Program-area picker state (multi-select — an artefact carries several).
 	let selectedAreas = $state<string[]>([]);
 
+	// Provenance tags — client state survives an enhance re-render, so seed once from
+	// any echoed (comma-separated) value left by a failed submit.
+	// svelte-ignore state_referenced_locally
+	let provenanceTags = $state<string[]>(
+		form && 'values' in form && form.values
+			? (form.values as ArtefactFormValues).provenance
+					.split(',')
+					.map((name) => name.trim())
+					.filter(Boolean)
+			: []
+	);
+
 	// Location dropdown: preset options plus a "+ Option" escape hatch for a custom value.
 	const LOCATION_OPTIONS = ['Binder', 'Bin'];
 	const CUSTOM_LOCATION = '__custom__';
@@ -20,16 +33,6 @@
 	const locationValue = $derived(
 		locationChoice === CUSTOM_LOCATION ? customLocation.trim() : locationChoice
 	);
-	// Existing-artefact count per area, shown low-emphasis beside each option.
-	const areaCounts = $derived(
-		Object.fromEntries(
-			PROGRAM_AREAS.map((area) => [
-				area,
-				data.artefactAreas.filter((a) => a.programArea.includes(area)).length
-			])
-		)
-	);
-
 	const today = new Date().toISOString().slice(0, 10);
 	const artefactError = $derived(form && 'artefactError' in form ? form.artefactError : undefined);
 	// Kit flattens the action-data union, so restore the echoed values' shape.
@@ -70,16 +73,7 @@
 
 		<!-- The create form is a fresh sheet of paper, like the artefact pages. -->
 		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
-			<div class="flex items-center justify-between gap-3">
-				<h2 class="text-lg font-medium text-gray-900">New artefact</h2>
-				{#if data.user.role === 'admin'}
-					<span class="rounded-full bg-gray-800/10 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-						admin
-					</span>
-				{/if}
-			</div>
-
-			<form method="POST" action="?/createArtefact" class="mt-5 space-y-5" use:enhance>
+			<form method="POST" action="?/createArtefact" class="space-y-5" use:enhance>
 				<div>
 					<label for="artefact" class="block text-sm font-medium text-gray-700">
 						Title <span class="text-red-600" title="Required" aria-label="required">*</span>
@@ -114,7 +108,7 @@
 						{/each}
 					</datalist>
 					<p class="mt-1 text-xs text-gray-500">
-						Pick an existing event or type a new one. Reuse the same name for events that recur.
+						Pick an existing event or type a new one.
 					</p>
 				</div>
 
@@ -132,9 +126,11 @@
 				<fieldset>
 					<legend class="block text-sm font-medium text-gray-700">Program areas</legend>
 					<div
-						class="mt-1.5 max-h-56 divide-y divide-gray-100 overflow-y-auto rounded-sm border border-gray-300"
+						class="mt-1.5 divide-y divide-gray-100 rounded-sm border border-gray-300"
 					>
 						{#each PROGRAM_AREAS as area (area)}
+							{@const meta = PROGRAM_AREA_META[area]}
+							{@const Icon = meta.icon}
 							<label
 								class="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm text-gray-800 transition select-none hover:bg-gray-50"
 							>
@@ -145,34 +141,44 @@
 									bind:group={selectedAreas}
 									class="h-4 w-4 rounded border-gray-300 text-gray-800 focus:ring-gray-500"
 								/>
-								<span class="flex-1">{area}</span>
-								<span class="text-xs text-gray-400">{areaCounts[area]}</span>
+								<span class="flex flex-1 items-center gap-1.5 rounded-full px-2 py-0.5 {meta.pill}">
+									<Icon size={16} weight="fill" />
+									{area}
+								</span>
 							</label>
 						{/each}
 					</div>
 				</fieldset>
 
 				<div>
-					<label for="provenance" class="block text-sm font-medium text-gray-700">
-						Provenance
-					</label>
-					<input
-						id="provenance"
+					<TagsInput
 						name="provenance"
-						type="text"
-						list="provenance-options"
-						value={echoed?.provenance ?? ''}
-						placeholder="Rachel Palermo, Alexander Currey"
-						class="mt-1.5 {paperInput}"
-					/>
-					<datalist id="provenance-options">
-						{#each data.provenancePeople as person (person.id)}
-							<option value={person.name}></option>
-						{/each}
-					</datalist>
+						value={provenanceTags}
+						onValueChange={(e) => (provenanceTags = e.value)}
+					>
+						<TagsInput.Label class="block text-sm font-medium text-gray-700">
+							Provenance
+						</TagsInput.Label>
+						<TagsInput.Control class="mt-1.5 w-full">
+							<TagsInput.Context>
+								{#snippet children(tagsInput)}
+									{#each tagsInput().value as value, index (index)}
+										<TagsInput.Item {value} {index}>
+											<TagsInput.ItemPreview>
+												<TagsInput.ItemText>{value}</TagsInput.ItemText>
+												<TagsInput.ItemDeleteTrigger />
+											</TagsInput.ItemPreview>
+											<TagsInput.ItemInput />
+										</TagsInput.Item>
+									{/each}
+								{/snippet}
+							</TagsInput.Context>
+							<TagsInput.Input placeholder="Add a contributor and press Enter…" />
+						</TagsInput.Control>
+						<TagsInput.HiddenInput />
+					</TagsInput>
 					<p class="mt-1 text-xs text-gray-500">
-						Contributors or sources, separated by commas. Reuse existing names so a person stays one
-						searchable entry.
+						Contributors or sources. Press Enter or comma to add each one.
 					</p>
 				</div>
 

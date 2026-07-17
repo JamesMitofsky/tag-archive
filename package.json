@@ -32,6 +32,8 @@
 		"@libsql/client": "^0.17.3",
 		"@neoconfetti/svelte": "^2.2.2",
 		"@playwright/test": "^1.60.0",
+		"@skeletonlabs/skeleton": "^4.15.2",
+		"@skeletonlabs/skeleton-svelte": "^4.15.2",
 		"@storybook/addon-a11y": "10.5.0",
 		"@storybook/addon-docs": "10.5.0",
 		"@storybook/addon-svelte-csf": "^5.1.2",
