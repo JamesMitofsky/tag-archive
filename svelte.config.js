@@ -19,6 +19,9 @@ export default {
 			config: (config) => {
 				config.include.push('../drizzle.config.ts');
 			}
+		},
+		alias: {
+			'@/*': './path/to/lib/*'
 		}
 	}
 };

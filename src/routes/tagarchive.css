@@ -246,6 +246,32 @@
 	--color-surface-contrast-800: var(--color-surface-contrast-light);
 	--color-surface-contrast-900: var(--color-surface-contrast-light);
 	--color-surface-contrast-950: var(--color-surface-contrast-light);
+
+	/*
+	 * shadcn-svelte token layer. Mapped onto the existing grayscale surface scale
+	 * and light-blue primary so shadcn components inherit the tagarchive look.
+	 * App is light-only (no dark toggle), so only these light values are defined.
+	 */
+	--background: var(--color-surface-50);
+	--foreground: var(--color-surface-950);
+	--card: var(--color-surface-50);
+	--card-foreground: var(--color-surface-950);
+	--popover: var(--color-surface-50);
+	--popover-foreground: var(--color-surface-950);
+	--primary: var(--color-primary-500);
+	--primary-foreground: var(--color-primary-contrast-500);
+	--secondary: var(--color-surface-100);
+	--secondary-foreground: var(--color-surface-950);
+	--muted: var(--color-surface-100);
+	--muted-foreground: var(--color-surface-500);
+	--accent: var(--color-surface-100);
+	--accent-foreground: var(--color-surface-950);
+	--destructive: var(--color-error-500);
+	--destructive-foreground: var(--color-error-contrast-500);
+	--border: var(--color-surface-200);
+	--input: var(--color-surface-200);
+	--ring: var(--color-primary-500);
+	--radius: 0.5rem;
 }
 
 /*
