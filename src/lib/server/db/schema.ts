@@ -82,7 +82,8 @@ export const eventHost = sqliteTable(
 
 /**
  * Temperance Alley Garden (TAG) archive artefact.
- * Shape mirrors the source airtable export (data/artefacts.json), except `event`
+ * Shape mirrors the source airtable export (the `artefacts` array in
+ * src/lib/data/seed-data.json), except `event`
  * and `provenance`, which are normalised into their own tables (see `eventId`
  * and the `artefactProvenance` join).
  */

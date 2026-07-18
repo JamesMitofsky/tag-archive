@@ -5,32 +5,57 @@ CREATE TABLE `artefact` (
 	`date` text,
 	`program_area` text DEFAULT '[]' NOT NULL,
 	`description` text,
-	`file_name` text,
-	`file_url` text,
+	`file_urls` text DEFAULT '[]' NOT NULL,
 	`location` text,
 	FOREIGN KEY (`event_id`) REFERENCES `event`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `artefact_provenance` (
 	`artefact_id` integer NOT NULL,
-	`provenance_id` integer NOT NULL,
-	PRIMARY KEY(`artefact_id`, `provenance_id`),
+	`person_id` integer NOT NULL,
+	PRIMARY KEY(`artefact_id`, `person_id`),
 	FOREIGN KEY (`artefact_id`) REFERENCES `artefact`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`provenance_id`) REFERENCES `provenance`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`person_id`) REFERENCES `person`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `event` (
 	`id` integer PRIMARY KEY NOT NULL,
-	`name` text NOT NULL
+	`title` text NOT NULL,
+	`series_id` integer,
+	`date` text NOT NULL,
+	`time` text,
+	`location` text,
+	`description` text,
+	`url` text,
+	`may_have_exception` integer DEFAULT false NOT NULL,
+	`possible_exception_description` text,
+	FOREIGN KEY (`series_id`) REFERENCES `series`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `event_name_unique` ON `event` (`name`);--> statement-breakpoint
-CREATE TABLE `provenance` (
+CREATE TABLE `event_host` (
+	`event_id` integer NOT NULL,
+	`person_id` integer NOT NULL,
+	PRIMARY KEY(`event_id`, `person_id`),
+	FOREIGN KEY (`event_id`) REFERENCES `event`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`person_id`) REFERENCES `person`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `person` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`name` text NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `provenance_name_unique` ON `provenance` (`name`);--> statement-breakpoint
+CREATE UNIQUE INDEX `person_name_unique` ON `person` (`name`);--> statement-breakpoint
+CREATE TABLE `series` (
+	`id` integer PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`description` text,
+	`default_day_of_week` text,
+	`default_time` text,
+	`frequency` text
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `series_name_unique` ON `series` (`name`);--> statement-breakpoint
 CREATE TABLE `account` (
 	`id` text PRIMARY KEY NOT NULL,
 	`account_id` text NOT NULL,

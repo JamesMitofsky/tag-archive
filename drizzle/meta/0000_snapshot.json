@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a4e57a4f-d668-4a60-b481-22d39f4eccc6",
+  "id": "dfdfa610-20cb-431f-83c2-d2862d133a34",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "artefact": {
@@ -50,19 +50,13 @@
           "notNull": false,
           "autoincrement": false
         },
-        "file_name": {
-          "name": "file_name",
+        "file_urls": {
+          "name": "file_urls",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "file_url": {
-          "name": "file_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
         },
         "location": {
           "name": "location",
@@ -102,8 +96,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "provenance_id": {
-          "name": "provenance_id",
+        "person_id": {
+          "name": "person_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -125,12 +119,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "artefact_provenance_provenance_id_provenance_id_fk": {
-          "name": "artefact_provenance_provenance_id_provenance_id_fk",
+        "artefact_provenance_person_id_person_id_fk": {
+          "name": "artefact_provenance_person_id_person_id_fk",
           "tableFrom": "artefact_provenance",
-          "tableTo": "provenance",
+          "tableTo": "person",
           "columnsFrom": [
-            "provenance_id"
+            "person_id"
           ],
           "columnsTo": [
             "id"
@@ -140,12 +134,12 @@
         }
       },
       "compositePrimaryKeys": {
-        "artefact_provenance_artefact_id_provenance_id_pk": {
+        "artefact_provenance_artefact_id_person_id_pk": {
           "columns": [
             "artefact_id",
-            "provenance_id"
+            "person_id"
           ],
-          "name": "artefact_provenance_artefact_id_provenance_id_pk"
+          "name": "artefact_provenance_artefact_id_person_id_pk"
         }
       },
       "uniqueConstraints": {},
@@ -161,30 +155,152 @@
           "notNull": true,
           "autoincrement": false
         },
-        "name": {
-          "name": "name",
+        "title": {
+          "name": "title",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "series_id": {
+          "name": "series_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "time": {
+          "name": "time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "location": {
+          "name": "location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "may_have_exception": {
+          "name": "may_have_exception",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "possible_exception_description": {
+          "name": "possible_exception_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "event_series_id_series_id_fk": {
+          "name": "event_series_id_series_id_fk",
+          "tableFrom": "event",
+          "tableTo": "series",
+          "columnsFrom": [
+            "series_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "event_host": {
+      "name": "event_host",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         }
       },
-      "indexes": {
-        "event_name_unique": {
-          "name": "event_name_unique",
-          "columns": [
-            "name"
+      "indexes": {},
+      "foreignKeys": {
+        "event_host_event_id_event_id_fk": {
+          "name": "event_host_event_id_event_id_fk",
+          "tableFrom": "event_host",
+          "tableTo": "event",
+          "columnsFrom": [
+            "event_id"
           ],
-          "isUnique": true
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "event_host_person_id_person_id_fk": {
+          "name": "event_host_person_id_person_id_fk",
+          "tableFrom": "event_host",
+          "tableTo": "person",
+          "columnsFrom": [
+            "person_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "event_host_event_id_person_id_pk": {
+          "columns": [
+            "event_id",
+            "person_id"
+          ],
+          "name": "event_host_event_id_person_id_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "provenance": {
-      "name": "provenance",
+    "person": {
+      "name": "person",
       "columns": {
         "id": {
           "name": "id",
@@ -202,8 +318,68 @@
         }
       },
       "indexes": {
-        "provenance_name_unique": {
-          "name": "provenance_name_unique",
+        "person_name_unique": {
+          "name": "person_name_unique",
+          "columns": [
+            "name"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "series": {
+      "name": "series",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "default_day_of_week": {
+          "name": "default_day_of_week",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "default_time": {
+          "name": "default_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "frequency": {
+          "name": "frequency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "series_name_unique": {
+          "name": "series_name_unique",
           "columns": [
             "name"
           ],
