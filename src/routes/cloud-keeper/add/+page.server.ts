@@ -1,8 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { eq, min } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { resolveProvenanceIds } from '$lib/server/db/queries';
-import { artefact, artefactProvenance, event, provenance } from '$lib/server/db/schema';
+import { resolvePersonIds } from '$lib/server/db/queries';
+import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
 import { artefactSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -31,9 +31,10 @@ function parseProvenance(raw: string): string[] {
 const nullIfEmpty = (value: string) => (value === '' ? null : value);
 
 /**
- * Resolve an event name to its id, creating the event if it's new (find-or-create).
- * Empty name → null (artefact has no event). Keeps names canonical: the same name
- * always maps to one row, so recurring events group cleanly.
+ * Resolve a typed event title to an existing event's id. Events are dated
+ * happenings sourced from the events export — a bare title here can't create one,
+ * so an unknown title yields null (the artefact stays unlinked). A recurring
+ * title resolves to its earliest event.
  */
 async function resolveEventId(name: string): Promise<number | null> {
 	const trimmed = name.trim();
@@ -42,21 +43,25 @@ async function resolveEventId(name: string): Promise<number | null> {
 	const [existing] = await db
 		.select({ id: event.id })
 		.from(event)
-		.where(eq(event.name, trimmed))
+		.where(eq(event.title, trimmed))
+		.orderBy(event.date)
 		.limit(1);
-	if (existing) return existing.id;
-
-	const [created] = await db.insert(event).values({ name: trimmed }).returning({ id: event.id });
-	return created.id;
+	return existing?.id ?? null;
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// The create form is signed-in only; bounce guests back to the keeper page.
 	if (!locals.user) throw redirect(303, '/cloud-keeper');
 
-	// Existing events + people power the searchable datalists.
-	const events = await db.select().from(event).orderBy(event.name);
-	const provenancePeople = await db.select().from(provenance).orderBy(provenance.name);
+	// Existing event titles + people power the searchable datalists. Distinct
+	// titles only — a recurring title (series) shouldn't list once per date; its
+	// earliest date rides along as low-emphasis context in the combobox.
+	const events = await db
+		.select({ name: event.title, date: min(event.date) })
+		.from(event)
+		.groupBy(event.title)
+		.orderBy(event.title);
+	const provenancePeople = await db.select().from(person).orderBy(person.name);
 
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
@@ -97,10 +102,10 @@ export const actions: Actions = {
 			});
 		}
 
-		// Find-or-create the event and provenance people, then link by id
-		// (recurring events / repeat contributors reuse one row each).
+		// Resolve the event, then find-or-create the provenance people and link by
+		// id (repeat contributors reuse one person row each).
 		const eventId = await resolveEventId(parsed.data.event);
-		const provenanceIds = await resolveProvenanceIds(parsed.data.provenance);
+		const personIds = await resolvePersonIds(parsed.data.provenance);
 
 		// id is an INTEGER PRIMARY KEY (rowid alias) — omit it and SQLite assigns the next one.
 		const [created] = await db
@@ -116,13 +121,13 @@ export const actions: Actions = {
 			})
 			.returning({ id: artefact.id });
 
-		if (provenanceIds.length > 0) {
+		if (personIds.length > 0) {
 			await db
 				.insert(artefactProvenance)
-				.values(provenanceIds.map((provenanceId) => ({ artefactId: created.id, provenanceId })));
+				.values(personIds.map((personId) => ({ artefactId: created.id, personId })));
 		}
 
-		// Land back on the keeper page so the new artefact shows in the list.
-		throw redirect(303, '/cloud-keeper');
+		// Land back on the artefacts list so the new artefact shows.
+		throw redirect(303, '/cloud-keeper/artefacts');
 	}
 };

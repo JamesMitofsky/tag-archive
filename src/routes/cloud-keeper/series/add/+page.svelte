@@ -1,0 +1,135 @@
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import BackButton from '$lib/components/BackButton.svelte';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import { Input } from '$lib/components/ui/input';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import DateField from '$lib/components/DateField.svelte';
+	import type { SeriesFormValues } from './+page.server';
+	import type { ActionData } from './$types';
+
+	let { form }: { form: ActionData } = $props();
+
+	const seriesError = $derived(form && 'seriesError' in form ? form.seriesError : undefined);
+	const echoed = $derived(
+		form && 'values' in form && form.values ? (form.values as SeriesFormValues) : undefined
+	);
+
+	// Name is the only field and it's required; track it so submit can gate on it.
+	// svelte-ignore state_referenced_locally
+	let name = $state(
+		form && 'values' in form && form.values ? (form.values as SeriesFormValues).name : ''
+	);
+
+	const canSubmit = $derived(name.trim().length > 0);
+
+	// Ink button, same graphite tone as the landing handwriting.
+	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
+</script>
+
+<svelte:head>
+	<title>New series · Cloud Keeper</title>
+</svelte:head>
+
+<main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
+	<div class="relative z-10 mx-auto w-full max-w-2xl">
+		<header class="mb-8 flex flex-col items-start gap-3">
+			<BackButton href="/cloud-keeper/series" ariaLabel="Back to Series" />
+		</header>
+
+		<!-- The create form is a fresh sheet of paper, like the series pages. -->
+		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
+			<h1 class="mb-1 text-2xl font-semibold tracking-tight text-gray-900">New series</h1>
+			<p class="mb-6 text-sm text-gray-600">A banner that connects several events.</p>
+			<form method="POST" action="?/createSeries" class="space-y-5" use:enhance>
+				<div>
+					<label for="name" class="block text-sm font-medium text-gray-700">
+						Name <span class="text-red-600" title="Required" aria-label="required">*</span>
+					</label>
+					<Input
+						id="name"
+						name="name"
+						type="text"
+						required
+						maxlength={200}
+						autocomplete="off"
+						bind:value={name}
+						placeholder="Music in the Garden"
+						class="mt-1.5"
+					/>
+				</div>
+
+				<div>
+					<label for="description" class="block text-sm font-medium text-gray-700">
+						Description
+					</label>
+					<Textarea
+						id="description"
+						name="description"
+						rows={3}
+						maxlength={2000}
+						placeholder="A recurring evening of live music among the trees"
+						value={echoed?.description ?? ''}
+						class="mt-1.5"
+					/>
+				</div>
+
+				<!-- Optional defaults events under this banner can inherit. -->
+				<fieldset class="space-y-5 border-t border-gray-200 pt-5">
+					<legend class="text-sm font-medium text-gray-500">Event defaults</legend>
+
+					<DateField
+						name="defaultDate"
+						label="Default date"
+						value={echoed?.defaultDate ?? ''}
+					/>
+
+					<div>
+						<label for="defaultTime" class="block text-sm font-medium text-gray-700">
+							Default time
+						</label>
+						<Input
+							id="defaultTime"
+							name="defaultTime"
+							type="text"
+							maxlength={100}
+							autocomplete="off"
+							placeholder="6:00 PM – 8:00 PM"
+							value={echoed?.defaultTime ?? ''}
+							class="mt-1.5"
+						/>
+					</div>
+
+					<div>
+						<label for="frequency" class="block text-sm font-medium text-gray-700">
+							Frequency
+						</label>
+						<Input
+							id="frequency"
+							name="frequency"
+							type="text"
+							maxlength={100}
+							autocomplete="off"
+							placeholder="4th Friday of every month"
+							value={echoed?.frequency ?? ''}
+							class="mt-1.5"
+						/>
+					</div>
+				</fieldset>
+
+				{#if seriesError}
+					<p class="text-sm text-red-600" role="alert">{seriesError}</p>
+				{/if}
+
+				<button
+					type="submit"
+					disabled={!canSubmit}
+					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
+				>
+					<PlusIcon size={18} />
+					Add series
+				</button>
+			</form>
+		</section>
+	</div>
+</main>

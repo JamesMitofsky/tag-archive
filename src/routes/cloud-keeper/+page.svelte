@@ -4,9 +4,11 @@
 	import { enhance } from '$app/forms';
 	import { confetti } from '@neoconfetti/svelte';
 	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
-	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
+	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
+	import StackIcon from 'phosphor-svelte/lib/StackIcon';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
-	import { programAreaMeta } from '$lib/programAreas';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -85,18 +87,6 @@
 		maybeSubmitOtp();
 	}
 
-	// Render dates like "July 4, 2023"; fall back to raw string if unparseable.
-	function formatDate(value: string): string {
-		const parsed = new Date(value);
-		if (Number.isNaN(parsed.getTime())) return value;
-		return parsed.toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-			timeZone: 'UTC'
-		});
-	}
-
 	// Frosted glass, borrowed from the landing searchbar.
 	const glassInput =
 		'w-full rounded-lg border border-white/40 bg-white/25 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:ring-1 focus:ring-white/50 focus:outline-none';
@@ -105,6 +95,28 @@
 		'h-14 w-12 rounded-lg border border-white/40 bg-white/25 text-center text-2xl text-gray-800 shadow-sm backdrop-blur-md focus:border-white/60 focus:bg-white/35 focus:ring-1 focus:ring-white/50 focus:outline-none';
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
+
+	// The three archive views, surfaced as hub cards for signed-in keepers.
+	const hubLinks = [
+		{
+			href: '/cloud-keeper/artefacts',
+			icon: ArchiveIcon,
+			label: 'Artefacts',
+			blurb: 'Digitized copies of physical things, often linked to an event.'
+		},
+		{
+			href: '/cloud-keeper/events',
+			icon: CalendarBlankIcon,
+			label: 'Events',
+			blurb: 'Dated experiences in the garden, sometimes linked to a series.'
+		},
+		{
+			href: '/cloud-keeper/series',
+			icon: StackIcon,
+			label: 'Series',
+			blurb: 'Banners under which some events exist.'
+		}
+	];
 </script>
 
 <svelte:head>
@@ -264,78 +276,22 @@
 							{/if}
 						</section>
 					{:else}
-						<!-- Adding lives on its own page now; this just points there. -->
-						<a
-							href="/cloud-keeper/add"
-							class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium {inkButton}"
-						>
-							<PlusIcon size={18} />
-							Add Artefact
-						</a>
-
-						<section class="mt-10">
-							{#if data.artefacts.length === 0}
-								<p
-									class="mt-3 rounded-lg border border-dashed border-white/60 p-6 text-center text-sm text-gray-700"
+						<!-- Hub: the three archive views live on their own sub-routes. -->
+						<nav class="mt-6 space-y-3">
+							{#each hubLinks as link (link.href)}
+								<a
+									href={link.href}
+									class="flex items-center gap-3 rounded-lg border border-white/40 bg-white/25 p-4 text-gray-800 shadow-sm backdrop-blur-md transition hover:bg-white/40"
 								>
-									Nothing archived yet — add the first one above.
-								</p>
-							{:else}
-								<!-- Each artefact is its own page, scattered ever so slightly like loose paper. -->
-								<ul class="mt-3 space-y-4">
-									{#each data.artefacts as item, i (item.id)}
-										<li
-											class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
-								{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
-										>
-											<div class="flex items-start justify-between gap-3">
-												<div class="min-w-0">
-													<!-- Stretched link: the ::after overlay makes the whole card open the artefact page. -->
-													<h3 class="font-medium break-words">
-														<a
-															href="/cloud-keeper/{item.id}"
-															class="after:absolute after:inset-0 after:z-[1]"
-														>
-															{item.artefact}
-														</a>
-													</h3>
-													<p class="mt-0.5 text-sm text-gray-500">
-														{#if item.date}{formatDate(
-																item.date
-															)}{/if}{#if item.event}{#if item.date}{' · '}{/if}{item.event}{/if}
-													</p>
-												</div>
-											</div>
-											{#if item.description}
-												<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
-													{item.description}
-												</p>
-											{/if}
-											{#if item.programArea.length > 0 || item.provenance.length > 0}
-												<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-													{#each item.programArea as area (area)}
-														{@const Icon = programAreaMeta(area).icon}
-														<span
-															class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs {programAreaMeta(
-																area
-															).pill}"
-														>
-															<Icon size={13} weight="fill" />
-															{area}
-														</span>
-													{/each}
-													{#if item.provenance.length > 0}
-														<span class="text-sm text-gray-500">
-															{item.provenance.join(', ')}
-														</span>
-													{/if}
-												</div>
-											{/if}
-										</li>
-									{/each}
-								</ul>
-							{/if}
-						</section>
+									<link.icon size={24} class="shrink-0 text-gray-700" />
+									<span class="min-w-0 flex-1">
+										<span class="block font-medium text-gray-900">{link.label}</span>
+										<span class="block text-sm text-gray-600">{link.blurb}</span>
+									</span>
+									<CaretRightIcon size={18} class="shrink-0 text-gray-400" />
+								</a>
+							{/each}
+						</nav>
 					{/if}
 				</div>
 			{/key}

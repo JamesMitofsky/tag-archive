@@ -1,12 +1,7 @@
 import { fail } from '@sveltejs/kit';
-import { desc, eq, getTableColumns } from 'drizzle-orm';
 import { z } from 'zod';
 import { APIError } from 'better-auth';
 import { auth } from '$lib/server/auth';
-import { db } from '$lib/server/db';
-import { attachProvenance } from '$lib/server/db/queries';
-import { artefact, event } from '$lib/server/db/schema';
-import { idSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
 
 const emailSchema = z.string().trim().toLowerCase().pipe(z.email());
@@ -16,20 +11,10 @@ const otpSchema = z
 	.regex(/^\d{6}$/, 'Code is 6 digits');
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) return { user: null, artefacts: [] };
-
-	// Join the event in and flatten its name to `event` (see ArtefactWithEvent).
-	const rows = await db
-		.select({ ...getTableColumns(artefact), event: event.name })
-		.from(artefact)
-		.leftJoin(event, eq(artefact.eventId, event.id))
-		.orderBy(desc(artefact.date), desc(artefact.id));
-	// Re-expand provenance names from the join table onto each artefact.
-	const artefacts = await attachProvenance(rows);
-
+	// The keeper page is the sign-in gateway + hub; the archive lists live on the
+	// artefacts/events/series sub-routes.
 	return {
-		user: { email: locals.user.email, role: locals.user.role },
-		artefacts
+		user: locals.user ? { email: locals.user.email, role: locals.user.role } : null
 	};
 };
 
@@ -86,20 +71,5 @@ export const actions: Actions = {
 		}
 
 		return { step: 'signed-in' as const };
-	},
-
-	deleteArtefact: async ({ request, locals }) => {
-		if (!locals.user) return fail(401, { artefactError: 'Sign in first' });
-		// Server-side role gate — the UI hides the button, but this is the enforcement.
-		if (locals.user.role !== 'admin') {
-			return fail(403, { artefactError: 'Only admins can delete artefacts' });
-		}
-
-		const form = await request.formData();
-		const id = idSchema.safeParse(form.get('id'));
-		if (!id.success) return fail(400, { artefactError: 'Unknown artefact' });
-
-		await db.delete(artefact).where(eq(artefact.id, id.data));
-		return { deleted: true };
 	}
 };

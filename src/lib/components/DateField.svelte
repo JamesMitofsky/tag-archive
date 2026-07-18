@@ -17,8 +17,15 @@
 	let {
 		name,
 		label,
-		value: initial = ''
-	}: { name: string; label: string; value?: string } = $props();
+		value: initial = '',
+		onChange
+	}: {
+		name: string;
+		label: string;
+		value?: string;
+		/** Fires with the resolved ISO date whenever the pick changes. */
+		onChange?: (iso: string) => void;
+	} = $props();
 
 	const df = new DateFormatter('en-US', { dateStyle: 'long' });
 
@@ -26,6 +33,11 @@
 	// svelte-ignore state_referenced_locally
 	let value = $state<DateValue | undefined>(initial ? parseDate(initial) : undefined);
 	const iso = $derived(value?.toString() ?? '');
+
+	// Surface the ISO value to a parent that needs it (e.g. to gate a submit).
+	$effect(() => {
+		onChange?.(iso);
+	});
 </script>
 
 <div class="flex flex-col gap-1.5">

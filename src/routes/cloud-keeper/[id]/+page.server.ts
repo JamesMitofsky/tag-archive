@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	// Same shape as the list load: flatten the event name, re-expand provenance.
 	const rows = await db
-		.select({ ...getTableColumns(artefact), event: event.name })
+		.select({ ...getTableColumns(artefact), event: event.title })
 		.from(artefact)
 		.leftJoin(event, eq(artefact.eventId, event.id))
 		.where(eq(artefact.id, id.data))

@@ -25,3 +25,37 @@ export const artefactSchema = z.object({
 });
 
 export type ArtefactInput = z.infer<typeof artefactSchema>;
+
+/** Validation for the event create form. */
+export const eventSchema = z.object({
+	title: z
+		.string()
+		.trim()
+		.min(1, 'Title is required')
+		.max(200, 'Keep the title under 200 characters'),
+	series: optionalText(200, 'series'),
+	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a valid date'),
+	time: optionalText(100, 'time'),
+	location: optionalText(200, 'location'),
+	description: optionalText(2000, 'description'),
+	url: z.union([z.literal(''), z.string().url('Enter a valid URL')]),
+	hosts: z.array(z.string().trim().min(1)).max(50)
+});
+
+export type EventInput = z.infer<typeof eventSchema>;
+
+/** Validation for the series create form. */
+export const seriesSchema = z.object({
+	name: z
+		.string()
+		.trim()
+		.min(1, 'Name is required')
+		.max(200, 'Keep the name under 200 characters'),
+	description: optionalText(2000, 'description'),
+	// Optional defaults events under this series inherit.
+	defaultDate: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a valid date')]),
+	defaultTime: optionalText(100, 'time'),
+	frequency: optionalText(100, 'frequency')
+});
+
+export type SeriesInput = z.infer<typeof seriesSchema>;

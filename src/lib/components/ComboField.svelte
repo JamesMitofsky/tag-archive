@@ -6,6 +6,10 @@
 	// box is visible from the start (no trigger to click); focusing it drops the option
 	// menu. The live text doubles as the submitted value, mirrored into a hidden
 	// <input> so the native form POST still sends `name=<value>` like before.
+	// An option is either a bare value, or a value plus low-emphasis secondary text
+	// (e.g. an event's date) shown after the searchable label for extra context.
+	type Option = string | { value: string; secondary?: string };
+
 	let {
 		name,
 		label,
@@ -16,9 +20,14 @@
 		name: string;
 		label?: string;
 		placeholder?: string;
-		options: string[];
+		options: Option[];
 		value?: string;
 	} = $props();
+
+	// Normalise to objects so the template treats both shapes uniformly.
+	const items = $derived(
+		options.map((o) => (typeof o === 'string' ? { value: o, secondary: undefined } : o))
+	);
 
 	// The menu opens on focus and closes when focus leaves the whole field.
 	let open = $state(false);
@@ -30,7 +39,7 @@
 	const query = $derived(search.trim());
 	// Offer the typed text as a custom entry unless it already matches an option.
 	const showCustom = $derived(
-		query.length > 0 && !options.some((o) => o.toLowerCase() === query.toLowerCase())
+		query.length > 0 && !items.some((o) => o.value.toLowerCase() === query.toLowerCase())
 	);
 
 	function choose(value: string) {
@@ -73,9 +82,12 @@
 				>
 					<Command.Empty>No results.</Command.Empty>
 					<Command.Group>
-						{#each options as option (option)}
-							<Command.Item value={option} onSelect={() => choose(option)}>
-								{option}
+						{#each items as option (option.value)}
+							<Command.Item value={option.value} onSelect={() => choose(option.value)}>
+								<span>{option.value}</span>
+								{#if option.secondary}
+									<span class="ms-2 text-xs text-muted-foreground">{option.secondary}</span>
+								{/if}
 							</Command.Item>
 						{/each}
 						{#if showCustom}

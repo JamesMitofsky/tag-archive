@@ -2,25 +2,83 @@ import { relations } from 'drizzle-orm';
 import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
- * A named garden event. Recurring events (e.g. a monthly "Music in the Garden")
- * group many artefacts across dates; one-off events link a single artefact.
- * `name` is unique so the same event always resolves to one row — recurrence is
- * then derived (multiple artefacts/dates under one event), never stored as a flag.
+ * A series: the banner that connects several events held under one recurring
+ * name (e.g. weekly "Yoga in the Garden", monthly "Music in the Garden").
+ * A series exists only when several events are connected — a one-off event has
+ * no series. `name` is unique so the same banner resolves to one row; the events
+ * it groups are derived from `event.seriesId`, never stored as a count/flag.
+ */
+export const series = sqliteTable('series', {
+	id: integer('id').primaryKey(),
+	name: text('name').notNull().unique(),
+	// Optional blurb describing the banner; null when the series has no description.
+	description: text('description'),
+	// Defaults inherited by events under this banner; all null when unset.
+	// `defaultDate` is a reference date (YYYY-MM-DD), `defaultTime` a free label
+	// ("6:00 PM"), `frequency` a human recurrence ("4th Friday of every month").
+	defaultDate: text('default_date'),
+	defaultTime: text('default_time'),
+	frequency: text('frequency')
+});
+
+/**
+ * An event: a single real happening on one date. Its own date and description;
+ * `seriesId` links it to a banner when it's one of several connected events,
+ * and is null for a one-off. Source: the U Street community export
+ * (src/lib/data/seed-data.json).
  */
 export const event = sqliteTable('event', {
+	id: integer('id').primaryKey(),
+	// This event's own title, e.g. "Music in the Garden ft. Yaddiya". Often shared
+	// across a series, but may vary per event — series membership is `seriesId`,
+	// not an exact title match (curated via the export's `series` field at seed).
+	title: text('title').notNull(),
+	// The series this event belongs to; null for a one-off (unconnected) event.
+	seriesId: integer('series_id').references(() => series.id),
+	// ISO date (YYYY-MM-DD) the event took place.
+	date: text('date').notNull(),
+	// Free-text time span as published, e.g. "11:00 AM – 11:30 AM". Not parsed.
+	time: text('time'),
+	location: text('location'),
+	// Description specific to this event — distinct events in one series routinely
+	// carry different text.
+	description: text('description'),
+	// Canonical source URL for this event.
+	url: text('url'),
+	// Data-quality flags from the export: the event may be a mislabelled series
+	// boundary / one-off. Kept for manual review, never drives logic.
+	mayHaveException: integer('may_have_exception', { mode: 'boolean' }).notNull().default(false),
+	possibleExceptionDescription: text('possible_exception_description')
+});
+
+/**
+ * A person. One canonical row per name, reused across roles: the same person can
+ * be the provenance (contributor/source) of an artefact and the host of an
+ * event. Roles live on the join tables (`artefactProvenance`, `eventHost`), so a
+ * person is normalised once and searchable everywhere. `name` is unique —
+ * find-or-create by name keeps it canonical.
+ */
+export const person = sqliteTable('person', {
 	id: integer('id').primaryKey(),
 	name: text('name').notNull().unique()
 });
 
 /**
- * A contributor or source person. Normalised out of the artefact so the same
- * person resolves to one row and can be searched/reused across artefacts.
- * `name` is unique — find-or-create by name keeps it canonical.
+ * Many-to-many link between events and their hosts. An event may have several
+ * hosts; a person hosts many events.
  */
-export const provenance = sqliteTable('provenance', {
-	id: integer('id').primaryKey(),
-	name: text('name').notNull().unique()
-});
+export const eventHost = sqliteTable(
+	'event_host',
+	{
+		eventId: integer('event_id')
+			.notNull()
+			.references(() => event.id, { onDelete: 'cascade' }),
+		personId: integer('person_id')
+			.notNull()
+			.references(() => person.id)
+	},
+	(t) => [primaryKey({ columns: [t.eventId, t.personId] })]
+);
 
 /**
  * Temperance Alley Garden (TAG) archive artefact.
@@ -32,7 +90,9 @@ export const artefact = sqliteTable('artefact', {
 	id: integer('id').primaryKey(),
 	// Title of the archived object, e.g. "Symphonic Steep Program".
 	artefact: text('artefact').notNull(),
-	// The event this artefact came from; nullable — some artefacts predate named events.
+	// The specific event this artefact came from; nullable — some artefacts have
+	// no matching event, or reference a series without pinning to one date.
+	// A series is reachable transitively via the linked event's `seriesId`.
 	eventId: integer('event_id').references(() => event.id),
 	// ISO date (YYYY-MM-DD).
 	date: text('date'),
@@ -47,8 +107,8 @@ export const artefact = sqliteTable('artefact', {
 });
 
 /**
- * Many-to-many link between artefacts and provenance people. An artefact has
- * several contributors; a contributor appears on many artefacts.
+ * Many-to-many link between artefacts and their provenance people. An artefact
+ * has several contributors; a person is the provenance of many artefacts.
  */
 export const artefactProvenance = sqliteTable(
 	'artefact_provenance',
@@ -56,19 +116,29 @@ export const artefactProvenance = sqliteTable(
 		artefactId: integer('artefact_id')
 			.notNull()
 			.references(() => artefact.id, { onDelete: 'cascade' }),
-		provenanceId: integer('provenance_id')
+		personId: integer('person_id')
 			.notNull()
-			.references(() => provenance.id)
+			.references(() => person.id)
 	},
-	(t) => [primaryKey({ columns: [t.artefactId, t.provenanceId] })]
+	(t) => [primaryKey({ columns: [t.artefactId, t.personId] })]
 );
 
 // Relations power `db.query` relational loads.
-export const eventRelations = relations(event, ({ many }) => ({
+export const seriesRelations = relations(series, ({ many }) => ({
+	events: many(event)
+}));
+export const eventRelations = relations(event, ({ one, many }) => ({
+	series: one(series, { fields: [event.seriesId], references: [series.id] }),
+	hosts: many(eventHost),
 	artefacts: many(artefact)
 }));
-export const provenanceRelations = relations(provenance, ({ many }) => ({
-	artefacts: many(artefactProvenance)
+export const personRelations = relations(person, ({ many }) => ({
+	artefacts: many(artefactProvenance),
+	events: many(eventHost)
+}));
+export const eventHostRelations = relations(eventHost, ({ one }) => ({
+	event: one(event, { fields: [eventHost.eventId], references: [event.id] }),
+	person: one(person, { fields: [eventHost.personId], references: [person.id] })
 }));
 export const artefactRelations = relations(artefact, ({ one, many }) => ({
 	event: one(event, { fields: [artefact.eventId], references: [event.id] }),
@@ -79,22 +149,29 @@ export const artefactProvenanceRelations = relations(artefactProvenance, ({ one 
 		fields: [artefactProvenance.artefactId],
 		references: [artefact.id]
 	}),
-	provenance: one(provenance, {
-		fields: [artefactProvenance.provenanceId],
-		references: [provenance.id]
+	person: one(person, {
+		fields: [artefactProvenance.personId],
+		references: [person.id]
 	})
 }));
 
+export type Series = typeof series.$inferSelect;
+export type NewSeries = typeof series.$inferInsert;
 export type Event = typeof event.$inferSelect;
 export type NewEvent = typeof event.$inferInsert;
-export type Provenance = typeof provenance.$inferSelect;
-export type NewProvenance = typeof provenance.$inferInsert;
+export type Person = typeof person.$inferSelect;
+export type NewPerson = typeof person.$inferInsert;
 export type Artefact = typeof artefact.$inferSelect;
 export type NewArtefact = typeof artefact.$inferInsert;
 /**
- * Artefact as the UI reads it: event name flattened in (null when unlinked) and
- * provenance re-expanded to a plain name array from the join table.
+ * Artefact as the UI reads it: linked event title flattened in (null when
+ * unlinked) and provenance re-expanded to a plain name array from the join table.
  */
 export type ArtefactWithEvent = Artefact & { event: string | null; provenance: string[] };
+/**
+ * Event as the keeper list reads it: series name flattened in (null for a
+ * one-off) and hosts re-expanded to a plain name array from the join table.
+ */
+export type EventWithMeta = Event & { series: string | null; hosts: string[] };
 
 export * from './auth.schema';

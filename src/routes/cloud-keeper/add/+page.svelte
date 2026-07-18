@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
+	import { formatDateShort } from '$lib/formatDate';
 	import TagsField from '$lib/components/TagsField.svelte';
 	import PageScanner from '$lib/components/PageScanner.svelte';
 	import { Input } from '$lib/components/ui/input';
@@ -29,6 +30,31 @@
 					.filter(Boolean)
 			: []
 	);
+
+	// Live form date, tracked so the event list can prioritise events near it.
+	// Seeded from any echoed value left by a failed submit.
+	// svelte-ignore state_referenced_locally
+	let formDate = $state(
+		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).date : ''
+	);
+
+	// Event options with a low-emphasis date. When a form date is set (and the search
+	// box is empty), events are ordered by proximity to it so the closest surface first;
+	// all events stay available. Undated events sink to the bottom.
+	const eventOptions = $derived.by(() => {
+		const opts = data.events.map((e) => ({
+			value: e.name,
+			secondary: e.date ? formatDateShort(e.date) : undefined,
+			date: e.date
+		}));
+		const target = formDate ? new Date(formDate).getTime() : NaN;
+		if (Number.isNaN(target)) return opts;
+		return [...opts].sort((a, b) => {
+			const da = a.date ? Math.abs(new Date(a.date).getTime() - target) : Infinity;
+			const db = b.date ? Math.abs(new Date(b.date).getTime() - target) : Infinity;
+			return da - db;
+		});
+	});
 
 	// Location: preset options, but the combobox also accepts a typed-in custom value.
 	const LOCATION_OPTIONS = ['Binder', 'Bin'];
@@ -68,15 +94,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
-			<a
-				href="/cloud-keeper"
-				aria-label="Back to Cloud Keeper"
-				title="Back to Cloud Keeper"
-				class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
-			>
-				<ArrowLeftIcon size={18} />
-				Back
-			</a>
+			<BackButton href="/cloud-keeper/artefacts" ariaLabel="Back to Artefacts" />
 		</header>
 
 		<!-- The create form is a fresh sheet of paper, like the artefact pages. -->
@@ -101,7 +119,12 @@
 				</div>
 
 				<div>
-					<DateField name="date" label="Date" value={echoed?.date ?? ''} />
+					<DateField
+						name="date"
+						label="Date"
+						value={echoed?.date ?? ''}
+						onChange={(iso) => (formDate = iso)}
+					/>
 				</div>
 
 				<!-- Images attach right below the title; each URL rides along as its own hidden field. -->
@@ -121,7 +144,7 @@
 						name="event"
 						label="Event"
 						placeholder="Search or add an event"
-						options={data.events.map((e) => e.name)}
+						options={eventOptions}
 						value={echoed?.event ?? ''}
 					/>
 				</div>

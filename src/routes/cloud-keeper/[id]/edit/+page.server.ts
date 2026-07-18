@@ -1,8 +1,8 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { attachProvenance, resolveProvenanceIds } from '$lib/server/db/queries';
-import { artefact, artefactProvenance, event, provenance } from '$lib/server/db/schema';
+import { attachProvenance, resolvePersonIds } from '$lib/server/db/queries';
+import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
 import { artefactSchema, idSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -31,8 +31,9 @@ function parseProvenance(raw: string): string[] {
 const nullIfEmpty = (value: string) => (value === '' ? null : value);
 
 /**
- * Resolve an event name to its id, creating the event if it's new (find-or-create).
- * Empty name → null (artefact has no event). Keeps names canonical.
+ * Resolve a typed event title to an existing event's id. Events are dated
+ * happenings sourced from the events export — a bare title here can't create one,
+ * so an unknown title yields null. A recurring title resolves to its earliest event.
  */
 async function resolveEventId(name: string): Promise<number | null> {
 	const trimmed = name.trim();
@@ -41,12 +42,10 @@ async function resolveEventId(name: string): Promise<number | null> {
 	const [existing] = await db
 		.select({ id: event.id })
 		.from(event)
-		.where(eq(event.name, trimmed))
+		.where(eq(event.title, trimmed))
+		.orderBy(event.date)
 		.limit(1);
-	if (existing) return existing.id;
-
-	const [created] = await db.insert(event).values({ name: trimmed }).returning({ id: event.id });
-	return created.id;
+	return existing?.id ?? null;
 }
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -57,9 +56,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const id = idSchema.safeParse(params.id);
 	if (!id.success) throw error(404, 'Artefact not found');
 
-	// Flatten the event name and re-expand provenance so the form can pre-fill.
+	// Flatten the event title and re-expand provenance so the form can pre-fill.
 	const rows = await db
-		.select({ ...getTableColumns(artefact), event: event.name })
+		.select({ ...getTableColumns(artefact), event: event.title })
 		.from(artefact)
 		.leftJoin(event, eq(artefact.eventId, event.id))
 		.where(eq(artefact.id, id.data))
@@ -67,9 +66,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	if (rows.length === 0) throw error(404, 'Artefact not found');
 	const [item] = await attachProvenance(rows);
 
-	// Existing events + people power the searchable datalists.
-	const events = await db.select().from(event).orderBy(event.name);
-	const provenancePeople = await db.select().from(provenance).orderBy(provenance.name);
+	// Existing event titles + people power the searchable datalists. Distinct
+	// titles only — a recurring title (series) shouldn't list once per date.
+	const events = await db.selectDistinct({ name: event.title }).from(event).orderBy(event.title);
+	const provenancePeople = await db.select().from(person).orderBy(person.name);
 
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
@@ -118,7 +118,7 @@ export const actions: Actions = {
 		}
 
 		const eventId = await resolveEventId(parsed.data.event);
-		const provenanceIds = await resolveProvenanceIds(parsed.data.provenance);
+		const personIds = await resolvePersonIds(parsed.data.provenance);
 
 		await db
 			.update(artefact)
@@ -135,10 +135,10 @@ export const actions: Actions = {
 
 		// Resync provenance links: drop the old set, insert the new one.
 		await db.delete(artefactProvenance).where(eq(artefactProvenance.artefactId, id.data));
-		if (provenanceIds.length > 0) {
+		if (personIds.length > 0) {
 			await db
 				.insert(artefactProvenance)
-				.values(provenanceIds.map((provenanceId) => ({ artefactId: id.data, provenanceId })));
+				.values(personIds.map((personId) => ({ artefactId: id.data, personId })));
 		}
 
 		// Back to the artefact page so the edits show.
@@ -156,7 +156,7 @@ export const actions: Actions = {
 		if (!id.success) return fail(400, { artefactError: 'Unknown artefact' });
 
 		await db.delete(artefact).where(eq(artefact.id, id.data));
-		// Nothing left to show here — back to the list.
-		throw redirect(303, '/cloud-keeper');
+		// Nothing left to show here — back to the artefacts list.
+		throw redirect(303, '/cloud-keeper/artefacts');
 	}
 };
