@@ -19,6 +19,6 @@ run_mode = "concurrent"
 # own port and scan uploads never touch the prod R2 bucket. Requires Docker.
 # RustFS data is ephemeral (no volume) — init-bucket.mjs recreates the bucket each boot.
 [scripts.run.dev]
-command = "export DB_PORT=$((CONDUCTOR_PORT+1)); export S3_PORT=$((CONDUCTOR_PORT+2)); export S3_ENDPOINT=http://127.0.0.1:$S3_PORT; export R2_PUBLIC_URL=http://127.0.0.1:$S3_PORT/tag-archive; pnpm exec concurrently -k -n db,rustfs,web -c magenta,yellow,cyan \"turso dev --db-file local.db --port $DB_PORT\" \"docker run --rm --name tag-archive-rustfs-$CONDUCTOR_PORT -p $S3_PORT:9000 -e RUSTFS_ACCESS_KEY=rustfsadmin -e RUSTFS_SECRET_KEY=rustfsadmin -e RUSTFS_ADDRESS=:9000 rustfs/rustfs:latest /data\" \"node --env-file-if-exists=.env scripts/init-bucket.mjs && DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm dev --port $CONDUCTOR_PORT\""
+command = "export DB_PORT=$((CONDUCTOR_PORT+1)); export S3_PORT=$((CONDUCTOR_PORT+2)); export S3_ENDPOINT=http://127.0.0.1:$S3_PORT; export R2_PUBLIC_URL=http://127.0.0.1:$S3_PORT/tag-archive; pnpm exec concurrently -k -n db,rustfs,web -c magenta,yellow,cyan \"turso dev --db-file local.db --port $DB_PORT\" \"docker run --rm --name tag-archive-rustfs-$CONDUCTOR_PORT -p $S3_PORT:9000 -e RUSTFS_ACCESS_KEY=rustfsadmin -e RUSTFS_SECRET_KEY=rustfsadmin -e RUSTFS_ADDRESS=:9000 rustfs/rustfs:latest /data\" \"node --env-file-if-exists=.env scripts/init-bucket.mjs || echo '[init-bucket] skipped (storage unavailable)'; DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm dev --port $CONDUCTOR_PORT\""
 default = true
 icon = "rocket"
