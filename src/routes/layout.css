@@ -1,12 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import '@skeletonlabs/skeleton';
 @import './tagarchive.css';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
-
-/* Let Tailwind scan Skeleton Svelte component classes (path relative to this file) */
-@source '../../node_modules/@skeletonlabs/skeleton-svelte/dist';
 
 /* Class-based dark variant (shadcn-svelte). No `.dark` is ever applied — the app
    is light-only — so `dark:` utilities stay inert rather than tracking the OS. */

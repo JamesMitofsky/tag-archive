@@ -8,6 +8,8 @@
 	import ComboField from '$lib/components/ComboField.svelte';
 	import TagsField from '$lib/components/TagsField.svelte';
 	import PageScanner from '$lib/components/PageScanner.svelte';
+	import { Input } from '$lib/components/ui/input';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -88,16 +90,16 @@
 					<label for="artefact" class="block text-sm font-medium text-gray-700">
 						Title <span class="text-red-600" title="Required" aria-label="required">*</span>
 					</label>
-					<input
+					<Input
 						id="artefact"
 						name="artefact"
 						type="text"
 						required
-						maxlength="200"
+						maxlength={200}
 						autocomplete="off"
 						bind:value={title}
 						placeholder="Symphonic Steep Program"
-						class="input mt-1.5"
+						class="mt-1.5"
 					/>
 				</div>
 
@@ -173,14 +175,15 @@
 					<label for="description" class="block text-sm font-medium text-gray-700">
 						Description
 					</label>
-					<textarea
+					<Textarea
 						id="description"
 						name="description"
-						rows="3"
-						maxlength="2000"
+						rows={3}
+						maxlength={2000}
 						placeholder="Another day full of dancing and trees"
-						class="textarea mt-1.5">{echoed?.description ?? ''}</textarea
-					>
+						value={echoed?.description ?? ''}
+						class="mt-1.5"
+					/>
 				</div>
 
 				<div>
