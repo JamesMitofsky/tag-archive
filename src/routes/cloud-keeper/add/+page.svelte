@@ -1,13 +1,16 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { TagsInput } from '@skeletonlabs/skeleton-svelte';
-	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
-	import Sky from '$lib/components/Sky.svelte';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
+	import { formatDateShort } from '$lib/formatDate';
+	import TagsField from '$lib/components/TagsField.svelte';
+	import PageScanner from '$lib/components/PageScanner.svelte';
+	import { Input } from '$lib/components/ui/input';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -28,14 +31,57 @@
 			: []
 	);
 
+	// Live form date, tracked so the event list can prioritise events near it.
+	// Seeded from any echoed value left by a failed submit.
+	// svelte-ignore state_referenced_locally
+	let formDate = $state(
+		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).date : ''
+	);
+
+	// Event options with a low-emphasis date. When a form date is set (and the search
+	// box is empty), events are ordered by proximity to it so the closest surface first;
+	// all events stay available. Undated events sink to the bottom.
+	const eventOptions = $derived.by(() => {
+		const opts = data.events.map((e) => ({
+			value: e.name,
+			secondary: e.date ? formatDateShort(e.date) : undefined,
+			date: e.date
+		}));
+		const target = formDate ? new Date(formDate).getTime() : NaN;
+		if (Number.isNaN(target)) return opts;
+		return [...opts].sort((a, b) => {
+			const da = a.date ? Math.abs(new Date(a.date).getTime() - target) : Infinity;
+			const db = b.date ? Math.abs(new Date(b.date).getTime() - target) : Infinity;
+			return da - db;
+		});
+	});
+
 	// Location: preset options, but the combobox also accepts a typed-in custom value.
 	const LOCATION_OPTIONS = ['Binder', 'Bin'];
-	const today = new Date().toISOString().slice(0, 10);
 	const artefactError = $derived(form && 'artefactError' in form ? form.artefactError : undefined);
 	// Kit flattens the action-data union, so restore the echoed values' shape.
 	const echoed = $derived(
 		form && 'values' in form && form.values ? (form.values as ArtefactFormValues) : undefined
 	);
+
+	// The uploaded images' public URLs, set by the page scanner as scans are added.
+	// Seeded from any echoed values so a failed submit keeps the attachments.
+	// svelte-ignore state_referenced_locally
+	let fileUrls = $state<string[]>(
+		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).fileUrls : []
+	);
+
+	// Title is the only required field; track it so submit can gate on it.
+	// svelte-ignore state_referenced_locally
+	let title = $state(
+		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).artefact : ''
+	);
+
+	// True while an image upload is in flight.
+	let scanPending = $state(false);
+
+	// Block submit until required fields are filled and any upload is finalized.
+	const canSubmit = $derived(title.trim().length > 0 && !scanPending);
 
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
@@ -46,57 +92,61 @@
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
-	<!-- Ambient sky: watercolor paper + drifting clouds, shared with the landing page. -->
-	<Sky />
-
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
-		<header class="mb-8 flex items-start justify-between gap-4">
-			<div>
-				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">New artefact</h1>
-			</div>
-			<a
-				href="/cloud-keeper"
-				aria-label="Back to Cloud Keeper"
-				title="Back to Cloud Keeper"
-				class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
-			>
-				<ArrowLeftIcon size={18} />
-				Back
-			</a>
+		<header class="mb-8 flex flex-col items-start gap-3">
+			<BackButton href="/cloud-keeper/artefacts" ariaLabel="Back to Artefacts" />
 		</header>
 
 		<!-- The create form is a fresh sheet of paper, like the artefact pages. -->
 		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
+			<h1 class="mb-6 text-2xl font-semibold tracking-tight text-gray-900">New artefact</h1>
 			<form method="POST" action="?/createArtefact" class="space-y-5" use:enhance>
 				<div>
 					<label for="artefact" class="block text-sm font-medium text-gray-700">
 						Title <span class="text-red-600" title="Required" aria-label="required">*</span>
 					</label>
-					<input
+					<Input
 						id="artefact"
 						name="artefact"
 						type="text"
 						required
-						maxlength="200"
-						value={echoed?.artefact ?? ''}
+						maxlength={200}
+						autocomplete="off"
+						bind:value={title}
 						placeholder="Symphonic Steep Program"
-						class="input mt-1.5"
+						class="mt-1.5"
 					/>
 				</div>
+
+				<div>
+					<DateField
+						name="date"
+						label="Date"
+						value={echoed?.date ?? ''}
+						onChange={(iso) => (formDate = iso)}
+					/>
+				</div>
+
+				<!-- Images attach right below the title; each URL rides along as its own hidden field. -->
+				{#each fileUrls as url (url)}
+					<input type="hidden" name="fileUrls" value={url} />
+				{/each}
+
+				<PageScanner
+					bind:pending={scanPending}
+					onChange={(urls) => {
+						fileUrls = urls;
+					}}
+				/>
 
 				<div>
 					<ComboField
 						name="event"
 						label="Event"
 						placeholder="Search or add an event"
-						options={data.events.map((e) => e.name)}
+						options={eventOptions}
 						value={echoed?.event ?? ''}
 					/>
-					<p class="mt-1 text-xs text-gray-500">Pick an existing event or type a new one.</p>
-				</div>
-
-				<div>
-					<DateField name="date" label="Date" value={echoed?.date ?? today} />
 				</div>
 
 				<fieldset>
@@ -132,49 +182,28 @@
 				</fieldset>
 
 				<div>
-					<TagsInput
+					<TagsField
 						name="provenance"
-						value={provenanceTags}
-						onValueChange={(e) => (provenanceTags = e.value)}
-					>
-						<TagsInput.Label class="block text-sm font-medium text-gray-700">
-							Provenance
-						</TagsInput.Label>
-						<TagsInput.Control class="mt-1.5 w-full">
-							<TagsInput.Context>
-								{#snippet children(tagsInput)}
-									{#each tagsInput().value as value, index (index)}
-										<TagsInput.Item {value} {index}>
-											<TagsInput.ItemPreview>
-												<TagsInput.ItemText>{value}</TagsInput.ItemText>
-												<TagsInput.ItemDeleteTrigger />
-											</TagsInput.ItemPreview>
-											<TagsInput.ItemInput />
-										</TagsInput.Item>
-									{/each}
-								{/snippet}
-							</TagsInput.Context>
-							<TagsInput.Input placeholder="Add a contributor and press Enter…" />
-						</TagsInput.Control>
-						<TagsInput.HiddenInput />
-					</TagsInput>
-					<p class="mt-1 text-xs text-gray-500">
-						Contributors or sources. Press Enter or comma to add each one.
-					</p>
+						label="Provenance"
+						placeholder="Johnny B. Good"
+						bind:value={provenanceTags}
+					/>
+					<p class="mt-1 text-xs text-gray-500">Press Enter to add</p>
 				</div>
 
 				<div>
 					<label for="description" class="block text-sm font-medium text-gray-700">
 						Description
 					</label>
-					<textarea
+					<Textarea
 						id="description"
 						name="description"
-						rows="3"
-						maxlength="2000"
-						placeholder="Neato, what've you got there..."
-						class="textarea mt-1.5">{echoed?.description ?? ''}</textarea
-					>
+						rows={3}
+						maxlength={2000}
+						placeholder="Another day full of dancing and trees"
+						value={echoed?.description ?? ''}
+						class="mt-1.5"
+					/>
 				</div>
 
 				<div>
@@ -183,34 +212,8 @@
 						label="Location"
 						placeholder="Search or add a location"
 						options={LOCATION_OPTIONS}
-						value={echoed?.location ?? 'Binder'}
+						value={echoed?.location ?? ''}
 					/>
-				</div>
-
-				<div class="grid gap-4 sm:grid-cols-2">
-					<div>
-						<label for="fileName" class="block text-sm font-medium text-gray-700">File name</label>
-						<input
-							id="fileName"
-							name="fileName"
-							type="text"
-							maxlength="200"
-							value={echoed?.fileName ?? ''}
-							placeholder="TAG-001.jpg"
-							class="input mt-1.5"
-						/>
-					</div>
-					<div>
-						<label for="fileUrl" class="block text-sm font-medium text-gray-700">File URL</label>
-						<input
-							id="fileUrl"
-							name="fileUrl"
-							type="url"
-							value={echoed?.fileUrl ?? ''}
-							placeholder="/artefacts/TAG-001.jpg"
-							class="input mt-1.5"
-						/>
-					</div>
 				</div>
 
 				{#if artefactError}
@@ -219,7 +222,8 @@
 
 				<button
 					type="submit"
-					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium {inkButton}"
+					disabled={!canSubmit}
+					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>
 					<PlusIcon size={18} />
 					Add artefact

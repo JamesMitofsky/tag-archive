@@ -12,7 +12,10 @@
 		class="sheet flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5"
 	>
 		<div class="border-b border-gray-200 pb-2">
-			<h2 class="line-clamp-2 text-sm leading-tight font-medium">{item.event}</h2>
+			<h2 class="line-clamp-2 text-sm leading-tight font-medium">{item.artefact}</h2>
+			{#if item.event}
+				<p class="mt-1 text-[0.65rem] text-gray-500">{item.event}</p>
+			{/if}
 			{#if item.date}
 				<p class="mt-1 text-[0.65rem] text-gray-500">{formatDate(item.date)}</p>
 			{/if}

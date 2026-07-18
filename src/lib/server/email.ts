@@ -1,7 +1,9 @@
-import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 
 type OtpType = 'sign-in' | 'email-verification' | 'forget-password';
+
+/** Dev without pulling in `$app/environment`, which the better-auth CLI (jiti, no Vite) can't resolve. */
+const isDev = env.NODE_ENV !== 'production';
 
 /**
  * Delivers a one-time password via Resend.
@@ -16,7 +18,7 @@ type OtpType = 'sign-in' | 'email-verification' | 'forget-password';
  * fire-and-forget request before the email ever sends.
  */
 export async function sendOtpEmail(email: string, otp: string, type: OtpType): Promise<void> {
-	if (dev || !env.RESEND_API_KEY) {
+	if (isDev || !env.RESEND_API_KEY) {
 		console.info(`[email-otp] ${type} code for ${email}: ${otp}`);
 		return;
 	}

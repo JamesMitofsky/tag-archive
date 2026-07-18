@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { eq, getTableColumns, inArray, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachProvenance } from '$lib/server/db/queries';
-import { artefact, artefactProvenance, event, provenance } from '$lib/server/db/schema';
+import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
 import type { RequestHandler } from './$types';
 
 /**
@@ -27,19 +27,19 @@ export const GET: RequestHandler = async ({ url }) => {
 		await db
 			.selectDistinct({ id: artefactProvenance.artefactId })
 			.from(artefactProvenance)
-			.innerJoin(provenance, eq(provenance.id, artefactProvenance.provenanceId))
-			.where(matches(provenance.name))
+			.innerJoin(person, eq(person.id, artefactProvenance.personId))
+			.where(matches(person.name))
 	).map((r) => r.id);
 
-	// Event lives in its own table now; join it in and expose the name flat as `event`.
+	// Event lives in its own table now; join it in and expose the title flat as `event`.
 	const rows = await db
-		.select({ ...getTableColumns(artefact), event: event.name })
+		.select({ ...getTableColumns(artefact), event: event.title })
 		.from(artefact)
 		.leftJoin(event, eq(artefact.eventId, event.id))
 		.where(
 			or(
 				matches(artefact.artefact),
-				matches(event.name),
+				matches(event.title),
 				matches(artefact.programArea),
 				matches(artefact.description),
 				provMatchIds.length ? inArray(artefact.id, provMatchIds) : sql`0`

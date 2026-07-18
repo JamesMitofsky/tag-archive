@@ -5,6 +5,11 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
+		"dev:local": "bash scripts/dev-local.sh",
+		"dev:db": "turso dev --db-file local.db --port 8081",
+		"dev:storage": "docker rm -f tag-archive-rustfs >/dev/null 2>&1; docker run --rm --name tag-archive-rustfs -p 9000:9000 -e RUSTFS_ACCESS_KEY=rustfsadmin -e RUSTFS_SECRET_KEY=rustfsadmin -e RUSTFS_ADDRESS=:9000 rustfs/rustfs:latest /data",
+		"dev:storage:init": "S3_ENDPOINT=http://127.0.0.1:9000 R2_PUBLIC_URL=http://127.0.0.1:9000/tag-archive node --env-file-if-exists=.env scripts/init-bucket.mjs",
+		"db:seed:images": "S3_ENDPOINT=http://127.0.0.1:9000 R2_PUBLIC_URL=http://127.0.0.1:9000/tag-archive DATABASE_URL=http://127.0.0.1:8081 node --env-file-if-exists=.env scripts/seed-images.mjs",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -22,18 +27,17 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"db:seed": "tsx src/lib/server/db/seed.ts",
-		"db:setup:local": "DATABASE_URL=file:local.db pnpm auth:schema && DATABASE_URL=file:local.db pnpm db:push --force && DATABASE_URL=file:local.db pnpm db:seed",
+		"db:setup:local": "bash scripts/db-setup.sh",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes"
 	},
 	"devDependencies": {
 		"@better-auth/cli": "~1.4.21",
 		"@chromatic-com/storybook": "^5.2.1",
 		"@eslint/js": "^10.0.1",
+		"@internationalized/date": "^3.12.0",
 		"@libsql/client": "^0.17.3",
 		"@neoconfetti/svelte": "^2.2.2",
 		"@playwright/test": "^1.60.0",
-		"@skeletonlabs/skeleton": "^4.15.2",
-		"@skeletonlabs/skeleton-svelte": "^4.15.2",
 		"@storybook/addon-a11y": "10.5.0",
 		"@storybook/addon-docs": "10.5.0",
 		"@storybook/addon-svelte-csf": "^5.1.2",
@@ -49,6 +53,7 @@
 		"@vitest/browser-playwright": "^4.1.8",
 		"@vitest/coverage-v8": "^4.1.8",
 		"better-auth": "~1.4.21",
+		"bits-ui": "^2.18.1",
 		"concurrently": "^10.0.3",
 		"drizzle-kit": "^0.31.10",
 		"drizzle-orm": "^0.45.2",
@@ -73,9 +78,15 @@
 		"vite": "^8.0.16",
 		"vitest": "^4.1.8",
 		"vitest-browser-svelte": "^2.1.1",
+		"wrangler": "^4.111.0",
 		"zod": "^4.4.3"
 	},
 	"dependencies": {
-		"@lucide/svelte": "^1.24.0"
+		"@lucide/svelte": "^1.24.0",
+		"aws4fetch": "^1.0.20",
+		"clsx": "^2.1.1",
+		"tailwind-merge": "^3.6.0",
+		"tailwind-variants": "^3.2.2",
+		"tw-animate-css": "^1.4.0"
 	}
 }

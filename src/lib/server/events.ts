@@ -1,4 +1,4 @@
-import raw from '$lib/data/ustreet-events.json';
+import raw from '$lib/data/seed-data.json';
 import type { EventItem } from '$lib/events';
 
 // Shape of a single record in the source export.

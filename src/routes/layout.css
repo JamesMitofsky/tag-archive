@@ -1,8 +1,91 @@
 @import 'tailwindcss';
-@import '@skeletonlabs/skeleton';
-@import './tagarchive.css';
+@import 'tw-animate-css';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
-/* Let Tailwind scan Skeleton Svelte component classes (path relative to this file) */
-@source '../../node_modules/@skeletonlabs/skeleton-svelte/dist';
+/* Class-based dark variant (shadcn-svelte). No `.dark` is applied yet — the app
+   renders light — but the tokens below are defined so dark mode is a one-line
+   toggle away. */
+@custom-variant dark (&:is(.dark *));
+
+/* shadcn-svelte theme tokens. Grayscale surface scale + a light-blue primary,
+   authored as plain values (previously indirected through Skeleton's palette). */
+:root {
+	--radius: 0.5rem;
+
+	--background: oklch(1 0 0);
+	--foreground: oklch(0.1776 0 0);
+	--card: oklch(1 0 0);
+	--card-foreground: oklch(0.1776 0 0);
+	--popover: oklch(1 0 0);
+	--popover-foreground: oklch(0.1776 0 0);
+	--primary: oklch(0.82 0.07 228.67);
+	--primary-foreground: oklch(0.2773 0.08 257.49);
+	--secondary: oklch(0.9067 0 0);
+	--secondary-foreground: oklch(0.1776 0 0);
+	--muted: oklch(0.9067 0 0);
+	--muted-foreground: oklch(0.5103 0 0);
+	--accent: oklch(0.9067 0 0);
+	--accent-foreground: oklch(0.1776 0 0);
+	--destructive: oklch(0.6372 0.22 28.71);
+	--destructive-foreground: oklch(0.9999 0 0);
+	--border: oklch(0.8141 0 0);
+	--input: oklch(0.8141 0 0);
+	--ring: oklch(0.82 0.07 228.67);
+}
+
+.dark {
+	--background: oklch(0.1776 0 0);
+	--foreground: oklch(1 0 0);
+	--card: oklch(0.252 0 0);
+	--card-foreground: oklch(1 0 0);
+	--popover: oklch(0.252 0 0);
+	--popover-foreground: oklch(1 0 0);
+	--primary: oklch(0.82 0.07 228.67);
+	--primary-foreground: oklch(0.2773 0.08 257.49);
+	--secondary: oklch(0.3211 0 0);
+	--secondary-foreground: oklch(1 0 0);
+	--muted: oklch(0.3211 0 0);
+	--muted-foreground: oklch(0.6167 0 0);
+	--accent: oklch(0.3211 0 0);
+	--accent-foreground: oklch(1 0 0);
+	--destructive: oklch(0.6372 0.22 28.71);
+	--destructive-foreground: oklch(0.9999 0 0);
+	--border: oklch(0.3867 0 0);
+	--input: oklch(0.3867 0 0);
+	--ring: oklch(0.82 0.07 228.67);
+}
+
+/* Serif is the document default (was Skeleton's --typo-base--font-family).
+   Setting --font-sans routes Tailwind's default document font through it. */
+@theme {
+	--font-sans: 'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, serif;
+}
+
+/* Map the theme tokens to Tailwind color + radius utilities so components
+   resolve bg-background / text-foreground / rounded-md / etc. */
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+}

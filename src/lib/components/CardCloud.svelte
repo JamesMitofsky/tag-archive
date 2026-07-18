@@ -10,7 +10,6 @@
 	import { fade, fly } from 'svelte/transition';
 	import { cubicIn } from 'svelte/easing';
 	import { strokePaths, handwritingBox } from '$lib/handwriting';
-	import Sky from '$lib/components/Sky.svelte';
 
 	interface Props {
 		// Search endpoint; queried as `${endpoint}?q=…`, expected to return `{ results }`.
@@ -183,9 +182,6 @@
 <svelte:window onkeydown={handleWindowKey} />
 
 <main class="relative min-h-screen overflow-hidden p-4">
-	<!-- Ambient sky: watercolor paper + drifting clouds, shared component. -->
-	<Sky />
-
 	<!-- Searchbar + handwriting header: pinned to viewport center, never moves.
 	     Fades out while a page is open so the opened artefact stands alone. -->
 	<div
@@ -388,7 +384,7 @@
 
 	/* Anchor point. When the match set changes, ranks shift and this glides to the
 	   new even slot instead of snapping. (Named .card-anchor, not .anchor, to avoid
-	   colliding with Skeleton's `anchor` typography utility, which underlines on hover.) */
+	   colliding with any global `anchor` typography utility.) */
 	.card-anchor {
 		position: absolute;
 		transform: translate(-50%, -50%);
