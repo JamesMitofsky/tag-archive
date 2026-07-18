@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
-	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
+	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
@@ -15,41 +16,41 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	// Program-area picker state (multi-select — an artefact carries several).
-	let selectedAreas = $state<string[]>([]);
-
-	// Provenance tags — client state survives an enhance re-render, so seed once from
-	// any echoed (comma-separated) value left by a failed submit.
-	// svelte-ignore state_referenced_locally
-	let provenanceTags = $state<string[]>(
-		form && 'values' in form && form.values
-			? (form.values as ArtefactFormValues).provenance
-					.split(',')
-					.map((name) => name.trim())
-					.filter(Boolean)
-			: []
-	);
-
-	// Location: preset options, but the combobox also accepts a typed-in custom value.
-	const LOCATION_OPTIONS = ['Binder', 'Bin'];
-	const artefactError = $derived(form && 'artefactError' in form ? form.artefactError : undefined);
 	// Kit flattens the action-data union, so restore the echoed values' shape.
 	const echoed = $derived(
 		form && 'values' in form && form.values ? (form.values as ArtefactFormValues) : undefined
 	);
+	const artefactError = $derived(form && 'artefactError' in form ? form.artefactError : undefined);
 
-	// The uploaded images' public URLs, set by the page scanner as scans are added.
-	// Seeded from any echoed values so a failed submit keeps the attachments.
+	// Seed each field from a failed submit's echoed values, else the loaded artefact.
 	// svelte-ignore state_referenced_locally
-	let fileUrls = $state<string[]>(
-		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).fileUrls : []
+	const seed = form && 'values' in form && form.values ? (form.values as ArtefactFormValues) : null;
+
+	// Program-area picker state (multi-select — an artefact carries several).
+	// svelte-ignore state_referenced_locally
+	let selectedAreas = $state<string[]>(seed ? seed.programArea : [...data.artefact.programArea]);
+
+	// Provenance tags — seed from the echoed (comma-separated) value or the artefact.
+	// svelte-ignore state_referenced_locally
+	let provenanceTags = $state<string[]>(
+		seed
+			? seed.provenance
+					.split(',')
+					.map((name) => name.trim())
+					.filter(Boolean)
+			: [...data.artefact.provenance]
 	);
+
+	// Location: preset options, but the combobox also accepts a typed-in custom value.
+	const LOCATION_OPTIONS = ['Binder', 'Bin'];
+
+	// The attached scans' public URLs. Seeded from the echoed values or the artefact.
+	// svelte-ignore state_referenced_locally
+	let fileUrls = $state<string[]>(seed ? seed.fileUrls : [...data.artefact.fileUrls]);
 
 	// Title is the only required field; track it so submit can gate on it.
 	// svelte-ignore state_referenced_locally
-	let title = $state(
-		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).artefact : ''
-	);
+	let title = $state(seed ? seed.artefact : data.artefact.artefact);
 
 	// True while an image upload is in flight.
 	let scanPending = $state(false);
@@ -62,16 +63,16 @@
 </script>
 
 <svelte:head>
-	<title>New artefact · Cloud Keeper</title>
+	<title>Edit {data.artefact.artefact} · Cloud Keeper</title>
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
 			<a
-				href="/cloud-keeper"
-				aria-label="Back to Cloud Keeper"
-				title="Back to Cloud Keeper"
+				href="/cloud-keeper/{data.artefact.id}"
+				aria-label="Back to artefact"
+				title="Back to artefact"
 				class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
 			>
 				<ArrowLeftIcon size={18} />
@@ -79,10 +80,10 @@
 			</a>
 		</header>
 
-		<!-- The create form is a fresh sheet of paper, like the artefact pages. -->
+		<!-- The edit form is a sheet of paper, like the artefact pages. -->
 		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
-			<h1 class="mb-6 text-2xl font-semibold tracking-tight text-gray-900">New artefact</h1>
-			<form method="POST" action="?/createArtefact" class="space-y-5" use:enhance>
+			<h1 class="mb-6 text-2xl font-semibold tracking-tight text-gray-900">Edit artefact</h1>
+			<form method="POST" action="?/updateArtefact" class="space-y-5" use:enhance>
 				<div>
 					<label for="artefact" class="block text-sm font-medium text-gray-700">
 						Title <span class="text-red-600" title="Required" aria-label="required">*</span>
@@ -100,10 +101,6 @@
 					/>
 				</div>
 
-				<div>
-					<DateField name="date" label="Date" value={echoed?.date ?? ''} />
-				</div>
-
 				<!-- Images attach right below the title; each URL rides along as its own hidden field. -->
 				{#each fileUrls as url (url)}
 					<input type="hidden" name="fileUrls" value={url} />
@@ -111,6 +108,7 @@
 
 				<PageScanner
 					bind:pending={scanPending}
+					initial={data.artefact.fileUrls}
 					onChange={(urls) => {
 						fileUrls = urls;
 					}}
@@ -122,8 +120,12 @@
 						label="Event"
 						placeholder="Search or add an event"
 						options={data.events.map((e) => e.name)}
-						value={echoed?.event ?? ''}
+						value={echoed?.event ?? data.artefact.event ?? ''}
 					/>
+				</div>
+
+				<div>
+					<DateField name="date" label="Date" value={echoed?.date ?? data.artefact.date ?? ''} />
 				</div>
 
 				<fieldset>
@@ -178,7 +180,7 @@
 						rows={3}
 						maxlength={2000}
 						placeholder="Another day full of dancing and trees"
-						value={echoed?.description ?? ''}
+						value={echoed?.description ?? data.artefact.description ?? ''}
 						class="mt-1.5"
 					/>
 				</div>
@@ -189,7 +191,7 @@
 						label="Location"
 						placeholder="Search or add a location"
 						options={LOCATION_OPTIONS}
-						value={echoed?.location ?? ''}
+						value={echoed?.location ?? data.artefact.location ?? ''}
 					/>
 				</div>
 
@@ -202,10 +204,32 @@
 					disabled={!canSubmit}
 					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>
-					<PlusIcon size={18} />
-					Add artefact
+					<CheckIcon size={18} />
+					Save changes
 				</button>
 			</form>
+
+			<!-- Delete lives on the edit view only; its own form so it doesn't submit the edits. -->
+			<div class="mt-6 flex justify-end border-t border-gray-200 pt-5">
+				<form
+					method="POST"
+					action="?/deleteArtefact"
+					use:enhance={({ cancel }) => {
+						if (!confirm(`Delete "${data.artefact.artefact}"? This cannot be undone.`)) cancel();
+						return async ({ update }) => update();
+					}}
+				>
+					<button
+						type="submit"
+						aria-label="Delete {data.artefact.artefact}"
+						title="Delete artefact"
+						class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-sm text-gray-500 transition hover:bg-red-50 hover:text-red-600"
+					>
+						<TrashIcon size={18} />
+						Delete
+					</button>
+				</form>
+			</div>
 		</section>
 	</div>
 </main>

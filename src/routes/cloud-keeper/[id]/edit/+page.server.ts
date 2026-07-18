@@ -1,12 +1,12 @@
-import { fail, redirect } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { error, fail, redirect } from '@sveltejs/kit';
+import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { resolveProvenanceIds } from '$lib/server/db/queries';
+import { attachProvenance, resolveProvenanceIds } from '$lib/server/db/queries';
 import { artefact, artefactProvenance, event, provenance } from '$lib/server/db/schema';
-import { artefactSchema } from '$lib/schemas';
+import { artefactSchema, idSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
 
-/** Raw (unvalidated) create-form values echoed back so a failed submit keeps input. */
+/** Raw (unvalidated) edit-form values echoed back so a failed submit keeps input. */
 export type ArtefactFormValues = {
 	artefact: string;
 	event: string;
@@ -32,8 +32,7 @@ const nullIfEmpty = (value: string) => (value === '' ? null : value);
 
 /**
  * Resolve an event name to its id, creating the event if it's new (find-or-create).
- * Empty name → null (artefact has no event). Keeps names canonical: the same name
- * always maps to one row, so recurring events group cleanly.
+ * Empty name → null (artefact has no event). Keeps names canonical.
  */
 async function resolveEventId(name: string): Promise<number | null> {
 	const trimmed = name.trim();
@@ -50,9 +49,23 @@ async function resolveEventId(name: string): Promise<number | null> {
 	return created.id;
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
-	// The create form is signed-in only; bounce guests back to the keeper page.
+export const load: PageServerLoad = async ({ params, locals }) => {
+	// Editing is admin-only; bounce anyone else back to the keeper page.
 	if (!locals.user) throw redirect(303, '/cloud-keeper');
+	if (locals.user.role !== 'admin') throw redirect(303, `/cloud-keeper/${params.id}`);
+
+	const id = idSchema.safeParse(params.id);
+	if (!id.success) throw error(404, 'Artefact not found');
+
+	// Flatten the event name and re-expand provenance so the form can pre-fill.
+	const rows = await db
+		.select({ ...getTableColumns(artefact), event: event.name })
+		.from(artefact)
+		.leftJoin(event, eq(artefact.eventId, event.id))
+		.where(eq(artefact.id, id.data))
+		.limit(1);
+	if (rows.length === 0) throw error(404, 'Artefact not found');
+	const [item] = await attachProvenance(rows);
 
 	// Existing events + people power the searchable datalists.
 	const events = await db.select().from(event).orderBy(event.name);
@@ -60,14 +73,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
+		artefact: item,
 		events,
 		provenancePeople
 	};
 };
 
 export const actions: Actions = {
-	createArtefact: async ({ request, locals }) => {
-		if (!locals.user) return fail(401, { artefactError: 'Sign in to add an artefact' });
+	updateArtefact: async ({ request, params, locals }) => {
+		if (!locals.user) return fail(401, { artefactError: 'Sign in to edit an artefact' });
+		if (locals.user.role !== 'admin') {
+			return fail(403, { artefactError: 'Only admins can edit artefacts' });
+		}
+
+		const id = idSchema.safeParse(params.id);
+		if (!id.success) return fail(400, { artefactError: 'Unknown artefact' });
 
 		const form = await request.formData();
 		const provenanceRaw = String(form.get('provenance') ?? '');
@@ -97,15 +117,12 @@ export const actions: Actions = {
 			});
 		}
 
-		// Find-or-create the event and provenance people, then link by id
-		// (recurring events / repeat contributors reuse one row each).
 		const eventId = await resolveEventId(parsed.data.event);
 		const provenanceIds = await resolveProvenanceIds(parsed.data.provenance);
 
-		// id is an INTEGER PRIMARY KEY (rowid alias) — omit it and SQLite assigns the next one.
-		const [created] = await db
-			.insert(artefact)
-			.values({
+		await db
+			.update(artefact)
+			.set({
 				artefact: parsed.data.artefact,
 				eventId,
 				date: nullIfEmpty(parsed.data.date),
@@ -114,15 +131,32 @@ export const actions: Actions = {
 				fileUrls: parsed.data.fileUrls,
 				programArea: parsed.data.programArea
 			})
-			.returning({ id: artefact.id });
+			.where(eq(artefact.id, id.data));
 
+		// Resync provenance links: drop the old set, insert the new one.
+		await db.delete(artefactProvenance).where(eq(artefactProvenance.artefactId, id.data));
 		if (provenanceIds.length > 0) {
 			await db
 				.insert(artefactProvenance)
-				.values(provenanceIds.map((provenanceId) => ({ artefactId: created.id, provenanceId })));
+				.values(provenanceIds.map((provenanceId) => ({ artefactId: id.data, provenanceId })));
 		}
 
-		// Land back on the keeper page so the new artefact shows in the list.
+		// Back to the artefact page so the edits show.
+		throw redirect(303, `/cloud-keeper/${id.data}`);
+	},
+
+	deleteArtefact: async ({ params, locals }) => {
+		if (!locals.user) return fail(401, { artefactError: 'Sign in to delete an artefact' });
+		// Server-side role gate — the UI hides the button, but this is the enforcement.
+		if (locals.user.role !== 'admin') {
+			return fail(403, { artefactError: 'Only admins can delete artefacts' });
+		}
+
+		const id = idSchema.safeParse(params.id);
+		if (!id.success) return fail(400, { artefactError: 'Unknown artefact' });
+
+		await db.delete(artefact).where(eq(artefact.id, id.data));
+		// Nothing left to show here — back to the list.
 		throw redirect(303, '/cloud-keeper');
 	}
 };

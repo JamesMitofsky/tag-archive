@@ -1,15 +1,11 @@
 <script lang="ts">
-	import CaretUpDownIcon from 'phosphor-svelte/lib/CaretUpDownIcon';
-	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
-	import { cn } from '$lib/utils';
-	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
-	import * as Popover from '$lib/components/ui/popover';
 
-	// Searchable single-select that also accepts a typed-in custom value. Wraps
-	// shadcn-svelte's Command inside a Popover and mirrors the chosen/typed text into
-	// a hidden <input> so the native form POST submits `name=<value>` like before.
+	// Searchable single-select that also accepts a typed-in custom value. The search
+	// box is visible from the start (no trigger to click); focusing it drops the option
+	// menu. The live text doubles as the submitted value, mirrored into a hidden
+	// <input> so the native form POST still sends `name=<value>` like before.
 	let {
 		name,
 		label,
@@ -24,12 +20,12 @@
 		value?: string;
 	} = $props();
 
+	// The menu opens on focus and closes when focus leaves the whole field.
 	let open = $state(false);
-	// The resolved string the server reads — seeded from any echoed value.
+	// Live text in the search box — also the candidate custom value and the value the
+	// server reads. Seeded from any echoed value left by a failed submit.
 	// svelte-ignore state_referenced_locally
-	let selected = $state(initial);
-	// Live text in the Command search box; also the candidate custom value.
-	let search = $state('');
+	let search = $state(initial);
 
 	const query = $derived(search.trim());
 	// Offer the typed text as a custom entry unless it already matches an option.
@@ -38,9 +34,18 @@
 	);
 
 	function choose(value: string) {
-		selected = value;
+		search = value;
 		open = false;
-		search = '';
+	}
+
+	// Close whenever focus leaves the field. Clicking an option keeps focus on the cmdk
+	// input, so its own onSelect handles that case; any other blur (tab away, click a
+	// non-focusable element, click elsewhere) drops the menu.
+	function handleFocusOut(event: FocusEvent) {
+		const next = event.relatedTarget;
+		const container = event.currentTarget as HTMLElement;
+		if (next instanceof Node && container.contains(next)) return;
+		open = false;
 	}
 </script>
 
@@ -48,32 +53,28 @@
 	{#if label}
 		<span class="block text-sm font-medium text-gray-700">{label}</span>
 	{/if}
-	<Popover.Root bind:open>
-		<Popover.Trigger>
-			{#snippet child({ props })}
-				<Button
-					variant="outline"
-					role="combobox"
-					aria-expanded={open}
-					class={cn('w-full justify-between font-normal', !selected && 'text-muted-foreground')}
-					{...props}
+	<!-- The field owns the open state via focus: opening on focusin, closing when focus
+	     leaves the container (relatedTarget outside). -->
+	<div
+		class="relative"
+		onfocusin={() => (open = true)}
+		onfocusout={handleFocusOut}
+	>
+		<Command.Root
+			class="overflow-visible rounded-none bg-transparent p-0"
+			onkeydown={(e) => {
+				if (e.key === 'Escape') open = false;
+			}}
+		>
+			<Command.Input {placeholder} bind:value={search} />
+			{#if open}
+				<Command.List
+					class="absolute top-full right-0 left-0 z-50 mt-1 rounded-lg border bg-popover p-1 shadow-md"
 				>
-					<span class="truncate">{selected || placeholder}</span>
-					<CaretUpDownIcon class="ms-2 size-4 shrink-0 opacity-50" />
-				</Button>
-			{/snippet}
-		</Popover.Trigger>
-		<Popover.Content class="w-(--bits-popover-anchor-width) p-0" align="start">
-			<Command.Root>
-				<Command.Input {placeholder} bind:value={search} />
-				<Command.List>
 					<Command.Empty>No results.</Command.Empty>
 					<Command.Group>
 						{#each options as option (option)}
 							<Command.Item value={option} onSelect={() => choose(option)}>
-								<CheckIcon
-									class={cn('me-2 size-4', selected !== option && 'text-transparent')}
-								/>
 								{option}
 							</Command.Item>
 						{/each}
@@ -85,10 +86,10 @@
 						{/if}
 					</Command.Group>
 				</Command.List>
-			</Command.Root>
-		</Popover.Content>
-	</Popover.Root>
+			{/if}
+		</Command.Root>
+	</div>
 </div>
 
 <!-- Resolved value the server action reads. -->
-<input type="hidden" {name} value={selected} />
+<input type="hidden" {name} value={search} />

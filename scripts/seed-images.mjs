@@ -141,8 +141,8 @@ for (let i = 0; i < rows.length; i++) {
 	}
 
 	await db.execute({
-		sql: 'UPDATE artefact SET file_url = ? WHERE id = ?',
-		args: [`${R2_PUBLIC_URL}/${key}`, id]
+		sql: 'UPDATE artefact SET file_urls = ? WHERE id = ?',
+		args: [JSON.stringify([`${R2_PUBLIC_URL}/${key}`]), id]
 	});
 	attached++;
 }

@@ -39,8 +39,9 @@ export const artefact = sqliteTable('artefact', {
 	// TAG program area tags. Multi-value → JSON string array.
 	programArea: text('program_area', { mode: 'json' }).$type<string[]>().notNull().default([]),
 	description: text('description'),
-	// Public URL of the attached scan image.
-	fileUrl: text('file_url'),
+	// Public URLs of the attached scan images, in display order.
+	// Multi-value → JSON string array; empty when nothing is attached.
+	fileUrls: text('file_urls', { mode: 'json' }).$type<string[]>().notNull().default([]),
 	// Physical storage location, e.g. "Binder" / "Bin".
 	location: text('location')
 });

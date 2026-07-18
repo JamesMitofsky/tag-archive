@@ -4,20 +4,29 @@
 	import ImageSquareIcon from 'phosphor-svelte/lib/ImageSquareIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 
-	// Emits the uploaded image's public URL + file name so the parent form can store them.
-	// `pending` (bindable) is true while an upload is in flight, so the parent can block
-	// submit until the image is finalized.
+	// Emits the current list of uploaded image URLs (display order) so the parent form
+	// can store them. `pending` (bindable) is true while an upload is in flight, so the
+	// parent can block submit until every image is finalized.
 	let {
-		onUploaded,
-		pending = $bindable(false)
+		onChange,
+		pending = $bindable(false),
+		initial = []
 	}: {
-		onUploaded?: (r: { url: string; fileName: string }) => void;
+		onChange?: (urls: string[]) => void;
 		pending?: boolean;
+		/** Pre-existing scan URLs to seed the list with (edit flow). */
+		initial?: string[];
 	} = $props();
 
 	type Attached = { url: string; fileName: string; previewUrl: string };
 
-	let attached = $state<Attached | null>(null);
+	// Multiple scans per artefact; kept in the order they were added. Seeded from any
+	// `initial` URLs (edit flow), where the public URL doubles as its own preview.
+	// svelte-ignore state_referenced_locally
+	let attached = $state<Attached[]>(
+		initial.map((url) => ({ url, fileName: url.split('/').pop() ?? 'scan', previewUrl: url }))
+	);
+	const emit = () => onChange?.(attached.map((a) => a.url));
 	// Local preview shown in the image slot while the upload is in flight.
 	let pendingPreview = $state<string | null>(null);
 	let status = $state<'idle' | 'uploading' | 'error'>('idle');
@@ -30,8 +39,7 @@
 
 	// Live camera is the primary path; the file input (with `capture`) is the fallback
 	// for browsers or permission states where getUserMedia isn't available.
-	const canUseCamera =
-		typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+	const canUseCamera = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
 	async function startCamera() {
 		error = '';
@@ -101,9 +109,9 @@
 			if (!res.ok) throw new Error(await res.text());
 
 			const result = (await res.json()) as { url: string; fileName: string };
-			attached = { url: result.url, fileName: result.fileName, previewUrl };
+			attached = [...attached, { url: result.url, fileName: result.fileName, previewUrl }];
 			status = 'idle';
-			onUploaded?.(result);
+			emit();
 		} catch (e) {
 			uploadError = e instanceof Error ? e.message : 'Upload failed';
 			status = 'error';
@@ -112,11 +120,11 @@
 		}
 	}
 
-	function remove() {
-		attached = null;
+	function remove(index: number) {
+		attached = attached.filter((_, i) => i !== index);
 		status = 'idle';
 		uploadError = '';
-		onUploaded?.({ url: '', fileName: '' });
+		emit();
 	}
 
 	// Block submit while an upload is in flight.
@@ -187,38 +195,34 @@
 		<p class="mt-3 text-xs text-red-600" role="alert">{uploadError}</p>
 	{/if}
 
-	<!-- Image slot: spinner while uploading, then the attached scan -->
-	{#if status === 'uploading'}
-		<div class="mt-4">
-			<div
-				class="relative flex h-40 min-w-40 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50"
-			>
-				{#if pendingPreview}
-					<img
-						src={pendingPreview}
-						alt=""
-						class="h-full w-auto object-contain opacity-30"
-					/>
-				{/if}
-				<CircleNotchIcon
-					size={28}
-					class="absolute animate-spin text-gray-500"
-				/>
-			</div>
-		</div>
-	{:else if attached}
-		<div class="mt-4">
-			<div class="relative inline-block overflow-hidden rounded-md border border-gray-200 bg-white">
-				<img src={attached.previewUrl} alt="Attached scan" class="max-h-40 w-auto object-contain" />
-				<button
-					type="button"
-					onclick={remove}
-					aria-label="Remove image"
-					class="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white transition hover:bg-red-600"
+	<!-- Image slot: every attached scan, plus a spinner tile while one is uploading -->
+	{#if attached.length > 0 || status === 'uploading'}
+		<div class="mt-4 flex flex-wrap gap-3">
+			{#each attached as scan, i (scan.url)}
+				<div
+					class="relative inline-block overflow-hidden rounded-md border border-gray-200 bg-white"
 				>
-					<TrashIcon size={14} />
-				</button>
-			</div>
+					<img src={scan.previewUrl} alt="Attached scan" class="max-h-40 w-auto object-contain" />
+					<button
+						type="button"
+						onclick={() => remove(i)}
+						aria-label="Remove image"
+						class="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white transition hover:bg-red-600"
+					>
+						<TrashIcon size={14} />
+					</button>
+				</div>
+			{/each}
+			{#if status === 'uploading'}
+				<div
+					class="relative flex h-40 min-w-40 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50"
+				>
+					{#if pendingPreview}
+						<img src={pendingPreview} alt="" class="h-full w-auto object-contain opacity-30" />
+					{/if}
+					<CircleNotchIcon size={28} class="absolute animate-spin text-gray-500" />
+				</div>
+			{/if}
 		</div>
 	{/if}
 </div>

@@ -6,6 +6,7 @@ import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { attachProvenance } from '$lib/server/db/queries';
 import { artefact, event } from '$lib/server/db/schema';
+import { idSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
 
 const emailSchema = z.string().trim().toLowerCase().pipe(z.email());
@@ -87,11 +88,6 @@ export const actions: Actions = {
 		return { step: 'signed-in' as const };
 	},
 
-	signOut: async ({ request }) => {
-		await auth.api.signOut({ headers: request.headers });
-		return { step: 'email' as const };
-	},
-
 	deleteArtefact: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, { artefactError: 'Sign in first' });
 		// Server-side role gate — the UI hides the button, but this is the enforcement.
@@ -100,7 +96,7 @@ export const actions: Actions = {
 		}
 
 		const form = await request.formData();
-		const id = z.coerce.number().int().positive().safeParse(form.get('id'));
+		const id = idSchema.safeParse(form.get('id'));
 		if (!id.success) return fail(400, { artefactError: 'Unknown artefact' });
 
 		await db.delete(artefact).where(eq(artefact.id, id.data));
