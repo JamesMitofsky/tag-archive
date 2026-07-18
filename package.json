@@ -22,6 +22,7 @@
 		"db:migrate": "tsx src/lib/server/db/migrate.ts",
 		"db:studio": "drizzle-kit studio",
 		"db:seed": "tsx src/lib/server/db/seed.ts",
+		"db:import": "tsx src/lib/server/db/import-archive.ts",
 		"db:setup:local": "DATABASE_URL=file:local.db pnpm db:migrate && DATABASE_URL=file:local.db pnpm db:seed",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes"
 	},
