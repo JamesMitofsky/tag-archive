@@ -22,7 +22,7 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"db:seed": "tsx src/lib/server/db/seed.ts",
-		"db:setup:local": "DATABASE_URL=file:local.db pnpm auth:schema && DATABASE_URL=file:local.db pnpm db:push --force && DATABASE_URL=file:local.db pnpm db:seed",
+		"db:setup:local": "DATABASE_URL=file:local.db pnpm db:migrate && DATABASE_URL=file:local.db pnpm db:seed",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes"
 	},
 	"devDependencies": {
