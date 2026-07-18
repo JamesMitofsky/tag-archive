@@ -2,23 +2,25 @@ import { env } from '$env/dynamic/private';
 
 type OtpType = 'sign-in' | 'email-verification' | 'forget-password';
 
-/** Dev without pulling in `$app/environment`, which the better-auth CLI (jiti, no Vite) can't resolve. */
-const isDev = env.NODE_ENV !== 'production';
-
 /**
  * Delivers a one-time password via Resend.
  *
- * In local dev (or when no RESEND_API_KEY is set) the code is logged to the
- * server console instead of sent, so the OTP flow stays testable against the
- * seeded test accounts — Resend's free tier would reject those recipients
- * anyway (it only delivers to the account owner until a domain is verified).
+ * Whether the code is sent or logged keys off RESEND_API_KEY alone: when the
+ * key is present we send, otherwise we log the code to the server console so
+ * the OTP flow stays testable against the seeded test accounts in local dev.
+ * We deliberately do NOT gate on NODE_ENV — Netlify only guarantees it at
+ * build time, not inside the function runtime where $env/dynamic/private
+ * reads, so relying on it silently downgraded prod to console-logging.
+ *
+ * Note: Resend's free tier only delivers to the account owner until a domain
+ * is verified, so seeded test recipients bounce even with a key set.
  *
  * The Resend call is awaited deliberately: on Netlify the function invocation
  * can be frozen as soon as the response is returned, which would drop a
  * fire-and-forget request before the email ever sends.
  */
 export async function sendOtpEmail(email: string, otp: string, type: OtpType): Promise<void> {
-	if (isDev || !env.RESEND_API_KEY) {
+	if (!env.RESEND_API_KEY) {
 		console.info(`[email-otp] ${type} code for ${email}: ${otp}`);
 		return;
 	}
