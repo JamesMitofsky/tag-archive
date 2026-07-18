@@ -22,3 +22,11 @@ run_mode = "concurrent"
 command = "export DB_PORT=$((CONDUCTOR_PORT+1)); export S3_PORT=$((CONDUCTOR_PORT+2)); export S3_ENDPOINT=http://127.0.0.1:$S3_PORT; export R2_PUBLIC_URL=http://127.0.0.1:$S3_PORT/tag-archive; pnpm exec concurrently -k -n db,rustfs,web -c magenta,yellow,cyan \"turso dev --db-file local.db --port $DB_PORT\" \"docker run --rm --name tag-archive-rustfs-$CONDUCTOR_PORT -p $S3_PORT:9000 -e RUSTFS_ACCESS_KEY=rustfsadmin -e RUSTFS_SECRET_KEY=rustfsadmin -e RUSTFS_ADDRESS=:9000 rustfs/rustfs:latest /data\" \"node --env-file-if-exists=.env scripts/init-bucket.mjs || echo '[init-bucket] skipped (storage unavailable)'; DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm dev --port $CONDUCTOR_PORT\""
 default = true
 icon = "rocket"
+
+# Drizzle Studio to inspect the local DB. Self-contained: starts its own `turso dev`
+# on CONDUCTOR_PORT+1 and points Studio at it over HTTP (a port, not file:local.db,
+# so no file-lock races) with its own backend port on CONDUCTOR_PORT+3.
+# UI always loads at https://local.drizzle.studio — the port is just its backend.
+[scripts.run.studio]
+command = "export DB_PORT=$((CONDUCTOR_PORT+1)); pnpm exec concurrently -k -n db,studio -c magenta,green \"turso dev --db-file local.db --port $DB_PORT\" \"DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm exec drizzle-kit studio --port $((CONDUCTOR_PORT+3))\""
+icon = "database"
