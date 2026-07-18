@@ -14,9 +14,9 @@ export const series = sqliteTable('series', {
 	// Optional blurb describing the banner; null when the series has no description.
 	description: text('description'),
 	// Defaults inherited by events under this banner; all null when unset.
-	// `defaultDate` is a reference date (YYYY-MM-DD), `defaultTime` a free label
+	// `defaultDayOfWeek` is a weekday name ("Friday"), `defaultTime` a free label
 	// ("6:00 PM"), `frequency` a human recurrence ("4th Friday of every month").
-	defaultDate: text('default_date'),
+	defaultDayOfWeek: text('default_day_of_week'),
 	defaultTime: text('default_time'),
 	frequency: text('frequency')
 });

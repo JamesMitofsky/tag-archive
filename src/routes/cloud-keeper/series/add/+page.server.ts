@@ -9,7 +9,7 @@ import type { Actions, PageServerLoad } from './$types';
 export type SeriesFormValues = {
 	name: string;
 	description: string;
-	defaultDate: string;
+	defaultDayOfWeek: string;
 	defaultTime: string;
 	frequency: string;
 };
@@ -31,7 +31,7 @@ export const actions: Actions = {
 		const raw = {
 			name: String(form.get('name') ?? ''),
 			description: String(form.get('description') ?? ''),
-			defaultDate: String(form.get('defaultDate') ?? ''),
+			defaultDayOfWeek: String(form.get('defaultDayOfWeek') ?? ''),
 			defaultTime: String(form.get('defaultTime') ?? ''),
 			frequency: String(form.get('frequency') ?? '')
 		};
@@ -61,7 +61,7 @@ export const actions: Actions = {
 		await db.insert(series).values({
 			name: parsed.data.name,
 			description: parsed.data.description || null,
-			defaultDate: parsed.data.defaultDate || null,
+			defaultDayOfWeek: parsed.data.defaultDayOfWeek || null,
 			defaultTime: parsed.data.defaultTime || null,
 			frequency: parsed.data.frequency || null
 		});

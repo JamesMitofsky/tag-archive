@@ -4,6 +4,17 @@ import { PROGRAM_AREAS } from '$lib/programAreas';
 /** Positive integer id, coerced from route params / form values. */
 export const idSchema = z.coerce.number().int().positive();
 
+/** Weekday options for a series' optional default day. Sunday-first. */
+export const DAYS_OF_WEEK = [
+	'Sunday',
+	'Monday',
+	'Tuesday',
+	'Wednesday',
+	'Thursday',
+	'Friday',
+	'Saturday'
+] as const;
+
 // Optional text field: empty string is allowed and later stored as NULL.
 const optionalText = (max: number, label: string) =>
 	z.string().trim().max(max, `Keep the ${label} under ${max} characters`);
@@ -53,7 +64,7 @@ export const seriesSchema = z.object({
 		.max(200, 'Keep the name under 200 characters'),
 	description: optionalText(2000, 'description'),
 	// Optional defaults events under this series inherit.
-	defaultDate: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a valid date')]),
+	defaultDayOfWeek: z.union([z.literal(''), z.enum(DAYS_OF_WEEK)]),
 	defaultTime: optionalText(100, 'time'),
 	frequency: optionalText(100, 'frequency')
 });

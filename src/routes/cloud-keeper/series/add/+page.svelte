@@ -4,7 +4,7 @@
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import DateField from '$lib/components/DateField.svelte';
+	import { DAYS_OF_WEEK } from '$lib/schemas';
 	import type { SeriesFormValues } from './+page.server';
 	import type { ActionData } from './$types';
 
@@ -19,6 +19,15 @@
 	// svelte-ignore state_referenced_locally
 	let name = $state(
 		form && 'values' in form && form.values ? (form.values as SeriesFormValues).name : ''
+	);
+
+	// Optional default weekday; '' means none. Single-select — clicking the active
+	// day clears it. A hidden input carries the value to the server.
+	// svelte-ignore state_referenced_locally
+	let defaultDayOfWeek = $state(
+		form && 'values' in form && form.values
+			? (form.values as SeriesFormValues).defaultDayOfWeek
+			: ''
 	);
 
 	const canSubmit = $derived(name.trim().length > 0);
@@ -78,11 +87,26 @@
 				<fieldset class="space-y-5 border-t border-gray-200 pt-5">
 					<legend class="text-sm font-medium text-gray-500">Event defaults</legend>
 
-					<DateField
-						name="defaultDate"
-						label="Default date"
-						value={echoed?.defaultDate ?? ''}
-					/>
+					<div>
+						<span class="block text-sm font-medium text-gray-700">Default day of the week</span>
+						<!-- Hidden input the server reads; '' when no day is chosen. -->
+						<input type="hidden" name="defaultDayOfWeek" value={defaultDayOfWeek} />
+						<div class="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Default day of the week">
+							{#each DAYS_OF_WEEK as day (day)}
+								<button
+									type="button"
+									aria-pressed={defaultDayOfWeek === day}
+									onclick={() => (defaultDayOfWeek = defaultDayOfWeek === day ? '' : day)}
+									class="rounded-full border px-3 py-1.5 text-sm transition
+									{defaultDayOfWeek === day
+										? 'border-transparent bg-[#14120f] text-white'
+										: 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}"
+								>
+									{day.slice(0, 3)}
+								</button>
+							{/each}
+						</div>
+					</div>
 
 					<div>
 						<label for="defaultTime" class="block text-sm font-medium text-gray-700">
