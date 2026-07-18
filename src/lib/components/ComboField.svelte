@@ -1,10 +1,15 @@
 <script lang="ts">
-	import { Combobox, Portal, type ComboboxRootProps, useListCollection } from '@skeletonlabs/skeleton-svelte';
-	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
+	import CaretUpDownIcon from 'phosphor-svelte/lib/CaretUpDownIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import { cn } from '$lib/utils';
+	import { Button } from '$lib/components/ui/button';
+	import * as Command from '$lib/components/ui/command';
+	import * as Popover from '$lib/components/ui/popover';
 
 	// Searchable single-select that also accepts a typed-in custom value. Wraps
-	// Skeleton's Combobox and mirrors the chosen/typed text into a hidden <input>
-	// so the native form POST submits `name=<value>` like the old select/datalist.
+	// shadcn-svelte's Command inside a Popover and mirrors the chosen/typed text into
+	// a hidden <input> so the native form POST submits `name=<value>` like before.
 	let {
 		name,
 		label,
@@ -19,75 +24,71 @@
 		value?: string;
 	} = $props();
 
-	// Options are supplied once at mount; snapshot them for the collection/filter.
-	// svelte-ignore state_referenced_locally
-	const data = options.map((o) => ({ label: o, value: o }));
-	let items = $state(data);
+	let open = $state(false);
 	// The resolved string the server reads — seeded from any echoed value.
 	// svelte-ignore state_referenced_locally
 	let selected = $state(initial);
+	// Live text in the Command search box; also the candidate custom value.
+	let search = $state('');
 
-	const collection = $derived(
-		useListCollection({
-			items,
-			itemToString: (item) => item.label,
-			itemToValue: (item) => item.value
-		})
+	const query = $derived(search.trim());
+	// Offer the typed text as a custom entry unless it already matches an option.
+	const showCustom = $derived(
+		query.length > 0 && !options.some((o) => o.toLowerCase() === query.toLowerCase())
 	);
 
-	const onOpenChange = () => (items = data);
-
-	const onInputValueChange: ComboboxRootProps['onInputValueChange'] = (event) => {
-		// Every keystroke is a candidate value (supports custom, un-listed entries).
-		selected = event.inputValue;
-		const filtered = data.filter((item) =>
-			item.label.toLowerCase().includes(event.inputValue.toLowerCase())
-		);
-		items = filtered.length > 0 ? filtered : data;
-	};
-
-	const onValueChange: ComboboxRootProps['onValueChange'] = (event) => {
-		selected = event.value[0] ?? '';
-	};
+	function choose(value: string) {
+		selected = value;
+		open = false;
+		search = '';
+	}
 </script>
 
-<Combobox
-	{collection}
-	{placeholder}
-	{onOpenChange}
-	{onInputValueChange}
-	{onValueChange}
-	defaultInputValue={initial}
-	allowCustomValue
-	openOnClick
->
+<div class="flex flex-col gap-1.5">
 	{#if label}
-		<Combobox.Label class="label-text">{label}</Combobox.Label>
+		<span class="block text-sm font-medium text-gray-700">{label}</span>
 	{/if}
-	<Combobox.Control class="relative mt-1.5">
-		<Combobox.Input class="input pr-10" />
-		<Combobox.Trigger
-			class="text-surface-500 hover:text-surface-900-100 absolute inset-y-0 right-0 flex items-center px-3"
-		>
-			<CaretDownIcon size={16} />
-		</Combobox.Trigger>
-	</Combobox.Control>
-	<Portal>
-		<Combobox.Positioner>
-			<Combobox.Content class="card z-50 max-h-60 overflow-y-auto bg-surface-50-950 p-1 shadow-xl">
-				{#each items as item (item.value)}
-					<Combobox.Item
-						{item}
-						class="flex items-center justify-between rounded px-2 py-1.5 hover:preset-tonal data-highlighted:preset-tonal"
-					>
-						<Combobox.ItemText>{item.label}</Combobox.ItemText>
-						<Combobox.ItemIndicator />
-					</Combobox.Item>
-				{/each}
-			</Combobox.Content>
-		</Combobox.Positioner>
-	</Portal>
-</Combobox>
+	<Popover.Root bind:open>
+		<Popover.Trigger>
+			{#snippet child({ props })}
+				<Button
+					variant="outline"
+					role="combobox"
+					aria-expanded={open}
+					class={cn('w-full justify-between font-normal', !selected && 'text-muted-foreground')}
+					{...props}
+				>
+					<span class="truncate">{selected || placeholder}</span>
+					<CaretUpDownIcon class="ms-2 size-4 shrink-0 opacity-50" />
+				</Button>
+			{/snippet}
+		</Popover.Trigger>
+		<Popover.Content class="w-(--bits-popover-anchor-width) p-0" align="start">
+			<Command.Root>
+				<Command.Input {placeholder} bind:value={search} />
+				<Command.List>
+					<Command.Empty>No results.</Command.Empty>
+					<Command.Group>
+						{#each options as option (option)}
+							<Command.Item value={option} onSelect={() => choose(option)}>
+								<CheckIcon
+									class={cn('me-2 size-4', selected !== option && 'text-transparent')}
+								/>
+								{option}
+							</Command.Item>
+						{/each}
+						{#if showCustom}
+							<Command.Item value={query} onSelect={() => choose(query)}>
+								<PlusIcon class="me-2 size-4" />
+								Use “{query}”
+							</Command.Item>
+						{/if}
+					</Command.Group>
+				</Command.List>
+			</Command.Root>
+		</Popover.Content>
+	</Popover.Root>
+</div>
 
 <!-- Resolved value the server action reads. -->
 <input type="hidden" {name} value={selected} />

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { TagsInput } from '@skeletonlabs/skeleton-svelte';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
+	import TagsField from '$lib/components/TagsField.svelte';
 	import PageScanner from '$lib/components/PageScanner.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
@@ -158,39 +158,12 @@
 				</fieldset>
 
 				<div>
-					<TagsInput
+					<TagsField
 						name="provenance"
-						value={provenanceTags}
-						onValueChange={(e) => (provenanceTags = e.value)}
-					>
-						<TagsInput.Label class="block text-sm font-medium text-gray-700">
-							Provenance
-						</TagsInput.Label>
-						<TagsInput.Control
-							class="input mt-1.5 flex w-full flex-wrap items-center gap-2 outline-none"
-						>
-							<TagsInput.Context>
-								{#snippet children(tagsInput)}
-									{#each tagsInput().value as value, index (index)}
-										<TagsInput.Item {value} {index}>
-											<TagsInput.ItemPreview
-												class="preset-filled-surface-200-800 flex items-center gap-1 rounded px-2 py-0.5 text-sm"
-											>
-												<TagsInput.ItemText>{value}</TagsInput.ItemText>
-												<TagsInput.ItemDeleteTrigger class="text-surface-500 hover:text-surface-900-100" />
-											</TagsInput.ItemPreview>
-											<TagsInput.ItemInput class="input-ghost" />
-										</TagsInput.Item>
-									{/each}
-								{/snippet}
-							</TagsInput.Context>
-							<TagsInput.Input
-								class="input-ghost grow"
-								placeholder="Johnny B. Good"
-							/>
-						</TagsInput.Control>
-						<TagsInput.HiddenInput />
-					</TagsInput>
+						label="Provenance"
+						placeholder="Johnny B. Good"
+						bind:value={provenanceTags}
+					/>
 					<p class="mt-1 text-xs text-gray-500">
 						Press Enter to add
 					</p>
