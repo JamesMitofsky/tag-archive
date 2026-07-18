@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import Sky from '$lib/components/Sky.svelte';
 
 	// 404 gets a friendlier line; any other status shows its own message.
 	let is404 = $derived(page.status === 404);
@@ -10,7 +9,6 @@
 </script>
 
 <main class="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
-	<Sky />
 
 	<div class="relative z-10 max-w-md px-8 py-10 text-center text-gray-900">
 		<p class="text-4xl font-medium tracking-tight text-gray-800">Whoops, sorry about that</p>

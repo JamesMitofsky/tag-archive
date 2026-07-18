@@ -11,10 +11,15 @@ setup = "pnpm install && pnpm db:setup:local"
 # multiple workspaces can run at the same time.
 run_mode = "concurrent"
 
-# Spins up the local DB and the local site together.
-#   db  -> `turso dev` serving local.db over http on CONDUCTOR_PORT+1
-#   web -> vite dev on CONDUCTOR_PORT, pointed at that DB
+# Spins up the local DB, a RustFS S3 store, and the local site together.
+#   db     -> `turso dev` serving local.db over http on CONDUCTOR_PORT+1
+#   rustfs -> S3-compatible store (dev stand-in for R2) on CONDUCTOR_PORT+2
+#   web    -> vite dev on CONDUCTOR_PORT, pointed at that DB + RustFS
+# S3_ENDPOINT/R2_PUBLIC_URL are exported (not in .env) so each workspace gets its
+# own port and scan uploads never touch the prod R2 bucket. Requires Docker.
+# RustFS data is ephemeral (no volume) — init-bucket.mjs recreates the bucket each boot.
+#   studio -> Drizzle Studio backend on CONDUCTOR_PORT+3; UI at https://local.drizzle.studio
 [scripts.run.dev]
-command = "export DB_PORT=$((CONDUCTOR_PORT+1)); pnpm exec concurrently -k -n db,web -c magenta,cyan \"turso dev --db-file local.db --port $DB_PORT\" \"DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm dev --port $CONDUCTOR_PORT\""
+command = "export DB_PORT=$((CONDUCTOR_PORT+1)); export S3_PORT=$((CONDUCTOR_PORT+2)); export S3_ENDPOINT=http://127.0.0.1:$S3_PORT; export R2_PUBLIC_URL=http://127.0.0.1:$S3_PORT/tag-archive; trap 'docker rm -f tag-archive-rustfs-$CONDUCTOR_PORT >/dev/null 2>&1 || true' EXIT; docker rm -f tag-archive-rustfs-$CONDUCTOR_PORT >/dev/null 2>&1 || true; for p in $((CONDUCTOR_PORT+1)) $((CONDUCTOR_PORT+3)); do lsof -ti tcp:$p 2>/dev/null | xargs kill -9 2>/dev/null || true; done; pnpm exec concurrently -k -n db,rustfs,studio,web -c magenta,yellow,green,cyan \"turso dev --db-file local.db --port $DB_PORT\" \"docker run --rm --name tag-archive-rustfs-$CONDUCTOR_PORT -p $S3_PORT:9000 -e RUSTFS_ACCESS_KEY=rustfsadmin -e RUSTFS_SECRET_KEY=rustfsadmin -e RUSTFS_ADDRESS=:9000 rustfs/rustfs:latest /data\" \"DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm exec drizzle-kit studio --port $((CONDUCTOR_PORT+3))\" \"(node --env-file-if-exists=.env scripts/init-bucket.mjs && DATABASE_URL=http://127.0.0.1:$DB_PORT node --env-file-if-exists=.env scripts/seed-images.mjs) || echo '[storage] seed skipped (unavailable)'; DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm dev --port $CONDUCTOR_PORT\""
 default = true
 icon = "rocket"

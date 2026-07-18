@@ -35,7 +35,6 @@ type ArtefactSource = {
 	provenance: string[];
 	programArea: string[];
 	description: string | null;
-	fileName: string | null;
 	fileUrl: string | null;
 	location: string | null;
 };
@@ -96,7 +95,6 @@ await db.insert(artefact).values(
 		date: r.date,
 		programArea: r.programArea,
 		description: r.description,
-		fileName: r.fileName,
 		fileUrl: r.fileUrl,
 		location: r.location
 	}))

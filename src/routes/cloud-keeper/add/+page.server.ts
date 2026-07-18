@@ -14,7 +14,6 @@ export type ArtefactFormValues = {
 	date: string;
 	description: string;
 	location: string;
-	fileName: string;
 	fileUrl: string;
 	/** Comma-separated in the form; kept raw so a failed submit doesn't lose it. */
 	provenance: string;
@@ -35,7 +34,6 @@ const artefactSchema = z.object({
 	date: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a valid date')]),
 	description: optionalText(2000, 'description'),
 	location: optionalText(200, 'location'),
-	fileName: optionalText(200, 'file name'),
 	fileUrl: z.union([z.literal(''), z.string().url('Enter a valid file URL')]),
 	programArea: z.array(z.enum(PROGRAM_AREAS)),
 	provenance: z.array(z.string().trim().min(1)).max(50)
@@ -99,7 +97,6 @@ export const actions: Actions = {
 			date: form.get('date') ?? '',
 			description: form.get('description') ?? '',
 			location: form.get('location') ?? '',
-			fileName: form.get('fileName') ?? '',
 			fileUrl: form.get('fileUrl') ?? '',
 			programArea: form.getAll('programArea'),
 			provenance: parseProvenance(provenanceRaw)
@@ -113,7 +110,6 @@ export const actions: Actions = {
 					date: String(form.get('date') ?? ''),
 					description: String(form.get('description') ?? ''),
 					location: String(form.get('location') ?? ''),
-					fileName: String(form.get('fileName') ?? ''),
 					fileUrl: String(form.get('fileUrl') ?? ''),
 					provenance: provenanceRaw,
 					programArea: form.getAll('programArea').map(String)
@@ -135,7 +131,6 @@ export const actions: Actions = {
 				date: nullIfEmpty(parsed.data.date),
 				description: nullIfEmpty(parsed.data.description),
 				location: nullIfEmpty(parsed.data.location),
-				fileName: nullIfEmpty(parsed.data.fileName),
 				fileUrl: nullIfEmpty(parsed.data.fileUrl),
 				programArea: parsed.data.programArea
 			})

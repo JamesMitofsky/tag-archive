@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { enhance } from '$app/forms';
 	import { confetti } from '@neoconfetti/svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
@@ -8,7 +9,6 @@
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import { programAreaMeta } from '$lib/programAreas';
-	import Sky from '$lib/components/Sky.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -34,6 +34,12 @@
 		otpInputs[i]?.focus();
 		otpInputs[i]?.select();
 	}
+
+	// When the OTP step mounts, drop the cursor in the first box so the user can
+	// type straight away. tick() waits for the keyed swap to bind the inputs.
+	$effect(() => {
+		if (authStep === 'otp') tick().then(() => focusOtp(0));
+	});
 
 	// Fire validation automatically once all six boxes are filled.
 	// Await tick so the hidden `otp` input reflects the digits before submit.
@@ -108,8 +114,6 @@
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
-	<!-- Ambient sky: watercolor paper + drifting clouds, shared with the landing page. -->
-	<Sky />
 
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
@@ -130,11 +134,25 @@
 			{/if}
 		</header>
 
-		{#if !data.user}
+		<!-- Grid-stack the signed-out/signed-in views so they cross-fly on the OTP
+		     success swap, matching the route transitions (same pathname = no layout key). -->
+		<div class="view-swap">
+			{#key !!data.user}
+				<div class="view" in:fly={{ x: 20, duration: 250 }} out:fly={{ x: -20, duration: 250 }}>
+					{#if !data.user}
 			<!-- Sign-in floats on the sky as a frosted glass panel, like the searchbar. -->
 			<section class="rounded-lg border border-white/40 bg-white/25 p-6 shadow-sm backdrop-blur-md">
-				{#if authStep === 'email'}
-					<p class="mt-1 text-sm text-gray-700">
+				<!-- Grid-stack the step swap so the incoming/outgoing views overlap
+				     (no vertical jump) and fly like the route transitions do. -->
+				<div class="auth-steps">
+					{#key authStep}
+						<div
+							class="auth-step"
+							in:fly={{ x: 20, duration: 250 }}
+							out:fly={{ x: -20, duration: 250 }}
+						>
+							{#if authStep === 'email'}
+								<p class="mt-1 text-sm text-gray-700">
 						Connections are passwordless! You'll be sent a special code by email.
 					</p>
 					<form method="POST" action="?/sendOtp" use:enhance class="mt-5 flex gap-2">
@@ -144,7 +162,7 @@
 							name="email"
 							type="email"
 							required
-							autocomplete="email"
+							autocomplete="off"
 							placeholder="you@email.community"
 							value={authEmail}
 							class="min-w-0 flex-1 {glassInput}"
@@ -231,7 +249,10 @@
 							</div>
 						{/if}
 					</form>
-				{/if}
+						{/if}
+						</div>
+					{/key}
+				</div>
 				{#if authError}
 					<p class="mt-4 text-sm text-red-700" role="alert">{authError}</p>
 				{/if}
@@ -328,7 +349,7 @@
 											class="inline-flex items-center gap-1 text-gray-600 underline-offset-2 hover:text-gray-900 hover:underline"
 										>
 											<PaperclipIcon size={14} />
-											{item.fileName ?? 'File'}
+											Image
 										</a>
 									{/if}
 								</div>
@@ -337,6 +358,27 @@
 					</ul>
 				{/if}
 			</section>
-		{/if}
+					{/if}
+				</div>
+			{/key}
+		</div>
 	</div>
 </main>
+
+<style>
+	/* Stack the email/OTP steps in one cell so they cross-fly without a jump. */
+	.auth-steps {
+		display: grid;
+	}
+	.auth-step {
+		grid-area: 1 / 1;
+	}
+	/* Same trick one level up: signed-out and signed-in views share a cell so the
+	   post-OTP swap cross-flies like a route change instead of snapping. */
+	.view-swap {
+		display: grid;
+	}
+	.view {
+		grid-area: 1 / 1;
+	}
+</style>

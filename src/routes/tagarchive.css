@@ -249,12 +249,28 @@
 }
 
 /*
- * Skeleton `.input` (drives the TagsInput control, item inputs, selects, etc.) rings with
- * `--color-primary-500` on focus. Retarget it to a neutral gray so every form control focuses
- * like the paper inputs' `focus:ring-gray-500`. Unlayered → wins over the utility's own focus rule.
+ * `.input` styles both real inputs and the TagsInput <div> control. On a <div> the
+ * @tailwindcss/forms plugin never runs, so Skeleton's ring falls back to currentColor
+ * (≈ black). Set the focus box-shadow explicitly to the theme's primary-500 ring so every
+ * control — real input or TagsInput control — focuses with the same light-blue ring.
+ * Unlayered → wins over Skeleton's utilities layer and the forms plugin's base layer.
  */
 .input:focus,
 .input:focus-within,
 .input:active {
-	--tw-ring-color: var(--color-surface-500);
+	box-shadow: inset 0 0 0 var(--default-ring-width) var(--color-primary-500);
+}
+
+/*
+ * Lighten placeholder text on every input type. Skeleton's base rule sets these to
+ * `--color-surface-700-300` (fairly dark in light mode); retarget to surface-400 so
+ * placeholders read as low-emphasis hints. Unlayered → wins over the base layer.
+ */
+.input::placeholder,
+.textarea::placeholder,
+.ig-input::placeholder,
+.ig-textarea::placeholder,
+input::placeholder,
+textarea::placeholder {
+	color: var(--color-surface-400);
 }

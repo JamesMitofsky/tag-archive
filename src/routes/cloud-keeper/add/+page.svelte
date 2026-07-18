@@ -5,9 +5,9 @@
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
-	import Sky from '$lib/components/Sky.svelte';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
+	import PageScanner from '$lib/components/PageScanner.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -30,12 +30,30 @@
 
 	// Location: preset options, but the combobox also accepts a typed-in custom value.
 	const LOCATION_OPTIONS = ['Binder', 'Bin'];
-	const today = new Date().toISOString().slice(0, 10);
 	const artefactError = $derived(form && 'artefactError' in form ? form.artefactError : undefined);
 	// Kit flattens the action-data union, so restore the echoed values' shape.
 	const echoed = $derived(
 		form && 'values' in form && form.values ? (form.values as ArtefactFormValues) : undefined
 	);
+
+	// The uploaded image's public URL, set by the page scanner on upload.
+	// Seeded from any echoed value so a failed submit keeps the attachment.
+	// svelte-ignore state_referenced_locally
+	let fileUrl = $state(
+		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).fileUrl : ''
+	);
+
+	// Title is the only required field; track it so submit can gate on it.
+	// svelte-ignore state_referenced_locally
+	let title = $state(
+		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).artefact : ''
+	);
+
+	// True while an image upload is in flight.
+	let scanPending = $state(false);
+
+	// Block submit until required fields are filled and any upload is finalized.
+	const canSubmit = $derived(title.trim().length > 0 && !scanPending);
 
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
@@ -46,8 +64,6 @@
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
-	<!-- Ambient sky: watercolor paper + drifting clouds, shared with the landing page. -->
-	<Sky />
 
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
@@ -78,11 +94,22 @@
 						type="text"
 						required
 						maxlength="200"
-						value={echoed?.artefact ?? ''}
+						autocomplete="off"
+						bind:value={title}
 						placeholder="Symphonic Steep Program"
 						class="input mt-1.5"
 					/>
 				</div>
+
+				<!-- Image is attached right below the title; its URL rides along as a hidden field. -->
+				<input type="hidden" name="fileUrl" value={fileUrl} />
+
+				<PageScanner
+					bind:pending={scanPending}
+					onUploaded={(r) => {
+						fileUrl = r.url;
+					}}
+				/>
 
 				<div>
 					<ComboField
@@ -92,11 +119,10 @@
 						options={data.events.map((e) => e.name)}
 						value={echoed?.event ?? ''}
 					/>
-					<p class="mt-1 text-xs text-gray-500">Pick an existing event or type a new one.</p>
 				</div>
 
 				<div>
-					<DateField name="date" label="Date" value={echoed?.date ?? today} />
+					<DateField name="date" label="Date" value={echoed?.date ?? ''} />
 				</div>
 
 				<fieldset>
@@ -140,26 +166,33 @@
 						<TagsInput.Label class="block text-sm font-medium text-gray-700">
 							Provenance
 						</TagsInput.Label>
-						<TagsInput.Control class="mt-1.5 w-full">
+						<TagsInput.Control
+							class="input mt-1.5 flex w-full flex-wrap items-center gap-2 outline-none"
+						>
 							<TagsInput.Context>
 								{#snippet children(tagsInput)}
 									{#each tagsInput().value as value, index (index)}
 										<TagsInput.Item {value} {index}>
-											<TagsInput.ItemPreview>
+											<TagsInput.ItemPreview
+												class="preset-filled-surface-200-800 flex items-center gap-1 rounded px-2 py-0.5 text-sm"
+											>
 												<TagsInput.ItemText>{value}</TagsInput.ItemText>
-												<TagsInput.ItemDeleteTrigger />
+												<TagsInput.ItemDeleteTrigger class="text-surface-500 hover:text-surface-900-100" />
 											</TagsInput.ItemPreview>
-											<TagsInput.ItemInput />
+											<TagsInput.ItemInput class="input-ghost" />
 										</TagsInput.Item>
 									{/each}
 								{/snippet}
 							</TagsInput.Context>
-							<TagsInput.Input placeholder="Add a contributor and press Enter…" />
+							<TagsInput.Input
+								class="input-ghost grow"
+								placeholder="Johnny B. Good"
+							/>
 						</TagsInput.Control>
 						<TagsInput.HiddenInput />
 					</TagsInput>
 					<p class="mt-1 text-xs text-gray-500">
-						Contributors or sources. Press Enter or comma to add each one.
+						Press Enter to add
 					</p>
 				</div>
 
@@ -172,7 +205,7 @@
 						name="description"
 						rows="3"
 						maxlength="2000"
-						placeholder="Neato, what've you got there..."
+						placeholder="Another day full of dancing and trees"
 						class="textarea mt-1.5">{echoed?.description ?? ''}</textarea
 					>
 				</div>
@@ -187,39 +220,14 @@
 					/>
 				</div>
 
-				<div class="grid gap-4 sm:grid-cols-2">
-					<div>
-						<label for="fileName" class="block text-sm font-medium text-gray-700">File name</label>
-						<input
-							id="fileName"
-							name="fileName"
-							type="text"
-							maxlength="200"
-							value={echoed?.fileName ?? ''}
-							placeholder="TAG-001.jpg"
-							class="input mt-1.5"
-						/>
-					</div>
-					<div>
-						<label for="fileUrl" class="block text-sm font-medium text-gray-700">File URL</label>
-						<input
-							id="fileUrl"
-							name="fileUrl"
-							type="url"
-							value={echoed?.fileUrl ?? ''}
-							placeholder="/artefacts/TAG-001.jpg"
-							class="input mt-1.5"
-						/>
-					</div>
-				</div>
-
 				{#if artefactError}
 					<p class="text-sm text-red-600" role="alert">{artefactError}</p>
 				{/if}
 
 				<button
 					type="submit"
-					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium {inkButton}"
+					disabled={!canSubmit}
+					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>
 					<PlusIcon size={18} />
 					Add artefact
