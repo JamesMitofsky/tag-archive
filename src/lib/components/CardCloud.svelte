@@ -384,7 +384,7 @@
 
 	/* Anchor point. When the match set changes, ranks shift and this glides to the
 	   new even slot instead of snapping. (Named .card-anchor, not .anchor, to avoid
-	   colliding with Skeleton's `anchor` typography utility, which underlines on hover.) */
+	   colliding with any global `anchor` typography utility.) */
 	.card-anchor {
 		position: absolute;
 		transform: translate(-50%, -50%);

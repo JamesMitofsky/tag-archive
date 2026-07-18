@@ -1,9 +1,10 @@
 <script lang="ts">
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Input } from '$lib/components/ui/input';
 
 	// Lightweight tags input. shadcn-svelte has no tags-input primitive, so this is a
-	// small custom control: chips (Badge) + a text field, mirrored into a hidden
+	// small custom control composed from shadcn Input + Badge, mirrored into a hidden
 	// <input> as a comma-joined string, which is exactly what the server action parses.
 	let {
 		name,
@@ -43,29 +44,24 @@
 	{#if label}
 		<span class="block text-sm font-medium text-gray-700">{label}</span>
 	{/if}
-	<div
-		class="border-input focus-within:ring-ring/50 flex w-full flex-wrap items-center gap-2 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-within:ring-[3px]"
-	>
-		{#each value as tag, index (tag)}
-			<Badge variant="secondary" class="gap-1">
-				{tag}
-				<button
-					type="button"
-					aria-label={`Remove ${tag}`}
-					onclick={() => removeTag(index)}
-					class="text-muted-foreground hover:text-foreground -me-0.5 flex items-center"
-				>
-					<XIcon class="size-3" />
-				</button>
-			</Badge>
-		{/each}
-		<input
-			{placeholder}
-			bind:value={draft}
-			{onkeydown}
-			class="text-foreground placeholder:text-muted-foreground grow bg-transparent outline-none"
-		/>
-	</div>
+	<Input {placeholder} bind:value={draft} {onkeydown} />
+	{#if value.length > 0}
+		<div class="flex flex-wrap items-center gap-2">
+			{#each value as tag, index (tag)}
+				<Badge variant="secondary" class="gap-1">
+					{tag}
+					<button
+						type="button"
+						aria-label={`Remove ${tag}`}
+						onclick={() => removeTag(index)}
+						class="text-muted-foreground hover:text-foreground -me-0.5 flex items-center"
+					>
+						<XIcon class="size-3" />
+					</button>
+				</Badge>
+			{/each}
+		</div>
+	{/if}
 </div>
 
 <!-- Comma-joined value the server action reads. -->
