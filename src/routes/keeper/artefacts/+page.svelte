@@ -1,5 +1,6 @@
 <script lang="ts">
 	import BackButton from '$lib/components/BackButton.svelte';
+	import KeeperList from '$lib/components/KeeperList.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import { programAreaMeta } from '$lib/programAreas';
@@ -20,7 +21,8 @@
 	});
 
 	// Persist the search text across back navigation (e.g. open an artefact, then
-	// return). SvelteKit restores this after the page remounts.
+	// return). SvelteKit restores this after the page remounts; the list rides the
+	// page scroll, so native scroll restoration handles position.
 	export const snapshot = {
 		capture: () => query,
 		restore: (value: string) => (query = value)
@@ -41,7 +43,6 @@
 			timeZone: 'UTC'
 		});
 	}
-
 </script>
 
 <svelte:head>
@@ -100,56 +101,60 @@
 					No artefacts match “{query}”.
 				</p>
 			{:else}
-				<!-- Each artefact is its own page, scattered ever so slightly like loose paper. -->
-				<ul class="mt-3 space-y-4">
-					{#each filtered as item, i (item.id)}
-						<li
-							class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
-							{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
-						>
-							<div class="flex items-start justify-between gap-3">
-								<div class="min-w-0">
-									<!-- Stretched link: the ::after overlay makes the whole card open the artefact page. -->
-									<h3 class="font-medium break-words">
-										<a href="/keeper/{item.id}" class="after:absolute after:inset-0 after:z-[1]">
-											{item.artefact}
-										</a>
-									</h3>
-									<p class="mt-0.5 text-sm text-gray-500">
-										{#if item.date}{formatDate(
-												item.date
-											)}{/if}{#if item.event}{#if item.date}{' · '}{/if}{item.event}{/if}
+				<!-- Only visible rows mount; the list rides the page scroll. -->
+				<KeeperList items={filtered} estimatedItemHeight={150} getKey={(item) => item.id}>
+					{#snippet row(item, i)}
+						<!-- py-2 doubles as the inter-card gap (measured), px-2 leaves shadow room. -->
+						<div class="px-2 py-2">
+							<!-- Each artefact is its own page, scattered ever so slightly like loose paper. -->
+							<article
+								class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
+								{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
+							>
+								<div class="flex items-start justify-between gap-3">
+									<div class="min-w-0">
+										<!-- Stretched link: the ::after overlay makes the whole card open the artefact page. -->
+										<h3 class="font-medium break-words">
+											<a href="/keeper/{item.id}" class="after:absolute after:inset-0 after:z-[1]">
+												{item.artefact}
+											</a>
+										</h3>
+										<p class="mt-0.5 text-sm text-gray-500">
+											{#if item.date}{formatDate(
+													item.date
+												)}{/if}{#if item.event}{#if item.date}{' · '}{/if}{item.event}{/if}
+										</p>
+									</div>
+								</div>
+								{#if item.description}
+									<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
+										{item.description}
 									</p>
-								</div>
-							</div>
-							{#if item.description}
-								<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
-									{item.description}
-								</p>
-							{/if}
-							{#if item.programArea.length > 0 || item.provenance.length > 0}
-								<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-									{#each item.programArea as area (area)}
-										{@const Icon = programAreaMeta(area).icon}
-										<span
-											class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs {programAreaMeta(
-												area
-											).pill}"
-										>
-											<Icon size={13} weight="fill" />
-											{area}
-										</span>
-									{/each}
-									{#if item.provenance.length > 0}
-										<span class="text-sm text-gray-500">
-											{item.provenance.join(', ')}
-										</span>
-									{/if}
-								</div>
-							{/if}
-						</li>
-					{/each}
-				</ul>
+								{/if}
+								{#if item.programArea.length > 0 || item.provenance.length > 0}
+									<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+										{#each item.programArea as area (area)}
+											{@const Icon = programAreaMeta(area).icon}
+											<span
+												class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs {programAreaMeta(
+													area
+												).pill}"
+											>
+												<Icon size={13} weight="fill" />
+												{area}
+											</span>
+										{/each}
+										{#if item.provenance.length > 0}
+											<span class="text-sm text-gray-500">
+												{item.provenance.join(', ')}
+											</span>
+										{/if}
+									</div>
+								{/if}
+							</article>
+						</div>
+					{/snippet}
+				</KeeperList>
 			{/if}
 		</section>
 	</div>
