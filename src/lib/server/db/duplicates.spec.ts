@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
-	findDuplicatePairs,
+	findDuplicateGroups,
 	levenshtein,
 	normalizeName,
 	type DuplicateCandidate
 } from './duplicates';
 
-const person = (id: number, name: string): DuplicateCandidate => ({
-	id,
-	name,
-	artefactCount: 0,
-	eventCount: 0
-});
+const person = (
+	id: number,
+	name: string,
+	artefactCount = 0,
+	eventCount = 0
+): DuplicateCandidate => ({ id, name, artefactCount, eventCount });
 
 describe('normalizeName', () => {
 	it('strips accents, case, and punctuation', () => {
@@ -28,9 +28,9 @@ describe('levenshtein', () => {
 	});
 });
 
-describe('findDuplicatePairs', () => {
+describe('findDuplicateGroups', () => {
 	function reasonFor(a: string, b: string): string | undefined {
-		return findDuplicatePairs([person(1, a), person(2, b)])[0]?.reason;
+		return findDuplicateGroups([person(1, a), person(2, b)])[0]?.reason;
 	}
 
 	it('matches accent/case/spacing differences', () => {
@@ -52,25 +52,44 @@ describe('findDuplicatePairs', () => {
 	});
 
 	it('does not flag short unrelated names within edit distance', () => {
-		// 'bob' vs 'tom' is distance 3; the tightened short-name budget also keeps
-		// genuinely different short names apart.
 		expect(reasonFor('Bob', 'Tom')).toBeUndefined();
 		expect(reasonFor('Ann', 'Eve')).toBeUndefined();
 	});
 
 	it('returns nothing for unrelated names', () => {
-		expect(findDuplicatePairs([person(1, 'Ada Lovelace'), person(2, 'Alan Turing')])).toHaveLength(
+		expect(findDuplicateGroups([person(1, 'Ada Lovelace'), person(2, 'Alan Turing')])).toHaveLength(
 			0
 		);
 	});
 
-	it('sorts strongest matches first', () => {
-		const pairs = findDuplicatePairs([
-			person(1, 'Jon Smith'), // typo vs #3 (rank 3)
+	it('chains transitive matches into one group of more than two', () => {
+		const groups = findDuplicateGroups([
+			person(1, 'Jon Smith'), // typo of #2
+			person(2, 'John Smith'),
+			person(3, 'J. Smith') // initials of #2
+		]);
+		expect(groups).toHaveLength(1);
+		expect(groups[0].members.map((m) => m.id).sort()).toEqual([1, 2, 3]);
+	});
+
+	it('labels a group with its strongest edge and orders members richest-first', () => {
+		const groups = findDuplicateGroups([
+			person(1, 'Jon Smith', 0, 1), // typo (rank 3) of #2, 1 link
+			person(2, 'John Smith', 5, 2), // 7 links — richest
+			person(3, 'Jhon Smith', 0, 0) // typo, 0 links
+		]);
+		expect(groups[0].reason).toBe('Possible typo');
+		// Richest record first so it's the default primary on the review page.
+		expect(groups[0].members[0].id).toBe(2);
+	});
+
+	it('sorts strongest groups first', () => {
+		const groups = findDuplicateGroups([
+			person(1, 'Jon Smith'), // typo pair with #3 (rank 3)
 			person(2, 'José García'),
 			person(3, 'John Smith'),
-			person(4, 'Jose Garcia') // accent match vs #2 (rank 1)
+			person(4, 'Jose Garcia') // accent match with #2 (rank 1)
 		]);
-		expect(pairs[0].reason).toBe('Same name, different accents/case/spacing');
+		expect(groups[0].reason).toBe('Same name, different accents/case/spacing');
 	});
 });

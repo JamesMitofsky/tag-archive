@@ -3,7 +3,12 @@
  *
  * `person.name` is UNIQUE, so real duplicates never share an exact name — they
  * differ by accent/case, word order, typos, or initials. This surfaces those
- * likely-same pairs so an admin can jump straight to a candidate to fold.
+ * likely-same entries so an admin can review a proposed group and fold the real
+ * matches together.
+ *
+ * Matches are grouped transitively: if A~B and B~C, all three are proposed as
+ * one group. That over-includes on purpose — the review step lets the admin drop
+ * any member that isn't actually the same person.
  *
  * Pure and dependency-free (roster is passed in), so it's cheap to unit-test.
  */
@@ -15,16 +20,17 @@ export type DuplicateCandidate = {
 	eventCount: number;
 };
 
-export type DuplicatePair = {
-	a: DuplicateCandidate;
-	b: DuplicateCandidate;
+export type DuplicateGroup = {
+	/** Everyone in the group, richest record (most links) first. */
+	members: DuplicateCandidate[];
+	/** Strongest match reason found within the group. */
 	reason: string;
 	/** Lower = higher confidence; used to sort the suggestions. */
 	rank: number;
 };
 
-/** Most suggestions to return — keeps the section scannable on large rosters. */
-export const MAX_DUPLICATE_PAIRS = 25;
+/** Most groups to return — keeps the section scannable on large rosters. */
+export const MAX_DUPLICATE_GROUPS = 25;
 
 /**
  * Fold a name to a comparable core: lowercase, strip accents, drop punctuation,
@@ -33,7 +39,7 @@ export const MAX_DUPLICATE_PAIRS = 25;
 export function normalizeName(name: string): string {
 	return name
 		.normalize('NFKD')
-		.replace(/[\u0300-\u036f]/g, '') // strip combining diacritical marks
+		.replace(/[̀-ͯ]/g, '') // strip combining diacritical marks
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, ' ')
 		.trim()
@@ -99,7 +105,7 @@ function initialsMatch(a: string[], b: string[]): boolean {
 }
 
 /** Classify a pair by the strongest matching rule, or null if unrelated. */
-function classify(
+export function classifyPair(
 	a: DuplicateCandidate,
 	b: DuplicateCandidate
 ): { reason: string; rank: number } | null {
@@ -111,8 +117,7 @@ function classify(
 
 	const tokensA = normA.split(' ');
 	const tokensB = normB.split(' ');
-	if (sameTokenMultiset(tokensA, tokensB))
-		return { reason: 'Same words, different order', rank: 2 };
+	if (sameTokenMultiset(tokensA, tokensB)) return { reason: 'Same words, different order', rank: 2 };
 
 	// Small edit distance = likely typo. Tighten to a single edit for short names,
 	// where a 2-char gap sweeps in genuinely different names.
@@ -127,20 +132,68 @@ function classify(
 }
 
 /**
- * All likely-duplicate pairs in the roster, strongest first. O(n²) over the
- * roster — fine for the hundreds of people an archive holds. Capped at
- * MAX_DUPLICATE_PAIRS.
+ * All likely-duplicate groups in the roster, strongest first. Builds a match
+ * graph (O(n²) over the roster — fine for the hundreds of people an archive
+ * holds), then returns each connected component of size ≥ 2. Capped at
+ * MAX_DUPLICATE_GROUPS.
  */
-export function findDuplicatePairs(people: DuplicateCandidate[]): DuplicatePair[] {
-	const pairs: DuplicatePair[] = [];
+export function findDuplicateGroups(people: DuplicateCandidate[]): DuplicateGroup[] {
+	const n = people.length;
 
-	for (let i = 0; i < people.length; i++) {
-		for (let j = i + 1; j < people.length; j++) {
-			const match = classify(people[i], people[j]);
-			if (match) pairs.push({ a: people[i], b: people[j], reason: match.reason, rank: match.rank });
+	// Union-find over roster indices; matching pairs get merged into one set.
+	const parent = Array.from({ length: n }, (_, i) => i);
+	const find = (x: number): number => {
+		while (parent[x] !== x) {
+			parent[x] = parent[parent[x]]; // path halving
+			x = parent[x];
+		}
+		return x;
+	};
+	const union = (a: number, b: number) => {
+		const ra = find(a);
+		const rb = find(b);
+		if (ra !== rb) parent[ra] = rb;
+	};
+
+	const edges: { i: number; reason: string; rank: number }[] = [];
+	for (let i = 0; i < n; i++) {
+		for (let j = i + 1; j < n; j++) {
+			const match = classifyPair(people[i], people[j]);
+			if (match) {
+				union(i, j);
+				edges.push({ i, reason: match.reason, rank: match.rank });
+			}
 		}
 	}
 
-	pairs.sort((x, y) => x.rank - y.rank || x.a.name.localeCompare(y.a.name));
-	return pairs.slice(0, MAX_DUPLICATE_PAIRS);
+	// Strongest (lowest-rank) edge per component labels the whole group.
+	const best = new Map<number, { reason: string; rank: number }>();
+	for (const edge of edges) {
+		const root = find(edge.i);
+		const current = best.get(root);
+		if (!current || edge.rank < current.rank)
+			best.set(root, { reason: edge.reason, rank: edge.rank });
+	}
+
+	// Gather members per component (only roots that got an edge have a group).
+	const membersByRoot = new Map<number, DuplicateCandidate[]>();
+	for (let i = 0; i < n; i++) {
+		const root = find(i);
+		if (!best.has(root)) continue;
+		const list = membersByRoot.get(root) ?? [];
+		list.push(people[i]);
+		membersByRoot.set(root, list);
+	}
+
+	const links = (p: DuplicateCandidate) => p.artefactCount + p.eventCount;
+	const groups: DuplicateGroup[] = [];
+	for (const [root, members] of membersByRoot) {
+		if (members.length < 2) continue;
+		members.sort((a, b) => links(b) - links(a) || a.name.localeCompare(b.name));
+		const label = best.get(root)!;
+		groups.push({ members, reason: label.reason, rank: label.rank });
+	}
+
+	groups.sort((x, y) => x.rank - y.rank || x.members[0].name.localeCompare(y.members[0].name));
+	return groups.slice(0, MAX_DUPLICATE_GROUPS);
 }

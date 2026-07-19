@@ -1,20 +1,32 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { eq, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { mergePeople } from '$lib/server/db/queries';
 import { artefactProvenance, eventHost, person } from '$lib/server/db/schema';
-import { findDuplicateGroups } from '$lib/server/db/duplicates';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	// Admin tool, same gate as the roster it's reached from.
+/** Parse a `1,2,3` id list into a deduped set of positive integers. */
+function parseIds(raw: string | null): number[] {
+	if (!raw) return [];
+	const ids = raw
+		.split(',')
+		.map((s) => Number(s.trim()))
+		.filter((n) => Number.isInteger(n) && n > 0);
+	return [...new Set(ids)];
+}
+
+export const load: PageServerLoad = async ({ url, locals }) => {
+	// Same admin gate as the merge tool this is reached from.
 	if (!locals.user) throw redirect(303, '/keeper');
 	if (locals.user.role !== 'admin') throw redirect(303, '/settings');
 
-	// Same roster shape as the contributors list: each person with their artefact
-	// and event tallies, so the merge picker can show that context. count(distinct)
-	// collapses the two left joins back to a true per-person count.
-	const people = await db
+	const ids = parseIds(url.searchParams.get('ids'));
+	// Need at least two live entries to have anything to fold together — otherwise
+	// send the admin back to pick a group.
+	if (ids.length < 2) throw redirect(303, '/contributors/merge');
+
+	// Same roster shape as the merge picker, scoped to the proposed group.
+	const members = await db
 		.select({
 			id: person.id,
 			name: person.name,
@@ -24,21 +36,24 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.from(person)
 		.leftJoin(artefactProvenance, eq(artefactProvenance.personId, person.id))
 		.leftJoin(eventHost, eq(eventHost.personId, person.id))
-		.groupBy(person.id)
-		.orderBy(person.name);
+		.where(inArray(person.id, ids))
+		.groupBy(person.id);
+
+	// Some ids may have already been merged away; still need two to proceed.
+	if (members.length < 2) throw redirect(303, '/contributors/merge');
+
+	// Alphabetical, matching the merge picker's roster order.
+	members.sort((a, b) => a.name.localeCompare(b.name));
 
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
-		people,
-		// Near-match groups (accent/case, word order, typos, initials) so the picker
-		// can point straight at candidates — the roster has no exact-name dupes.
-		duplicates: findDuplicateGroups(people)
+		members
 	};
 };
 
 export const actions: Actions = {
-	// Fold `removeId` into `keepId`: every artefact/event link moves to the kept
-	// person, then the removed row is deleted so one id is used everywhere.
+	// Identical to the manual merge action: fold `removeId` into `keepId`. The admin
+	// declares both here; this page only narrows the roster to a proposed group.
 	default: async ({ request, locals }) => {
 		if (locals.user?.role !== 'admin') throw redirect(303, '/keeper');
 
