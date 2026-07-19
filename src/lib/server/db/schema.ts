@@ -1,5 +1,26 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { user } from './auth.schema';
+
+/**
+ * Audit columns every table carries: when the row was created/last updated and
+ * which user did each. Returns fresh column builders per call so each table gets
+ * its own instances. Timestamps mirror the auth tables' convention
+ * (`created_at`/`updated_at`, ms epoch, SQL default + `$onUpdate`). The `*_by`
+ * columns are nullable text FKs to `user.id`: null means no attributed actor
+ * (seed import, migration, system write) rather than an unknown user.
+ */
+const auditColumns = () => ({
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+		.notNull(),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+		.$onUpdate(() => new Date())
+		.notNull(),
+	createdBy: text('created_by').references(() => user.id),
+	updatedBy: text('updated_by').references(() => user.id)
+});
 
 /**
  * A series: the banner that connects several events held under one recurring
@@ -18,7 +39,8 @@ export const series = sqliteTable('series', {
 	// ("6:00 PM"), `frequency` a human recurrence ("4th Friday of every month").
 	defaultDayOfWeek: text('default_day_of_week'),
 	defaultTime: text('default_time'),
-	frequency: text('frequency')
+	frequency: text('frequency'),
+	...auditColumns()
 });
 
 /**
@@ -50,7 +72,8 @@ export const event = sqliteTable(
 		// Data-quality flags from the export: the event may be a mislabelled series
 		// boundary / one-off. Kept for manual review, never drives logic.
 		mayHaveException: integer('may_have_exception', { mode: 'boolean' }).notNull().default(false),
-		possibleExceptionDescription: text('possible_exception_description')
+		possibleExceptionDescription: text('possible_exception_description'),
+		...auditColumns()
 	},
 	(t) => [
 		// Covers the series list's per-banner aggregation: grouping by series_id with
@@ -73,7 +96,8 @@ export const event = sqliteTable(
  */
 export const person = sqliteTable('person', {
 	id: integer('id').primaryKey(),
-	name: text('name').notNull().unique()
+	name: text('name').notNull().unique(),
+	...auditColumns()
 });
 
 /**
@@ -88,7 +112,8 @@ export const eventHost = sqliteTable(
 			.references(() => event.id, { onDelete: 'cascade' }),
 		personId: integer('person_id')
 			.notNull()
-			.references(() => person.id)
+			.references(() => person.id),
+		...auditColumns()
 	},
 	(t) => [primaryKey({ columns: [t.eventId, t.personId] })]
 );
@@ -119,7 +144,8 @@ export const artefact = sqliteTable(
 		// Multi-value → JSON string array; empty when nothing is attached.
 		fileUrls: text('file_urls', { mode: 'json' }).$type<string[]>().notNull().default([]),
 		// Physical storage location, e.g. "Binder" / "Bin".
-		location: text('location')
+		location: text('location'),
+		...auditColumns()
 	},
 	(t) => [
 		// Serves the artefact list's `ORDER BY date DESC, id DESC`: walk the index in
@@ -141,7 +167,8 @@ export const artefactProvenance = sqliteTable(
 			.references(() => artefact.id, { onDelete: 'cascade' }),
 		personId: integer('person_id')
 			.notNull()
-			.references(() => person.id)
+			.references(() => person.id),
+		...auditColumns()
 	},
 	(t) => [primaryKey({ columns: [t.artefactId, t.personId] })]
 );

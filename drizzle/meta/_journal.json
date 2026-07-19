@@ -15,6 +15,13 @@
       "when": 1784477232309,
       "tag": "0001_red_lila_cheney",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784478410671,
+      "tag": "0002_stormy_newton_destine",
+      "breakpoints": true
     }
   ]
 }
