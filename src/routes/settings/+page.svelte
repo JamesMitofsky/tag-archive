@@ -46,7 +46,7 @@
 			{#if data.user.role === 'admin'}
 				<div class="mt-6 pt-6">
 					<a
-						href="/contributors"
+						href="/keeper/contributors"
 						class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-4 py-3 text-sm text-gray-800 transition hover:bg-gray-50"
 					>
 						<span class="flex items-center gap-2">

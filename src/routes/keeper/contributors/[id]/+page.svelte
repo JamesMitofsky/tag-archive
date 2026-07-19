@@ -67,7 +67,7 @@
 							}}
 					>
 						<div class="flex items-center justify-between gap-2">
-							<BackButton href="/contributors" ariaLabel="Back to Contributors" />
+							<BackButton href="/keeper/contributors" ariaLabel="Back to Contributors" />
 							<div class="flex shrink-0 items-center gap-2">
 								{#if dirty}
 									<button
@@ -101,7 +101,7 @@
 					</form>
 				{:else}
 					<div class="flex items-center justify-between gap-2">
-						<BackButton href="/contributors" ariaLabel="Back to Contributors" />
+						<BackButton href="/keeper/contributors" ariaLabel="Back to Contributors" />
 						<button
 							type="button"
 							onclick={startEditing}
@@ -118,7 +118,7 @@
 					<p class="mt-1 px-2 text-sm text-red-600">{form.error}</p>
 				{/if}
 			{:else}
-				<BackButton href="/contributors" ariaLabel="Back to Contributors" />
+				<BackButton href="/keeper/contributors" ariaLabel="Back to Contributors" />
 				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">{person.name}</h1>
 			{/if}
 			<p class="mt-1 px-2 text-sm text-gray-600">

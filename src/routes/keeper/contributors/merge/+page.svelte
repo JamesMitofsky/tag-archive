@@ -13,7 +13,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8">
-			<BackButton href="/contributors" ariaLabel="Back to Contributors" />
+			<BackButton href="/keeper/contributors" ariaLabel="Back to Contributors" />
 			<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Merge contributors</h1>
 		</header>
 
@@ -45,7 +45,7 @@
 									</p>
 								</div>
 								<a
-									href="/contributors/merge/review?ids={ids}"
+									href="/keeper/contributors/merge/review?ids={ids}"
 									class="shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-sm text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
 								>
 									Review

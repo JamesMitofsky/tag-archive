@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const ids = parseIds(url.searchParams.get('ids'));
 	// Need at least two live entries to have anything to fold together — otherwise
 	// send the admin back to pick a group.
-	if (ids.length < 2) throw redirect(303, '/contributors/merge');
+	if (ids.length < 2) throw redirect(303, '/keeper/contributors/merge');
 
 	// Same roster shape as the merge picker, scoped to the proposed group.
 	const members = await db
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		.groupBy(person.id);
 
 	// Some ids may have already been merged away; still need two to proceed.
-	if (members.length < 2) throw redirect(303, '/contributors/merge');
+	if (members.length < 2) throw redirect(303, '/keeper/contributors/merge');
 
 	// Alphabetical, matching the merge picker's roster order.
 	members.sort((a, b) => a.name.localeCompare(b.name));
@@ -68,6 +68,6 @@ export const actions: Actions = {
 		await mergePeople(keepId, [removeId], locals.user.id);
 
 		// Back to the roster, where the folded entry is now gone.
-		throw redirect(303, '/contributors');
+		throw redirect(303, '/keeper/contributors');
 	}
 };

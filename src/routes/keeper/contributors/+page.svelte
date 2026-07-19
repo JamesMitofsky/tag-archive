@@ -35,7 +35,7 @@
 				</p>
 			</div>
 			<a
-				href="/contributors/merge"
+				href="/keeper/contributors/merge"
 				aria-label="Merge contributors"
 				title="Merge contributors"
 				class="shrink-0 rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
@@ -88,7 +88,7 @@
 								<div class="min-w-0">
 									<h3 class="font-medium break-words">
 										<a
-											href="/contributors/{item.id}"
+											href="/keeper/contributors/{item.id}"
 											class="after:absolute after:inset-0 after:z-[1]"
 										>
 											{item.name}

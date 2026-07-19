@@ -53,6 +53,6 @@ export const actions: Actions = {
 		await mergePeople(keepId, [removeId], locals.user.id);
 
 		// Back to the roster, where the folded entry is now gone.
-		throw redirect(303, '/contributors');
+		throw redirect(303, '/keeper/contributors');
 	}
 };
