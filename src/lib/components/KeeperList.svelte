@@ -17,9 +17,18 @@
 		overscan?: number;
 		/** Stable identity per row so measured heights survive filtering/reorders. */
 		getKey?: (item: T, index: number) => string | number;
+		/** Fires with the current rendered index range — used to page in data lazily. */
+		onVisibleChange?: (start: number, end: number) => void;
 	};
 
-	let { items, row, estimatedItemHeight = 150, overscan = 6, getKey }: Props = $props();
+	let {
+		items,
+		row,
+		estimatedItemHeight = 150,
+		overscan = 6,
+		getKey,
+		onVisibleChange
+	}: Props = $props();
 
 	// The list's absolute distance from the top of the document. The window
 	// virtualizer works in page coordinates, so it needs this to place rows.
@@ -66,6 +75,14 @@
 		measureOffset();
 		window.addEventListener('resize', measureOffset);
 		return () => window.removeEventListener('resize', measureOffset);
+	});
+
+	// Report the rendered index window (incl. overscan) so the parent can fetch any
+	// pages that just scrolled into view. Re-runs on every range change.
+	$effect(() => {
+		const rendered = $virtualizer.getVirtualItems();
+		if (!onVisibleChange || rendered.length === 0) return;
+		onVisibleChange(rendered[0].index, rendered[rendered.length - 1].index + 1);
 	});
 </script>
 

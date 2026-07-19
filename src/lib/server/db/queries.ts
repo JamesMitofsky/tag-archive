@@ -1,6 +1,7 @@
-import { eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, exists, getTableColumns, inArray, like, or, sql } from 'drizzle-orm';
 import { db } from './index';
-import { artefactProvenance, eventHost, person, series } from './schema';
+import { artefactProvenance, event, eventHost, person, series } from './schema';
+import type { EventWithMeta } from './schema';
 
 /**
  * Re-expand the normalised provenance links back to a plain name array per
@@ -63,6 +64,63 @@ export async function attachHosts<T extends { id: number }>(
 	}
 
 	return rows.map((row) => ({ ...row, hosts: byEvent.get(row.id) ?? [] }));
+}
+
+/**
+ * One page of events matching an optional text query, plus the total match count
+ * so the list can size its scrollbar and page the rest in lazily. Search mirrors
+ * the old client-side filter: title, series name, description, location, date,
+ * and host names (the last via an EXISTS over the host join). Ordered newest
+ * first, matching the eager loader.
+ */
+export async function searchEvents({
+	q,
+	offset,
+	limit
+}: {
+	q: string;
+	offset: number;
+	limit: number;
+}): Promise<{ rows: EventWithMeta[]; total: number }> {
+	const term = q.trim().toLowerCase();
+	const filter = term
+		? or(
+				like(sql`lower(${event.title})`, `%${term}%`),
+				like(sql`lower(${series.name})`, `%${term}%`),
+				like(sql`lower(${event.description})`, `%${term}%`),
+				like(sql`lower(${event.location})`, `%${term}%`),
+				like(sql`lower(${event.date})`, `%${term}%`),
+				exists(
+					db
+						.select({ one: sql`1` })
+						.from(eventHost)
+						.innerJoin(person, eq(person.id, eventHost.personId))
+						.where(
+							and(eq(eventHost.eventId, event.id), like(sql`lower(${person.name})`, `%${term}%`))
+						)
+				)
+			)
+		: undefined;
+
+	// Both queries need the series join: the filter and the flattened `series` name
+	// both read from it.
+	const slice = await db
+		.select({ ...getTableColumns(event), series: series.name })
+		.from(event)
+		.leftJoin(series, eq(event.seriesId, series.id))
+		.where(filter)
+		.orderBy(desc(event.date), desc(event.id))
+		.limit(limit)
+		.offset(offset);
+
+	const [{ total }] = await db
+		.select({ total: sql<number>`count(*)` })
+		.from(event)
+		.leftJoin(series, eq(event.seriesId, series.id))
+		.where(filter);
+
+	const rows = await attachHosts(slice);
+	return { rows, total };
 }
 
 /**

@@ -9,23 +9,93 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// Client-side search over the loaded events — 1317 rows is too many to scan by
-	// eye, and every list here gets a built-in text filter. Seeded from ?q= so a
-	// series card can deep-link straight to its events.
+	// Derive the row type from the loader so we never import the server module.
+	type EventItem = PageData['events'][number];
+
+	// Fixed for the life of the mount (a new page size means a fresh navigation).
+	const pageSize = untrack(() => data.pageSize);
+
+	// The full list is `total` rows, but only a page ships with the document; the
+	// rest is fetched on scroll. `items` is a sparse array the length of the whole
+	// result — a hole (undefined) renders as a skeleton until its page arrives.
 	let query = $state(untrack(() => data.q));
-	const filtered = $derived.by(() => {
-		const q = query.trim().toLowerCase();
-		if (!q) return data.events;
-		return data.events.filter((e) =>
-			[e.title, e.series, e.description, e.location, e.date, e.hosts.join(' ')]
-				.filter(Boolean)
-				.some((field) => field!.toLowerCase().includes(q))
-		);
+	let total = $state(untrack(() => data.total));
+	let items = $state<(EventItem | undefined)[]>(untrack(() => seed(data.events, data.total)));
+
+	// Page bookkeeping. Not reactive — only `items`/`total` drive the render.
+	const loaded = new Set<number>([0]);
+	const loading = new Set<number>();
+	// Bumped on every new search so in-flight page fetches from the old query drop.
+	let version = 0;
+
+	function seed(rows: EventItem[], count: number): (EventItem | undefined)[] {
+		const arr = new Array<EventItem | undefined>(count);
+		for (let i = 0; i < rows.length; i++) arr[i] = rows[i];
+		return arr;
+	}
+
+	// Fetch one page and splice it into the sparse array, unless it's already
+	// present/in-flight or the search moved on while we waited.
+	async function fetchPage(page: number) {
+		const base = page * pageSize;
+		if (page < 0 || base >= total || loaded.has(page) || loading.has(page)) return;
+		loading.add(page);
+		const v = version;
+		try {
+			const params = new URLSearchParams({
+				offset: String(base),
+				limit: String(pageSize),
+				q: query
+			});
+			const res = await fetch(`/keeper/events/data?${params}`);
+			if (!res.ok || v !== version) return;
+			const body: { rows: EventItem[]; total: number } = await res.json();
+			if (v !== version) return;
+			for (let i = 0; i < body.rows.length; i++) items[base + i] = body.rows[i];
+			loaded.add(page);
+		} finally {
+			loading.delete(page);
+		}
+	}
+
+	// The list reports the rendered index window; pull in any pages it covers.
+	function onVisibleChange(start: number, end: number) {
+		const firstPage = Math.floor(start / pageSize);
+		const lastPage = Math.floor((end - 1) / pageSize);
+		for (let p = firstPage; p <= lastPage; p++) fetchPage(p);
+	}
+
+	// Run a fresh search from the top: new total, new sparse array, page cache wiped.
+	async function runSearch() {
+		version += 1;
+		const v = version;
+		loading.clear();
+		const params = new URLSearchParams({ offset: '0', limit: String(pageSize), q: query });
+		const res = await fetch(`/keeper/events/data?${params}`);
+		if (!res.ok || v !== version) return;
+		const body: { rows: EventItem[]; total: number } = await res.json();
+		if (v !== version) return;
+		total = body.total;
+		items = seed(body.rows, body.total);
+		loaded.clear();
+		loaded.add(0);
+	}
+
+	// Debounce the search box. `lastQuery` starts at the loader's seed so the first
+	// run (and a back-nav restore that matches it) doesn't refetch what we have.
+	let lastQuery = untrack(() => data.q);
+	let searchTimer: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => {
+		const q = query;
+		if (q === lastQuery) return;
+		lastQuery = q;
+		clearTimeout(searchTimer);
+		searchTimer = setTimeout(runSearch, 250);
 	});
 
 	// Persist the search text across back navigation (e.g. open an event, then
-	// return). Restored after remount, overriding the ?q= seed only on back-nav.
-	// The list rides the page scroll, so native scroll restoration handles position.
+	// return). The list rides the page scroll, so native scroll restoration handles
+	// position; a restored query different from the seed re-runs the search above.
 	export const snapshot = {
 		capture: () => query,
 		restore: (value: string) => (query = value)
@@ -69,7 +139,7 @@
 			</a>
 		</header>
 
-		<!-- Search filters the loaded set in-place. -->
+		<!-- Search runs on the server; results page in as you scroll. -->
 		<div class="relative">
 			<MagnifyingGlassIcon
 				size={18}
@@ -85,72 +155,88 @@
 		</div>
 
 		<p class="mt-3 text-sm text-gray-600">
-			{filtered.length}
-			{filtered.length === 1 ? 'event' : 'events'}{#if query}
-				· <span class="text-gray-500">of {data.events.length}</span>{/if}
+			{total}
+			{total === 1 ? 'event' : 'events'}
 		</p>
 
 		<section class="mt-4">
-			{#if filtered.length === 0}
+			{#if total === 0}
 				<p
 					class="mt-3 rounded-lg border border-dashed border-white/60 p-6 text-center text-sm text-gray-700"
 				>
-					No events match “{query}”.
+					{#if query}No events match “{query}”.{:else}Nothing archived yet.{/if}
 				</p>
 			{:else}
-				<!-- Only visible rows mount; the list rides the page scroll. -->
-				<KeeperList items={filtered} estimatedItemHeight={150} getKey={(item) => item.id}>
+				<!-- Only visible rows mount; the list rides the page scroll. Holes in the
+				     sparse array render as skeletons until their page loads in. -->
+				<KeeperList {items} estimatedItemHeight={150} {onVisibleChange}>
 					{#snippet row(item, i)}
 						<!-- py-2 doubles as the inter-card gap (measured), px-2 leaves shadow room. -->
 						<div class="px-2 py-2">
-							<!-- Each event is a card, scattered ever so slightly like loose paper. -->
-							<article
-								class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
-								{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
-							>
-								<div class="flex items-start justify-between gap-3">
-									<div class="min-w-0">
-										<h3 class="font-medium break-words">{item.title}</h3>
-										<p class="mt-0.5 text-sm text-gray-500">
-											{formatDate(
-												item.date
-											)}{#if item.time}{' · '}{item.time}{/if}{#if item.location}{' · '}{item.location}{/if}
-										</p>
-									</div>
-									{#if item.series}
-										<!-- Series banner: low emphasis, marks this as one of several connected events. -->
-										<span
-											class="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600"
-											title="Part of the “{item.series}” series"
-										>
-											{item.series}
-										</span>
-									{/if}
-								</div>
-								{#if item.description}
-									<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
-										{item.description}
-									</p>
-								{/if}
-								{#if item.hosts.length > 0 || item.mayHaveException}
-									<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-										{#if item.hosts.length > 0}
-											<span class="text-sm text-gray-500">
-												Hosted by {item.hosts.join(', ')}
-											</span>
-										{/if}
-										{#if item.mayHaveException}
+							{#if item}
+								<!-- Each event is a card, scattered ever so slightly like loose paper. -->
+								<article
+									class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
+									{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
+								>
+									<div class="flex items-start justify-between gap-3">
+										<div class="min-w-0">
+											<h3 class="font-medium break-words">{item.title}</h3>
+											<p class="mt-0.5 text-sm text-gray-500">
+												{formatDate(
+													item.date
+												)}{#if item.time}{' · '}{item.time}{/if}{#if item.location}{' · '}{item.location}{/if}
+											</p>
+										</div>
+										{#if item.series}
+											<!-- Series banner: low emphasis, marks this as one of several connected events. -->
 											<span
-												class="inline-flex items-center gap-1 text-xs text-amber-700"
-												title={item.possibleExceptionDescription ?? 'Flagged for review'}
+												class="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600"
+												title="Part of the “{item.series}” series"
 											>
-												<WarningIcon size={13} weight="fill" />
-												Needs review
+												{item.series}
 											</span>
 										{/if}
 									</div>
-								{/if}
-							</article>
+									{#if item.description}
+										<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
+											{item.description}
+										</p>
+									{/if}
+									{#if item.hosts.length > 0 || item.mayHaveException}
+										<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+											{#if item.hosts.length > 0}
+												<span class="text-sm text-gray-500">
+													Hosted by {item.hosts.join(', ')}
+												</span>
+											{/if}
+											{#if item.mayHaveException}
+												<span
+													class="inline-flex items-center gap-1 text-xs text-amber-700"
+													title={item.possibleExceptionDescription ?? 'Flagged for review'}
+												>
+													<WarningIcon size={13} weight="fill" />
+													Needs review
+												</span>
+											{/if}
+										</div>
+									{/if}
+								</article>
+							{:else}
+								<!-- Placeholder while this row's page is still loading. -->
+								<article
+									aria-hidden="true"
+									class="relative rounded-sm bg-white/95 p-4 shadow-xl ring-1 ring-black/5
+									{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
+								>
+									<div class="animate-pulse space-y-2.5">
+										<div class="h-4 w-2/3 rounded bg-gray-200"></div>
+										<div class="h-3 w-1/3 rounded bg-gray-100"></div>
+										<div class="h-3 w-full rounded bg-gray-100"></div>
+										<div class="h-3 w-4/5 rounded bg-gray-100"></div>
+									</div>
+								</article>
+							{/if}
 						</div>
 					{/snippet}
 				</KeeperList>
