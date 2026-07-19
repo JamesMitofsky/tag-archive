@@ -4,8 +4,10 @@
 	import { programAreaMeta } from '$lib/programAreas';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -13,6 +15,22 @@
 	const person = $derived(data.person);
 	const events = $derived(data.events);
 	const artefacts = $derived(data.artefacts);
+
+	// Name editing: read-only by default, unlocked by the edit button.
+	let editing = $state(false);
+	let draft = $state(person.name);
+	// Save only offered once the name actually changed to something non-empty.
+	const dirty = $derived(draft.trim().length > 0 && draft.trim() !== person.name);
+
+	function startEditing() {
+		draft = person.name;
+		editing = true;
+	}
+
+	function cancelEditing() {
+		draft = person.name;
+		editing = false;
+	}
 
 	// Render dates like "July 4, 2023"; fall back to raw string if unparseable.
 	function formatDate(value: string): string {
@@ -34,29 +52,73 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8">
-			<BackButton href="/contributors" ariaLabel="Back to Contributors" />
 			{#if data.user.role === 'admin'}
 				<!-- Inline rename, moved here from the roster; submit sends only the new name. -->
-				<form method="POST" action="?/rename" use:enhance class="mt-3 flex items-center gap-2">
-					<input
-						name="name"
-						value={person.name}
-						aria-label="Contributor name"
-						class="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight text-[#14120f] hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:ring-1 focus:ring-gray-200 focus:outline-none"
-					/>
-					<button
-						type="submit"
-						aria-label="Save name"
-						title="Save name"
-						class="shrink-0 rounded-full border border-gray-200 bg-white/60 p-2 text-gray-600 transition hover:bg-white hover:text-gray-900"
+				{#if editing}
+					<!-- Form spans header so the save/cancel controls can sit top-right, name below. -->
+					<form
+						method="POST"
+						action="?/rename"
+						use:enhance={() =>
+							({ update, result }) => {
+								// Leave edit mode after a successful save; keep it open on error.
+								if (result.type === 'success' || result.type === 'redirect') editing = false;
+								return update();
+							}}
 					>
-						<CheckIcon size={16} />
-					</button>
-				</form>
+						<div class="flex items-center justify-between gap-2">
+							<BackButton href="/contributors" ariaLabel="Back to Contributors" />
+							<div class="flex shrink-0 items-center gap-2">
+								{#if dirty}
+									<button
+										type="submit"
+										aria-label="Save name"
+										title="Save name"
+										class="rounded-full border border-gray-200 bg-white/60 p-2 text-gray-600 transition hover:bg-white hover:text-gray-900"
+									>
+										<CheckIcon size={16} />
+									</button>
+								{/if}
+								<button
+									type="button"
+									onclick={cancelEditing}
+									aria-label="Cancel editing"
+									title="Cancel editing"
+									class="rounded-full border border-gray-200 bg-white/60 p-2 text-gray-600 transition hover:bg-white hover:text-gray-900"
+								>
+									<XIcon size={16} />
+								</button>
+							</div>
+						</div>
+						<!-- svelte-ignore a11y_autofocus -->
+						<input
+							name="name"
+							bind:value={draft}
+							autofocus
+							aria-label="Contributor name"
+							class="mt-3 w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-2xl font-semibold tracking-tight text-[#14120f] focus:border-gray-400 focus:ring-1 focus:ring-gray-200 focus:outline-none"
+						/>
+					</form>
+				{:else}
+					<div class="flex items-center justify-between gap-2">
+						<BackButton href="/contributors" ariaLabel="Back to Contributors" />
+						<button
+							type="button"
+							onclick={startEditing}
+							aria-label="Edit name"
+							title="Edit name"
+							class="shrink-0 rounded-full border border-gray-200 bg-white/60 p-2 text-gray-600 transition hover:bg-white hover:text-gray-900"
+						>
+							<PencilSimpleIcon size={16} />
+						</button>
+					</div>
+					<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">{person.name}</h1>
+				{/if}
 				{#if form?.error}
 					<p class="mt-1 px-2 text-sm text-red-600">{form.error}</p>
 				{/if}
 			{:else}
+				<BackButton href="/contributors" ariaLabel="Back to Contributors" />
 				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">{person.name}</h1>
 			{/if}
 			<p class="mt-1 px-2 text-sm text-gray-600">
