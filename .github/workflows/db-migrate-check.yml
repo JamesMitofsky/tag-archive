@@ -1,0 +1,45 @@
+name: DB Migrate Check
+
+# Pre-merge gate: proves the branch's pending migrations apply cleanly under the
+# SAME conditions prod hits them — the real libSQL engine (libsql-server, via
+# scripts/migrate-test.sh) AND against tables that already hold rows. Local
+# `turso dev` (the Rust "Turso Database" engine) can't reproduce either, so a bad
+# migration otherwise only surfaces post-merge in the "DB Migrate" workflow that
+# writes to production. See scripts/migrate-test.sh for the mechanics.
+#
+# Never touches prod: the DB is a throwaway libsql-server container seeded with
+# local seed data. No secrets.
+on:
+  pull_request:
+    paths:
+      - 'drizzle/**'
+      - 'drizzle.config.ts'
+      - 'src/lib/server/db/**'
+  workflow_dispatch:
+
+jobs:
+  migrate-check:
+    runs-on: ubuntu-latest
+    steps:
+      # Full history so the baseline ref (the PR's merge base) can be checked out
+      # into a worktree by scripts/migrate-test.sh.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Replay migrations against seeded prod-engine DB
+        # Baseline = the PR's base commit (already fetched via fetch-depth: 0).
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+        run: pnpm db:migrate:test

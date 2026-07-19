@@ -30,3 +30,6 @@ storybook-static
 *.db
 *.db-shm
 *.db-wal
+
+# throwaway worktree used by scripts/migrate-test.sh
+.migrate-base/
