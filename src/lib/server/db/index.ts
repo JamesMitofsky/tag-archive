@@ -13,6 +13,10 @@ if (isRemote && !env.DATABASE_AUTH_TOKEN) {
 	throw new Error('DATABASE_AUTH_TOKEN is required for remote Turso databases');
 }
 
-const client = createClient({ url, authToken: env.DATABASE_AUTH_TOKEN });
+// Exported so callers that need a true atomic multi-statement write can use
+// `client.batch([...], 'write')` — a single round-trip transaction with no
+// held interactive stream (more robust over the libsql HTTP protocol than
+// `db.transaction`).
+export const client = createClient({ url, authToken: env.DATABASE_AUTH_TOKEN });
 
 export const db = drizzle(client, { schema });
