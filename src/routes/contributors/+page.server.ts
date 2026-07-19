@@ -2,6 +2,8 @@ import { fail, redirect } from '@sveltejs/kit';
 import { eq, sql } from 'drizzle-orm';
 import { client, db } from '$lib/server/db';
 import { artefactProvenance, eventHost, person } from '$lib/server/db/schema';
+import { createRenameSuite, parseRenameForm } from '$lib/validation/contributor';
+import { summary } from '$lib/validation/helpers';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -39,14 +41,16 @@ export const actions: Actions = {
 
 		const form = await request.formData();
 		const id = Number(form.get('id'));
-		const name = String(form.get('name') ?? '').trim();
-
 		if (!Number.isInteger(id) || id <= 0)
 			return fail(400, { action: 'rename' as const, id, error: 'Unknown contributor.' });
-		if (!name) return fail(400, { action: 'rename' as const, id, error: 'Name is required.' });
+
+		const data = parseRenameForm(form);
+		const result = createRenameSuite()(data);
+		if (!result.isValid())
+			return fail(400, { action: 'rename' as const, id, error: summary(result) });
 
 		try {
-			await db.update(person).set({ name }).where(eq(person.id, id));
+			await db.update(person).set({ name: data.name }).where(eq(person.id, id));
 		} catch {
 			return fail(409, {
 				action: 'rename' as const,

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createArtefactSuite, parseArtefactForm } from './artefact';
 import { createEventSuite, parseEventForm } from './event';
 import { createSeriesSuite, parseSeriesForm } from './series';
+import { createRenameSuite, parseRenameForm } from './contributor';
 import { createEmailSuite, createOtpSuite, parseEmailForm } from './auth';
 import { summary } from './helpers';
 
@@ -101,6 +102,25 @@ describe('series suite', () => {
 	});
 });
 
+describe('contributor rename suite', () => {
+	const run = createRenameSuite();
+
+	it('requires a name', () => {
+		const r = run(parseRenameForm(fd({ name: '   ' })));
+		expect(r.getErrors('name')).toContain('Name is required');
+	});
+
+	it('accepts a valid name', () => {
+		const r = run(parseRenameForm(fd({ name: 'Ada Lovelace' })));
+		expect(r.isValid()).toBe(true);
+	});
+
+	it('rejects an over-long name', () => {
+		const r = run(parseRenameForm(fd({ name: 'x'.repeat(201) })));
+		expect(r.getErrors('name')).toContain('Keep the name under 200 characters');
+	});
+});
+
 describe('auth suites', () => {
 	const email = createEmailSuite();
 	const otp = createOtpSuite();
@@ -123,7 +143,9 @@ describe('auth suites', () => {
 
 describe('parsers', () => {
 	it('trims text and splits comma lists, dropping blanks', () => {
-		const data = parseEventForm(fd({ title: '  Padded  ', date: '2026-05-05', hosts: 'Al, Bo , ,Cy' }));
+		const data = parseEventForm(
+			fd({ title: '  Padded  ', date: '2026-05-05', hosts: 'Al, Bo , ,Cy' })
+		);
 		expect(data.title).toBe('Padded');
 		expect(data.hosts).toEqual(['Al', 'Bo', 'Cy']);
 	});
