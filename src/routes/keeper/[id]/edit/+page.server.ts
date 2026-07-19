@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachProvenance, resolvePersonIds } from '$lib/server/db/queries';
+import { stampInsert, stampUpdate } from '$lib/server/db/audit';
 import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
 import { artefactSchema, idSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
@@ -85,6 +86,7 @@ export const actions: Actions = {
 		if (locals.user.role !== 'admin') {
 			return fail(403, { artefactError: 'Only admins can edit artefacts' });
 		}
+		const userId = locals.user.id;
 
 		const id = idSchema.safeParse(params.id);
 		if (!id.success) return fail(400, { artefactError: 'Unknown artefact' });
@@ -118,7 +120,7 @@ export const actions: Actions = {
 		}
 
 		const eventId = await resolveEventId(parsed.data.event);
-		const personIds = await resolvePersonIds(parsed.data.provenance);
+		const personIds = await resolvePersonIds(parsed.data.provenance, userId);
 
 		await db
 			.update(artefact)
@@ -129,16 +131,21 @@ export const actions: Actions = {
 				description: nullIfEmpty(parsed.data.description),
 				location: nullIfEmpty(parsed.data.location),
 				fileUrls: parsed.data.fileUrls,
-				programArea: parsed.data.programArea
+				programArea: parsed.data.programArea,
+				...stampUpdate(userId)
 			})
 			.where(eq(artefact.id, id.data));
 
 		// Resync provenance links: drop the old set, insert the new one.
 		await db.delete(artefactProvenance).where(eq(artefactProvenance.artefactId, id.data));
 		if (personIds.length > 0) {
-			await db
-				.insert(artefactProvenance)
-				.values(personIds.map((personId) => ({ artefactId: id.data, personId })));
+			await db.insert(artefactProvenance).values(
+				personIds.map((personId) => ({
+					artefactId: id.data,
+					personId,
+					...stampInsert(userId)
+				}))
+			);
 		}
 
 		// Back to the artefact page so the edits show.

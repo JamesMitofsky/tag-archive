@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq, sql } from 'drizzle-orm';
 import { client, db } from '$lib/server/db';
+import { stampUpdate } from '$lib/server/db/audit';
 import { artefactProvenance, eventHost, person } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -35,7 +36,7 @@ export const actions: Actions = {
 	// Rename one canonical person. `name` is unique, so a clash with an existing
 	// entry is rejected here — that case is a merge, not a rename.
 	rename: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') throw redirect(303, '/keeper');
+		if (!locals.user || locals.user.role !== 'admin') throw redirect(303, '/keeper');
 
 		const form = await request.formData();
 		const id = Number(form.get('id'));
@@ -46,7 +47,10 @@ export const actions: Actions = {
 		if (!name) return fail(400, { action: 'rename' as const, id, error: 'Name is required.' });
 
 		try {
-			await db.update(person).set({ name }).where(eq(person.id, id));
+			await db
+				.update(person)
+				.set({ name, ...stampUpdate(locals.user.id) })
+				.where(eq(person.id, id));
 		} catch {
 			return fail(409, {
 				action: 'rename' as const,
@@ -61,7 +65,7 @@ export const actions: Actions = {
 	// Fold `removeId` into `keepId`: every artefact/event link moves to the kept
 	// person, then the removed row is deleted so one id is used everywhere.
 	merge: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') throw redirect(303, '/keeper');
+		if (!locals.user || locals.user.role !== 'admin') throw redirect(303, '/keeper');
 
 		const form = await request.formData();
 		const keepId = Number(form.get('keepId'));
@@ -80,16 +84,20 @@ export const actions: Actions = {
 		// person) pair — a person already on both sides — leaving those source rows
 		// behind; the trailing deletes then clear them. Run as one atomic write batch
 		// (single round-trip, no held interactive stream).
+		// Raw SQL bypasses Drizzle's $onUpdate / audit stamps, so the re-pointed rows
+		// carry their audit columns explicitly. updated_at is timestamp_ms → epoch ms.
+		const now = Date.now();
+		const actor = locals.user.id;
 		await client.batch(
 			[
 				{
-					sql: 'UPDATE OR IGNORE event_host SET person_id = ? WHERE person_id = ?',
-					args: [keepId, removeId]
+					sql: 'UPDATE OR IGNORE event_host SET person_id = ?, updated_at = ?, updated_by = ? WHERE person_id = ?',
+					args: [keepId, now, actor, removeId]
 				},
 				{ sql: 'DELETE FROM event_host WHERE person_id = ?', args: [removeId] },
 				{
-					sql: 'UPDATE OR IGNORE artefact_provenance SET person_id = ? WHERE person_id = ?',
-					args: [keepId, removeId]
+					sql: 'UPDATE OR IGNORE artefact_provenance SET person_id = ?, updated_at = ?, updated_by = ? WHERE person_id = ?',
+					args: [keepId, now, actor, removeId]
 				},
 				{ sql: 'DELETE FROM artefact_provenance WHERE person_id = ?', args: [removeId] },
 				{ sql: 'DELETE FROM person WHERE id = ?', args: [removeId] }

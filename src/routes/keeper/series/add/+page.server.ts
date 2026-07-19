@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
+import { stampInsert } from '$lib/server/db/audit';
 import { series } from '$lib/server/db/schema';
 import { seriesSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
@@ -63,7 +64,8 @@ export const actions: Actions = {
 			description: parsed.data.description || null,
 			defaultDayOfWeek: parsed.data.defaultDayOfWeek || null,
 			defaultTime: parsed.data.defaultTime || null,
-			frequency: parsed.data.frequency || null
+			frequency: parsed.data.frequency || null,
+			...stampInsert(locals.user.id)
 		});
 
 		// Land back on the series list so the new banner shows.

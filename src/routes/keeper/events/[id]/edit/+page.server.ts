@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachHosts, resolvePersonIds, resolveSeriesId } from '$lib/server/db/queries';
+import { stampInsert, stampUpdate } from '$lib/server/db/audit';
 import { artefact, event, eventHost, person, series } from '$lib/server/db/schema';
 import { eventSchema, idSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
@@ -66,6 +67,7 @@ export const actions: Actions = {
 		if (locals.user.role !== 'admin') {
 			return fail(403, { eventError: 'Only admins can edit events' });
 		}
+		const userId = locals.user.id;
 
 		const id = idSchema.safeParse(params.id);
 		if (!id.success) return fail(400, { eventError: 'Unknown event' });
@@ -98,8 +100,8 @@ export const actions: Actions = {
 			});
 		}
 
-		const seriesId = await resolveSeriesId(parsed.data.series);
-		const personIds = await resolvePersonIds(parsed.data.hosts);
+		const seriesId = await resolveSeriesId(parsed.data.series, userId);
+		const personIds = await resolvePersonIds(parsed.data.hosts, userId);
 
 		await db
 			.update(event)
@@ -110,16 +112,21 @@ export const actions: Actions = {
 				time: nullIfEmpty(parsed.data.time),
 				location: nullIfEmpty(parsed.data.location),
 				description: nullIfEmpty(parsed.data.description),
-				url: nullIfEmpty(parsed.data.url)
+				url: nullIfEmpty(parsed.data.url),
+				...stampUpdate(userId)
 			})
 			.where(eq(event.id, id.data));
 
 		// Resync host links: drop the old set, insert the new one.
 		await db.delete(eventHost).where(eq(eventHost.eventId, id.data));
 		if (personIds.length > 0) {
-			await db
-				.insert(eventHost)
-				.values(personIds.map((personId) => ({ eventId: id.data, personId })));
+			await db.insert(eventHost).values(
+				personIds.map((personId) => ({
+					eventId: id.data,
+					personId,
+					...stampInsert(userId)
+				}))
+			);
 		}
 
 		// Back to the event page so the edits show.
@@ -138,7 +145,10 @@ export const actions: Actions = {
 
 		// Artefacts reference this event (nullable, no cascade) — unlink them first
 		// so the delete doesn't trip the foreign key. Host links cascade on their own.
-		await db.update(artefact).set({ eventId: null }).where(eq(artefact.eventId, id.data));
+		await db
+			.update(artefact)
+			.set({ eventId: null, ...stampUpdate(locals.user.id) })
+			.where(eq(artefact.eventId, id.data));
 		await db.delete(event).where(eq(event.id, id.data));
 		// Nothing left to show here — back to the events list.
 		throw redirect(303, '/keeper/events');

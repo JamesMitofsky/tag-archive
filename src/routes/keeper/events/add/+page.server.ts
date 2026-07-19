@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { resolvePersonIds, resolveSeriesId } from '$lib/server/db/queries';
+import { stampInsert } from '$lib/server/db/audit';
 import { event, eventHost, person, series } from '$lib/server/db/schema';
 import { eventSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
@@ -47,6 +48,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	createEvent: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, { eventError: 'Sign in to add an event' });
+		const userId = locals.user.id;
 
 		const form = await request.formData();
 		const hostsRaw = String(form.get('hosts') ?? '');
@@ -78,8 +80,8 @@ export const actions: Actions = {
 
 		// Find-or-create the series banner, then find-or-create the host people and
 		// link by id (repeat hosts reuse one person row each).
-		const seriesId = await resolveSeriesId(parsed.data.series);
-		const personIds = await resolvePersonIds(parsed.data.hosts);
+		const seriesId = await resolveSeriesId(parsed.data.series, userId);
+		const personIds = await resolvePersonIds(parsed.data.hosts, userId);
 
 		// id is an INTEGER PRIMARY KEY (rowid alias) — omit it and SQLite assigns the next one.
 		const [created] = await db
@@ -91,14 +93,19 @@ export const actions: Actions = {
 				time: nullIfEmpty(parsed.data.time),
 				location: nullIfEmpty(parsed.data.location),
 				description: nullIfEmpty(parsed.data.description),
-				url: nullIfEmpty(parsed.data.url)
+				url: nullIfEmpty(parsed.data.url),
+				...stampInsert(userId)
 			})
 			.returning({ id: event.id });
 
 		if (personIds.length > 0) {
-			await db
-				.insert(eventHost)
-				.values(personIds.map((personId) => ({ eventId: created.id, personId })));
+			await db.insert(eventHost).values(
+				personIds.map((personId) => ({
+					eventId: created.id,
+					personId,
+					...stampInsert(userId)
+				}))
+			);
 		}
 
 		// Land back on the events list so the new event shows.

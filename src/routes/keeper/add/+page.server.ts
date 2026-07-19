@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { eq, min } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { resolvePersonIds } from '$lib/server/db/queries';
+import { stampInsert } from '$lib/server/db/audit';
 import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
 import { artefactSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
@@ -73,6 +74,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	createArtefact: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, { artefactError: 'Sign in to add an artefact' });
+		const userId = locals.user.id;
 
 		const form = await request.formData();
 		const provenanceRaw = String(form.get('provenance') ?? '');
@@ -105,7 +107,7 @@ export const actions: Actions = {
 		// Resolve the event, then find-or-create the provenance people and link by
 		// id (repeat contributors reuse one person row each).
 		const eventId = await resolveEventId(parsed.data.event);
-		const personIds = await resolvePersonIds(parsed.data.provenance);
+		const personIds = await resolvePersonIds(parsed.data.provenance, userId);
 
 		// id is an INTEGER PRIMARY KEY (rowid alias) — omit it and SQLite assigns the next one.
 		const [created] = await db
@@ -117,14 +119,19 @@ export const actions: Actions = {
 				description: nullIfEmpty(parsed.data.description),
 				location: nullIfEmpty(parsed.data.location),
 				fileUrls: parsed.data.fileUrls,
-				programArea: parsed.data.programArea
+				programArea: parsed.data.programArea,
+				...stampInsert(userId)
 			})
 			.returning({ id: artefact.id });
 
 		if (personIds.length > 0) {
-			await db
-				.insert(artefactProvenance)
-				.values(personIds.map((personId) => ({ artefactId: created.id, personId })));
+			await db.insert(artefactProvenance).values(
+				personIds.map((personId) => ({
+					artefactId: created.id,
+					personId,
+					...stampInsert(userId)
+				}))
+			);
 		}
 
 		// Land back on the artefacts list so the new artefact shows.
