@@ -1,14 +1,13 @@
 import { fail } from '@sveltejs/kit';
-import { z } from 'zod';
 import { APIError } from 'better-auth';
 import { auth } from '$lib/server/auth';
+import {
+	createEmailSuite,
+	createOtpSuite,
+	parseEmailForm,
+	parseOtpForm
+} from '$lib/validation/auth';
 import type { Actions, PageServerLoad } from './$types';
-
-const emailSchema = z.string().trim().toLowerCase().pipe(z.email());
-const otpSchema = z
-	.string()
-	.trim()
-	.regex(/^\d{6}$/, 'Code is 6 digits');
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// The keeper page is the sign-in gateway + hub; the archive lists live on the
@@ -21,44 +20,49 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	sendOtp: async ({ request }) => {
 		const form = await request.formData();
-		const parsed = emailSchema.safeParse(form.get('email'));
-		if (!parsed.success) {
-			return fail(400, { step: 'email' as const, error: 'Enter a valid email address' });
+		const { email } = parseEmailForm(form);
+		if (!createEmailSuite()({ email }).isValid()) {
+			return fail(400, {
+				step: 'email' as const,
+				error: 'Enter a valid email address',
+				errors: { email: ['Enter a valid email address'] }
+			});
 		}
 
 		try {
-			await auth.api.sendVerificationOTP({ body: { email: parsed.data, type: 'sign-in' } });
+			await auth.api.sendVerificationOTP({ body: { email, type: 'sign-in' } });
 		} catch (e) {
 			console.error('[cloud-keeper] failed to send OTP', e);
 			return fail(500, {
 				step: 'email' as const,
-				email: parsed.data,
+				email,
 				error: 'Could not send the code. Try again in a moment.'
 			});
 		}
 
-		return { step: 'otp' as const, email: parsed.data };
+		return { step: 'otp' as const, email };
 	},
 
 	verifyOtp: async ({ request }) => {
 		const form = await request.formData();
-		const email = emailSchema.safeParse(form.get('email'));
-		const otp = otpSchema.safeParse(form.get('otp'));
-		if (!email.success) {
+		const { email } = parseEmailForm(form);
+		const { otp } = parseOtpForm(form);
+		if (!createEmailSuite()({ email }).isValid()) {
 			return fail(400, { step: 'email' as const, error: 'Enter a valid email address' });
 		}
-		if (!otp.success) {
+		const otpResult = createOtpSuite()({ otp });
+		if (!otpResult.isValid()) {
 			return fail(400, {
 				step: 'otp' as const,
-				email: email.data,
-				error: otp.error.issues[0].message
+				email,
+				error: otpResult.getErrors('otp')[0]
 			});
 		}
 
 		try {
 			// sveltekitCookies (last auth plugin) sets the session cookie on this event.
 			await auth.api.signInEmailOTP({
-				body: { email: email.data, otp: otp.data },
+				body: { email, otp },
 				headers: request.headers
 			});
 		} catch (e) {
@@ -67,7 +71,7 @@ export const actions: Actions = {
 					? 'That code is wrong or expired. Request a new one.'
 					: 'Sign-in failed. Try again.';
 			if (!(e instanceof APIError)) console.error('[cloud-keeper] OTP sign-in failed', e);
-			return fail(400, { step: 'otp' as const, email: email.data, error: message });
+			return fail(400, { step: 'otp' as const, email, error: message });
 		}
 
 		return { step: 'signed-in' as const };

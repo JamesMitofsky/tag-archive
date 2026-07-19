@@ -11,6 +11,9 @@
 	import PageScanner from '$lib/components/PageScanner.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
+	import { createValidator } from '$lib/validation/client.svelte';
+	import FieldError from '$lib/components/FieldError.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -21,6 +24,21 @@
 		form && 'values' in form && form.values ? (form.values as ArtefactFormValues) : undefined
 	);
 	const artefactError = $derived(form && 'artefactError' in form ? form.artefactError : undefined);
+	const errors = $derived(
+		form && 'errors' in form && form.errors ? (form.errors as Record<string, string[]>) : {}
+	);
+
+	// Isomorphic validation: same vest suite here (live, per-field) and on the server.
+	const validator = createValidator(createArtefactSuite(), () => errors);
+	let formEl = $state<HTMLFormElement>();
+	function revalidate() {
+		if (formEl) validator.run(parseArtefactForm(new FormData(formEl)));
+	}
+	function markTouched(event: FocusEvent) {
+		const target = event.target as HTMLInputElement | null;
+		if (target?.name) validator.touch(target.name);
+		revalidate();
+	}
 
 	// Seed each field from a failed submit's echoed values, else the loaded artefact.
 	// svelte-ignore state_referenced_locally
@@ -58,6 +76,13 @@
 	// Block submit until required fields are filled and any upload is finalized.
 	const canSubmit = $derived(title.trim().length > 0 && !scanPending);
 
+	// Combos, tags, and the program-area cards mutate state without always firing a
+	// bubbling input event, so re-validate whenever any tracked field changes.
+	$effect(() => {
+		void [title, selectedAreas, provenanceTags, fileUrls];
+		revalidate();
+	});
+
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
 </script>
@@ -75,7 +100,19 @@
 		<!-- The edit form is a sheet of paper, like the artefact pages. -->
 		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
 			<h1 class="mb-6 text-2xl font-semibold tracking-tight text-gray-900">Edit artefact</h1>
-			<form method="POST" action="?/updateArtefact" class="space-y-5" use:enhance>
+			<form
+				method="POST"
+				action="?/updateArtefact"
+				class="space-y-5"
+				bind:this={formEl}
+				oninput={revalidate}
+				onchange={revalidate}
+				onfocusout={markTouched}
+				use:enhance={({ formData, cancel }) => {
+					validator.revealAll();
+					if (!validator.run(parseArtefactForm(formData))) cancel();
+				}}
+			>
 				<div>
 					<label for="artefact" class="block text-sm font-medium text-gray-700">
 						Title <span class="text-red-600" title="Required" aria-label="required">*</span>
@@ -91,6 +128,7 @@
 						placeholder="Symphonic Steep Program"
 						class="mt-1.5"
 					/>
+					<FieldError message={validator.error('artefact')} />
 				</div>
 
 				<!-- Images attach right below the title; each URL rides along as its own hidden field. -->
@@ -103,8 +141,10 @@
 					initial={data.artefact.fileUrls}
 					onChange={(urls) => {
 						fileUrls = urls;
+						revalidate();
 					}}
 				/>
+				<FieldError message={validator.error('fileUrls')} />
 
 				<div>
 					<ComboField
@@ -114,10 +154,20 @@
 						options={data.events.map((e) => e.name)}
 						value={echoed?.event ?? data.artefact.event ?? ''}
 					/>
+					<FieldError message={validator.error('event')} />
 				</div>
 
 				<div>
-					<DateField name="date" label="Date" value={echoed?.date ?? data.artefact.date ?? ''} />
+					<DateField
+						name="date"
+						label="Date"
+						value={echoed?.date ?? data.artefact.date ?? ''}
+						onChange={() => {
+							validator.touch('date');
+							revalidate();
+						}}
+					/>
+					<FieldError message={validator.error('date')} />
 				</div>
 
 				<fieldset>
@@ -150,6 +200,7 @@
 							</label>
 						{/each}
 					</div>
+					<FieldError message={validator.error('programArea')} />
 				</fieldset>
 
 				<div>
@@ -160,6 +211,7 @@
 						bind:value={provenanceTags}
 					/>
 					<p class="mt-1 text-xs text-gray-500">Press Enter to add</p>
+					<FieldError message={validator.error('provenance')} />
 				</div>
 
 				<div>
@@ -175,6 +227,7 @@
 						value={echoed?.description ?? data.artefact.description ?? ''}
 						class="mt-1.5"
 					/>
+					<FieldError message={validator.error('description')} />
 				</div>
 
 				<div>
@@ -185,9 +238,10 @@
 						options={LOCATION_OPTIONS}
 						value={echoed?.location ?? data.artefact.location ?? ''}
 					/>
+					<FieldError message={validator.error('location')} />
 				</div>
 
-				{#if artefactError}
+				{#if artefactError && Object.keys(errors).length === 0}
 					<p class="text-sm text-red-600" role="alert">{artefactError}</p>
 				{/if}
 

@@ -2,7 +2,8 @@ import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { resolvePersonIds, resolveSeriesId } from '$lib/server/db/queries';
 import { event, eventHost, person, series } from '$lib/server/db/schema';
-import { eventSchema } from '$lib/schemas';
+import { createEventSuite, parseEventForm } from '$lib/validation/event';
+import { summary } from '$lib/validation/helpers';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Raw (unvalidated) create-form values echoed back so a failed submit keeps input. */
@@ -17,14 +18,6 @@ export type EventFormValues = {
 	/** Comma-separated in the form; kept raw so a failed submit doesn't lose it. */
 	hosts: string;
 };
-
-/** Split the comma-separated hosts field into a clean string array. */
-function parseHosts(raw: string): string[] {
-	return raw
-		.split(',')
-		.map((name) => name.trim())
-		.filter(Boolean);
-}
 
 /** Empty string → null, for the event's nullable columns. */
 const nullIfEmpty = (value: string) => (value === '' ? null : value);
@@ -49,20 +42,12 @@ export const actions: Actions = {
 		if (!locals.user) return fail(401, { eventError: 'Sign in to add an event' });
 
 		const form = await request.formData();
-		const hostsRaw = String(form.get('hosts') ?? '');
-		const parsed = eventSchema.safeParse({
-			title: form.get('title'),
-			series: form.get('series') ?? '',
-			date: form.get('date') ?? '',
-			time: form.get('time') ?? '',
-			location: form.get('location') ?? '',
-			description: form.get('description') ?? '',
-			url: form.get('url') ?? '',
-			hosts: parseHosts(hostsRaw)
-		});
-		if (!parsed.success) {
+		const data = parseEventForm(form);
+		const result = createEventSuite()(data);
+		if (!result.isValid()) {
 			return fail(400, {
-				eventError: parsed.error.issues[0].message,
+				eventError: summary(result),
+				errors: result.getErrors(),
 				values: {
 					title: String(form.get('title') ?? ''),
 					series: String(form.get('series') ?? ''),
@@ -71,27 +56,27 @@ export const actions: Actions = {
 					location: String(form.get('location') ?? ''),
 					description: String(form.get('description') ?? ''),
 					url: String(form.get('url') ?? ''),
-					hosts: hostsRaw
+					hosts: String(form.get('hosts') ?? '')
 				}
 			});
 		}
 
 		// Find-or-create the series banner, then find-or-create the host people and
 		// link by id (repeat hosts reuse one person row each).
-		const seriesId = await resolveSeriesId(parsed.data.series);
-		const personIds = await resolvePersonIds(parsed.data.hosts);
+		const seriesId = await resolveSeriesId(data.series);
+		const personIds = await resolvePersonIds(data.hosts);
 
 		// id is an INTEGER PRIMARY KEY (rowid alias) — omit it and SQLite assigns the next one.
 		const [created] = await db
 			.insert(event)
 			.values({
-				title: parsed.data.title,
+				title: data.title,
 				seriesId,
-				date: parsed.data.date,
-				time: nullIfEmpty(parsed.data.time),
-				location: nullIfEmpty(parsed.data.location),
-				description: nullIfEmpty(parsed.data.description),
-				url: nullIfEmpty(parsed.data.url)
+				date: data.date,
+				time: nullIfEmpty(data.time),
+				location: nullIfEmpty(data.location),
+				description: nullIfEmpty(data.description),
+				url: nullIfEmpty(data.url)
 			})
 			.returning({ id: event.id });
 
