@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
  * A series: the banner that connects several events held under one recurring
@@ -27,29 +27,42 @@ export const series = sqliteTable('series', {
  * and is null for a one-off. Source: the U Street community export
  * (src/lib/data/seed-data.json).
  */
-export const event = sqliteTable('event', {
-	id: integer('id').primaryKey(),
-	// This event's own title, e.g. "Music in the Garden ft. Yaddiya". Often shared
-	// across a series, but may vary per event — series membership is `seriesId`,
-	// not an exact title match (curated via the export's `series` field at seed).
-	title: text('title').notNull(),
-	// The series this event belongs to; null for a one-off (unconnected) event.
-	seriesId: integer('series_id').references(() => series.id),
-	// ISO date (YYYY-MM-DD) the event took place.
-	date: text('date').notNull(),
-	// Free-text time span as published, e.g. "11:00 AM – 11:30 AM". Not parsed.
-	time: text('time'),
-	location: text('location'),
-	// Description specific to this event — distinct events in one series routinely
-	// carry different text.
-	description: text('description'),
-	// Canonical source URL for this event.
-	url: text('url'),
-	// Data-quality flags from the export: the event may be a mislabelled series
-	// boundary / one-off. Kept for manual review, never drives logic.
-	mayHaveException: integer('may_have_exception', { mode: 'boolean' }).notNull().default(false),
-	possibleExceptionDescription: text('possible_exception_description')
-});
+export const event = sqliteTable(
+	'event',
+	{
+		id: integer('id').primaryKey(),
+		// This event's own title, e.g. "Music in the Garden ft. Yaddiya". Often shared
+		// across a series, but may vary per event — series membership is `seriesId`,
+		// not an exact title match (curated via the export's `series` field at seed).
+		title: text('title').notNull(),
+		// The series this event belongs to; null for a one-off (unconnected) event.
+		seriesId: integer('series_id').references(() => series.id),
+		// ISO date (YYYY-MM-DD) the event took place.
+		date: text('date').notNull(),
+		// Free-text time span as published, e.g. "11:00 AM – 11:30 AM". Not parsed.
+		time: text('time'),
+		location: text('location'),
+		// Description specific to this event — distinct events in one series routinely
+		// carry different text.
+		description: text('description'),
+		// Canonical source URL for this event.
+		url: text('url'),
+		// Data-quality flags from the export: the event may be a mislabelled series
+		// boundary / one-off. Kept for manual review, never drives logic.
+		mayHaveException: integer('may_have_exception', { mode: 'boolean' }).notNull().default(false),
+		possibleExceptionDescription: text('possible_exception_description')
+	},
+	(t) => [
+		// Covers the series list's per-banner aggregation: grouping by series_id with
+		// count / min(date) / max(date) is served entirely from this index, no table
+		// scan. Ordered (series_id, date) so each group's date span is an index range.
+		index('event_series_date_idx').on(t.seriesId, t.date),
+		// Serves the events list's `ORDER BY date DESC, id DESC` slice without sorting
+		// the whole table: the leading (series_id, date) index can't answer a pure
+		// date order, so the top-of-list page needs its own (date, id) index.
+		index('event_date_id_idx').on(t.date, t.id)
+	]
+);
 
 /**
  * A person. One canonical row per name, reused across roles: the same person can
@@ -87,25 +100,34 @@ export const eventHost = sqliteTable(
  * and `provenance`, which are normalised into their own tables (see `eventId`
  * and the `artefactProvenance` join).
  */
-export const artefact = sqliteTable('artefact', {
-	id: integer('id').primaryKey(),
-	// Title of the archived object, e.g. "Symphonic Steep Program".
-	artefact: text('artefact').notNull(),
-	// The specific event this artefact came from; nullable — some artefacts have
-	// no matching event, or reference a series without pinning to one date.
-	// A series is reachable transitively via the linked event's `seriesId`.
-	eventId: integer('event_id').references(() => event.id),
-	// ISO date (YYYY-MM-DD).
-	date: text('date'),
-	// TAG program area tags. Multi-value → JSON string array.
-	programArea: text('program_area', { mode: 'json' }).$type<string[]>().notNull().default([]),
-	description: text('description'),
-	// Public URLs of the attached scan images, in display order.
-	// Multi-value → JSON string array; empty when nothing is attached.
-	fileUrls: text('file_urls', { mode: 'json' }).$type<string[]>().notNull().default([]),
-	// Physical storage location, e.g. "Binder" / "Bin".
-	location: text('location')
-});
+export const artefact = sqliteTable(
+	'artefact',
+	{
+		id: integer('id').primaryKey(),
+		// Title of the archived object, e.g. "Symphonic Steep Program".
+		artefact: text('artefact').notNull(),
+		// The specific event this artefact came from; nullable — some artefacts have
+		// no matching event, or reference a series without pinning to one date.
+		// A series is reachable transitively via the linked event's `seriesId`.
+		eventId: integer('event_id').references(() => event.id),
+		// ISO date (YYYY-MM-DD).
+		date: text('date'),
+		// TAG program area tags. Multi-value → JSON string array.
+		programArea: text('program_area', { mode: 'json' }).$type<string[]>().notNull().default([]),
+		description: text('description'),
+		// Public URLs of the attached scan images, in display order.
+		// Multi-value → JSON string array; empty when nothing is attached.
+		fileUrls: text('file_urls', { mode: 'json' }).$type<string[]>().notNull().default([]),
+		// Physical storage location, e.g. "Binder" / "Bin".
+		location: text('location')
+	},
+	(t) => [
+		// Serves the artefact list's `ORDER BY date DESC, id DESC`: walk the index in
+		// order instead of a temp b-tree sort. Cheap now, matters once the table grows
+		// to ~1k rows. Mirrors event's (date, id) index.
+		index('artefact_date_id_idx').on(t.date, t.id)
+	]
+);
 
 /**
  * Many-to-many link between artefacts and their provenance people. An artefact
