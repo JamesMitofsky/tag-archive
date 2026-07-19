@@ -40,7 +40,7 @@ export const actions: Actions = {
 	// Fold `removeId` into `keepId`: every artefact/event link moves to the kept
 	// person, then the removed row is deleted so one id is used everywhere.
 	default: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') throw redirect(303, '/keeper');
+		if (!locals.user || locals.user.role !== 'admin') throw redirect(303, '/keeper');
 
 		const form = await request.formData();
 		const keepId = Number(form.get('keepId'));
@@ -50,7 +50,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Pick a contributor to keep and one to remove.' });
 		if (keepId === removeId) return fail(400, { error: 'Pick two different contributors.' });
 
-		await mergePeople(keepId, [removeId]);
+		await mergePeople(keepId, [removeId], locals.user.id);
 
 		// Back to the roster, where the folded entry is now gone.
 		throw redirect(303, '/contributors');

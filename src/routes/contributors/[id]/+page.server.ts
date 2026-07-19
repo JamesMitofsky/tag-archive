@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { desc, eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachHosts, attachProvenance } from '$lib/server/db/queries';
+import { stampUpdate } from '$lib/server/db/audit';
 import { artefact, artefactProvenance, event, eventHost, person, series } from '$lib/server/db/schema';
 import { idSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
@@ -61,7 +62,7 @@ export const actions: Actions = {
 	// Rename this canonical person. `name` is unique, so a clash with an existing
 	// entry is rejected — that case is a merge (on the roster), not a rename.
 	rename: async ({ request, params, locals }) => {
-		if (locals.user?.role !== 'admin') throw redirect(303, '/keeper');
+		if (!locals.user || locals.user.role !== 'admin') throw redirect(303, '/keeper');
 
 		const id = idSchema.safeParse(params.id);
 		if (!id.success) return fail(400, { error: 'Unknown contributor.' });
@@ -71,7 +72,10 @@ export const actions: Actions = {
 		if (!name) return fail(400, { error: 'Name is required.' });
 
 		try {
-			await db.update(person).set({ name }).where(eq(person.id, id.data));
+			await db
+				.update(person)
+				.set({ name, ...stampUpdate(locals.user.id) })
+				.where(eq(person.id, id.data));
 		} catch {
 			return fail(409, {
 				error: 'A contributor with that name already exists — merge them instead.'

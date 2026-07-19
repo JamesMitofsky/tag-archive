@@ -55,7 +55,7 @@ export const actions: Actions = {
 	// Identical to the manual merge action: fold `removeId` into `keepId`. The admin
 	// declares both here; this page only narrows the roster to a proposed group.
 	default: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') throw redirect(303, '/keeper');
+		if (!locals.user || locals.user.role !== 'admin') throw redirect(303, '/keeper');
 
 		const form = await request.formData();
 		const keepId = Number(form.get('keepId'));
@@ -65,7 +65,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Pick a contributor to keep and one to remove.' });
 		if (keepId === removeId) return fail(400, { error: 'Pick two different contributors.' });
 
-		await mergePeople(keepId, [removeId]);
+		await mergePeople(keepId, [removeId], locals.user.id);
 
 		// Back to the roster, where the folded entry is now gone.
 		throw redirect(303, '/contributors');

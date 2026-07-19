@@ -13,22 +13,31 @@ import type { EventWithMeta } from './schema';
  * (event/artefact, person) pair — a person already on both sides — leaving those
  * source rows behind; the trailing deletes then clear them. The whole set runs as
  * one atomic write batch (single round-trip, no held interactive stream).
+ *
+ * Raw SQL bypasses Drizzle's `$onUpdate` / audit stamps, so the re-pointed rows
+ * carry their audit columns explicitly: `updated_at` is `timestamp_ms` → epoch ms,
+ * `updated_by` is `userId` (the admin performing the merge).
  */
-export async function mergePeople(keepId: number, removeIds: number[]): Promise<void> {
+export async function mergePeople(
+	keepId: number,
+	removeIds: number[],
+	userId: string
+): Promise<void> {
 	const targets = [...new Set(removeIds)].filter(
 		(id) => Number.isInteger(id) && id > 0 && id !== keepId
 	);
 	if (targets.length === 0) return;
 
+	const now = Date.now();
 	const statements = targets.flatMap((removeId) => [
 		{
-			sql: 'UPDATE OR IGNORE event_host SET person_id = ? WHERE person_id = ?',
-			args: [keepId, removeId]
+			sql: 'UPDATE OR IGNORE event_host SET person_id = ?, updated_at = ?, updated_by = ? WHERE person_id = ?',
+			args: [keepId, now, userId, removeId]
 		},
 		{ sql: 'DELETE FROM event_host WHERE person_id = ?', args: [removeId] },
 		{
-			sql: 'UPDATE OR IGNORE artefact_provenance SET person_id = ? WHERE person_id = ?',
-			args: [keepId, removeId]
+			sql: 'UPDATE OR IGNORE artefact_provenance SET person_id = ?, updated_at = ?, updated_by = ? WHERE person_id = ?',
+			args: [keepId, now, userId, removeId]
 		},
 		{ sql: 'DELETE FROM artefact_provenance WHERE person_id = ?', args: [removeId] },
 		{ sql: 'DELETE FROM person WHERE id = ?', args: [removeId] }
