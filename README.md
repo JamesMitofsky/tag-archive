@@ -88,7 +88,7 @@ Two sources feed an artefact's `fileUrl`:
 (served by SvelteKit at `/artefacts/...`). Each `fileUrl` in `data/artefacts.json`
 was rewritten to its local path, e.g. `/artefacts/TAG-001.jpg`.
 
-**Scanned uploads (new).** The `/cloud-keeper/add` form has a page scanner: use the
+**Scanned uploads (new).** The `/keeper/add` form has a page scanner: use the
 device camera to photograph pages, compile them client-side into one PDF
 (`src/lib/pdf.ts`), and upload it. The upload endpoint (`POST /scans`,
 `src/routes/scans/+server.ts`) is signed-in only and streams the PDF to an

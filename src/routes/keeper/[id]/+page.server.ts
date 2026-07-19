@@ -8,7 +8,7 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	// Cloud Keeper is behind sign-in; bounce anonymous visitors to the gate.
-	if (!locals.user) throw redirect(302, '/cloud-keeper');
+	if (!locals.user) throw redirect(302, '/keeper');
 
 	const id = idSchema.safeParse(params.id);
 	if (!id.success) throw error(404, 'Artefact not found');

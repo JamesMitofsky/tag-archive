@@ -6,7 +6,7 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// This view is signed-in only; the keeper page owns the sign-in flow.
-	if (!locals.user) throw redirect(303, '/cloud-keeper');
+	if (!locals.user) throw redirect(303, '/keeper');
 
 	// A series groups several events; surface the count and date span for each,
 	// ranked by how many events it connects (biggest series first).

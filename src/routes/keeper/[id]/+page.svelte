@@ -38,10 +38,10 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
-			<BackButton href="/cloud-keeper/artefacts" ariaLabel="Back to Artefacts" />
+			<BackButton href="/keeper/artefacts" ariaLabel="Back to Artefacts" />
 			{#if data.user.role === 'admin'}
 				<a
-					href="/cloud-keeper/{item.id}/edit"
+					href="/keeper/{item.id}/edit"
 					aria-label="Edit {item.artefact}"
 					title="Edit artefact"
 					class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"

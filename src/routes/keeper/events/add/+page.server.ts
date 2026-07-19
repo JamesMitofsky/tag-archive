@@ -31,7 +31,7 @@ const nullIfEmpty = (value: string) => (value === '' ? null : value);
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// The create form is signed-in only; bounce guests back to the keeper page.
-	if (!locals.user) throw redirect(303, '/cloud-keeper');
+	if (!locals.user) throw redirect(303, '/keeper');
 
 	// Existing series names + people power the searchable datalists.
 	const seriesList = await db.select({ name: series.name }).from(series).orderBy(series.name);
@@ -102,6 +102,6 @@ export const actions: Actions = {
 		}
 
 		// Land back on the events list so the new event shows.
-		throw redirect(303, '/cloud-keeper/events');
+		throw redirect(303, '/keeper/events');
 	}
 };

@@ -50,12 +50,12 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<BackButton href="/cloud-keeper" />
+				<BackButton href="/keeper" />
 				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Series</h1>
 				<p class="mt-1 text-sm text-gray-600">Banners under which some events exist.</p>
 			</div>
 			<a
-				href="/cloud-keeper/series/add"
+				href="/keeper/series/add"
 				aria-label="Add series"
 				title="Add series"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
@@ -103,7 +103,7 @@
 									<!-- Stretched link opens the events view filtered to this series. -->
 									<h3 class="font-medium break-words">
 										<a
-											href="/cloud-keeper/events?q={encodeURIComponent(item.name)}"
+											href="/keeper/events?q={encodeURIComponent(item.name)}"
 											class="after:absolute after:inset-0 after:z-[1]"
 										>
 											{item.name}
