@@ -1,6 +1,8 @@
 import { env } from '$env/dynamic/private';
+import { render } from 'svelte/server';
+import type { OtpEmailType } from './emails/OtpEmail.svelte';
 
-type OtpType = 'sign-in' | 'email-verification' | 'forget-password';
+type OtpType = OtpEmailType;
 
 /**
  * Delivers a one-time password via Resend.
@@ -25,6 +27,18 @@ export async function sendOtpEmail(email: string, otp: string, type: OtpType): P
 		return;
 	}
 
+	// Render the Svelte email template to a static HTML string. `render()` from
+	// svelte/server is the Svelte-5-native way to do the svelte-email pattern —
+	// no extra dependency, and the template inlines its own email-safe styles.
+	// The component is imported dynamically so the top-level module graph stays
+	// free of the `.svelte` value import: the better-auth CLI loads auth.ts (which
+	// imports this file) through jiti/Node, which can't parse `.svelte` and would
+	// otherwise crash `auth:schema` with ERR_UNKNOWN_FILE_EXTENSION. Vite resolves
+	// this dynamic import fine at runtime.
+	const { default: OtpEmail } = await import('./emails/OtpEmail.svelte');
+	const { body } = render(OtpEmail, { props: { otp, type } });
+	const html = `<!DOCTYPE html>${body}`;
+
 	const res = await fetch('https://api.resend.com/emails', {
 		method: 'POST',
 		headers: {
@@ -35,6 +49,8 @@ export async function sendOtpEmail(email: string, otp: string, type: OtpType): P
 			from: env.RESEND_FROM || 'TAG Archive <onboarding@resend.dev>',
 			to: [email],
 			subject: `${otp} is your TAG Archive sign-in code`,
+			html,
+			// Plain-text fallback for clients that don't render HTML.
 			text: `Your sign-in code is ${otp}. It expires in 5 minutes.\n\nIf you didn't request this, you can ignore this email.`
 		})
 	});

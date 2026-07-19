@@ -2,6 +2,8 @@
 	import { enhance } from '$app/forms';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
+	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -15,7 +17,7 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<a
-				href="/cloud-keeper"
+				href="/keeper"
 				aria-label="Back to Cloud Keeper"
 				title="Back to Cloud Keeper"
 				class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
@@ -38,6 +40,21 @@
 					<dd class="text-gray-800">{data.user.role}</dd>
 				</div>
 			</dl>
+
+			{#if data.user.role === 'admin'}
+				<div class="mt-6 border-t border-gray-200 pt-6">
+					<a
+						href="/contributors"
+						class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-4 py-3 text-sm text-gray-800 transition hover:bg-gray-50"
+					>
+						<span class="flex items-center gap-2">
+							<UsersIcon size={18} />
+							Contributors
+						</span>
+						<ArrowRightIcon size={18} class="text-gray-400" />
+					</a>
+				</div>
+			{/if}
 
 			<form method="POST" action="?/signOut" use:enhance class="mt-8 border-t border-gray-200 pt-6">
 				<button

@@ -84,6 +84,7 @@
 	},
 	"dependencies": {
 		"@lucide/svelte": "^1.24.0",
+		"@tanstack/svelte-virtual": "3.13.32",
 		"aws4fetch": "^1.0.20",
 		"clsx": "^2.1.1",
 		"tailwind-merge": "^3.6.0",
