@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { eq, min } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { resolvePersonIds } from '$lib/server/db/queries';
+import { stampInsert } from '$lib/server/db/audit';
 import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
 import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
 import { summary } from '$lib/validation/helpers';
@@ -66,6 +67,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	createArtefact: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, { artefactError: 'Sign in to add an artefact' });
+		const userId = locals.user.id;
 
 		const form = await request.formData();
 		const data = parseArtefactForm(form);
@@ -90,7 +92,7 @@ export const actions: Actions = {
 		// Resolve the event, then find-or-create the provenance people and link by
 		// id (repeat contributors reuse one person row each).
 		const eventId = await resolveEventId(data.event);
-		const personIds = await resolvePersonIds(data.provenance);
+		const personIds = await resolvePersonIds(data.provenance, userId);
 
 		// id is an INTEGER PRIMARY KEY (rowid alias) — omit it and SQLite assigns the next one.
 		const [created] = await db
@@ -102,14 +104,19 @@ export const actions: Actions = {
 				description: nullIfEmpty(data.description),
 				location: nullIfEmpty(data.location),
 				fileUrls: data.fileUrls,
-				programArea: data.programArea
+				programArea: data.programArea,
+				...stampInsert(userId)
 			})
 			.returning({ id: artefact.id });
 
 		if (personIds.length > 0) {
-			await db
-				.insert(artefactProvenance)
-				.values(personIds.map((personId) => ({ artefactId: created.id, personId })));
+			await db.insert(artefactProvenance).values(
+				personIds.map((personId) => ({
+					artefactId: created.id,
+					personId,
+					...stampInsert(userId)
+				}))
+			);
 		}
 
 		// Land back on the artefacts list so the new artefact shows.

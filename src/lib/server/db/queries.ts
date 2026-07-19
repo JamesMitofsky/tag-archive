@@ -1,5 +1,6 @@
 import { and, desc, eq, exists, getTableColumns, inArray, like, or, sql } from 'drizzle-orm';
 import { db } from './index';
+import { stampInsert } from './audit';
 import { artefactProvenance, event, eventHost, person, series } from './schema';
 import type { EventWithMeta } from './schema';
 
@@ -131,7 +132,7 @@ export async function searchEvents({
  * so the same person always maps to one row (canonical, searchable across the
  * provenance and host roles alike).
  */
-export async function resolvePersonIds(names: string[]): Promise<number[]> {
+export async function resolvePersonIds(names: string[], userId: string): Promise<number[]> {
 	const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
 	if (unique.length === 0) return [];
 
@@ -145,7 +146,7 @@ export async function resolvePersonIds(names: string[]): Promise<number[]> {
 	if (missing.length > 0) {
 		const created = await db
 			.insert(person)
-			.values(missing.map((name) => ({ name })))
+			.values(missing.map((name) => ({ name, ...stampInsert(userId) })))
 			.returning({ id: person.id, name: person.name });
 		for (const row of created) idByName.set(row.name, row.id);
 	}
@@ -158,7 +159,7 @@ export async function resolvePersonIds(names: string[]): Promise<number[]> {
  * (a one-off event has no series). `name` is unique, so a repeated banner always
  * resolves to the same row.
  */
-export async function resolveSeriesId(name: string): Promise<number | null> {
+export async function resolveSeriesId(name: string, userId: string): Promise<number | null> {
 	const trimmed = name.trim();
 	if (!trimmed) return null;
 
@@ -169,6 +170,9 @@ export async function resolveSeriesId(name: string): Promise<number | null> {
 		.limit(1);
 	if (existing) return existing.id;
 
-	const [created] = await db.insert(series).values({ name: trimmed }).returning({ id: series.id });
+	const [created] = await db
+		.insert(series)
+		.values({ name: trimmed, ...stampInsert(userId) })
+		.returning({ id: series.id });
 	return created.id;
 }
