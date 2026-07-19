@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { eq, sql } from 'drizzle-orm';
 import { client, db } from '$lib/server/db';
 import { artefactProvenance, eventHost, person } from '$lib/server/db/schema';
+import { findDuplicatePairs } from '$lib/server/db/duplicates';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -27,7 +28,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
-		people
+		people,
+		// Near-match pairs (accent/case, word order, typos, initials) so the picker
+		// can point straight at candidates — the roster has no exact-name dupes.
+		duplicates: findDuplicatePairs(people)
 	};
 };
 

@@ -18,11 +18,35 @@
 
 	// Client-side search over the roster — narrows the full list in place.
 	let query = $state('');
+	// When a "Likely duplicates" pair is picked, scope the roster to just those two
+	// ids so the admin declares primary/merge among them. Overrides the text search.
+	let pairFilter = $state<number[] | null>(null);
 	const filtered = $derived.by(() => {
+		if (pairFilter) return data.people.filter((p) => pairFilter!.includes(p.id));
 		const q = query.trim().toLowerCase();
 		if (!q) return data.people;
 		return data.people.filter((p) => p.name.toLowerCase().includes(q));
 	});
+
+	// Roster anchor so picking a pair scrolls the narrowed list into view.
+	let rosterEl = $state<HTMLElement | null>(null);
+
+	function reviewPair(aId: number, bId: number) {
+		pairFilter = [aId, bId];
+		// Let the admin choose roles fresh for the scoped pair.
+		primaryId = null;
+		mergeId = null;
+		rosterEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
+
+	function clearPairFilter() {
+		pairFilter = null;
+	}
+
+	function onSearchInput() {
+		// Typing means the admin is browsing the full roster again.
+		if (pairFilter) pairFilter = null;
+	}
 
 	function makePrimary(id: number) {
 		primaryId = id;
@@ -57,6 +81,57 @@
 				other into it — its artefacts and events move over, then it's deleted.
 			</p>
 		</header>
+
+		<!-- Likely duplicates: near-match pairs the roster can't surface itself
+		     (names are unique, so dupes differ by accent/order/typo/initials).
+		     Picking one scopes the roster below to those two people. -->
+		{#if data.duplicates.length > 0}
+			<section class="mb-6">
+				<h2 class="text-sm font-semibold text-[#14120f]">
+					Likely duplicates
+					<span class="ml-1 font-normal text-gray-400">{data.duplicates.length}</span>
+				</h2>
+				<ul class="mt-3 space-y-3">
+					{#each data.duplicates as pair (pair.a.id + '-' + pair.b.id)}
+						{@const active =
+							pairFilter?.includes(pair.a.id) && pairFilter?.includes(pair.b.id)}
+						<li
+							class="rounded-sm bg-white/95 p-4 text-gray-900 shadow-sm ring-1 transition
+							{active ? 'ring-2 ring-amber-500' : 'ring-black/5'}"
+						>
+							<div class="flex items-center justify-between gap-3">
+								<div class="min-w-0">
+									<p class="text-sm break-words">
+										<span class="font-medium">{pair.a.name}</span>
+										<span class="text-gray-400">·</span>
+										<span class="font-medium">{pair.b.name}</span>
+									</p>
+									<p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+										<span
+											class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">{pair.reason}</span
+										>
+										<span>
+											{pair.a.artefactCount + pair.a.eventCount} vs {pair.b.artefactCount +
+												pair.b.eventCount} links
+										</span>
+									</p>
+								</div>
+								<button
+									type="button"
+									onclick={() => reviewPair(pair.a.id, pair.b.id)}
+									class="shrink-0 rounded-full border px-3 py-1.5 text-sm transition
+									{active
+										? 'border-amber-500 bg-amber-500 text-white hover:bg-amber-600'
+										: 'border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900'}"
+								>
+									Review pair
+								</button>
+							</div>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
 
 		<!-- Confirm bar: always present so choosing a pair doesn't shift the layout;
 		     the submit just enables once both sides are set. -->
@@ -97,19 +172,38 @@
 		</section>
 
 		<!-- Roster: one narrowing list for both picks. -->
-		<div class="relative">
+		<div bind:this={rosterEl} class="relative scroll-mt-4">
 			<MagnifyingGlassIcon
 				size={18}
 				class="pointer-events-none absolute top-1/2 left-3 z-10 -translate-y-1/2 text-gray-500"
 			/>
 			<label class="sr-only" for="merge-search">Search contributors</label>
-			<input id="merge-search" type="search" bind:value={query} class="py-3 pr-3 pl-10 {glassInput}" />
+			<input
+				id="merge-search"
+				type="search"
+				bind:value={query}
+				oninput={onSearchInput}
+				class="py-3 pr-3 pl-10 {glassInput}"
+			/>
 		</div>
 
-		<p class="mt-3 text-sm text-gray-600">
-			{filtered.length}
-			{filtered.length === 1 ? 'person' : 'people'}{#if query}
-				· <span class="text-gray-500">of {data.people.length}</span>{/if}
+		<p class="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+			{#if pairFilter}
+				<span>Showing 1 duplicate pair</span>
+				<button
+					type="button"
+					onclick={clearPairFilter}
+					class="text-gray-500 underline transition hover:text-gray-900"
+				>
+					clear
+				</button>
+			{:else}
+				<span>
+					{filtered.length}
+					{filtered.length === 1 ? 'person' : 'people'}{#if query}
+						· <span class="text-gray-500">of {data.people.length}</span>{/if}
+				</span>
+			{/if}
 		</p>
 
 		<section class="mt-4">
