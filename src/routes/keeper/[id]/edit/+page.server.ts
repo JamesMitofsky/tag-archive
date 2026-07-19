@@ -3,7 +3,9 @@ import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachProvenance, resolvePersonIds } from '$lib/server/db/queries';
 import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
-import { artefactSchema, idSchema } from '$lib/schemas';
+import { idSchema } from '$lib/schemas';
+import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
+import { summary } from '$lib/validation/helpers';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Raw (unvalidated) edit-form values echoed back so a failed submit keeps input. */
@@ -18,14 +20,6 @@ export type ArtefactFormValues = {
 	provenance: string;
 	programArea: string[];
 };
-
-/** Split the comma-separated provenance field into a clean string array. */
-function parseProvenance(raw: string): string[] {
-	return raw
-		.split(',')
-		.map((name) => name.trim())
-		.filter(Boolean);
-}
 
 /** Empty string → null, for the artefact's nullable columns. */
 const nullIfEmpty = (value: string) => (value === '' ? null : value);
@@ -90,46 +84,38 @@ export const actions: Actions = {
 		if (!id.success) return fail(400, { artefactError: 'Unknown artefact' });
 
 		const form = await request.formData();
-		const provenanceRaw = String(form.get('provenance') ?? '');
-		const parsed = artefactSchema.safeParse({
-			artefact: form.get('artefact'),
-			event: form.get('event') ?? '',
-			date: form.get('date') ?? '',
-			description: form.get('description') ?? '',
-			location: form.get('location') ?? '',
-			fileUrls: form.getAll('fileUrls').map(String).filter(Boolean),
-			programArea: form.getAll('programArea'),
-			provenance: parseProvenance(provenanceRaw)
-		});
-		if (!parsed.success) {
+		const data = parseArtefactForm(form);
+		const result = createArtefactSuite()(data);
+		if (!result.isValid()) {
 			return fail(400, {
-				artefactError: parsed.error.issues[0].message,
+				artefactError: summary(result),
+				errors: result.getErrors(),
 				values: {
 					artefact: String(form.get('artefact') ?? ''),
 					event: String(form.get('event') ?? ''),
 					date: String(form.get('date') ?? ''),
 					description: String(form.get('description') ?? ''),
 					location: String(form.get('location') ?? ''),
-					fileUrls: form.getAll('fileUrls').map(String).filter(Boolean),
-					provenance: provenanceRaw,
-					programArea: form.getAll('programArea').map(String)
+					fileUrls: data.fileUrls,
+					provenance: String(form.get('provenance') ?? ''),
+					programArea: data.programArea
 				}
 			});
 		}
 
-		const eventId = await resolveEventId(parsed.data.event);
-		const personIds = await resolvePersonIds(parsed.data.provenance);
+		const eventId = await resolveEventId(data.event);
+		const personIds = await resolvePersonIds(data.provenance);
 
 		await db
 			.update(artefact)
 			.set({
-				artefact: parsed.data.artefact,
+				artefact: data.artefact,
 				eventId,
-				date: nullIfEmpty(parsed.data.date),
-				description: nullIfEmpty(parsed.data.description),
-				location: nullIfEmpty(parsed.data.location),
-				fileUrls: parsed.data.fileUrls,
-				programArea: parsed.data.programArea
+				date: nullIfEmpty(data.date),
+				description: nullIfEmpty(data.description),
+				location: nullIfEmpty(data.location),
+				fileUrls: data.fileUrls,
+				programArea: data.programArea
 			})
 			.where(eq(artefact.id, id.data));
 

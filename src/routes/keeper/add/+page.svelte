@@ -11,10 +11,36 @@
 	import PageScanner from '$lib/components/PageScanner.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
+	import { createValidator } from '$lib/validation/client.svelte';
+	import FieldError from '$lib/components/FieldError.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// Isomorphic validation: the same vest suite runs here for live, per-field
+	// feedback and on the server as the authority. `errors` seeds field messages
+	// from a no-JS submit until the browser re-validates.
+	const errors = $derived(
+		form && 'errors' in form && form.errors ? (form.errors as Record<string, string[]>) : {}
+	);
+	const validator = createValidator(createArtefactSuite(), () => errors);
+	let formEl = $state<HTMLFormElement>();
+	function revalidate() {
+		if (formEl) validator.run(parseArtefactForm(new FormData(formEl)));
+	}
+	function markTouched(event: FocusEvent) {
+		const target = event.target as HTMLInputElement | null;
+		if (target?.name) validator.touch(target.name);
+		revalidate();
+	}
+	// Combos, tags, and the program-area cards mutate state without always firing a
+	// bubbling input event, so re-validate whenever any tracked field changes.
+	$effect(() => {
+		void [title, formDate, selectedAreas, provenanceTags, fileUrls];
+		revalidate();
+	});
 
 	// Program-area picker state (multi-select — an artefact carries several).
 	let selectedAreas = $state<string[]>([]);
@@ -100,7 +126,19 @@
 		<!-- The create form is a fresh sheet of paper, like the artefact pages. -->
 		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
 			<h1 class="mb-6 text-2xl font-semibold tracking-tight text-gray-900">New artefact</h1>
-			<form method="POST" action="?/createArtefact" class="space-y-5" use:enhance>
+			<form
+				method="POST"
+				action="?/createArtefact"
+				class="space-y-5"
+				bind:this={formEl}
+				oninput={revalidate}
+				onchange={revalidate}
+				onfocusout={markTouched}
+				use:enhance={({ formData, cancel }) => {
+					validator.revealAll();
+					if (!validator.run(parseArtefactForm(formData))) cancel();
+				}}
+			>
 				<div>
 					<label for="artefact" class="block text-sm font-medium text-gray-700">
 						Title <span class="text-red-600" title="Required" aria-label="required">*</span>
@@ -116,6 +154,7 @@
 						placeholder="Symphonic Steep Program"
 						class="mt-1.5"
 					/>
+					<FieldError message={validator.error('artefact')} />
 				</div>
 
 				<div>
@@ -123,8 +162,13 @@
 						name="date"
 						label="Date"
 						value={echoed?.date ?? ''}
-						onChange={(iso) => (formDate = iso)}
+						onChange={(iso) => {
+							formDate = iso;
+							validator.touch('date');
+							revalidate();
+						}}
 					/>
+					<FieldError message={validator.error('date')} />
 				</div>
 
 				<!-- Images attach right below the title; each URL rides along as its own hidden field. -->
@@ -136,8 +180,10 @@
 					bind:pending={scanPending}
 					onChange={(urls) => {
 						fileUrls = urls;
+						revalidate();
 					}}
 				/>
+				<FieldError message={validator.error('fileUrls')} />
 
 				<div>
 					<ComboField
@@ -147,6 +193,7 @@
 						options={eventOptions}
 						value={echoed?.event ?? ''}
 					/>
+					<FieldError message={validator.error('event')} />
 				</div>
 
 				<fieldset>
@@ -179,6 +226,7 @@
 							</label>
 						{/each}
 					</div>
+					<FieldError message={validator.error('programArea')} />
 				</fieldset>
 
 				<div>
@@ -189,6 +237,7 @@
 						bind:value={provenanceTags}
 					/>
 					<p class="mt-1 text-xs text-gray-500">Press Enter to add</p>
+					<FieldError message={validator.error('provenance')} />
 				</div>
 
 				<div>
@@ -204,6 +253,7 @@
 						value={echoed?.description ?? ''}
 						class="mt-1.5"
 					/>
+					<FieldError message={validator.error('description')} />
 				</div>
 
 				<div>
@@ -214,9 +264,10 @@
 						options={LOCATION_OPTIONS}
 						value={echoed?.location ?? ''}
 					/>
+					<FieldError message={validator.error('location')} />
 				</div>
 
-				{#if artefactError}
+				{#if artefactError && Object.keys(errors).length === 0}
 					<p class="text-sm text-red-600" role="alert">{artefactError}</p>
 				{/if}
 
