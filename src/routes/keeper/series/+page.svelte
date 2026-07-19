@@ -1,5 +1,6 @@
 <script lang="ts">
 	import BackButton from '$lib/components/BackButton.svelte';
+	import KeeperList from '$lib/components/KeeperList.svelte';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
@@ -16,7 +17,8 @@
 	});
 
 	// Persist the search text across back navigation (e.g. open a series, then
-	// return). SvelteKit restores this after the page remounts.
+	// return). SvelteKit restores this after the page remounts; the list rides the
+	// page scroll, so native scroll restoration handles position.
 	export const snapshot = {
 		capture: () => query,
 		restore: (value: string) => (query = value)
@@ -92,36 +94,40 @@
 					No series match “{query}”.
 				</p>
 			{:else}
-				<ul class="mt-3 space-y-4">
-					{#each filtered as item, i (item.id)}
-						<li
-							class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
-							{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
-						>
-							<div class="flex items-center justify-between gap-3">
-								<div class="min-w-0">
-									<!-- Stretched link opens the events view filtered to this series. -->
-									<h3 class="font-medium break-words">
-										<a
-											href="/keeper/events?q={encodeURIComponent(item.name)}"
-											class="after:absolute after:inset-0 after:z-[1]"
-										>
-											{item.name}
-										</a>
-									</h3>
-									<p class="mt-0.5 text-sm text-gray-500">
-										<!-- Count next to the name, low emphasis, per the pill convention. -->
-										{item.eventCount} events{#if span(item.firstDate, item.lastDate)}{' · '}{span(
-												item.firstDate,
-												item.lastDate
-											)}{/if}
-									</p>
+				<!-- Only visible rows mount; the list rides the page scroll. -->
+				<KeeperList items={filtered} estimatedItemHeight={92} getKey={(item) => item.id}>
+					{#snippet row(item, i)}
+						<!-- py-2 doubles as the inter-card gap (measured), px-2 leaves shadow room. -->
+						<div class="px-2 py-2">
+							<article
+								class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
+								{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
+							>
+								<div class="flex items-center justify-between gap-3">
+									<div class="min-w-0">
+										<!-- Stretched link opens the events view filtered to this series. -->
+										<h3 class="font-medium break-words">
+											<a
+												href="/keeper/events?q={encodeURIComponent(item.name)}"
+												class="after:absolute after:inset-0 after:z-[1]"
+											>
+												{item.name}
+											</a>
+										</h3>
+										<p class="mt-0.5 text-sm text-gray-500">
+											<!-- Count next to the name, low emphasis, per the pill convention. -->
+											{item.eventCount} events{#if span(item.firstDate, item.lastDate)}{' · '}{span(
+													item.firstDate,
+													item.lastDate
+												)}{/if}
+										</p>
+									</div>
+									<ArrowRightIcon size={18} class="shrink-0 text-gray-400" />
 								</div>
-								<ArrowRightIcon size={18} class="shrink-0 text-gray-400" />
-							</div>
-						</li>
-					{/each}
-				</ul>
+							</article>
+						</div>
+					{/snippet}
+				</KeeperList>
 			{/if}
 		</section>
 	</div>
