@@ -25,24 +25,26 @@
 				<ArrowLeftIcon size={18} />
 				Back
 			</a>
+
+			<form method="POST" action="?/signOut" use:enhance>
+				<button
+					type="submit"
+					aria-label="Sign out"
+					title="Sign out"
+					class="inline-flex items-center justify-center rounded-full border border-white/40 bg-white/25 p-2 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
+				>
+					<SignOutIcon size={18} />
+				</button>
+			</form>
 		</header>
 
 		<article class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8">
 			<h1 class="text-2xl font-semibold tracking-tight">Settings</h1>
 
-			<dl class="mt-6 space-y-3 border-t border-gray-200 pt-5 text-sm">
-				<div class="flex flex-wrap gap-x-2">
-					<dt class="font-medium text-gray-500">Signed in as</dt>
-					<dd class="text-gray-800">{data.user.email}</dd>
-				</div>
-				<div class="flex flex-wrap gap-x-2">
-					<dt class="font-medium text-gray-500">Role</dt>
-					<dd class="text-gray-800">{data.user.role}</dd>
-				</div>
-			</dl>
+			<p class="mt-10 text-lg text-gray-800">{data.user.email}</p>
 
 			{#if data.user.role === 'admin'}
-				<div class="mt-6 border-t border-gray-200 pt-6">
+				<div class="mt-6 pt-6">
 					<a
 						href="/contributors"
 						class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-4 py-3 text-sm text-gray-800 transition hover:bg-gray-50"
@@ -55,16 +57,6 @@
 					</a>
 				</div>
 			{/if}
-
-			<form method="POST" action="?/signOut" use:enhance class="mt-8 border-t border-gray-200 pt-6">
-				<button
-					type="submit"
-					class="inline-flex items-center gap-2 rounded-sm bg-[#14120f] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#33302a]"
-				>
-					<SignOutIcon size={18} />
-					Sign out
-				</button>
-			</form>
 		</article>
 	</div>
 </main>

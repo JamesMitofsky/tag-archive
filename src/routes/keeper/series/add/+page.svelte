@@ -4,7 +4,9 @@
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { DAYS_OF_WEEK } from '$lib/schemas';
+	import { DAYS_OF_WEEK, createSeriesSuite, parseSeriesForm } from '$lib/validation/series';
+	import { createValidator } from '$lib/validation/client.svelte';
+	import FieldError from '$lib/components/FieldError.svelte';
 	import type { SeriesFormValues } from './+page.server';
 	import type { ActionData } from './$types';
 
@@ -14,6 +16,21 @@
 	const echoed = $derived(
 		form && 'values' in form && form.values ? (form.values as SeriesFormValues) : undefined
 	);
+	const errors = $derived(
+		form && 'errors' in form && form.errors ? (form.errors as Record<string, string[]>) : {}
+	);
+
+	// Isomorphic validation: same vest suite here (live, per-field) and on the server.
+	const validator = createValidator(createSeriesSuite(), () => errors);
+	let formEl = $state<HTMLFormElement>();
+	function revalidate() {
+		if (formEl) validator.run(parseSeriesForm(new FormData(formEl)));
+	}
+	function markTouched(event: FocusEvent) {
+		const target = event.target as HTMLInputElement | null;
+		if (target?.name) validator.touch(target.name);
+		revalidate();
+	}
 
 	// Name is the only field and it's required; track it so submit can gate on it.
 	// svelte-ignore state_referenced_locally
@@ -31,6 +48,13 @@
 	);
 
 	const canSubmit = $derived(name.trim().length > 0);
+
+	// The weekday pills mutate a hidden input via state, so re-validate whenever the
+	// tracked fields change.
+	$effect(() => {
+		void [name, defaultDayOfWeek];
+		revalidate();
+	});
 
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
@@ -50,7 +74,19 @@
 		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
 			<h1 class="mb-1 text-2xl font-semibold tracking-tight text-gray-900">New series</h1>
 			<p class="mb-6 text-sm text-gray-600">A banner that connects several events.</p>
-			<form method="POST" action="?/createSeries" class="space-y-5" use:enhance>
+			<form
+				method="POST"
+				action="?/createSeries"
+				class="space-y-5"
+				bind:this={formEl}
+				oninput={revalidate}
+				onchange={revalidate}
+				onfocusout={markTouched}
+				use:enhance={({ formData, cancel }) => {
+					validator.revealAll();
+					if (!validator.run(parseSeriesForm(formData))) cancel();
+				}}
+			>
 				<div>
 					<label for="name" class="block text-sm font-medium text-gray-700">
 						Name <span class="text-red-600" title="Required" aria-label="required">*</span>
@@ -66,6 +102,7 @@
 						placeholder="Music in the Garden"
 						class="mt-1.5"
 					/>
+					<FieldError message={validator.error('name')} />
 				</div>
 
 				<div>
@@ -81,6 +118,7 @@
 						value={echoed?.description ?? ''}
 						class="mt-1.5"
 					/>
+					<FieldError message={validator.error('description')} />
 				</div>
 
 				<!-- Optional defaults events under this banner can inherit. -->
@@ -91,7 +129,11 @@
 						<span class="block text-sm font-medium text-gray-700">Default day of the week</span>
 						<!-- Hidden input the server reads; '' when no day is chosen. -->
 						<input type="hidden" name="defaultDayOfWeek" value={defaultDayOfWeek} />
-						<div class="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Default day of the week">
+						<div
+							class="mt-1.5 flex flex-wrap gap-1.5"
+							role="group"
+							aria-label="Default day of the week"
+						>
 							{#each DAYS_OF_WEEK as day (day)}
 								<button
 									type="button"
@@ -106,6 +148,7 @@
 								</button>
 							{/each}
 						</div>
+						<FieldError message={validator.error('defaultDayOfWeek')} />
 					</div>
 
 					<div>
@@ -122,6 +165,7 @@
 							value={echoed?.defaultTime ?? ''}
 							class="mt-1.5"
 						/>
+						<FieldError message={validator.error('defaultTime')} />
 					</div>
 
 					<div>
@@ -138,10 +182,11 @@
 							value={echoed?.frequency ?? ''}
 							class="mt-1.5"
 						/>
+						<FieldError message={validator.error('frequency')} />
 					</div>
 				</fieldset>
 
-				{#if seriesError}
+				{#if seriesError && Object.keys(errors).length === 0}
 					<p class="text-sm text-red-600" role="alert">{seriesError}</p>
 				{/if}
 

@@ -126,7 +126,8 @@
 
 				<!-- Remove picker -->
 				<div>
-					<span class="block text-xs font-medium tracking-wide text-gray-500 uppercase">Remove</span>
+					<span class="block text-xs font-medium tracking-wide text-gray-500 uppercase">Remove</span
+					>
 					{#if removePerson}
 						<button
 							type="button"
@@ -231,6 +232,8 @@
 								<input
 									name="name"
 									value={item.name}
+									required
+									maxlength={200}
 									aria-label="Contributor name"
 									class="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1.5 font-medium text-gray-900 hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:ring-1 focus:ring-gray-200 focus:outline-none"
 								/>

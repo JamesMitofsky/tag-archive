@@ -3,7 +3,8 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { stampInsert } from '$lib/server/db/audit';
 import { series } from '$lib/server/db/schema';
-import { seriesSchema } from '$lib/schemas';
+import { createSeriesSuite, parseSeriesForm } from '$lib/validation/series';
+import { summary } from '$lib/validation/helpers';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Raw (unvalidated) create-form values echoed back so a failed submit keeps input. */
@@ -36,10 +37,12 @@ export const actions: Actions = {
 			defaultTime: String(form.get('defaultTime') ?? ''),
 			frequency: String(form.get('frequency') ?? '')
 		};
-		const parsed = seriesSchema.safeParse(raw);
-		if (!parsed.success) {
+		const data = parseSeriesForm(form);
+		const result = createSeriesSuite()(data);
+		if (!result.isValid()) {
 			return fail(400, {
-				seriesError: parsed.error.issues[0].message,
+				seriesError: summary(result),
+				errors: result.getErrors(),
 				values: raw
 			});
 		}
@@ -48,23 +51,24 @@ export const actions: Actions = {
 		const [existing] = await db
 			.select({ id: series.id })
 			.from(series)
-			.where(eq(series.name, parsed.data.name))
+			.where(eq(series.name, data.name))
 			.limit(1);
 		if (existing) {
 			return fail(400, {
 				seriesError: 'A series with that name already exists',
-				values: { ...raw, name: parsed.data.name }
+				errors: { name: ['A series with that name already exists'] },
+				values: { ...raw, name: data.name }
 			});
 		}
 
 		// id is an INTEGER PRIMARY KEY (rowid alias) — omit it and SQLite assigns the next one.
 		// Empty optional fields are stored as NULL, not "".
 		await db.insert(series).values({
-			name: parsed.data.name,
-			description: parsed.data.description || null,
-			defaultDayOfWeek: parsed.data.defaultDayOfWeek || null,
-			defaultTime: parsed.data.defaultTime || null,
-			frequency: parsed.data.frequency || null,
+			name: data.name,
+			description: data.description || null,
+			defaultDayOfWeek: data.defaultDayOfWeek || null,
+			defaultTime: data.defaultTime || null,
+			frequency: data.frequency || null,
 			...stampInsert(locals.user.id)
 		});
 

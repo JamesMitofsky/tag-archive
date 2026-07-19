@@ -26,7 +26,9 @@ icon = "rocket"
 # Drizzle Studio to inspect the local DB. Self-contained: starts its own `turso dev`
 # on CONDUCTOR_PORT+1 and points Studio at it over HTTP (a port, not file:local.db,
 # so no file-lock races) with its own backend port on CONDUCTOR_PORT+3.
-# UI always loads at https://local.drizzle.studio — the port is just its backend.
+# The hosted UI at https://local.drizzle.studio defaults to backend port 4983, so
+# it must be opened with ?port=$STUDIO_PORT — otherwise parallel workspaces all hit
+# 4983 and show whichever workspace bound it first (wrong DB). We echo that exact URL.
 [scripts.run.studio]
-command = "export DB_PORT=$((CONDUCTOR_PORT+1)); pnpm exec concurrently -k -n db,studio -c magenta,green \"turso dev --db-file local.db --port $DB_PORT\" \"DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm exec drizzle-kit studio --port $((CONDUCTOR_PORT+3))\""
+command = "export DB_PORT=$((CONDUCTOR_PORT+1)); export STUDIO_PORT=$((CONDUCTOR_PORT+3)); echo \"Drizzle Studio: https://local.drizzle.studio/?port=$STUDIO_PORT\"; pnpm exec concurrently -k -n db,studio -c magenta,green \"turso dev --db-file local.db --port $DB_PORT\" \"DATABASE_URL=http://127.0.0.1:$DB_PORT pnpm exec drizzle-kit studio --port $STUDIO_PORT\""
 icon = "database"
