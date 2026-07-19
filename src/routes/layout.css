@@ -3,6 +3,13 @@
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
+/* Reserve scrollbar gutter on both sides so page width is constant whether or not
+   a vertical scrollbar is present. Keeps content perfectly centered and prevents
+   the horizontal shift when navigating between routes with different overflow. */
+html {
+	scrollbar-gutter: stable both-edges;
+}
+
 /* Class-based dark variant (shadcn-svelte). No `.dark` is applied yet — the app
    renders light — but the tokens below are defined so dark mode is a one-line
    toggle away. */

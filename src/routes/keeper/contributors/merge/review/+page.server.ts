@@ -18,7 +18,7 @@ function parseIds(raw: string | null): number[] {
 export const load: PageServerLoad = async ({ url, locals }) => {
 	// Same admin gate as the merge tool this is reached from.
 	if (!locals.user) throw redirect(303, '/keeper');
-	if (locals.user.role !== 'admin') throw redirect(303, '/settings');
+	if (locals.user.role !== 'admin') throw redirect(303, '/keeper/settings');
 
 	const ids = parseIds(url.searchParams.get('ids'));
 	// Need at least two live entries to have anything to fold together — otherwise

@@ -10,7 +10,7 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ params, locals }) => {
 	// Same gate as the roster it links from: signed-in admins only.
 	if (!locals.user) throw redirect(303, '/keeper');
-	if (locals.user.role !== 'admin') throw redirect(303, '/settings');
+	if (locals.user.role !== 'admin') throw redirect(303, '/keeper/settings');
 
 	const id = idSchema.safeParse(params.id);
 	if (!id.success) throw error(404, 'Contributor not found');

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
 	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
@@ -16,15 +16,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
-			<a
-				href="/keeper"
-				aria-label="Back to Cloud Keeper"
-				title="Back to Cloud Keeper"
-				class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
-			>
-				<ArrowLeftIcon size={18} />
-				Back
-			</a>
+			<BackButton href="/keeper" ariaLabel="Back to Cloud Keeper" />
 
 			<form method="POST" action="?/signOut" use:enhance>
 				<button

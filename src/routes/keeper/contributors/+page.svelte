@@ -27,7 +27,7 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<BackButton href="/settings" />
+				<BackButton href="/keeper/settings" />
 				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Contributors</h1>
 				<p class="mt-1 text-sm text-gray-600">
 					Everyone in the archive — hosts and provenance alike. Open one to rename it or see its
