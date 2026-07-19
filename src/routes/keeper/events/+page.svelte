@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import BackButton from '$lib/components/BackButton.svelte';
+	import KeeperList from '$lib/components/KeeperList.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
@@ -24,6 +25,7 @@
 
 	// Persist the search text across back navigation (e.g. open an event, then
 	// return). Restored after remount, overriding the ?q= seed only on back-nav.
+	// The list rides the page scroll, so native scroll restoration handles position.
 	export const snapshot = {
 		capture: () => query,
 		restore: (value: string) => (query = value)
@@ -96,56 +98,62 @@
 					No events match “{query}”.
 				</p>
 			{:else}
-				<!-- Each event is a card, scattered ever so slightly like loose paper. -->
-				<ul class="mt-3 space-y-4">
-					{#each filtered as item, i (item.id)}
-						<li
-							class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
-							{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
-						>
-							<div class="flex items-start justify-between gap-3">
-								<div class="min-w-0">
-									<h3 class="font-medium break-words">{item.title}</h3>
-									<p class="mt-0.5 text-sm text-gray-500">
-										{formatDate(item.date)}{#if item.time}{' · '}{item.time}{/if}{#if item.location}{' · '}{item.location}{/if}
-									</p>
-								</div>
-								{#if item.series}
-									<!-- Series banner: low emphasis, marks this as one of several connected events. -->
-									<span
-										class="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600"
-										title="Part of the “{item.series}” series"
-									>
-										{item.series}
-									</span>
-								{/if}
-							</div>
-							{#if item.description}
-								<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
-									{item.description}
-								</p>
-							{/if}
-							{#if item.hosts.length > 0 || item.mayHaveException}
-								<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-									{#if item.hosts.length > 0}
-										<span class="text-sm text-gray-500">
-											Hosted by {item.hosts.join(', ')}
-										</span>
-									{/if}
-									{#if item.mayHaveException}
+				<!-- Only visible rows mount; the list rides the page scroll. -->
+				<KeeperList items={filtered} estimatedItemHeight={150} getKey={(item) => item.id}>
+					{#snippet row(item, i)}
+						<!-- py-2 doubles as the inter-card gap (measured), px-2 leaves shadow room. -->
+						<div class="px-2 py-2">
+							<!-- Each event is a card, scattered ever so slightly like loose paper. -->
+							<article
+								class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
+								{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
+							>
+								<div class="flex items-start justify-between gap-3">
+									<div class="min-w-0">
+										<h3 class="font-medium break-words">{item.title}</h3>
+										<p class="mt-0.5 text-sm text-gray-500">
+											{formatDate(
+												item.date
+											)}{#if item.time}{' · '}{item.time}{/if}{#if item.location}{' · '}{item.location}{/if}
+										</p>
+									</div>
+									{#if item.series}
+										<!-- Series banner: low emphasis, marks this as one of several connected events. -->
 										<span
-											class="inline-flex items-center gap-1 text-xs text-amber-700"
-											title={item.possibleExceptionDescription ?? 'Flagged for review'}
+											class="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600"
+											title="Part of the “{item.series}” series"
 										>
-											<WarningIcon size={13} weight="fill" />
-											Needs review
+											{item.series}
 										</span>
 									{/if}
 								</div>
-							{/if}
-						</li>
-					{/each}
-				</ul>
+								{#if item.description}
+									<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
+										{item.description}
+									</p>
+								{/if}
+								{#if item.hosts.length > 0 || item.mayHaveException}
+									<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+										{#if item.hosts.length > 0}
+											<span class="text-sm text-gray-500">
+												Hosted by {item.hosts.join(', ')}
+											</span>
+										{/if}
+										{#if item.mayHaveException}
+											<span
+												class="inline-flex items-center gap-1 text-xs text-amber-700"
+												title={item.possibleExceptionDescription ?? 'Flagged for review'}
+											>
+												<WarningIcon size={13} weight="fill" />
+												Needs review
+											</span>
+										{/if}
+									</div>
+								{/if}
+							</article>
+						</div>
+					{/snippet}
+				</KeeperList>
 			{/if}
 		</section>
 	</div>
