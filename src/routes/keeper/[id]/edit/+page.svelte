@@ -69,7 +69,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
-			<BackButton href="/keepers/{data.artefact.id}" ariaLabel="Back to artefact" />
+			<BackButton href="/keeper/{data.artefact.id}" ariaLabel="Back to artefact" />
 		</header>
 
 		<!-- The edit form is a sheet of paper, like the artefact pages. -->

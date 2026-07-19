@@ -16,7 +16,7 @@ export type SeriesFormValues = {
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// The create form is signed-in only; bounce guests back to the keeper page.
-	if (!locals.user) throw redirect(303, '/keepers');
+	if (!locals.user) throw redirect(303, '/keeper');
 
 	return {
 		user: { email: locals.user.email, role: locals.user.role }
@@ -67,6 +67,6 @@ export const actions: Actions = {
 		});
 
 		// Land back on the series list so the new banner shows.
-		throw redirect(303, '/keepers/series');
+		throw redirect(303, '/keeper/series');
 	}
 };

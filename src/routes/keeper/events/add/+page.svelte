@@ -53,7 +53,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
-			<BackButton href="/keepers/events" ariaLabel="Back to Events" />
+			<BackButton href="/keeper/events" ariaLabel="Back to Events" />
 		</header>
 
 		<!-- The create form is a fresh sheet of paper, like the event pages. -->

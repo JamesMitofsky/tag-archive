@@ -51,7 +51,7 @@ async function resolveEventId(name: string): Promise<number | null> {
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// The create form is signed-in only; bounce guests back to the keeper page.
-	if (!locals.user) throw redirect(303, '/keepers');
+	if (!locals.user) throw redirect(303, '/keeper');
 
 	// Existing event titles + people power the searchable datalists. Distinct
 	// titles only — a recurring title (series) shouldn't list once per date; its
@@ -128,6 +128,6 @@ export const actions: Actions = {
 		}
 
 		// Land back on the artefacts list so the new artefact shows.
-		throw redirect(303, '/keepers/artefacts');
+		throw redirect(303, '/keeper/artefacts');
 	}
 };

@@ -7,7 +7,7 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// This view is signed-in only; the keeper page owns the sign-in flow.
-	if (!locals.user) throw redirect(303, '/keepers');
+	if (!locals.user) throw redirect(303, '/keeper');
 
 	// Join the series in and flatten its name to `series` (see EventWithMeta).
 	const rows = await db
