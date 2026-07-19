@@ -181,7 +181,15 @@
 								>
 									<div class="flex items-start justify-between gap-3">
 										<div class="min-w-0">
-											<h3 class="font-medium break-words">{item.title}</h3>
+											<!-- Stretched link: the ::after overlay makes the whole card open the event page. -->
+											<h3 class="font-medium break-words">
+												<a
+													href="/keeper/events/{item.id}"
+													class="after:absolute after:inset-0 after:z-[1]"
+												>
+													{item.title}
+												</a>
+											</h3>
 											<p class="mt-0.5 text-sm text-gray-500">
 												{formatDate(
 													item.date
