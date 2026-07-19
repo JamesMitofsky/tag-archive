@@ -46,7 +46,7 @@
 	const otpValue = $derived(otpDigits.join(''));
 	// Particles stay in the air this long; we bail off the page mid-flight (HOLD_MS).
 	const CONFETTI_MS = 2600;
-	const HOLD_MS = 1400;
+	const HOLD_MS = 1100;
 
 	function focusOtp(i: number) {
 		otpInputs[i]?.focus();
