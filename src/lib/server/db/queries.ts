@@ -103,22 +103,25 @@ export async function searchEvents({
 		: undefined;
 
 	// Both queries need the series join: the filter and the flattened `series` name
-	// both read from it.
-	const slice = await db
-		.select({ ...getTableColumns(event), series: series.name })
-		.from(event)
-		.leftJoin(series, eq(event.seriesId, series.id))
-		.where(filter)
-		.orderBy(desc(event.date), desc(event.id))
-		.limit(limit)
-		.offset(offset);
+	// both read from it. Fire the slice and the total count together — they're
+	// independent, so on a remote DB this is one round-trip instead of two.
+	const [slice, [{ total }]] = await Promise.all([
+		db
+			.select({ ...getTableColumns(event), series: series.name })
+			.from(event)
+			.leftJoin(series, eq(event.seriesId, series.id))
+			.where(filter)
+			.orderBy(desc(event.date), desc(event.id))
+			.limit(limit)
+			.offset(offset),
+		db
+			.select({ total: sql<number>`count(*)` })
+			.from(event)
+			.leftJoin(series, eq(event.seriesId, series.id))
+			.where(filter)
+	]);
 
-	const [{ total }] = await db
-		.select({ total: sql<number>`count(*)` })
-		.from(event)
-		.leftJoin(series, eq(event.seriesId, series.id))
-		.where(filter);
-
+	// Hosts need the slice's ids, so this stays a follow-up round-trip.
 	const rows = await attachHosts(slice);
 	return { rows, total };
 }
