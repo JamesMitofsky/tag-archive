@@ -9,6 +9,9 @@
 	import StackIcon from 'phosphor-svelte/lib/StackIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
+	import { createEmailSuite, parseEmailForm } from '$lib/validation/auth';
+	import { createValidator } from '$lib/validation/client.svelte';
+	import FieldError from '$lib/components/FieldError.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -17,6 +20,21 @@
 	const authStep = $derived(form && 'step' in form && form.step === 'otp' ? 'otp' : 'email');
 	const authError = $derived(form && 'error' in form ? form.error : undefined);
 	const authEmail = $derived(form && 'email' in form ? form.email : '');
+	const errors = $derived(
+		form && 'errors' in form && form.errors ? (form.errors as Record<string, string[]>) : {}
+	);
+
+	// Isomorphic validation for the email step: same vest suite here and on the server.
+	const emailValidator = createValidator(createEmailSuite(), () => errors);
+	let emailFormEl = $state<HTMLFormElement>();
+	function revalidateEmail() {
+		if (emailFormEl) emailValidator.run(parseEmailForm(new FormData(emailFormEl)));
+	}
+	function markEmailTouched(event: FocusEvent) {
+		const target = event.target as HTMLInputElement | null;
+		if (target?.name) emailValidator.touch(target.name);
+		revalidateEmail();
+	}
 
 	// OTP: six single-digit boxes that behave like one field.
 	let otpDigits = $state<string[]>(['', '', '', '', '', '']);
@@ -164,7 +182,18 @@
 											<p class="mt-1 text-sm text-gray-700">
 												Connections are passwordless! You'll be sent a special code by email.
 											</p>
-											<form method="POST" action="?/sendOtp" use:enhance class="mt-5 flex gap-2">
+											<form
+												method="POST"
+												action="?/sendOtp"
+												bind:this={emailFormEl}
+												oninput={revalidateEmail}
+												onfocusout={markEmailTouched}
+												use:enhance={({ formData, cancel }) => {
+													emailValidator.revealAll();
+													if (!emailValidator.run(parseEmailForm(formData))) cancel();
+												}}
+												class="mt-5 flex gap-2"
+											>
 												<label class="sr-only" for="email">Email</label>
 												<input
 													id="email"
@@ -184,6 +213,7 @@
 													<PaperPlaneTiltIcon size={20} />
 												</button>
 											</form>
+											<FieldError message={emailValidator.error('email')} />
 										{:else}
 											<h2 class="text-lg font-medium text-gray-900">Check your email</h2>
 											<p class="mt-1 text-sm text-gray-700">
@@ -271,7 +301,7 @@
 									</div>
 								{/key}
 							</div>
-							{#if authError}
+							{#if authError && Object.keys(errors).length === 0}
 								<p class="mt-4 text-sm text-red-700" role="alert">{authError}</p>
 							{/if}
 						</section>
