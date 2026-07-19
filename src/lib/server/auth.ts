@@ -5,7 +5,6 @@ import { admin, emailOTP } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
-import { sendOtpEmail } from '$lib/server/email';
 
 /** First sign-in with this email is auto-granted the admin role. */
 const adminEmail = () => (env.ADMIN_EMAIL ?? 'jamesmitofsky@gmail.com').toLowerCase();
@@ -14,6 +13,16 @@ export const auth = betterAuth({
 	baseURL: env.ORIGIN,
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
+	session: {
+		// Read the session from a short-lived signed cookie instead of hitting the
+		// DB on every request. Without this, once a session ages past `updateAge`
+		// better-auth issues a session-refresh WRITE on each request; if that write
+		// transiently fails on the shared libsql HTTP client it deletes the cookie
+		// and signs the user out ("disconnected right after doing something"). The
+		// cache serves most requests with no DB write, so the refresh path — and its
+		// logout-on-failure branch — is hit far less often.
+		cookieCache: { enabled: true, maxAge: 300 }
+	},
 	databaseHooks: {
 		user: {
 			create: {
@@ -30,7 +39,13 @@ export const auth = betterAuth({
 			otpLength: 6,
 			expiresIn: 300,
 			storeOTP: 'hashed',
-			sendVerificationOTP: ({ email, otp, type }) => sendOtpEmail(email, otp, type)
+			sendVerificationOTP: async ({ email, otp, type }) => {
+				// Imported lazily so `better-auth generate` can load this config
+				// without the Node ESM loader traversing OtpEmail.svelte (which it
+				// can't parse — ERR_UNKNOWN_FILE_EXTENSION on ".svelte").
+				const { sendOtpEmail } = await import('$lib/server/email');
+				return sendOtpEmail(email, otp, type);
+			}
 		}),
 		admin({ defaultRole: 'contributor', adminRoles: ['admin'] }),
 		sveltekitCookies(getRequestEvent) // make sure this is the last plugin in the array
