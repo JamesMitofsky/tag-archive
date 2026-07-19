@@ -1,6 +1,8 @@
 import { env } from '$env/dynamic/private';
+import { render } from 'svelte/server';
+import OtpEmail, { type OtpEmailType } from './emails/OtpEmail.svelte';
 
-type OtpType = 'sign-in' | 'email-verification' | 'forget-password';
+type OtpType = OtpEmailType;
 
 /**
  * Delivers a one-time password via Resend.
@@ -25,6 +27,12 @@ export async function sendOtpEmail(email: string, otp: string, type: OtpType): P
 		return;
 	}
 
+	// Render the Svelte email template to a static HTML string. `render()` from
+	// svelte/server is the Svelte-5-native way to do the svelte-email pattern —
+	// no extra dependency, and the template inlines its own email-safe styles.
+	const { body } = render(OtpEmail, { props: { otp, type } });
+	const html = `<!DOCTYPE html>${body}`;
+
 	const res = await fetch('https://api.resend.com/emails', {
 		method: 'POST',
 		headers: {
@@ -35,6 +43,8 @@ export async function sendOtpEmail(email: string, otp: string, type: OtpType): P
 			from: env.RESEND_FROM || 'TAG Archive <onboarding@resend.dev>',
 			to: [email],
 			subject: `${otp} is your TAG Archive sign-in code`,
+			html,
+			// Plain-text fallback for clients that don't render HTML.
 			text: `Your sign-in code is ${otp}. It expires in 5 minutes.\n\nIf you didn't request this, you can ignore this email.`
 		})
 	});
