@@ -54,11 +54,11 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<BackButton href="/cloud-keeper" />
+				<BackButton href="/keepers" />
 				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Events</h1>
 			</div>
 			<a
-				href="/cloud-keeper/events/add"
+				href="/keepers/events/add"
 				aria-label="Add event"
 				title="Add event"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"

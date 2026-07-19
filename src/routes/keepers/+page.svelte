@@ -99,19 +99,19 @@
 	// The three archive views, surfaced as hub cards for signed-in keepers.
 	const hubLinks = [
 		{
-			href: '/cloud-keeper/artefacts',
+			href: '/keepers/artefacts',
 			icon: ArchiveIcon,
 			label: 'Artefacts',
 			blurb: 'Digitized copies of physical things, often linked to an event.'
 		},
 		{
-			href: '/cloud-keeper/events',
+			href: '/keepers/events',
 			icon: CalendarBlankIcon,
 			label: 'Events',
 			blurb: 'Dated experiences in the garden, sometimes linked to a series.'
 		},
 		{
-			href: '/cloud-keeper/series',
+			href: '/keepers/series',
 			icon: StackIcon,
 			label: 'Series',
 			blurb: 'Banners under which some events exist.'

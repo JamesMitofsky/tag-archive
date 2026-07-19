@@ -52,11 +52,11 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<BackButton href="/cloud-keeper" />
+				<BackButton href="/keepers" />
 				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Artefacts</h1>
 			</div>
 			<a
-				href="/cloud-keeper/add"
+				href="/keepers/add"
 				aria-label="Add artefact"
 				title="Add artefact"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
@@ -111,7 +111,7 @@
 								<div class="min-w-0">
 									<!-- Stretched link: the ::after overlay makes the whole card open the artefact page. -->
 									<h3 class="font-medium break-words">
-										<a href="/cloud-keeper/{item.id}" class="after:absolute after:inset-0 after:z-[1]">
+										<a href="/keepers/{item.id}" class="after:absolute after:inset-0 after:z-[1]">
 											{item.artefact}
 										</a>
 									</h3>

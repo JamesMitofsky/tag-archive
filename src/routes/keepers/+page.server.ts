@@ -29,7 +29,7 @@ export const actions: Actions = {
 		try {
 			await auth.api.sendVerificationOTP({ body: { email: parsed.data, type: 'sign-in' } });
 		} catch (e) {
-			console.error('[cloud-keeper] failed to send OTP', e);
+			console.error('[keepers] failed to send OTP', e);
 			return fail(500, {
 				step: 'email' as const,
 				email: parsed.data,
@@ -66,7 +66,7 @@ export const actions: Actions = {
 				e instanceof APIError
 					? 'That code is wrong or expired. Request a new one.'
 					: 'Sign-in failed. Try again.';
-			if (!(e instanceof APIError)) console.error('[cloud-keeper] OTP sign-in failed', e);
+			if (!(e instanceof APIError)) console.error('[keepers] OTP sign-in failed', e);
 			return fail(400, { step: 'otp' as const, email: email.data, error: message });
 		}
 
