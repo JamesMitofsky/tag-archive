@@ -11,7 +11,6 @@
 	const ink = '#2b2b2b'; // --foreground
 	const muted = '#757575'; // --muted-foreground
 	const primaryBorder = '#a7d8ea'; // --primary
-	const navy = '#22304a'; // --primary-foreground
 
 	// Frosted pill button, mirroring the site's BackButton (rounded-full, subtle
 	// border, translucent-white fill, gray-700 text, soft shadow). The site's
@@ -74,17 +73,25 @@
 									An account has been created for this email
 								</p>
 
-								<!-- Sign-in button -->
-								<table role="presentation" cellpadding="0" cellspacing="0">
+								<!-- Sign-in button: centered frosted pill, matching the site's BackButton. -->
+								<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 									<tbody>
 									<tr>
-										<td align="center" style="border-radius:8px; background-color:{navy};">
-											<a
-												href={signInUrl}
-												style="display:inline-block; padding:12px 28px; font-family:{serif}; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border:1px solid {primaryBorder}; border-radius:8px;"
-											>
-												Sign in
-											</a>
+										<td align="center">
+											<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+												<tbody>
+												<tr>
+													<td align="center" style="border-radius:9999px; background-color:{btnBg};">
+														<a
+															href={signInUrl}
+															style="display:inline-block; padding:12px 24px; font-family:{serif}; font-size:22px; font-weight:600; color:{btnText}; text-decoration:none; border:1px solid {primaryBorder}; border-radius:9999px; box-shadow:0 1px 2px rgba(0,0,0,0.06);"
+														>
+															Sign in&nbsp;&rarr;
+														</a>
+													</td>
+												</tr>
+												</tbody>
+											</table>
 										</td>
 									</tr>
 									</tbody>
