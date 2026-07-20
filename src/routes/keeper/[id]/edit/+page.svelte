@@ -7,6 +7,7 @@
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
+	import AsyncComboField from '$lib/components/AsyncComboField.svelte';
 	import TagsField from '$lib/components/TagsField.svelte';
 	import PageScanner from '$lib/components/PageScanner.svelte';
 	import { Input } from '$lib/components/ui/input';
@@ -106,7 +107,6 @@
 				class="space-y-5"
 				bind:this={formEl}
 				oninput={revalidate}
-				onchange={revalidate}
 				onfocusout={markTouched}
 				use:enhance={({ formData, cancel }) => {
 					validator.revealAll();
@@ -147,11 +147,11 @@
 				<FieldError message={validator.error('fileUrls')} />
 
 				<div>
-					<ComboField
+					<AsyncComboField
 						name="event"
 						label="Event"
 						placeholder="Search or add an event"
-						options={data.events.map((e) => e.name)}
+						endpoint="/keeper/events/titles"
 						value={echoed?.event ?? data.artefact.event ?? ''}
 					/>
 					<FieldError message={validator.error('event')} />
