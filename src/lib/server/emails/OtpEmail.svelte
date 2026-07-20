@@ -8,8 +8,7 @@
 	// or forget-password codes), so the copy is fixed rather than keyed off a type.
 	let { otp }: { otp: string } = $props();
 
-	const heading = 'Sign in to TAG Archive';
-	const intro = 'Use this code to finish signing in to your account.';
+	const intro = 'Use this code to log-in:';
 
 	// Landing-page palette (layout.css / Sky.svelte tokens → email-safe hex).
 	const sky = '#8ecbe6'; // Sky.svelte watercolor-paper backdrop
@@ -31,7 +30,7 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="color-scheme" content="light" />
-		<title>{heading}</title>
+		<title>Your TAG Archive sign-in code</title>
 	</head>
 	<body style="margin:0; padding:0; background-color:{sky}; font-family:{serif};">
 		<!-- Preheader: inbox preview text, visually hidden. -->
@@ -70,11 +69,6 @@
 									TAG&nbsp;Archive
 								</p>
 
-								<h1
-									style="margin:0 0 8px 0; font-family:{serif}; font-size:22px; font-weight:600; color:{ink};"
-								>
-									{heading}
-								</h1>
 								<p style="margin:0 0 24px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};">
 									{intro}
 								</p>
@@ -98,17 +92,12 @@
 								</table>
 
 								<p style="margin:24px 0 0 0; font-family:{serif}; font-size:13px; line-height:1.5; color:{muted};">
-									This code expires in 5 minutes. If you didn't request it, you can safely ignore this
-									email.
+									Expires in 5 minutes. If you didn't request this, you can safely ignore this email.
 								</p>
 							</td>
 						</tr>
 						</tbody>
 					</table>
-
-					<p style="margin:20px 0 0 0; font-family:{serif}; font-size:12px; color:{navy}; opacity:0.7;">
-						TAG Archive
-					</p>
 				</td>
 			</tr>
 			</tbody>

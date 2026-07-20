@@ -16,12 +16,8 @@ export const load: PageServerLoad = () => {
 			html: `<!DOCTYPE html>${render(OtpEmail, { props: { otp: '123456' } }).body}`
 		},
 		{
-			label: 'AccountCreatedEmail — contributor',
-			html: `<!DOCTYPE html>${render(AccountCreatedEmail, { props: { name: 'Ada Lovelace', role: 'contributor', signInUrl: 'https://example.com/keeper' } }).body}`
-		},
-		{
-			label: 'AccountCreatedEmail — admin',
-			html: `<!DOCTYPE html>${render(AccountCreatedEmail, { props: { name: 'Grace Hopper', role: 'admin', signInUrl: 'https://example.com/keeper' } }).body}`
+			label: 'AccountCreatedEmail',
+			html: `<!DOCTYPE html>${render(AccountCreatedEmail, { props: { signInUrl: 'https://example.com/keeper' } }).body}`
 		}
 	];
 

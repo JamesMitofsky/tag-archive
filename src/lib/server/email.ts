@@ -85,19 +85,15 @@ export async function sendOtpEmail(email: string, otp: string): Promise<void> {
  * app is passwordless, so there's nothing to accept — they sign in whenever
  * they like by requesting an email code at the keeper page.
  */
-export async function sendAccountCreatedEmail(
-	email: string,
-	name: string,
-	role: string
-): Promise<void> {
+export async function sendAccountCreatedEmail(email: string): Promise<void> {
 	const { default: AccountCreatedEmail } = await import('./emails/AccountCreatedEmail.svelte');
 	const signInUrl = `${env.ORIGIN ?? ''}/keeper`;
 	await sendEmail({
 		to: email,
 		subject: 'Your TAG Archive account is ready',
-		html: renderEmail(AccountCreatedEmail, { name, role, signInUrl }),
-		text: `Hi ${name}, an account has been created for you at TAG Archive as a ${role}.\n\nTo sign in, go to ${signInUrl}, enter this email address, and we'll send you a one-time code. No password needed.`,
+		html: renderEmail(AccountCreatedEmail, { signInUrl }),
+		text: `An account has been created for you at TAG Archive.\n\nTo sign in, go to ${signInUrl}, enter this email address, and we'll send you a one-time code. No password needed.`,
 		logTag: 'email-account-created',
-		logLine: `account created for ${email} (role: ${role})`
+		logLine: `account created for ${email}`
 	});
 }

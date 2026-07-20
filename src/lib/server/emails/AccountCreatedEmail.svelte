@@ -4,12 +4,7 @@
 	// blocks and don't grok Tailwind/oklch, so the theme is hand-translated to
 	// hex/table layout). This app is passwordless — there's nothing to accept; the
 	// recipient signs in whenever they like via an emailed one-time code.
-	let { name, role, signInUrl }: { name: string; role: string; signInUrl: string } = $props();
-
-	// Friendly role wording; unknown roles fall back to the raw value.
-	const roleLabel = $derived(
-		role === 'admin' ? 'an admin' : role === 'contributor' ? 'a contributor' : `a ${role}`
-	);
+	let { signInUrl }: { signInUrl: string } = $props();
 
 	// Landing-page palette (layout.css / Sky.svelte tokens → email-safe hex).
 	const sky = '#8ecbe6'; // Sky.svelte watercolor-paper backdrop
@@ -68,49 +63,29 @@
 									TAG&nbsp;Archive
 								</p>
 
-								<h1
-									style="margin:0 0 8px 0; font-family:{serif}; font-size:22px; font-weight:600; color:{ink};"
-								>
-									Your account is ready
-								</h1>
-								<p style="margin:0 0 16px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};">
-									Hi {name}, an account has been created for you at TAG Archive as {roleLabel}.
-								</p>
 								<p style="margin:0 0 24px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};">
-									There's no password. To sign in, open the Cloud Keeper, enter this email address,
-									and we'll send you a one-time code.
+									An account has been created for you. Sign in with an email code:
 								</p>
 
 								<!-- Sign-in button -->
 								<table role="presentation" cellpadding="0" cellspacing="0">
 									<tbody>
 									<tr>
-										<td
-											align="center"
-											style="border-radius:8px; background-color:{navy};"
-										>
+										<td align="center" style="border-radius:8px; background-color:{navy};">
 											<a
 												href={signInUrl}
 												style="display:inline-block; padding:12px 28px; font-family:{serif}; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border:1px solid {primaryBorder}; border-radius:8px;"
 											>
-												Sign in to Cloud Keeper
+												Sign in
 											</a>
 										</td>
 									</tr>
 									</tbody>
 								</table>
-
-								<p style="margin:24px 0 0 0; font-family:{serif}; font-size:13px; line-height:1.5; color:{muted};">
-									If you weren't expecting this, you can safely ignore this email.
-								</p>
 							</td>
 						</tr>
 						</tbody>
 					</table>
-
-					<p style="margin:20px 0 0 0; font-family:{serif}; font-size:12px; color:{navy}; opacity:0.7;">
-						TAG Archive
-					</p>
 				</td>
 			</tr>
 			</tbody>

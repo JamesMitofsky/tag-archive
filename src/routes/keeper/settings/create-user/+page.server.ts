@@ -50,7 +50,7 @@ export const actions: Actions = {
 		// Let the new user know they can sign in. Non-fatal: the account already
 		// exists, so a send failure must not turn a success into an error.
 		try {
-			await sendAccountCreatedEmail(email, name, role);
+			await sendAccountCreatedEmail(email);
 		} catch (e) {
 			console.error('[create-user] account-created email failed', e);
 		}
