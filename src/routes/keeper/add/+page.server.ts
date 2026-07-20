@@ -3,6 +3,7 @@ import { eq, min } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { resolvePersonIds } from '$lib/server/db/queries';
 import { stampInsert } from '$lib/server/db/audit';
+import { isProposedAddition } from '$lib/server/db/proposals';
 import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
 import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
 import { summary } from '$lib/validation/helpers';
@@ -105,6 +106,7 @@ export const actions: Actions = {
 				location: nullIfEmpty(data.location),
 				fileUrls: data.fileUrls,
 				programArea: data.programArea,
+				proposedAddition: isProposedAddition(locals.user.role),
 				...stampInsert(userId)
 			})
 			.returning({ id: artefact.id });

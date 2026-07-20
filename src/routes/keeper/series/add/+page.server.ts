@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { stampInsert } from '$lib/server/db/audit';
+import { isProposedAddition } from '$lib/server/db/proposals';
 import { series } from '$lib/server/db/schema';
 import { createSeriesSuite, parseSeriesForm } from '$lib/validation/series';
 import { summary } from '$lib/validation/helpers';
@@ -69,6 +70,7 @@ export const actions: Actions = {
 			defaultDayOfWeek: data.defaultDayOfWeek || null,
 			defaultTime: data.defaultTime || null,
 			frequency: data.frequency || null,
+			proposedAddition: isProposedAddition(locals.user.role),
 			...stampInsert(locals.user.id)
 		});
 

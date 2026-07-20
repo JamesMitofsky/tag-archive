@@ -6,9 +6,6 @@ import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
 
-/** First sign-in with this email is auto-granted the admin role. */
-const adminEmail = () => (env.ADMIN_EMAIL ?? 'jamesmitofsky@gmail.com').toLowerCase();
-
 export const auth = betterAuth({
 	baseURL: env.ORIGIN,
 	secret: env.BETTER_AUTH_SECRET,
@@ -22,17 +19,6 @@ export const auth = betterAuth({
 		// cache serves most requests with no DB write, so the refresh path — and its
 		// logout-on-failure branch — is hit far less often.
 		cookieCache: { enabled: true, maxAge: 300 }
-	},
-	databaseHooks: {
-		user: {
-			create: {
-				before: async (user) => {
-					if (user.email.toLowerCase() === adminEmail()) {
-						return { data: { ...user, role: 'admin' } };
-					}
-				}
-			}
-		}
 	},
 	plugins: [
 		emailOTP({
