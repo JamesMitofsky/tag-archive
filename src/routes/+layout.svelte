@@ -1,10 +1,19 @@
 <script lang="ts">
 	import './layout.css';
 	import { fly } from 'svelte/transition';
+	import { beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import Sky from '$lib/components/Sky.svelte';
 
 	let { children } = $props();
+
+	// Slide direction: forward navigations slide left, backward (browser/back
+	// button popstate with negative delta) slide the opposite way.
+	let dir = $state(1);
+	beforeNavigate((nav) => {
+		if (typeof nav.delta === 'number' && nav.delta < 0) dir = -1;
+		else dir = 1;
+	});
 </script>
 
 <!-- Persistent sky: mounted once here, outside the keyed transition, so clouds
@@ -15,8 +24,8 @@
 	{#key page.url.pathname}
 		<div
 			class="route"
-			in:fly={{ x: 20, duration: 250 }}
-			out:fly={{ x: -20, duration: 250 }}
+			in:fly={{ x: 20 * dir, duration: 250 }}
+			out:fly={{ x: -20 * dir, duration: 250 }}
 		>
 			{@render children()}
 		</div>

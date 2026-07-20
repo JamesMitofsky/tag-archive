@@ -141,7 +141,11 @@
 	<title>Cloud Keeper · TAG Archive</title>
 </svelte:head>
 
-<main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
+<main
+	class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12 {data.user
+		? ''
+		: 'flex flex-col justify-center pb-32 sm:pb-40'}"
+>
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
@@ -149,7 +153,7 @@
 			</div>
 			{#if data.user}
 				<a
-					href="/settings"
+					href="/keeper/settings"
 					aria-label="Settings"
 					title="Settings"
 					class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"

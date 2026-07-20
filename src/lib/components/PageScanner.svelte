@@ -105,7 +105,7 @@
 		try {
 			const body = new FormData();
 			body.append('file', file, fileName);
-			const res = await fetch('/scans', { method: 'POST', body });
+			const res = await fetch('/keeper/scans', { method: 'POST', body });
 			if (!res.ok) throw new Error(await res.text());
 
 			const result = (await res.json()) as { url: string; fileName: string };

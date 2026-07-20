@@ -9,7 +9,7 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	// Admin tool, same gate as the roster it's reached from.
 	if (!locals.user) throw redirect(303, '/keeper');
-	if (locals.user.role !== 'admin') throw redirect(303, '/settings');
+	if (locals.user.role !== 'admin') throw redirect(303, '/keeper/settings');
 
 	// Same roster shape as the contributors list: each person with their artefact
 	// and event tallies, so the merge picker can show that context. count(distinct)

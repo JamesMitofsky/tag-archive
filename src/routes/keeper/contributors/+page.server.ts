@@ -7,7 +7,7 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	// Signed-in only; and this roster is an admin tool — bounce everyone else.
 	if (!locals.user) throw redirect(303, '/keeper');
-	if (locals.user.role !== 'admin') throw redirect(303, '/settings');
+	if (locals.user.role !== 'admin') throw redirect(303, '/keeper/settings');
 
 	// Every person, with how many artefacts they're the provenance of and how many
 	// events they host. Two left joins would multiply rows against each other, so
