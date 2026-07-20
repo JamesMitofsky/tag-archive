@@ -27,7 +27,7 @@
 	paths={strokePaths}
 	box={handwritingBox}
 	filterId="graphite-mark"
-	class="fixed top-3 left-3 z-40 w-64 max-w-[40vw]"
+	class="fixed top-3 left-3 z-40 w-40 max-w-[28vw]"
 />
 
 <div class="route-wrap">
