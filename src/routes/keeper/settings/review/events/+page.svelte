@@ -55,7 +55,7 @@
 								</p>
 							{/if}
 							{#if item.hosts.length > 0}
-								<p class="mt-2 text-sm text-gray-500">Hosted by {item.hosts.join(', ')}</p>
+								<p class="mt-2 text-sm text-gray-500">{item.hosts.join(', ')}</p>
 							{/if}
 							<ReviewActions id={item.id} />
 						</li>
