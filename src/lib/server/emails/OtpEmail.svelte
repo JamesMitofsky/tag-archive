@@ -92,7 +92,7 @@
 								</table>
 
 								<p style="margin:24px 0 0 0; text-align:center; font-family:{serif}; font-size:13px; line-height:1.5; color:{muted};">
-									Expires in 5 minutes.
+									Expires in 5 minutes
 								</p>
 							</td>
 						</tr>
