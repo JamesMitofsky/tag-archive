@@ -73,8 +73,9 @@
 									{intro}
 								</p>
 
-								<!-- Code well -->
-								<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+								<!-- Code well: auto-width table, centered, so it hugs the digits
+								     instead of stretching to the card edges. -->
+								<table role="presentation" align="center" cellpadding="0" cellspacing="0">
 									<tbody>
 									<tr>
 										<td

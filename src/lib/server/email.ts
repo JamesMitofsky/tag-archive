@@ -81,18 +81,19 @@ export async function sendOtpEmail(email: string, otp: string): Promise<void> {
 }
 
 /**
- * Notifies someone that an admin created a Cloud Keeper account for them. This
- * app is passwordless, so there's nothing to accept — they sign in whenever
- * they like by requesting an email code at the keeper page.
+ * Notifies someone that an admin created a Cloud Keeper account for them. The
+ * `signInUrl` is a magic-link that signs them straight in (valid 7 days); once
+ * it lapses the link lands them on /keeper to request a one-time code instead.
+ * This app is passwordless — there's no password to set, they just follow the
+ * link. Called from the magicLink plugin's sendMagicLink callback.
  */
-export async function sendAccountCreatedEmail(email: string): Promise<void> {
+export async function sendAccountCreatedEmail(email: string, signInUrl: string): Promise<void> {
 	const { default: AccountCreatedEmail } = await import('./emails/AccountCreatedEmail.svelte');
-	const signInUrl = `${env.ORIGIN ?? ''}/keeper`;
 	await sendEmail({
 		to: email,
 		subject: 'Your TAG Archive account is ready',
 		html: renderEmail(AccountCreatedEmail, { signInUrl }),
-		text: `An account has been created for you at TAG Archive.\n\nTo sign in, go to ${signInUrl}, enter this email address, and we'll send you a one-time code. No password needed.`,
+		text: `An account has been created for this email at TAG Archive.\n\nSign in: ${signInUrl}`,
 		logTag: 'email-account-created',
 		logLine: `account created for ${email}`
 	});

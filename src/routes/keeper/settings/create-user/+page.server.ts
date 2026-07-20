@@ -47,10 +47,16 @@ export const actions: Actions = {
 			return fail(500, { name, email, role, error: 'Could not create the account. Try again.' });
 		}
 
-		// Let the new user know they can sign in. Non-fatal: the account already
-		// exists, so a send failure must not turn a success into an error.
+		// Let the new user know they can sign in. This mints a 7-day magic-link and
+		// fires the account-created email via the magicLink plugin's sendMagicLink
+		// callback. Non-fatal: the account already exists, so a send failure must
+		// not turn a success into an error. callbackURL/errorCallbackURL both point
+		// at /keeper so an expired link simply lands them on the sign-in page.
 		try {
-			await sendAccountCreatedEmail(email);
+			await auth.api.signInMagicLink({
+				body: { email, callbackURL: '/keeper', errorCallbackURL: '/keeper' },
+				headers: request.headers
+			});
 		} catch (e) {
 			console.error('[create-user] account-created email failed', e);
 		}

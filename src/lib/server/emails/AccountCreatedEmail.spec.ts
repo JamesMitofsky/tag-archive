@@ -7,7 +7,7 @@ describe('AccountCreatedEmail', () => {
 		const { body } = render(AccountCreatedEmail, {
 			props: { signInUrl: 'https://archive.test/keeper' }
 		});
-		expect(body).toContain('An account has been created for you');
+		expect(body).toContain('An account has been created for this email');
 		expect(body).toContain('https://archive.test/keeper');
 		// Email-safe: inline styles, no Tailwind classes or oklch() leaking through.
 		expect(body).toContain('style=');

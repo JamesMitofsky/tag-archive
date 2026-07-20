@@ -13,6 +13,13 @@
 	const primaryBorder = '#a7d8ea'; // --primary
 	const navy = '#22304a'; // --primary-foreground
 
+	// Frosted pill button, mirroring the site's BackButton (rounded-full, subtle
+	// border, translucent-white fill, gray-700 text, soft shadow). The site's
+	// backdrop-blur/alpha don't survive email clients or read on a white card, so
+	// the translucent-over-sky look is hand-baked to opaque email-safe hex.
+	const btnText = '#374151'; // Tailwind gray-700 (BackButton text)
+	const btnBg = '#eef7fb'; // white/25 frost over the sky palette, flattened
+
 	// Palatino-first serif stack mirrors layout.css --font-sans, with web-safe
 	// Georgia/serif fallbacks for clients lacking the primary faces.
 	const serif =
@@ -31,7 +38,7 @@
 		<div
 			style="display:none; overflow:hidden; line-height:1px; max-height:0; max-width:0; opacity:0;"
 		>
-			An account has been created for you — sign in with an email code.
+			An account has been created for this email — sign in.
 		</div>
 
 		<!-- Full-bleed sky, table-based for Outlook. -->
@@ -64,7 +71,7 @@
 								</p>
 
 								<p style="margin:0 0 24px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};">
-									An account has been created for you. Sign in with an email code:
+									An account has been created for this email
 								</p>
 
 								<!-- Sign-in button -->
