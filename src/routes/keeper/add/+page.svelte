@@ -6,7 +6,7 @@
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
-	import { formatDateShort } from '$lib/formatDate';
+	import AsyncComboField from '$lib/components/AsyncComboField.svelte';
 	import TagsField from '$lib/components/TagsField.svelte';
 	import PageScanner from '$lib/components/PageScanner.svelte';
 	import { Input } from '$lib/components/ui/input';
@@ -64,24 +64,6 @@
 		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).date : ''
 	);
 
-	// Event options with a low-emphasis date. When a form date is set (and the search
-	// box is empty), events are ordered by proximity to it so the closest surface first;
-	// all events stay available. Undated events sink to the bottom.
-	const eventOptions = $derived.by(() => {
-		const opts = data.events.map((e) => ({
-			value: e.name,
-			secondary: e.date ? formatDateShort(e.date) : undefined,
-			date: e.date
-		}));
-		const target = formDate ? new Date(formDate).getTime() : NaN;
-		if (Number.isNaN(target)) return opts;
-		return [...opts].sort((a, b) => {
-			const da = a.date ? Math.abs(new Date(a.date).getTime() - target) : Infinity;
-			const db = b.date ? Math.abs(new Date(b.date).getTime() - target) : Infinity;
-			return da - db;
-		});
-	});
-
 	// Location: preset options, but the combobox also accepts a typed-in custom value.
 	const LOCATION_OPTIONS = ['Binder', 'Bin'];
 	const artefactError = $derived(form && 'artefactError' in form ? form.artefactError : undefined);
@@ -132,7 +114,6 @@
 				class="space-y-5"
 				bind:this={formEl}
 				oninput={revalidate}
-				onchange={revalidate}
 				onfocusout={markTouched}
 				use:enhance={({ formData, cancel }) => {
 					validator.revealAll();
@@ -186,11 +167,11 @@
 				<FieldError message={validator.error('fileUrls')} />
 
 				<div>
-					<ComboField
+					<AsyncComboField
 						name="event"
 						label="Event"
 						placeholder="Search or add an event"
-						options={eventOptions}
+						endpoint="/keeper/events/titles"
 						value={echoed?.event ?? ''}
 					/>
 					<FieldError message={validator.error('event')} />

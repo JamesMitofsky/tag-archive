@@ -3,7 +3,7 @@ import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachProvenance, resolvePersonIds } from '$lib/server/db/queries';
 import { stampInsert, stampUpdate } from '$lib/server/db/audit';
-import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
+import { artefact, artefactProvenance, event } from '$lib/server/db/schema';
 import { idSchema } from '$lib/schemas';
 import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
 import { summary } from '$lib/validation/helpers';
@@ -61,16 +61,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	if (rows.length === 0) throw error(404, 'Artefact not found');
 	const [item] = await attachProvenance(rows);
 
-	// Existing event titles + people power the searchable datalists. Distinct
-	// titles only — a recurring title (series) shouldn't list once per date.
-	const events = await db.selectDistinct({ name: event.title }).from(event).orderBy(event.title);
-	const provenancePeople = await db.select().from(person).orderBy(person.name);
-
+	// The event combobox fetches its (distinct-title) options on demand from
+	// `/keeper/events/titles`, so the loader only pulls the artefact itself.
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
-		artefact: item,
-		events,
-		provenancePeople
+		artefact: item
 	};
 };
 

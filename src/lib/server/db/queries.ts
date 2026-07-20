@@ -169,6 +169,47 @@ export async function searchEvents({
 	return { rows, total };
 }
 
+/** One distinct event title plus its earliest date, for the create/edit comboboxes. */
+export type EventTitleOption = { name: string; date: string | null };
+
+/**
+ * Searchable, paged list of *distinct* event titles for the artefact comboboxes.
+ * A recurring title (series) collapses to one row — its earliest date rides along
+ * as low-emphasis context. Filtering is server-side so the client never loads the
+ * whole table; the combobox fetches a window at a time and virtualizes the rest.
+ */
+export async function searchEventTitles({
+	q,
+	offset,
+	limit
+}: {
+	q: string;
+	offset: number;
+	limit: number;
+}): Promise<{ rows: EventTitleOption[]; total: number }> {
+	const term = q.trim().toLowerCase();
+	const filter = term ? like(sql`lower(${event.title})`, `%${term}%`) : undefined;
+
+	// Slice and the distinct-title count are independent — one round-trip on a
+	// remote DB. The count matches the grouped set (distinct titles), not raw rows.
+	const [rows, [{ total }]] = await Promise.all([
+		db
+			.select({ name: event.title, date: sql<string | null>`min(${event.date})` })
+			.from(event)
+			.where(filter)
+			.groupBy(event.title)
+			.orderBy(event.title)
+			.limit(limit)
+			.offset(offset),
+		db
+			.select({ total: sql<number>`count(distinct ${event.title})` })
+			.from(event)
+			.where(filter)
+	]);
+
+	return { rows, total };
+}
+
 /**
  * Find-or-create each person by name, returning their ids. Dedupes names first
  * so the same person always maps to one row (canonical, searchable across the

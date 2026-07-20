@@ -35,7 +35,7 @@ await db.delete(account);
 await db.delete(verification);
 await db.delete(user);
 
-const users = [
+const users: (typeof user.$inferInsert)[] = [
 	{
 		id: 'seed-admin',
 		name: 'Test Admin',
