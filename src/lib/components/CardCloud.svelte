@@ -9,18 +9,19 @@
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { cubicIn } from 'svelte/easing';
-	import { strokePaths, handwritingBox } from '$lib/handwriting';
 
 	interface Props {
 		// Search endpoint; queried as `${endpoint}?q=…`, expected to return `{ results }`.
 		endpoint: string;
 		// Renders one card's contents (event/date/tags — whatever the data has).
 		card: Snippet<[T]>;
+		// Optional content shown directly above the searchbar (e.g. a route-specific mark).
+		header?: Snippet;
 		ariaLabel?: string;
 		placeholder?: string;
 	}
 
-	let { endpoint, card, ariaLabel = 'Search', placeholder }: Props = $props();
+	let { endpoint, card, header, ariaLabel = 'Search', placeholder }: Props = $props();
 
 	let query = $state('');
 	let results = $state<T[]>([]);
@@ -188,53 +189,8 @@
 		class="searchbar fixed top-1/2 left-1/2 z-30 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4"
 		class:hidden-ui={selected !== null}
 	>
-		<!-- Static handwriting (recorded pen strokes) sits above the bar. -->
-		<svg
-			class="pointer-events-none mx-auto mb-1 block w-[28rem] max-w-full text-[#14120f]"
-			viewBox="{handwritingBox.x} {handwritingBox.y} {handwritingBox.width} {handwritingBox.height}"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="3.5"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			aria-hidden="true"
-		>
-			<!-- Graphite brush texture: rough the edges, then punch fine grain holes so
-			     the stroke reads like pencil tooth instead of flat ink. -->
-			<defs>
-				<filter id="graphite" x="-20%" y="-20%" width="140%" height="140%">
-					<!-- low-freq wobble = hand-drawn rough edge -->
-					<feTurbulence
-						type="fractalNoise"
-						baseFrequency="0.08"
-						numOctaves="2"
-						seed="7"
-						result="edge"
-					/>
-					<feDisplacementMap in="SourceGraphic" in2="edge" scale="2.5" result="rough" />
-					<!-- high-freq noise -> alpha mask = broken graphite coverage (paper tooth) -->
-					<feTurbulence
-						type="fractalNoise"
-						baseFrequency="0.9"
-						numOctaves="2"
-						seed="3"
-						result="grain"
-					/>
-					<feColorMatrix
-						in="grain"
-						type="matrix"
-						values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.4 1.15"
-						result="grainMask"
-					/>
-					<feComposite in="rough" in2="grainMask" operator="in" />
-				</filter>
-			</defs>
-			<g filter="url(#graphite)">
-				{#each strokePaths as d}
-					<path {d} />
-				{/each}
-			</g>
-		</svg>
+		<!-- Optional route-specific mark sits above the bar. -->
+		{@render header?.()}
 		<div class="relative">
 			{#if loading}
 				<svg
