@@ -1,8 +1,8 @@
 import { and, desc, eq, exists, getTableColumns, inArray, like, or, sql } from 'drizzle-orm';
 import { client, db } from './index';
-import { stampInsert } from './audit';
-import { artefactProvenance, event, eventHost, person, series } from './schema';
-import type { EventWithMeta } from './schema';
+import { stampInsert, stampUpdate } from './audit';
+import { artefact, artefactProvenance, event, eventHost, person, series } from './schema';
+import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
 
 /**
  * Fold one or more people into a single kept entry: every artefact/event link on
@@ -235,6 +235,108 @@ export async function resolvePersonIds(names: string[], userId: string): Promise
 	}
 
 	return unique.map((name) => idByName.get(name)!);
+}
+
+// ── Review queue ─────────────────────────────────────────────────────────────
+// Contributor submissions land with `proposedAddition` true (see ./proposals)
+// and wait here until an admin vets them. Approving flips the flag to false;
+// rejecting deletes the row. Each list mirrors its keeper-list loader but scopes
+// to the pending set, so the review pages read like a smaller version of the
+// full archive.
+
+/** How many rows of each kind are still awaiting a keeper's vetting. */
+export async function countPendingReview(): Promise<{
+	artefacts: number;
+	events: number;
+	series: number;
+}> {
+	const [[a], [e], [s]] = await Promise.all([
+		db
+			.select({ n: sql<number>`count(*)` })
+			.from(artefact)
+			.where(eq(artefact.proposedAddition, true)),
+		db
+			.select({ n: sql<number>`count(*)` })
+			.from(event)
+			.where(eq(event.proposedAddition, true)),
+		db
+			.select({ n: sql<number>`count(*)` })
+			.from(series)
+			.where(eq(series.proposedAddition, true))
+	]);
+	return { artefacts: a.n, events: e.n, series: s.n };
+}
+
+/** Proposed artefacts with their event title + provenance names, newest first. */
+export async function listProposedArtefacts(): Promise<ArtefactWithEvent[]> {
+	const rows = await db
+		.select({ ...getTableColumns(artefact), event: event.title })
+		.from(artefact)
+		.leftJoin(event, eq(artefact.eventId, event.id))
+		.where(eq(artefact.proposedAddition, true))
+		.orderBy(desc(artefact.date), desc(artefact.id));
+	return attachProvenance(rows);
+}
+
+/** Proposed events with their series name + host names, newest first. */
+export async function listProposedEvents(): Promise<EventWithMeta[]> {
+	const rows = await db
+		.select({ ...getTableColumns(event), series: series.name })
+		.from(event)
+		.leftJoin(series, eq(event.seriesId, series.id))
+		.where(eq(event.proposedAddition, true))
+		.orderBy(desc(event.date), desc(event.id));
+	return attachHosts(rows);
+}
+
+/** Proposed series, alphabetical. */
+export async function listProposedSeries(): Promise<Series[]> {
+	return db.select().from(series).where(eq(series.proposedAddition, true)).orderBy(series.name);
+}
+
+/** The three domain tables that carry a `proposed_addition` flag. */
+export type ReviewKind = 'artefact' | 'event' | 'series';
+const reviewTable = { artefact, event, series } as const;
+
+/** Vet a proposed row: clear the flag so it joins the archive proper. No-op if
+ *  the row is already vetted or gone. */
+export async function approveProposed(kind: ReviewKind, id: number, userId: string): Promise<void> {
+	const table = reviewTable[kind];
+	await db
+		.update(table)
+		.set({ proposedAddition: false, ...stampUpdate(userId) })
+		.where(and(eq(table.id, id), eq(table.proposedAddition, true)));
+}
+
+/** Discard a proposed row entirely. Clears the FK references a delete would trip
+ *  (artefacts point at events; events point at series) before removing the row. */
+export async function rejectProposed(kind: ReviewKind, id: number, userId: string): Promise<void> {
+	// Only ever delete a still-pending row — an approved row is real archive data.
+	const guard = await db
+		.select({ id: reviewTable[kind].id })
+		.from(reviewTable[kind])
+		.where(and(eq(reviewTable[kind].id, id), eq(reviewTable[kind].proposedAddition, true)))
+		.limit(1);
+	if (guard.length === 0) return;
+
+	if (kind === 'event') {
+		// Artefacts reference this event (nullable, no cascade) — unlink first.
+		await db
+			.update(artefact)
+			.set({ eventId: null, ...stampUpdate(userId) })
+			.where(eq(artefact.eventId, id));
+		await db.delete(event).where(eq(event.id, id));
+	} else if (kind === 'series') {
+		// Events reference this series (nullable) — detach them into one-offs first.
+		await db
+			.update(event)
+			.set({ seriesId: null, ...stampUpdate(userId) })
+			.where(eq(event.seriesId, id));
+		await db.delete(series).where(eq(series.id, id));
+	} else {
+		// Provenance links cascade on the artefact delete.
+		await db.delete(artefact).where(eq(artefact.id, id));
+	}
 }
 
 /**

@@ -3,6 +3,7 @@
 	import BackButton from '$lib/components/BackButton.svelte';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
 	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
+	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import type { PageData } from './$types';
 
@@ -36,7 +37,25 @@
 			<p class="mt-10 text-lg text-gray-800">{data.user.email}</p>
 
 			{#if data.user.role === 'admin'}
-				<div class="mt-6 pt-6">
+				<div class="mt-6 space-y-3 pt-6">
+					<a
+						href="/keeper/settings/review"
+						class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-4 py-3 text-sm text-gray-800 transition hover:bg-gray-50"
+					>
+						<span class="flex items-center gap-2">
+							<ClipboardTextIcon size={18} />
+							Review
+							<!-- Pending total next to the label, low emphasis per the pill convention. -->
+							{#if data.pendingTotal > 0}
+								<span
+									class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200"
+								>
+									{data.pendingTotal}
+								</span>
+							{/if}
+						</span>
+						<ArrowRightIcon size={18} class="text-gray-400" />
+					</a>
 					<a
 						href="/keeper/contributors"
 						class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-4 py-3 text-sm text-gray-800 transition hover:bg-gray-50"
