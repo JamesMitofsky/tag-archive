@@ -23,6 +23,18 @@ const auditColumns = () => ({
 });
 
 /**
+ * Provenance flag every contributor-creatable entity carries. A contributor's
+ * submission lands as a proposed addition — `proposed_addition` true — until a
+ * keeper (admin) vets it; admin-authored rows are created already-vetted
+ * (false). Named distinctly from any existing "needs review" concept. Set at
+ * insert from the submitter's role (see `isProposedAddition` in ./proposals),
+ * never inferred from the actor columns at read time.
+ */
+const proposalColumns = () => ({
+	proposedAddition: integer('proposed_addition', { mode: 'boolean' }).notNull().default(false)
+});
+
+/**
  * A series: the banner that connects several events held under one recurring
  * name (e.g. weekly "Yoga in the Garden", monthly "Music in the Garden").
  * A series exists only when several events are connected — a one-off event has
@@ -40,6 +52,7 @@ export const series = sqliteTable('series', {
 	defaultDayOfWeek: text('default_day_of_week'),
 	defaultTime: text('default_time'),
 	frequency: text('frequency'),
+	...proposalColumns(),
 	...auditColumns()
 });
 
@@ -73,6 +86,7 @@ export const event = sqliteTable(
 		// boundary / one-off. Kept for manual review, never drives logic.
 		mayHaveException: integer('may_have_exception', { mode: 'boolean' }).notNull().default(false),
 		possibleExceptionDescription: text('possible_exception_description'),
+		...proposalColumns(),
 		...auditColumns()
 	},
 	(t) => [
@@ -145,6 +159,7 @@ export const artefact = sqliteTable(
 		fileUrls: text('file_urls', { mode: 'json' }).$type<string[]>().notNull().default([]),
 		// Physical storage location, e.g. "Binder" / "Bin".
 		location: text('location'),
+		...proposalColumns(),
 		...auditColumns()
 	},
 	(t) => [
