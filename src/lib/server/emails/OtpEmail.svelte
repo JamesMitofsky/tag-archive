@@ -8,7 +8,7 @@
 	// or forget-password codes), so the copy is fixed rather than keyed off a type.
 	let { otp }: { otp: string } = $props();
 
-	const intro = 'Use this code to log-in:';
+	const intro = 'Use this code to connect';
 
 	// Landing-page palette (layout.css / Sky.svelte tokens → email-safe hex).
 	const sky = '#8ecbe6'; // Sky.svelte watercolor-paper backdrop

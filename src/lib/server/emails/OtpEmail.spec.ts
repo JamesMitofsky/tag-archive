@@ -6,7 +6,7 @@ describe('OtpEmail', () => {
 	it('renders the code and sign-in copy into static HTML', () => {
 		const { body } = render(OtpEmail, { props: { otp: '123456' } });
 		expect(body).toContain('123456');
-		expect(body).toContain('Use this code to log-in:');
+		expect(body).toContain('Use this code to connect');
 		// Email-safe: inline styles, no Tailwind classes or oklch() leaking through.
 		expect(body).toContain('style=');
 		expect(body).not.toContain('oklch(');
