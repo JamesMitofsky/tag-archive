@@ -1,22 +1,20 @@
 <script lang="ts">
-	// Email templates render server-side via `render()` from `svelte/server` into a
-	// static HTML string (see ../email.ts). Styles are INLINE by design — email
-	// clients (Gmail, Outlook) strip <style> blocks and don't grok Tailwind or
-	// oklch(), so the landing-page theme is hand-translated to hex/table layout.
-	//
-	// Sign-in is the only OTP flow: this app is passwordless (no email-verification
-	// or forget-password codes), so the copy is fixed rather than keyed off a type.
-	let { otp }: { otp: string } = $props();
+	// Sent when an admin creates a Cloud Keeper account for someone. Mirrors
+	// OtpEmail's inline, table-based, email-safe styling (clients strip <style>
+	// blocks and don't grok Tailwind/oklch, so the theme is hand-translated to
+	// hex/table layout). This app is passwordless — there's nothing to accept; the
+	// recipient signs in whenever they like via an emailed one-time code.
+	let { name, role, signInUrl }: { name: string; role: string; signInUrl: string } = $props();
 
-	const heading = 'Sign in to TAG Archive';
-	const intro = 'Use this code to finish signing in to your account.';
+	// Friendly role wording; unknown roles fall back to the raw value.
+	const roleLabel = $derived(
+		role === 'admin' ? 'an admin' : role === 'contributor' ? 'a contributor' : `a ${role}`
+	);
 
 	// Landing-page palette (layout.css / Sky.svelte tokens → email-safe hex).
 	const sky = '#8ecbe6'; // Sky.svelte watercolor-paper backdrop
 	const ink = '#2b2b2b'; // --foreground
 	const muted = '#757575'; // --muted-foreground
-	const border = '#e5e7eb';
-	const primarySoft = '#e3f2f9'; // light-blue code well (tint of --primary)
 	const primaryBorder = '#a7d8ea'; // --primary
 	const navy = '#22304a'; // --primary-foreground
 
@@ -31,14 +29,14 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="color-scheme" content="light" />
-		<title>{heading}</title>
+		<title>Your TAG Archive account is ready</title>
 	</head>
 	<body style="margin:0; padding:0; background-color:{sky}; font-family:{serif};">
 		<!-- Preheader: inbox preview text, visually hidden. -->
 		<div
 			style="display:none; overflow:hidden; line-height:1px; max-height:0; max-width:0; opacity:0;"
 		>
-			{otp} is your TAG Archive code — expires in 5 minutes.
+			An account has been created for you — sign in with an email code.
 		</div>
 
 		<!-- Full-bleed sky, table-based for Outlook. -->
@@ -73,33 +71,37 @@
 								<h1
 									style="margin:0 0 8px 0; font-family:{serif}; font-size:22px; font-weight:600; color:{ink};"
 								>
-									{heading}
+									Your account is ready
 								</h1>
+								<p style="margin:0 0 16px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};">
+									Hi {name}, an account has been created for you at TAG Archive as {roleLabel}.
+								</p>
 								<p style="margin:0 0 24px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};">
-									{intro}
+									There's no password. To sign in, open the Cloud Keeper, enter this email address,
+									and we'll send you a one-time code.
 								</p>
 
-								<!-- Code well -->
-								<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+								<!-- Sign-in button -->
+								<table role="presentation" cellpadding="0" cellspacing="0">
 									<tbody>
 									<tr>
 										<td
 											align="center"
-											style="padding:18px 12px; background-color:{primarySoft}; border:1px solid {primaryBorder}; border-radius:8px;"
+											style="border-radius:8px; background-color:{navy};"
 										>
-											<span
-												style="font-family:{serif}; font-size:30px; font-weight:700; letter-spacing:0.35em; color:{navy};"
+											<a
+												href={signInUrl}
+												style="display:inline-block; padding:12px 28px; font-family:{serif}; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border:1px solid {primaryBorder}; border-radius:8px;"
 											>
-												{otp}
-											</span>
+												Sign in to Cloud Keeper
+											</a>
 										</td>
 									</tr>
 									</tbody>
 								</table>
 
 								<p style="margin:24px 0 0 0; font-family:{serif}; font-size:13px; line-height:1.5; color:{muted};">
-									This code expires in 5 minutes. If you didn't request it, you can safely ignore this
-									email.
+									If you weren't expecting this, you can safely ignore this email.
 								</p>
 							</td>
 						</tr>

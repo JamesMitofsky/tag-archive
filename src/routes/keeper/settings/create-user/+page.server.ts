@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
 import { auth } from '$lib/server/auth';
+import { sendAccountCreatedEmail } from '$lib/server/email';
 import { ASSIGNABLE_ROLES, createNewUserSuite, parseCreateUserForm } from '$lib/validation/auth';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -44,6 +45,14 @@ export const actions: Actions = {
 			}
 			console.error('[create-user] failed', e);
 			return fail(500, { name, email, role, error: 'Could not create the account. Try again.' });
+		}
+
+		// Let the new user know they can sign in. Non-fatal: the account already
+		// exists, so a send failure must not turn a success into an error.
+		try {
+			await sendAccountCreatedEmail(email, name, role);
+		} catch (e) {
+			console.error('[create-user] account-created email failed', e);
 		}
 
 		return { created: { name, email, role } };

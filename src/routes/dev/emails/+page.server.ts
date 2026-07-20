@@ -1,22 +1,29 @@
 import { dev } from '$app/environment';
 import { error } from '@sveltejs/kit';
 import { render } from 'svelte/server';
-import OtpEmail, { type OtpEmailType } from '$lib/server/emails/OtpEmail.svelte';
+import OtpEmail from '$lib/server/emails/OtpEmail.svelte';
+import AccountCreatedEmail from '$lib/server/emails/AccountCreatedEmail.svelte';
 import type { PageServerLoad } from './$types';
 
-// Dev-only email gallery: renders every template variant to HTML so they can be
+// Dev-only email gallery: renders every template to HTML so they can be
 // previewed in the browser without sending mail. 404s in production builds.
-// `sign-in` is the only real flow; the generic fallback covers the other union
-// members the plugin could theoretically pass. Preview both states.
-const OTP_TYPES: OtpEmailType[] = ['sign-in', 'email-verification'];
-
 export const load: PageServerLoad = () => {
 	if (!dev) throw error(404, 'Not found');
 
-	const previews = OTP_TYPES.map((type) => {
-		const { body } = render(OtpEmail, { props: { otp: '123456', type } });
-		return { label: `OtpEmail — ${type}`, html: `<!DOCTYPE html>${body}` };
-	});
+	const previews = [
+		{
+			label: 'OtpEmail — sign-in',
+			html: `<!DOCTYPE html>${render(OtpEmail, { props: { otp: '123456' } }).body}`
+		},
+		{
+			label: 'AccountCreatedEmail — contributor',
+			html: `<!DOCTYPE html>${render(AccountCreatedEmail, { props: { name: 'Ada Lovelace', role: 'contributor', signInUrl: 'https://example.com/keeper' } }).body}`
+		},
+		{
+			label: 'AccountCreatedEmail — admin',
+			html: `<!DOCTYPE html>${render(AccountCreatedEmail, { props: { name: 'Grace Hopper', role: 'admin', signInUrl: 'https://example.com/keeper' } }).body}`
+		}
+	];
 
 	return { previews };
 };

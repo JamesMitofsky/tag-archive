@@ -25,12 +25,13 @@ export const auth = betterAuth({
 			otpLength: 6,
 			expiresIn: 300,
 			storeOTP: 'hashed',
-			sendVerificationOTP: async ({ email, otp, type }) => {
+			sendVerificationOTP: async ({ email, otp }) => {
+				// Sign-in is the only OTP flow (passwordless app), so `type` is ignored.
 				// Imported lazily so `better-auth generate` can load this config
 				// without the Node ESM loader traversing OtpEmail.svelte (which it
 				// can't parse — ERR_UNKNOWN_FILE_EXTENSION on ".svelte").
 				const { sendOtpEmail } = await import('$lib/server/email');
-				return sendOtpEmail(email, otp, type);
+				return sendOtpEmail(email, otp);
 			}
 		}),
 		admin({ defaultRole: 'contributor', adminRoles: ['admin'] }),
