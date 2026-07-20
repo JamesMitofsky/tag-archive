@@ -3,9 +3,20 @@
 	import { programAreaMeta } from '$lib/programAreas';
 	import { formatDate } from '$lib/formatDate';
 	import CardCloud from '$lib/components/CardCloud.svelte';
+	import Handwriting from '$lib/components/Handwriting.svelte';
+	import { strokePaths, handwritingBox } from '$lib/handwritingHome';
 </script>
 
-<CardCloud endpoint="/api/search" card={page} />
+<CardCloud endpoint="/api/search" card={page} {header} />
+
+{#snippet header()}
+	<Handwriting
+		paths={strokePaths}
+		box={handwritingBox}
+		filterId="graphite-home"
+		class="mx-auto mb-1 w-[12rem] max-w-full"
+	/>
+{/snippet}
 
 {#snippet page(item: ArtefactWithEvent)}
 	<div

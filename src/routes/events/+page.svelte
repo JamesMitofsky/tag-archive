@@ -2,14 +2,25 @@
 	import type { EventItem } from '$lib/events';
 	import { formatDate } from '$lib/formatDate';
 	import CardCloud from '$lib/components/CardCloud.svelte';
+	import Handwriting from '$lib/components/Handwriting.svelte';
+	import { strokePaths, handwritingBox } from '$lib/handwritingEvents';
 </script>
 
 <CardCloud
 	endpoint="/api/events"
 	ariaLabel="Search events"
-	placeholder="Search U Street events…"
 	card={page}
+	{header}
 />
+
+{#snippet header()}
+	<Handwriting
+		paths={strokePaths}
+		box={handwritingBox}
+		filterId="graphite-events"
+		class="mx-auto mb-4 w-[8rem] max-w-full"
+	/>
+{/snippet}
 
 {#snippet page(item: EventItem)}
 	<div
