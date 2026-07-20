@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
 
-	// 404 gets a friendlier line; any other status shows its own message.
+	// 404 gets a friendlier line; any other error hides its raw message.
 	let is404 = $derived(page.status === 404);
 	let subtitle = $derived(
-		is404 ? 'this page has drifted off...' : (page.error?.message ?? 'something went wrong')
+		is404 ? 'this page has drifted off...' : 'Something seems to have gone wrong... sorry about that!'
 	);
 </script>
 
