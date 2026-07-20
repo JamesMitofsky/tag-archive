@@ -125,6 +125,14 @@
 												)}{/if}{#if item.event}{#if item.date}{' · '}{/if}{item.event}{/if}
 										</p>
 									</div>
+									{#if item.proposedAddition}
+										<!-- Contributor submission awaiting a keeper's vetting; amber flags attention. -->
+										<span
+											class="relative z-[2] shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 ring-1 ring-amber-200"
+										>
+											Proposed addition
+										</span>
+									{/if}
 								</div>
 								{#if item.description}
 									<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">

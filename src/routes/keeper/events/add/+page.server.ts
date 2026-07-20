@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { resolvePersonIds, resolveSeriesId } from '$lib/server/db/queries';
 import { stampInsert } from '$lib/server/db/audit';
+import { isProposedAddition } from '$lib/server/db/proposals';
 import { event, eventHost, person, series } from '$lib/server/db/schema';
 import { createEventSuite, parseEventForm } from '$lib/validation/event';
 import { summary } from '$lib/validation/helpers';
@@ -79,6 +80,7 @@ export const actions: Actions = {
 				location: nullIfEmpty(data.location),
 				description: nullIfEmpty(data.description),
 				url: nullIfEmpty(data.url),
+				proposedAddition: isProposedAddition(locals.user.role),
 				...stampInsert(userId)
 			})
 			.returning({ id: event.id });
