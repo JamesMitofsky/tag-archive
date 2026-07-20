@@ -81,7 +81,6 @@
 			<dl class="mt-6 space-y-3 border-t border-gray-200 pt-5 text-sm">
 				{#if item.hosts.length > 0}
 					<div class="flex flex-wrap gap-x-2">
-						<dt class="font-medium text-gray-500">Hosted by</dt>
 						<dd class="text-gray-800">{item.hosts.join(', ')}</dd>
 					</div>
 				{/if}

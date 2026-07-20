@@ -3,6 +3,7 @@
 	import BackButton from '$lib/components/BackButton.svelte';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
 	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
+	import UserPlusIcon from 'phosphor-svelte/lib/UserPlusIcon';
 	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import type { PageData } from './$types';
@@ -63,6 +64,16 @@
 						<span class="flex items-center gap-2">
 							<UsersIcon size={18} />
 							Contributors
+						</span>
+						<ArrowRightIcon size={18} class="text-gray-400" />
+					</a>
+					<a
+						href="/keeper/settings/create-user"
+						class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-4 py-3 text-sm text-gray-800 transition hover:bg-gray-50"
+					>
+						<span class="flex items-center gap-2">
+							<UserPlusIcon size={18} />
+							New account
 						</span>
 						<ArrowRightIcon size={18} class="text-gray-400" />
 					</a>

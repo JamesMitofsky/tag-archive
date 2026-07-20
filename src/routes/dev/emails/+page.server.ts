@@ -1,22 +1,35 @@
 import { dev } from '$app/environment';
 import { error } from '@sveltejs/kit';
 import { render } from 'svelte/server';
-import OtpEmail, { type OtpEmailType } from '$lib/server/emails/OtpEmail.svelte';
+import OtpEmail from '$lib/server/emails/OtpEmail.svelte';
+import AccountCreatedEmail from '$lib/server/emails/AccountCreatedEmail.svelte';
+import { otpEmailSubject, accountCreatedEmailSubject } from '$lib/server/emails/subjects';
 import type { PageServerLoad } from './$types';
 
-// Dev-only email gallery: renders every template variant to HTML so they can be
+// Dev-only email gallery: renders every template to HTML so they can be
 // previewed in the browser without sending mail. 404s in production builds.
-// `sign-in` is the only real flow; the generic fallback covers the other union
-// members the plugin could theoretically pass. Preview both states.
-const OTP_TYPES: OtpEmailType[] = ['sign-in', 'email-verification'];
-
 export const load: PageServerLoad = () => {
 	if (!dev) throw error(404, 'Not found');
 
-	const previews = OTP_TYPES.map((type) => {
-		const { body } = render(OtpEmail, { props: { otp: '123456', type } });
-		return { label: `OtpEmail — ${type}`, html: `<!DOCTYPE html>${body}` };
-	});
+	// Random 6-digit code so the preview reflects real, varied digits each reload.
+	const otp = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
+
+	// Relative path resolves against the app origin inside the srcdoc iframe;
+	// real sends use an absolute ORIGIN-based URL (see email.ts).
+	const logoUrl = '/email/temperance-alley-archive.png';
+
+	const previews = [
+		{
+			label: 'OtpEmail — sign-in',
+			subject: otpEmailSubject(otp),
+			html: `<!DOCTYPE html>${render(OtpEmail, { props: { otp, logoUrl } }).body}`
+		},
+		{
+			label: 'AccountCreatedEmail',
+			subject: accountCreatedEmailSubject,
+			html: `<!DOCTYPE html>${render(AccountCreatedEmail, { props: { signInUrl: 'https://example.com/keeper', logoUrl } }).body}`
+		}
+	];
 
 	return { previews };
 };
