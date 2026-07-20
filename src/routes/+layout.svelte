@@ -4,6 +4,8 @@
 	import { beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import Sky from '$lib/components/Sky.svelte';
+	import Handwriting from '$lib/components/Handwriting.svelte';
+	import { strokePaths, handwritingBox } from '$lib/handwriting';
 
 	let { children } = $props();
 
@@ -19,6 +21,14 @@
 <!-- Persistent sky: mounted once here, outside the keyed transition, so clouds
      drift continuously across navigation and fill the slide gap behind pages. -->
 <Sky />
+
+<!-- Handwritten mark pinned to the top-left, part of the chrome on every route. -->
+<Handwriting
+	paths={strokePaths}
+	box={handwritingBox}
+	filterId="graphite-mark"
+	class="fixed top-3 left-3 z-40 w-64 max-w-[40vw]"
+/>
 
 <div class="route-wrap">
 	{#key page.url.pathname}
