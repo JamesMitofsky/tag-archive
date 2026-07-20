@@ -8,6 +8,10 @@
 	// or forget-password codes), so the copy is fixed rather than keyed off a type.
 	let { otp }: { otp: string } = $props();
 
+	// Split into two groups of three for readability. Falls back to the whole
+	// string if it isn't the expected 6 chars.
+	const otpGroups = otp.length === 6 ? [otp.slice(0, 3), otp.slice(3)] : [otp];
+
 	const intro = 'Use this code to connect';
 
 	// Landing-page palette (layout.css / Sky.svelte tokens → email-safe hex).
@@ -23,6 +27,10 @@
 	// Georgia/serif fallbacks for clients lacking the primary faces.
 	const serif =
 		"'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', Palatino, Georgia, serif";
+
+	// Web-safe sans stack for the code digits — cleaner, less ambiguous glyphs
+	// than the Palatino serif for reading a one-time code.
+	const sans = "-apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif";
 </script>
 
 <html lang="en">
@@ -82,11 +90,18 @@
 											align="center"
 											style="padding:18px 12px; background-color:{primarySoft}; border:1px solid {primaryBorder}; border-radius:8px;"
 										>
-											<span
-												style="font-family:{serif}; font-size:30px; font-weight:700; letter-spacing:0.35em; color:{navy};"
-											>
-												{otp}
-											</span>
+											<!-- Tight letter-spacing within each group, a wide gap between
+											     groups. padding-left on the first group balances the trailing
+											     letter-spacing of the last, keeping the row centered. -->
+											{#each otpGroups as group, i (i)}
+												<span
+													style="font-family:{sans}; font-size:30px; font-weight:600; letter-spacing:0.25em; color:{navy}; {i === 0
+														? 'padding-left:0.25em;'
+														: 'margin-left:0.5em;'}"
+												>
+													{group}
+												</span>
+											{/each}
 										</td>
 									</tr>
 									</tbody>
