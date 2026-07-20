@@ -215,7 +215,7 @@
 										<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
 											{#if item.hosts.length > 0}
 												<span class="text-sm text-gray-500">
-													Hosted by {item.hosts.join(', ')}
+													{item.hosts.join(', ')}
 												</span>
 											{/if}
 											{#if item.mayHaveException}
