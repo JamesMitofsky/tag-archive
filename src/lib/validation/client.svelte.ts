@@ -22,8 +22,15 @@ export function createValidator<T>(
 	return {
 		/** Re-run the full suite against the latest data. Returns whether it passed. */
 		run(data: T): boolean {
-			result = suite(data);
-			return result.isValid();
+			// Read `isValid()` off the fresh local, NOT the `result` state after
+			// assigning it. Reading `result` here would make any `$effect` that calls
+			// `run()` depend on `result`; since each run stores a new object, the
+			// effect would invalidate itself and reschedule forever — a silent
+			// main-thread freeze (it reschedules across flushes, so the
+			// effect_update_depth guard never trips).
+			const outcome = suite(data);
+			result = outcome;
+			return outcome.isValid();
 		},
 		/** Flag a field as touched (call on blur) so its error may surface. */
 		touch(field: string): void {

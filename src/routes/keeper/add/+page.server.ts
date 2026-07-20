@@ -1,10 +1,10 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { eq, min } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { resolvePersonIds } from '$lib/server/db/queries';
 import { stampInsert } from '$lib/server/db/audit';
 import { isProposedAddition } from '$lib/server/db/proposals';
-import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
+import { artefact, artefactProvenance, event } from '$lib/server/db/schema';
 import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
 import { summary } from '$lib/validation/helpers';
 import type { Actions, PageServerLoad } from './$types';
@@ -48,20 +48,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// The create form is signed-in only; bounce guests back to the keeper page.
 	if (!locals.user) throw redirect(303, '/keeper');
 
-	// Existing event titles + people power the searchable datalists. Distinct
-	// titles only — a recurring title (series) shouldn't list once per date; its
-	// earliest date rides along as low-emphasis context in the combobox.
-	const events = await db
-		.select({ name: event.title, date: min(event.date) })
-		.from(event)
-		.groupBy(event.title)
-		.orderBy(event.title);
-	const provenancePeople = await db.select().from(person).orderBy(person.name);
-
+	// The event combobox fetches its (distinct-title) options on demand from
+	// `/keeper/events/titles`, so nothing but the auth check loads up front.
 	return {
-		user: { email: locals.user.email, role: locals.user.role },
-		events,
-		provenancePeople
+		user: { email: locals.user.email, role: locals.user.role }
 	};
 };
 
