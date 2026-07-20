@@ -94,13 +94,14 @@
 								<p style="margin:24px 0 0 0; text-align:center; font-family:{serif}; font-size:13px; line-height:1.5; color:{muted};">
 									Expires in 5 minutes.
 								</p>
-								<p style="margin:12px 0 0 0; text-align:center; font-family:{serif}; font-size:13px; line-height:1.5; color:{muted};">
-									If you didn't request this, you can safely ignore this email.
-								</p>
 							</td>
 						</tr>
 						</tbody>
 					</table>
+
+					<p style="margin:20px 0 0 0; text-align:center; font-family:{serif}; font-size:12px; line-height:1.5; color:{navy}; opacity:0.7;">
+						If you didn't request this, you can safely ignore this email.
+					</p>
 				</td>
 			</tr>
 			</tbody>
