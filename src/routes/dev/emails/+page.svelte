@@ -8,7 +8,11 @@
 
 	{#each data.previews as preview}
 		<section class="mb-8">
-			<h2 class="mb-2 text-sm font-medium text-gray-700">{preview.label}</h2>
+			<h2 class="mb-1 text-sm font-medium text-gray-700">{preview.label}</h2>
+			<p class="mb-2 text-sm text-gray-500">
+				<span class="text-gray-400">Subject:</span>
+				{preview.subject}
+			</p>
 			<!-- srcdoc isolates the email's own <html> doc from the app's styles. -->
 			<iframe
 				title={preview.label}

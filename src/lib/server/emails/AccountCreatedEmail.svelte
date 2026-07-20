@@ -4,11 +4,14 @@
 	// blocks and don't grok Tailwind/oklch, so the theme is hand-translated to
 	// hex/table layout). This app is passwordless — there's nothing to accept; the
 	// recipient signs in whenever they like via an emailed one-time code.
-	let { signInUrl }: { signInUrl: string } = $props();
+	//
+	// `logoUrl` is an absolute URL to the handwritten wordmark PNG (built from
+	// env.ORIGIN at the call site). Email clients can't resolve relative paths, so
+	// the header image must be fully-qualified.
+	let { signInUrl, logoUrl }: { signInUrl: string; logoUrl: string } = $props();
 
 	// Landing-page palette (layout.css / Sky.svelte tokens → email-safe hex).
 	const sky = '#8ecbe6'; // Sky.svelte watercolor-paper backdrop
-	const ink = '#2b2b2b'; // --foreground
 	const muted = '#757575'; // --muted-foreground
 	const primaryBorder = '#a7d8ea'; // --primary
 
@@ -62,12 +65,14 @@
 						<tbody>
 						<tr>
 							<td style="padding:32px 32px 24px 32px;">
-								<!-- Wordmark -->
-								<p
-									style="margin:0 0 24px 0; font-family:{serif}; font-size:18px; font-weight:600; letter-spacing:0.02em; color:{ink};"
-								>
-									TAG&nbsp;Archive
-								</p>
+								<!-- Wordmark: handwritten Temperance Alley Archive header. -->
+								<img
+									src={logoUrl}
+									alt="TAG Archive"
+									width="320"
+									height="85"
+									style="display:block; width:320px; max-width:100%; height:auto; margin:0 0 20px 0; border:0;"
+								/>
 
 								<p style="margin:0 0 24px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};">
 									An account has been created for this email

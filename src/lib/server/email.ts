@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { render } from 'svelte/server';
 import type { Component } from 'svelte';
+import { otpEmailSubject, accountCreatedEmailSubject } from './emails/subjects';
 
 /**
  * Low-level send. Whether a message is delivered or logged keys off
@@ -67,13 +68,23 @@ function renderEmail<P extends Record<string, unknown>>(component: Component<P>,
 	return `<!DOCTYPE html>${body}`;
 }
 
+/**
+ * Absolute URL to the handwritten wordmark header served from static/. Email
+ * clients can't resolve relative paths, so it's fully-qualified via ORIGIN;
+ * ORIGIN is the same base better-auth uses (see auth.ts).
+ */
+function logoUrl(): string {
+	const origin = (env.ORIGIN ?? '').replace(/\/$/, '');
+	return `${origin}/email/temperance-alley-archive.png`;
+}
+
 /** Delivers a one-time sign-in code. OTP sign-in is the only OTP flow here. */
 export async function sendOtpEmail(email: string, otp: string): Promise<void> {
 	const { default: OtpEmail } = await import('./emails/OtpEmail.svelte');
 	await sendEmail({
 		to: email,
-		subject: `${otp} is your TAG Archive sign-in code`,
-		html: renderEmail(OtpEmail, { otp }),
+		subject: otpEmailSubject(otp),
+		html: renderEmail(OtpEmail, { otp, logoUrl: logoUrl() }),
 		text: `Your sign-in code is ${otp}. It expires in 5 minutes.\n\nIf you didn't request this, you can ignore this email.`,
 		logTag: 'email-otp',
 		logLine: `sign-in code for ${email}: ${otp}`
@@ -91,8 +102,8 @@ export async function sendAccountCreatedEmail(email: string, signInUrl: string):
 	const { default: AccountCreatedEmail } = await import('./emails/AccountCreatedEmail.svelte');
 	await sendEmail({
 		to: email,
-		subject: 'Your TAG Archive account is ready',
-		html: renderEmail(AccountCreatedEmail, { signInUrl }),
+		subject: accountCreatedEmailSubject,
+		html: renderEmail(AccountCreatedEmail, { signInUrl, logoUrl: logoUrl() }),
 		text: `An account has been created for this email at TAG Archive.\n\nSign in: ${signInUrl}`,
 		logTag: 'email-account-created',
 		logLine: `account created for ${email}`
