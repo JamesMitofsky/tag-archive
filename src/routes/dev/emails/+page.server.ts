@@ -10,10 +10,13 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = () => {
 	if (!dev) throw error(404, 'Not found');
 
+	// Random 6-digit code so the preview reflects real, varied digits each reload.
+	const otp = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
+
 	const previews = [
 		{
 			label: 'OtpEmail — sign-in',
-			html: `<!DOCTYPE html>${render(OtpEmail, { props: { otp: '123456' } }).body}`
+			html: `<!DOCTYPE html>${render(OtpEmail, { props: { otp } }).body}`
 		},
 		{
 			label: 'AccountCreatedEmail',

@@ -4,7 +4,7 @@
 
 <div class="mx-auto max-w-2xl p-6">
 	<h1 class="mb-1 text-xl font-semibold">Email previews</h1>
-	<p class="mb-6 text-sm text-gray-600">Dev-only. Rendered server-side, sample code <code>123456</code>.</p>
+	<p class="mb-6 text-sm text-gray-600">Dev-only. Rendered server-side.</p>
 
 	{#each data.previews as preview}
 		<section class="mb-8">
