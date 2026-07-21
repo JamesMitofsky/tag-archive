@@ -141,11 +141,7 @@
 	<title>Cloud Keeper · TAG Archive</title>
 </svelte:head>
 
-<main
-	class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12 {data.user
-		? ''
-		: 'flex flex-col justify-center pb-32 sm:pb-40'}"
->
+<main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
