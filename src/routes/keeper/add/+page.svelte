@@ -249,7 +249,7 @@
 				</div>
 
 				{#if artefactError && Object.keys(errors).length === 0}
-					<p class="text-sm text-red-600" role="alert">{artefactError}</p>
+					<p class="text-sm text-red-600 font-friendly" role="alert">{artefactError}</p>
 				{/if}
 
 				<button

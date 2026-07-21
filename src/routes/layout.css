@@ -73,6 +73,7 @@ img {
    Setting --font-sans routes Tailwind's default document font through it. */
 @theme {
 	--font-sans: 'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, serif;
+	--font-friendly: 'Chalkboard SE', 'Comic Neue', sans-serif;
 }
 
 /* Map the theme tokens to Tailwind color + radius utilities so components
