@@ -1,50 +1,45 @@
 import { json } from '@sveltejs/kit';
-import { eq, getTableColumns, inArray, or, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachProvenance } from '$lib/server/db/queries';
 import { artefact, artefactProvenance, event, person } from '$lib/server/db/schema';
 import type { RequestHandler } from './$types';
 
 /**
- * Full-text-ish search across the archive.
- * Matches a substring (case-insensitive) in any of the requested fields.
- * programArea is a JSON string array stored as text, so LIKE on the raw JSON
- * matches the contained values. event and provenance are normalised tables,
- * matched via their own columns.
+ * Tokenized search across the archive.
+ * Breaks query string into tokens, matching prefix or substring across artefact title,
+ * description, program area, event title, and provenance contributor names.
  */
 export const GET: RequestHandler = async ({ url }) => {
-	const q = url.searchParams.get('q')?.trim() ?? '';
-	if (!q) return json({ results: [] });
+	const rawQ = url.searchParams.get('q')?.trim() ?? '';
+	if (!rawQ) return json({ results: [] });
 
-	// Escape LIKE wildcards so user input is matched literally (see ESCAPE below).
-	const term = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
-	// SQLite LIKE is case-insensitive for ASCII. Backslash is the escape char
-	// (written '\\' so the template literal emits a single literal backslash).
-	const matches = (col: unknown) => sql`${col} LIKE ${term} ESCAPE '\\'`;
+	const tokens = rawQ.split(/\s+/).filter((t) => t.length > 0);
+	if (tokens.length === 0) return json({ results: [] });
 
-	// Artefacts whose provenance (a joined table) matches the term.
-	const provMatchIds = (
-		await db
-			.selectDistinct({ id: artefactProvenance.artefactId })
-			.from(artefactProvenance)
-			.innerJoin(person, eq(person.id, artefactProvenance.personId))
-			.where(matches(person.name))
-	).map((r) => r.id);
+	// For each token, build a match condition across fields
+	const tokenConditions = tokens.map((token) => {
+		const escaped = token.replace(/[\\%_]/g, '\\$&');
+		const pattern = `%${escaped}%`;
+		return or(
+			sql`${artefact.artefact} LIKE ${pattern} ESCAPE '\\'`,
+			sql`${event.title} LIKE ${pattern} ESCAPE '\\'`,
+			sql`${artefact.programArea} LIKE ${pattern} ESCAPE '\\'`,
+			sql`${artefact.description} LIKE ${pattern} ESCAPE '\\'`,
+			sql`${person.name} LIKE ${pattern} ESCAPE '\\'`
+		);
+	});
 
-	// Event lives in its own table now; join it in and expose the title flat as `event`.
+	// Find matching artefacts in a single pass
 	const rows = await db
-		.select({ ...getTableColumns(artefact), event: event.title })
+		.selectDistinct({ ...getTableColumns(artefact), event: event.title })
 		.from(artefact)
 		.leftJoin(event, eq(artefact.eventId, event.id))
-		.where(
-			or(
-				matches(artefact.artefact),
-				matches(event.title),
-				matches(artefact.programArea),
-				matches(artefact.description),
-				provMatchIds.length ? inArray(artefact.id, provMatchIds) : sql`0`
-			)
-		);
+		.leftJoin(artefactProvenance, eq(artefact.id, artefactProvenance.artefactId))
+		.leftJoin(person, eq(person.id, artefactProvenance.personId))
+		.where(and(...tokenConditions))
+		.limit(100);
+
 	const results = await attachProvenance(rows);
 
 	return json({ results });

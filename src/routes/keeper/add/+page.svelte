@@ -3,6 +3,7 @@
 	import BackButton from '$lib/components/BackButton.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
@@ -87,9 +88,11 @@
 
 	// True while an image upload is in flight.
 	let scanPending = $state(false);
+	// True while the form submit action is processing.
+	let submitting = $state(false);
 
 	// Block submit until required fields are filled and any upload is finalized.
-	const canSubmit = $derived(title.trim().length > 0 && !scanPending);
+	const canSubmit = $derived(title.trim().length > 0 && formDate.trim().length > 0 && !scanPending);
 
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
@@ -102,7 +105,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
-			<BackButton href="/keeper/artefacts" ariaLabel="Back to Artefacts" />
+			<BackButton />
 		</header>
 
 		<!-- The create form is a fresh sheet of paper, like the artefact pages. -->
@@ -117,7 +120,15 @@
 				onfocusout={markTouched}
 				use:enhance={({ formData, cancel }) => {
 					validator.revealAll();
-					if (!validator.run(parseArtefactForm(formData))) cancel();
+					if (!validator.run(parseArtefactForm(formData))) {
+						cancel();
+						return;
+					}
+					submitting = true;
+					return async ({ update }) => {
+						await update();
+						submitting = false;
+					};
 				}}
 			>
 				<div>
@@ -142,6 +153,7 @@
 					<DateField
 						name="date"
 						label="Date"
+						required
 						value={echoed?.date ?? ''}
 						onChange={(iso) => {
 							formDate = iso;
@@ -172,6 +184,7 @@
 						label="Event"
 						placeholder="Search or add an event"
 						endpoint="/keeper/events/titles"
+						date={formDate}
 						value={echoed?.event ?? ''}
 					/>
 					<FieldError message={validator.error('event')} />
@@ -254,10 +267,15 @@
 
 				<button
 					type="submit"
-					disabled={!canSubmit}
+					disabled={!canSubmit || submitting}
+					aria-busy={submitting}
 					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>
-					<PlusIcon size={18} />
+					{#if submitting}
+						<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+					{:else}
+						<PlusIcon size={18} />
+					{/if}
 					Add artefact
 				</button>
 			</form>

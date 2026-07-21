@@ -175,7 +175,7 @@
 	$effect(() => {
 		const q = query;
 		clearTimeout(debounce);
-		debounce = setTimeout(() => runSearch(q), 200);
+		debounce = setTimeout(() => runSearch(q), 150);
 		return () => clearTimeout(debounce);
 	});
 </script>

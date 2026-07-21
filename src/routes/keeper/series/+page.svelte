@@ -52,7 +52,7 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<BackButton href="/keeper" />
+				<BackButton />
 				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Series</h1>
 				<p class="mt-1 text-sm text-gray-600">Banners under which some events exist.</p>
 			</div>

@@ -40,6 +40,7 @@
 			status: 'done'
 		}))
 	);
+
 	const emit = () =>
 		onChange?.(attached.filter((a) => a.status === 'done' && a.url).map((a) => a.url!));
 
@@ -49,7 +50,7 @@
 	let video = $state<HTMLVideoElement>();
 	let stream: MediaStream | null = null;
 
-	// Live camera is the primary path; the file input (with `capture`) is the fallback
+	// Live camera is the primary path; the file input is the fallback
 	// for browsers or permission states where getUserMedia isn't available.
 	const canUseCamera = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
@@ -191,36 +192,40 @@
 		};
 	}
 
-	/** Optimistically render picked photo and upload converted WebP. */
+	/** Optimistically render picked photo(s) and upload converted WebP. */
 	async function onFiles(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
+		const files = input.files ? Array.from(input.files) : [];
 		input.value = '';
-		if (!file) return;
+		if (files.length === 0) return;
 
-		const itemId = crypto.randomUUID();
-		const immediatePreview = URL.createObjectURL(file);
+		for (const file of files) {
+			const itemId = crypto.randomUUID();
+			const immediatePreview = URL.createObjectURL(file);
 
-		// Optimistic rendering right away
-		attached = [
-			...attached,
-			{
-				id: itemId,
-				fileName: file.name,
-				previewUrl: immediatePreview,
-				status: 'uploading'
-			}
-		];
+			// Optimistic rendering right away
+			attached = [
+				...attached,
+				{
+					id: itemId,
+					fileName: file.name,
+					previewUrl: immediatePreview,
+					status: 'uploading'
+				}
+			];
 
-		try {
-			const { blob, fileName, previewUrl } = await convertToWebP(file);
-			updateItem(itemId, { previewUrl });
-			await processUpload(itemId, blob, fileName, previewUrl);
-		} catch (e) {
-			updateItem(itemId, {
-				status: 'error',
-				error: e instanceof Error ? e.message : 'Image processing failed'
-			});
+			void (async () => {
+				try {
+					const { blob, fileName, previewUrl } = await convertToWebP(file);
+					updateItem(itemId, { previewUrl });
+					await processUpload(itemId, blob, fileName, previewUrl);
+				} catch (e) {
+					updateItem(itemId, {
+						status: 'error',
+						error: e instanceof Error ? e.message : 'Image processing failed'
+					});
+				}
+			})();
 		}
 	}
 
@@ -299,7 +304,7 @@
 				<input
 					type="file"
 					accept="image/*"
-					capture="environment"
+					multiple
 					onchange={onFiles}
 					class="sr-only"
 				/>
@@ -373,4 +378,3 @@
 		</div>
 	{/if}
 </div>
-

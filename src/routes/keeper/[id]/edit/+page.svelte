@@ -4,6 +4,7 @@
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
@@ -45,6 +46,10 @@
 	// svelte-ignore state_referenced_locally
 	const seed = form && 'values' in form && form.values ? (form.values as ArtefactFormValues) : null;
 
+	// Live form date, tracked so the event list can prioritise events near it.
+	// svelte-ignore state_referenced_locally
+	let formDate = $state(seed ? seed.date : (data.artefact.date ?? ''));
+
 	// Program-area picker state (multi-select — an artefact carries several).
 	// svelte-ignore state_referenced_locally
 	let selectedAreas = $state<string[]>(seed ? seed.programArea : [...data.artefact.programArea]);
@@ -73,14 +78,17 @@
 
 	// True while an image upload is in flight.
 	let scanPending = $state(false);
+	// True while update or delete actions are processing.
+	let submitting = $state(false);
+	let deleting = $state(false);
 
 	// Block submit until required fields are filled and any upload is finalized.
-	const canSubmit = $derived(title.trim().length > 0 && !scanPending);
+	const canSubmit = $derived(title.trim().length > 0 && formDate.trim().length > 0 && !scanPending);
 
 	// Combos, tags, and the program-area cards mutate state without always firing a
 	// bubbling input event, so re-validate whenever any tracked field changes.
 	$effect(() => {
-		void [title, selectedAreas, provenanceTags, fileUrls];
+		void [title, formDate, selectedAreas, provenanceTags, fileUrls];
 		revalidate();
 	});
 
@@ -95,7 +103,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
-			<BackButton href="/keeper/{data.artefact.id}" ariaLabel="Back to artefact" />
+			<BackButton />
 		</header>
 
 		<!-- The edit form is a sheet of paper, like the artefact pages. -->
@@ -110,7 +118,15 @@
 				onfocusout={markTouched}
 				use:enhance={({ formData, cancel }) => {
 					validator.revealAll();
-					if (!validator.run(parseArtefactForm(formData))) cancel();
+					if (!validator.run(parseArtefactForm(formData))) {
+						cancel();
+						return;
+					}
+					submitting = true;
+					return async ({ update }) => {
+						await update();
+						submitting = false;
+					};
 				}}
 			>
 				<div>
@@ -152,6 +168,7 @@
 						label="Event"
 						placeholder="Search or add an event"
 						endpoint="/keeper/events/titles"
+						date={formDate}
 						value={echoed?.event ?? data.artefact.event ?? ''}
 					/>
 					<FieldError message={validator.error('event')} />
@@ -161,8 +178,10 @@
 					<DateField
 						name="date"
 						label="Date"
+						required
 						value={echoed?.date ?? data.artefact.date ?? ''}
-						onChange={() => {
+						onChange={(iso) => {
+							formDate = iso;
 							validator.touch('date');
 							revalidate();
 						}}
@@ -247,10 +266,15 @@
 
 				<button
 					type="submit"
-					disabled={!canSubmit}
+					disabled={!canSubmit || submitting || deleting}
+					aria-busy={submitting}
 					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>
-					<CheckIcon size={18} />
+					{#if submitting}
+						<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+					{:else}
+						<CheckIcon size={18} />
+					{/if}
 					Save changes
 				</button>
 			</form>
@@ -261,17 +285,30 @@
 					method="POST"
 					action="?/deleteArtefact"
 					use:enhance={({ cancel }) => {
-						if (!confirm(`Delete "${data.artefact.artefact}"? This cannot be undone.`)) cancel();
-						return async ({ update }) => update();
+						if (!confirm(`Delete "${data.artefact.artefact}"? This cannot be undone.`)) {
+							cancel();
+							return;
+						}
+						deleting = true;
+						return async ({ update }) => {
+							await update();
+							deleting = false;
+						};
 					}}
 				>
 					<button
 						type="submit"
+						disabled={deleting || submitting}
+						aria-busy={deleting}
 						aria-label="Delete {data.artefact.artefact}"
 						title="Delete artefact"
-						class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-sm text-gray-500 transition hover:bg-red-50 hover:text-red-600"
+						class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-sm text-gray-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						<TrashIcon size={18} />
+						{#if deleting}
+							<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+						{:else}
+							<TrashIcon size={18} />
+						{/if}
 						Delete
 					</button>
 				</form>

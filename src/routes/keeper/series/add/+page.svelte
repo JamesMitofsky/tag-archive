@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { DAYS_OF_WEEK, createSeriesSuite, parseSeriesForm } from '$lib/validation/series';
@@ -47,6 +48,7 @@
 			: ''
 	);
 
+	let submitting = $state(false);
 	const canSubmit = $derived(name.trim().length > 0);
 
 	// The weekday pills mutate a hidden input via state, so re-validate whenever the
@@ -67,7 +69,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
-			<BackButton href="/keeper/series" ariaLabel="Back to Series" />
+			<BackButton />
 		</header>
 
 		<!-- The create form is a fresh sheet of paper, like the series pages. -->
@@ -84,7 +86,15 @@
 				onfocusout={markTouched}
 				use:enhance={({ formData, cancel }) => {
 					validator.revealAll();
-					if (!validator.run(parseSeriesForm(formData))) cancel();
+					if (!validator.run(parseSeriesForm(formData))) {
+						cancel();
+						return;
+					}
+					submitting = true;
+					return async ({ update }) => {
+						await update();
+						submitting = false;
+					};
 				}}
 			>
 				<div>
@@ -192,10 +202,15 @@
 
 				<button
 					type="submit"
-					disabled={!canSubmit}
+					disabled={!canSubmit || submitting}
+					aria-busy={submitting}
 					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>
-					<PlusIcon size={18} />
+					{#if submitting}
+						<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+					{:else}
+						<PlusIcon size={18} />
+					{/if}
 					Add series
 				</button>
 			</form>

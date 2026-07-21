@@ -17,7 +17,7 @@ export type ArtefactSource = {
 	id: number;
 	artefact: string;
 	event: string | null;
-	date: string | null;
+	date: string;
 	provenance: string[];
 	programArea: string[];
 	description: string | null;
@@ -128,7 +128,7 @@ export async function seedArchive<S extends Record<string, unknown>>(
 	 * - recurring title without a matching date, or a title absent from the events
 	 *   export → null (needs a manual link; the series is still reachable elsewhere)
 	 */
-	const resolveArtefactEventId = (name: string | null, date: string | null): number | null => {
+	const resolveArtefactEventId = (name: string | null, date: string): number | null => {
 		const title = name?.trim();
 		if (!title) return null;
 		const count = titleCounts.get(title) ?? 0;

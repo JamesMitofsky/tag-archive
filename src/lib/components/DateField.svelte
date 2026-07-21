@@ -17,11 +17,13 @@
 	let {
 		name,
 		label,
+		required = false,
 		value: initial = '',
 		onChange
 	}: {
 		name: string;
 		label: string;
+		required?: boolean;
 		value?: string;
 		/** Fires with the resolved ISO date whenever the pick changes. */
 		onChange?: (iso: string) => void;
@@ -41,7 +43,12 @@
 </script>
 
 <div class="flex flex-col gap-1.5">
-	<span class="block text-sm font-medium text-gray-700">{label}</span>
+	<span class="block text-sm font-medium text-gray-700">
+		{label}
+		{#if required}
+			<span class="text-red-600" title="Required" aria-label="required">*</span>
+		{/if}
+	</span>
 	<Popover.Root>
 		<Popover.Trigger>
 			{#snippet child({ props })}

@@ -3,6 +3,7 @@
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import Sky from '$lib/components/Sky.svelte';
+	import Drawing from '$lib/components/Drawing.svelte';
 
 	let { children } = $props();
 </script>
@@ -12,40 +13,36 @@
 <Sky />
 
 <!-- Handwritten mark linking home -->
-<a href="/" aria-label="Home" class="fixed top-3 left-3 z-40 transition-opacity hover:opacity-70">
-	<img
-		src="/drawing/text/tag-archive.png"
+<a href="/" aria-label="Home" class="fixed top-3 left-3 z-40 transition-opacity duration-100 hover:opacity-70">
+	<Drawing
+		src="/drawing/text/tag-archive.webp"
 		alt="Home"
 		class="w-40 max-w-[28vw]"
-		style="mix-blend-mode: multiply"
 	/>
 </a>
 
 {#if !page.url.pathname.startsWith('/keeper')}
 	<!-- Handwritten nav pinned to the top-right -->
 	<nav class="fixed top-3 right-6 z-40 flex items-center gap-6">
-		<a href="/" aria-label="Artefacts" class="transition-opacity hover:opacity-70">
-			<img
-				src="/drawing/text/nav-artefacts.png"
+		<a href="/" aria-label="Artefacts" class="transition-opacity duration-100 hover:opacity-70">
+			<Drawing
+				src="/drawing/text/nav-artefacts.webp"
 				alt="Artefacts"
 				class="h-10 w-auto"
-				style="mix-blend-mode: multiply"
 			/>
 		</a>
-		<a href="/events" aria-label="Events" class="transition-opacity hover:opacity-70">
-			<img
-				src="/drawing/text/nav-events.png"
+		<a href="/events" aria-label="Events" class="transition-opacity duration-100 hover:opacity-70">
+			<Drawing
+				src="/drawing/text/nav-events.webp"
 				alt="Events"
 				class="h-10 w-auto"
-				style="mix-blend-mode: multiply"
 			/>
 		</a>
-		<a href="/keeper" aria-label="Keeper" class="transition-opacity hover:opacity-70">
-			<img
-				src="/drawing/text/cloud-keeper-btn.png"
+		<a href="/keeper" aria-label="Keeper" class="transition-opacity duration-100 hover:opacity-70">
+			<Drawing
+				src="/drawing/text/cloud-keeper-btn.webp"
 				alt="Keeper"
 				class="h-10 w-auto"
-				style="mix-blend-mode: multiply"
 			/>
 		</a>
 	</nav>

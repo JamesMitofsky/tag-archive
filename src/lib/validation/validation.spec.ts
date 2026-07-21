@@ -20,13 +20,19 @@ describe('artefact suite', () => {
 	const run = createArtefactSuite();
 
 	it('requires a title', () => {
-		const r = run(parseArtefactForm(fd({ artefact: '   ' })));
+		const r = run(parseArtefactForm(fd({ artefact: '   ', date: '2021-07-01' })));
 		expect(r.isValid()).toBe(false);
 		expect(r.getErrors('artefact')).toContain('Title is required');
 	});
 
+	it('requires a date', () => {
+		const r = run(parseArtefactForm(fd({ artefact: 'Steep Program', date: '' })));
+		expect(r.isValid()).toBe(false);
+		expect(r.getErrors('date')).toContain('Pick a valid date');
+	});
+
 	it('accepts a minimal valid artefact', () => {
-		const r = run(parseArtefactForm(fd({ artefact: 'Steep Program' })));
+		const r = run(parseArtefactForm(fd({ artefact: 'Steep Program', date: '2021-07-01' })));
 		expect(r.isValid()).toBe(true);
 	});
 
@@ -50,14 +56,19 @@ describe('artefact suite', () => {
 	it('accepts a known program area and an https file url', () => {
 		const r = run(
 			parseArtefactForm(
-				fd({ artefact: 'Ok', programArea: ['DIY'], fileUrls: ['https://cdn.example/x.jpg'] })
+				fd({
+					artefact: 'Ok',
+					date: '2021-07-01',
+					programArea: ['DIY'],
+					fileUrls: ['https://cdn.example/x.jpg']
+				})
 			)
 		);
 		expect(r.isValid()).toBe(true);
 	});
 
 	it('rejects an over-long title', () => {
-		const r = run(parseArtefactForm(fd({ artefact: 'x'.repeat(201) })));
+		const r = run(parseArtefactForm(fd({ artefact: 'x'.repeat(201), date: '2021-07-01' })));
 		expect(r.getErrors('artefact')).toContain('Keep the title under 200 characters');
 	});
 });

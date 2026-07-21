@@ -3,6 +3,7 @@
 	import BackButton from '$lib/components/BackButton.svelte';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
 	import TagsField from '$lib/components/TagsField.svelte';
@@ -58,6 +59,8 @@
 	// svelte-ignore state_referenced_locally
 	let date = $state(seed ? seed.date : data.event.date);
 
+	let submitting = $state(false);
+	let deleting = $state(false);
 	const canSubmit = $derived(title.trim().length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(date));
 
 	// Combos and tags mutate state without always firing a bubbling input event, so
@@ -78,7 +81,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
-			<BackButton href="/keeper/events/{data.event.id}" ariaLabel="Back to event" />
+			<BackButton />
 		</header>
 
 		<!-- The edit form is a sheet of paper, like the event pages. -->
@@ -94,7 +97,15 @@
 				onfocusout={markTouched}
 				use:enhance={({ formData, cancel }) => {
 					validator.revealAll();
-					if (!validator.run(parseEventForm(formData))) cancel();
+					if (!validator.run(parseEventForm(formData))) {
+						cancel();
+						return;
+					}
+					submitting = true;
+					return async ({ update }) => {
+						await update();
+						submitting = false;
+					};
 				}}
 			>
 				<div>
@@ -214,10 +225,15 @@
 
 				<button
 					type="submit"
-					disabled={!canSubmit}
+					disabled={!canSubmit || submitting || deleting}
+					aria-busy={submitting}
 					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>
-					<CheckIcon size={18} />
+					{#if submitting}
+						<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+					{:else}
+						<CheckIcon size={18} />
+					{/if}
 					Save changes
 				</button>
 			</form>
@@ -228,17 +244,30 @@
 					method="POST"
 					action="?/deleteEvent"
 					use:enhance={({ cancel }) => {
-						if (!confirm(`Delete "${data.event.title}"? This cannot be undone.`)) cancel();
-						return async ({ update }) => update();
+						if (!confirm(`Delete "${data.event.title}"? This cannot be undone.`)) {
+							cancel();
+							return;
+						}
+						deleting = true;
+						return async ({ update }) => {
+							await update();
+							deleting = false;
+						};
 					}}
 				>
 					<button
 						type="submit"
+						disabled={deleting || submitting}
+						aria-busy={deleting}
 						aria-label="Delete {data.event.title}"
 						title="Delete event"
-						class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-sm text-gray-500 transition hover:bg-red-50 hover:text-red-600"
+						class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-sm text-gray-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						<TrashIcon size={18} />
+						{#if deleting}
+							<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+						{:else}
+							<TrashIcon size={18} />
+						{/if}
 						Delete
 					</button>
 				</form>

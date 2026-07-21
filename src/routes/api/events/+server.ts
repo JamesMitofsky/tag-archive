@@ -22,26 +22,21 @@ export const GET: RequestHandler = async ({ url }) => {
 	// (written '\\' so the template literal emits a single literal backslash).
 	const matches = (col: unknown) => sql`${col} LIKE ${term} ESCAPE '\\'`;
 
-	// Events whose host (a joined person) matches the term.
-	const hostMatchIds = (
-		await db
-			.selectDistinct({ id: eventHost.eventId })
-			.from(eventHost)
-			.innerJoin(person, eq(person.id, eventHost.personId))
-			.where(matches(person.name))
-	).map((r) => r.id);
-
+	// Find all matching events in a single pass across title, description, location, and host person names.
 	const rows = await db
-		.select(getTableColumns(event))
+		.selectDistinct(getTableColumns(event))
 		.from(event)
+		.leftJoin(eventHost, eq(event.id, eventHost.eventId))
+		.leftJoin(person, eq(person.id, eventHost.personId))
 		.where(
 			or(
 				matches(event.title),
 				matches(event.description),
 				matches(event.location),
-				hostMatchIds.length ? inArray(event.id, hostMatchIds) : sql`0`
+				matches(person.name)
 			)
 		);
+
 	const withHosts = await attachHosts(rows);
 
 	const results: EventItem[] = withHosts.map((e) => ({
