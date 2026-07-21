@@ -97,7 +97,9 @@ export const event = sqliteTable(
 		// Serves the events list's `ORDER BY date DESC, id DESC` slice without sorting
 		// the whole table: the leading (series_id, date) index can't answer a pure
 		// date order, so the top-of-list page needs its own (date, id) index.
-		index('event_date_id_idx').on(t.date, t.id)
+		index('event_date_id_idx').on(t.date, t.id),
+		// Accelerates title searches and joins
+		index('event_title_idx').on(t.title)
 	]
 );
 
@@ -108,11 +110,18 @@ export const event = sqliteTable(
  * person is normalised once and searchable everywhere. `name` is unique —
  * find-or-create by name keeps it canonical.
  */
-export const person = sqliteTable('person', {
-	id: integer('id').primaryKey(),
-	name: text('name').notNull().unique(),
-	...auditColumns()
-});
+export const person = sqliteTable(
+	'person',
+	{
+		id: integer('id').primaryKey(),
+		name: text('name').notNull().unique(),
+		...auditColumns()
+	},
+	(t) => [
+		// Explicit index on person name for search matching and join acceleration
+		index('person_name_idx').on(t.name)
+	]
+);
 
 /**
  * Many-to-many link between events and their hosts. An event may have several
@@ -129,7 +138,10 @@ export const eventHost = sqliteTable(
 			.references(() => person.id),
 		...auditColumns()
 	},
-	(t) => [primaryKey({ columns: [t.eventId, t.personId] })]
+	(t) => [
+		primaryKey({ columns: [t.eventId, t.personId] }),
+		index('event_host_person_id_idx').on(t.personId)
+	]
 );
 
 /**
@@ -166,7 +178,11 @@ export const artefact = sqliteTable(
 		// Serves the artefact list's `ORDER BY date DESC, id DESC`: walk the index in
 		// order instead of a temp b-tree sort. Cheap now, matters once the table grows
 		// to ~1k rows. Mirrors event's (date, id) index.
-		index('artefact_date_id_idx').on(t.date, t.id)
+		index('artefact_date_id_idx').on(t.date, t.id),
+		// FK index for event joins
+		index('artefact_event_id_idx').on(t.eventId),
+		// Accelerates title searches
+		index('artefact_title_idx').on(t.artefact)
 	]
 );
 
@@ -185,7 +201,10 @@ export const artefactProvenance = sqliteTable(
 			.references(() => person.id),
 		...auditColumns()
 	},
-	(t) => [primaryKey({ columns: [t.artefactId, t.personId] })]
+	(t) => [
+		primaryKey({ columns: [t.artefactId, t.personId] }),
+		index('artefact_prov_person_id_idx').on(t.personId)
+	]
 );
 
 // Relations power `db.query` relational loads.

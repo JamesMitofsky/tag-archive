@@ -31,6 +31,8 @@
 		},
 	});
 
+	import CircleNotchIcon from "phosphor-svelte/lib/CircleNotchIcon";
+
 	export type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 	export type ButtonSize = VariantProps<typeof buttonVariants>["size"];
 
@@ -38,6 +40,7 @@
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
+			loading?: boolean;
 		};
 </script>
 
@@ -50,6 +53,7 @@
 		href = undefined,
 		type = "button",
 		disabled,
+		loading = false,
 		children,
 		...restProps
 	}: ButtonProps = $props();
@@ -60,12 +64,16 @@
 		bind:this={ref}
 		data-slot="button"
 		class={cn(buttonVariants({ variant, size }), className)}
-		href={disabled ? undefined : href}
-		aria-disabled={disabled}
-		role={disabled ? "link" : undefined}
-		tabindex={disabled ? -1 : undefined}
+		href={disabled || loading ? undefined : href}
+		aria-disabled={disabled || loading}
+		aria-busy={loading || undefined}
+		role={disabled || loading ? "link" : undefined}
+		tabindex={disabled || loading ? -1 : undefined}
 		{...restProps}
 	>
+		{#if loading}
+			<CircleNotchIcon class="animate-spin shrink-0" />
+		{/if}
 		{@render children?.()}
 	</a>
 {:else}
@@ -74,9 +82,13 @@
 		data-slot="button"
 		class={cn(buttonVariants({ variant, size }), className)}
 		{type}
-		{disabled}
+		disabled={disabled || loading}
+		aria-busy={loading || undefined}
 		{...restProps}
 	>
+		{#if loading}
+			<CircleNotchIcon class="animate-spin shrink-0" />
+		{/if}
 		{@render children?.()}
 	</button>
 {/if}

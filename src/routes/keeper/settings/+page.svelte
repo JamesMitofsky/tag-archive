@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 	import UserPlusIcon from 'phosphor-svelte/lib/UserPlusIcon';
 	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
@@ -9,6 +10,7 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	let signingOut = $state(false);
 </script>
 
 <svelte:head>
@@ -18,16 +20,32 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
-			<BackButton href="/keeper" ariaLabel="Back to Cloud Keeper" />
+			<BackButton />
 
-			<form method="POST" action="?/signOut" use:enhance>
+			<form
+				method="POST"
+				action="?/signOut"
+				use:enhance={() => {
+					signingOut = true;
+					return async ({ update }) => {
+						await update();
+						signingOut = false;
+					};
+				}}
+			>
 				<button
 					type="submit"
+					disabled={signingOut}
+					aria-busy={signingOut}
 					aria-label="Sign out"
 					title="Sign out"
-					class="inline-flex items-center justify-center rounded-full border border-white/40 bg-white/25 p-2 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
+					class="inline-flex items-center justify-center rounded-full border border-white/40 bg-white/25 p-2 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 				>
-					<SignOutIcon size={18} />
+					{#if signingOut}
+						<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+					{:else}
+						<SignOutIcon size={18} />
+					{/if}
 				</button>
 			</form>
 		</header>

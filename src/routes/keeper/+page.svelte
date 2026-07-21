@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { confetti } from '@neoconfetti/svelte';
 	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
 	import StackIcon from 'phosphor-svelte/lib/StackIcon';
@@ -27,6 +28,7 @@
 	// Isomorphic validation for the email step: same vest suite here and on the server.
 	const emailValidator = createValidator(createEmailSuite(), () => errors);
 	let emailFormEl = $state<HTMLFormElement>();
+	let emailSubmitting = $state(false);
 	function revalidateEmail() {
 		if (emailFormEl) emailValidator.run(parseEmailForm(new FormData(emailFormEl)));
 	}
@@ -190,7 +192,15 @@
 												onfocusout={markEmailTouched}
 												use:enhance={({ formData, cancel }) => {
 													emailValidator.revealAll();
-													if (!emailValidator.run(parseEmailForm(formData))) cancel();
+													if (!emailValidator.run(parseEmailForm(formData))) {
+														cancel();
+														return;
+													}
+													emailSubmitting = true;
+													return async ({ update }) => {
+														await update();
+														emailSubmitting = false;
+													};
 												}}
 												class="mt-5 flex gap-2"
 											>
@@ -207,10 +217,16 @@
 												/>
 												<button
 													type="submit"
+													disabled={emailSubmitting}
+													aria-busy={emailSubmitting}
 													aria-label="Send sign-in code"
-													class="shrink-0 rounded-lg p-3 {inkButton}"
+													class="shrink-0 rounded-lg p-3 disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 												>
-													<PaperPlaneTiltIcon size={20} />
+													{#if emailSubmitting}
+														<CircleNotchIcon size={20} class="animate-spin shrink-0" />
+													{:else}
+														<PaperPlaneTiltIcon size={20} />
+													{/if}
 												</button>
 											</form>
 											<FieldError message={emailValidator.error('email')} />

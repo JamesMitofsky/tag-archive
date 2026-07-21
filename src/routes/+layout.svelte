@@ -16,6 +16,7 @@
 	<img
 		src="/drawing/text/tag-archive.png"
 		alt="Home"
+		decoding="async"
 		class="w-40 max-w-[28vw]"
 		style="mix-blend-mode: multiply"
 	/>
@@ -28,6 +29,7 @@
 			<img
 				src="/drawing/text/nav-artefacts.png"
 				alt="Artefacts"
+				decoding="async"
 				class="h-10 w-auto"
 				style="mix-blend-mode: multiply"
 			/>
@@ -36,6 +38,7 @@
 			<img
 				src="/drawing/text/nav-events.png"
 				alt="Events"
+				decoding="async"
 				class="h-10 w-auto"
 				style="mix-blend-mode: multiply"
 			/>
@@ -44,6 +47,7 @@
 			<img
 				src="/drawing/text/cloud-keeper-btn.png"
 				alt="Keeper"
+				decoding="async"
 				class="h-10 w-auto"
 				style="mix-blend-mode: multiply"
 			/>

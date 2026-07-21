@@ -1,36 +1,30 @@
 <script lang="ts">
-	import { afterNavigate } from '$app/navigation';
+	import { page } from '$app/state';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
+	import { getParentRoute } from '$lib/navigation/routes';
 
 	let {
 		href,
-		label = 'Back',
+		label,
 		ariaLabel
-	}: { href: string; label?: string; ariaLabel?: string } = $props();
+	}: { href?: string; label?: string; ariaLabel?: string } = $props();
 
-	// Track whether the user reached this page via an in-app navigation.
-	// If they did, going back should pop the history stack; otherwise
-	// (direct load, new tab, external referrer) fall back to `href`.
-	let canGoBack = $state(false);
-	afterNavigate((nav) => {
-		canGoBack = nav.from !== null && nav.type !== 'enter';
+	let resolved = $derived.by(() => {
+		const currentPath = page.url.pathname;
+		return getParentRoute(currentPath, href);
 	});
 
-	function handleClick(event: MouseEvent) {
-		if (canGoBack) {
-			event.preventDefault();
-			history.back();
-		}
-	}
+	let finalHref = $derived(href ?? resolved.href);
+	let finalLabel = $derived(label ?? resolved.label);
+	let finalAriaLabel = $derived(ariaLabel ?? `Back to ${finalLabel}`);
 </script>
 
 <a
-	{href}
-	onclick={handleClick}
-	aria-label={ariaLabel ?? label}
-	title={ariaLabel ?? label}
+	href={finalHref}
+	aria-label={finalAriaLabel}
+	title={finalAriaLabel}
 	class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
 >
 	<ArrowLeftIcon size={18} />
-	{label}
+	{finalLabel}
 </a>

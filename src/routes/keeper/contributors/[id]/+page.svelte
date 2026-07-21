@@ -4,6 +4,7 @@
 	import { programAreaMeta } from '$lib/programAreas';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
@@ -19,6 +20,7 @@
 	// Name editing: read-only by default, unlocked by the edit button.
 	let editing = $state(false);
 	let draft = $state(person.name);
+	let submitting = $state(false);
 	// Save only offered once the name actually changed to something non-empty.
 	const dirty = $derived(draft.trim().length > 0 && draft.trim() !== person.name);
 
@@ -59,24 +61,32 @@
 					<form
 						method="POST"
 						action="?/rename"
-						use:enhance={() =>
-							({ update, result }) => {
-								// Leave edit mode after a successful save; keep it open on error.
+						use:enhance={() => {
+							submitting = true;
+							return async ({ update, result }) => {
 								if (result.type === 'success' || result.type === 'redirect') editing = false;
-								return update();
-							}}
+								await update();
+								submitting = false;
+							};
+						}}
 					>
 						<div class="flex items-center justify-between gap-2">
-							<BackButton href="/keeper/contributors" ariaLabel="Back to Contributors" />
+							<BackButton />
 							<div class="flex shrink-0 items-center gap-2">
 								{#if dirty}
 									<button
 										type="submit"
+										disabled={submitting}
+										aria-busy={submitting}
 										aria-label="Save name"
 										title="Save name"
-										class="rounded-full border border-gray-200 bg-white/60 p-2 text-gray-600 transition hover:bg-white hover:text-gray-900"
+										class="rounded-full border border-gray-200 bg-white/60 p-2 text-gray-600 transition hover:bg-white hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 									>
-										<CheckIcon size={16} />
+										{#if submitting}
+											<CircleNotchIcon size={16} class="animate-spin shrink-0" />
+										{:else}
+											<CheckIcon size={16} />
+										{/if}
 									</button>
 								{/if}
 								<button
@@ -101,7 +111,7 @@
 					</form>
 				{:else}
 					<div class="flex items-center justify-between gap-2">
-						<BackButton href="/keeper/contributors" ariaLabel="Back to Contributors" />
+						<BackButton />
 						<button
 							type="button"
 							onclick={startEditing}
@@ -118,7 +128,7 @@
 					<p class="mt-1 px-2 text-sm text-red-600">{form.error}</p>
 				{/if}
 			{:else}
-				<BackButton href="/keeper/contributors" ariaLabel="Back to Contributors" />
+				<BackButton />
 				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">{person.name}</h1>
 			{/if}
 			<p class="mt-1 px-2 text-sm text-gray-600">

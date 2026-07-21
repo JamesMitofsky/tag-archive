@@ -22,29 +22,23 @@ export const GET: RequestHandler = async ({ url }) => {
 	// (written '\\' so the template literal emits a single literal backslash).
 	const matches = (col: unknown) => sql`${col} LIKE ${term} ESCAPE '\\'`;
 
-	// Artefacts whose provenance (a joined table) matches the term.
-	const provMatchIds = (
-		await db
-			.selectDistinct({ id: artefactProvenance.artefactId })
-			.from(artefactProvenance)
-			.innerJoin(person, eq(person.id, artefactProvenance.personId))
-			.where(matches(person.name))
-	).map((r) => r.id);
-
-	// Event lives in its own table now; join it in and expose the title flat as `event`.
+	// Find all matching artefacts in a single pass across title, description, program area, event title, and provenance person names.
 	const rows = await db
-		.select({ ...getTableColumns(artefact), event: event.title })
+		.selectDistinct({ ...getTableColumns(artefact), event: event.title })
 		.from(artefact)
 		.leftJoin(event, eq(artefact.eventId, event.id))
+		.leftJoin(artefactProvenance, eq(artefact.id, artefactProvenance.artefactId))
+		.leftJoin(person, eq(person.id, artefactProvenance.personId))
 		.where(
 			or(
 				matches(artefact.artefact),
 				matches(event.title),
 				matches(artefact.programArea),
 				matches(artefact.description),
-				provMatchIds.length ? inArray(artefact.id, provMatchIds) : sql`0`
+				matches(person.name)
 			)
 		);
+
 	const results = await attachProvenance(rows);
 
 	return json({ results });

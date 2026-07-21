@@ -4,6 +4,7 @@
 	import FieldError from '$lib/components/FieldError.svelte';
 	import UserPlusIcon from 'phosphor-svelte/lib/UserPlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { createNewUserSuite, parseCreateUserForm } from '$lib/validation/auth';
 	import { createValidator } from '$lib/validation/client.svelte';
 	import type { ActionData, PageData } from './$types';
@@ -17,6 +18,7 @@
 
 	const validator = createValidator(createNewUserSuite(), () => serverErrors);
 	let formEl = $state<HTMLFormElement>();
+	let submitting = $state(false);
 
 	function revalidate() {
 		if (formEl) validator.run(parseCreateUserForm(new FormData(formEl)));
@@ -44,7 +46,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
-			<BackButton href="/keeper/settings" ariaLabel="Back to Settings" />
+			<BackButton />
 		</header>
 
 		<article class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8">
@@ -95,7 +97,15 @@
 					onfocusout={markTouched}
 					use:enhance={({ formData, cancel }) => {
 						validator.revealAll();
-						if (!validator.run(parseCreateUserForm(formData))) cancel();
+						if (!validator.run(parseCreateUserForm(formData))) {
+							cancel();
+							return;
+						}
+						submitting = true;
+						return async ({ update }) => {
+							await update();
+							submitting = false;
+						};
 					}}
 					class="mt-6 space-y-5"
 				>
@@ -160,8 +170,13 @@
 
 					<button
 						type="submit"
-						class="rounded-sm bg-[#14120f] px-4 py-2 text-sm text-white transition hover:bg-[#33302a]"
+						disabled={submitting}
+						aria-busy={submitting}
+						class="flex items-center gap-2 rounded-sm bg-[#14120f] px-4 py-2 text-sm text-white transition hover:bg-[#33302a] disabled:cursor-not-allowed disabled:opacity-50"
 					>
+						{#if submitting}
+							<CircleNotchIcon size={16} class="animate-spin shrink-0" />
+						{/if}
 						Create account
 					</button>
 				</form>

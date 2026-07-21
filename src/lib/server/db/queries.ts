@@ -237,6 +237,34 @@ export async function resolvePersonIds(names: string[], userId: string): Promise
 	return unique.map((name) => idByName.get(name)!);
 }
 
+/**
+ * Search person names by case-insensitive substring for autocompletion / comboboxes.
+ * Returns up to `limit` matching names sorted alphabetically.
+ */
+export async function searchPeople({
+	q,
+	limit = 20
+}: {
+	q: string;
+	limit?: number;
+}): Promise<{ id: number; name: string }[]> {
+	const term = q.trim().toLowerCase();
+	if (term) {
+		const termLike = `%${term.replace(/[\\%_]/g, '\\$&')}%`;
+		return db
+			.select({ id: person.id, name: person.name })
+			.from(person)
+			.where(sql`${person.name} LIKE ${termLike} ESCAPE '\\'`)
+			.orderBy(person.name)
+			.limit(limit);
+	}
+	return db
+		.select({ id: person.id, name: person.name })
+		.from(person)
+		.orderBy(person.name)
+		.limit(limit);
+}
+
 // ── Review queue ─────────────────────────────────────────────────────────────
 // Contributor submissions land with `proposedAddition` true (see ./proposals)
 // and wait here until an admin vets them. Approving flips the flag to false;

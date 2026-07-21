@@ -27,8 +27,8 @@
 		initial.map((url) => ({ url, fileName: url.split('/').pop() ?? 'scan', previewUrl: url }))
 	);
 	const emit = () => onChange?.(attached.map((a) => a.url));
-	// Local preview shown in the image slot while the upload is in flight.
-	let pendingPreview = $state<string | null>(null);
+	// Local previews shown in the image slot while uploads are in flight.
+	let pendingPreviews = $state<string[]>([]);
 	let status = $state<'idle' | 'uploading' | 'error'>('idle');
 	let error = $state('');
 	let uploadError = $state('');
@@ -37,7 +37,7 @@
 	let video = $state<HTMLVideoElement>();
 	let stream: MediaStream | null = null;
 
-	// Live camera is the primary path; the file input (with `capture`) is the fallback
+	// Live camera is the primary path; the file input is the fallback
 	// for browsers or permission states where getUserMedia isn't available.
 	const canUseCamera = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
@@ -81,27 +81,81 @@
 				if (!blob) return;
 				const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 				stopCamera();
-				upload(blob, `scan-${stamp}.jpg`, canvas.toDataURL('image/jpeg', 0.85));
+				uploadSingle(blob, `scan-${stamp}.jpg`, canvas.toDataURL('image/jpeg', 0.85));
 			},
 			'image/jpeg',
 			0.85
 		);
 	}
 
-	/** Upload a picked image file directly. */
+	/** Upload picked image file(s) directly. */
 	function onFiles(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
+		const files = input.files ? Array.from(input.files) : [];
 		input.value = '';
-		if (!file) return;
-		upload(file, file.name, URL.createObjectURL(file));
+		if (files.length === 0) return;
+		uploadBatch(files);
 	}
 
-	/** Push one image to R2 and hand its URL back to the form. */
-	async function upload(file: Blob, fileName: string, previewUrl: string) {
+	/** Push image file(s) to R2 and hand their URLs back to the form in selection order. */
+	async function uploadBatch(files: File[]) {
 		status = 'uploading';
 		uploadError = '';
-		pendingPreview = previewUrl;
+
+		const items = files.map((file) => ({
+			file,
+			fileName: file.name,
+			previewUrl: URL.createObjectURL(file)
+		}));
+
+		const batchPreviews = items.map((i) => i.previewUrl);
+		pendingPreviews = [...pendingPreviews, ...batchPreviews];
+
+		const results = await Promise.all(
+			items.map(async (item) => {
+				try {
+					const body = new FormData();
+					body.append('file', item.file, item.fileName);
+					const res = await fetch('/keeper/scans', { method: 'POST', body });
+					if (!res.ok) throw new Error(await res.text());
+
+					const result = (await res.json()) as { url: string; fileName: string };
+					return { ...result, previewUrl: item.previewUrl, success: true as const };
+				} catch (e) {
+					return {
+						error: e instanceof Error ? e.message : 'Upload failed',
+						previewUrl: item.previewUrl,
+						success: false as const
+					};
+				}
+			})
+		);
+
+		pendingPreviews = pendingPreviews.filter((p) => !batchPreviews.includes(p));
+
+		const successful = results.filter((r): r is Extract<typeof r, { success: true }> => r.success);
+		const failed = results.filter((r) => !r.success);
+
+		if (successful.length > 0) {
+			attached = [
+				...attached,
+				...successful.map((s) => ({ url: s.url, fileName: s.fileName, previewUrl: s.previewUrl }))
+			];
+			emit();
+		}
+
+		if (failed.length > 0) {
+			uploadError = failed[0].error || 'One or more uploads failed';
+			status = attached.length === 0 && pendingPreviews.length === 0 ? 'error' : 'idle';
+		} else {
+			status = 'idle';
+		}
+	}
+
+	async function uploadSingle(file: Blob, fileName: string, previewUrl: string) {
+		status = 'uploading';
+		uploadError = '';
+		pendingPreviews = [...pendingPreviews, previewUrl];
 		try {
 			const body = new FormData();
 			body.append('file', file, fileName);
@@ -116,20 +170,22 @@
 			uploadError = e instanceof Error ? e.message : 'Upload failed';
 			status = 'error';
 		} finally {
-			pendingPreview = null;
+			pendingPreviews = pendingPreviews.filter((p) => p !== previewUrl);
 		}
 	}
 
 	function remove(index: number) {
 		attached = attached.filter((_, i) => i !== index);
-		status = 'idle';
-		uploadError = '';
+		if (attached.length === 0 && pendingPreviews.length === 0) {
+			status = 'idle';
+			uploadError = '';
+		}
 		emit();
 	}
 
 	// Block submit while an upload is in flight.
 	$effect(() => {
-		pending = status === 'uploading';
+		pending = pendingPreviews.length > 0 || status === 'uploading';
 	});
 
 	$effect(() => {
@@ -179,7 +235,7 @@
 				<input
 					type="file"
 					accept="image/*"
-					capture="environment"
+					multiple
 					onchange={onFiles}
 					class="sr-only"
 				/>
@@ -195,8 +251,8 @@
 		<p class="mt-3 text-xs text-red-600" role="alert">{uploadError}</p>
 	{/if}
 
-	<!-- Image slot: every attached scan, plus a spinner tile while one is uploading -->
-	{#if attached.length > 0 || status === 'uploading'}
+	<!-- Image slot: every attached scan, plus a spinner tile for each image currently uploading -->
+	{#if attached.length > 0 || pendingPreviews.length > 0}
 		<div class="mt-4 flex flex-wrap gap-3">
 			{#each attached as scan, i (scan.url)}
 				<div
@@ -213,16 +269,14 @@
 					</button>
 				</div>
 			{/each}
-			{#if status === 'uploading'}
+			{#each pendingPreviews as previewUrl (previewUrl)}
 				<div
 					class="relative flex h-40 min-w-40 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50"
 				>
-					{#if pendingPreview}
-						<img src={pendingPreview} alt="" class="h-full w-auto object-contain opacity-30" />
-					{/if}
+					<img src={previewUrl} alt="" class="h-full w-auto object-contain opacity-30" />
 					<CircleNotchIcon size={28} class="absolute animate-spin text-gray-500" />
 				</div>
-			{/if}
+			{/each}
 		</div>
 	{/if}
 </div>

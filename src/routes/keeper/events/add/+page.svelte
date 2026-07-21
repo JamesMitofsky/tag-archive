@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import DateField from '$lib/components/DateField.svelte';
 	import ComboField from '$lib/components/ComboField.svelte';
 	import TagsField from '$lib/components/TagsField.svelte';
@@ -58,6 +59,7 @@
 		form && 'values' in form && form.values ? (form.values as EventFormValues).date : ''
 	);
 
+	let submitting = $state(false);
 	const canSubmit = $derived(title.trim().length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(date));
 
 	// Combos and tags mutate state without always firing a bubbling input event, so
@@ -78,7 +80,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
-			<BackButton href="/keeper/events" ariaLabel="Back to Events" />
+			<BackButton />
 		</header>
 
 		<!-- The create form is a fresh sheet of paper, like the event pages. -->
@@ -94,7 +96,15 @@
 				onfocusout={markTouched}
 				use:enhance={({ formData, cancel }) => {
 					validator.revealAll();
-					if (!validator.run(parseEventForm(formData))) cancel();
+					if (!validator.run(parseEventForm(formData))) {
+						cancel();
+						return;
+					}
+					submitting = true;
+					return async ({ update }) => {
+						await update();
+						submitting = false;
+					};
 				}}
 			>
 				<div>
@@ -214,10 +224,15 @@
 
 				<button
 					type="submit"
-					disabled={!canSubmit}
+					disabled={!canSubmit || submitting}
+					aria-busy={submitting}
 					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>
-					<PlusIcon size={18} />
+					{#if submitting}
+						<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+					{:else}
+						<PlusIcon size={18} />
+					{/if}
 					Add event
 				</button>
 			</form>
