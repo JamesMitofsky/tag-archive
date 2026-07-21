@@ -31,8 +31,22 @@ describe('artefact suite', () => {
 		expect(r.getErrors('date')).toContain('Pick a valid date');
 	});
 
-	it('accepts a minimal valid artefact', () => {
+	it('requires at least one image', () => {
 		const r = run(parseArtefactForm(fd({ artefact: 'Steep Program', date: '2021-07-01' })));
+		expect(r.isValid()).toBe(false);
+		expect(r.getErrors('fileUrls')).toContain('Attach at least one image');
+	});
+
+	it('accepts a minimal valid artefact', () => {
+		const r = run(
+			parseArtefactForm(
+				fd({
+					artefact: 'Steep Program',
+					date: '2021-07-01',
+					fileUrls: ['https://cdn.example/x.jpg']
+				})
+			)
+		);
 		expect(r.isValid()).toBe(true);
 	});
 

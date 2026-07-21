@@ -43,6 +43,7 @@ export function createArtefactSuite() {
 		maxLen('location', data.location ?? '', 200, 'location');
 
 		const fileUrls = data.fileUrls ?? [];
+		check('fileUrls', 'Attach at least one image', fileUrls.length >= 1);
 		check('fileUrls', 'Enter a valid file URL', fileUrls.every(isHttpUrl));
 		check('fileUrls', 'Attach at most 50 files', fileUrls.length <= 50);
 
