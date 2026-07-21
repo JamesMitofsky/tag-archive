@@ -207,7 +207,7 @@
 					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>
 					{#if submitting}
-						<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+						<CircleNotchIcon size={18} class="shrink-0 animate-spin" />
 					{:else}
 						<PlusIcon size={18} />
 					{/if}

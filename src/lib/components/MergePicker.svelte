@@ -92,7 +92,7 @@
 			class="inline-flex items-center gap-2 rounded-sm bg-[#14120f] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#33302a] disabled:cursor-not-allowed disabled:opacity-40"
 		>
 			{#if submitting}
-				<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+				<CircleNotchIcon size={18} class="shrink-0 animate-spin" />
 			{:else}
 				<ArrowsMergeIcon size={18} class="-rotate-90" />
 			{/if}

@@ -52,61 +52,71 @@
 			style="background-color:{sky};"
 		>
 			<tbody>
-			<tr>
-				<td align="center" style="padding:40px 16px;">
-					<!-- Floating white card, echoing the artefact cards on the landing page. -->
-					<table
-						role="presentation"
-						width="100%"
-						cellpadding="0"
-						cellspacing="0"
-						style="max-width:440px; background-color:#ffffff; border-radius:8px; border:1px solid rgba(0,0,0,0.05); box-shadow:0 10px 25px rgba(0,0,0,0.12);"
-					>
-						<tbody>
-						<tr>
-							<td style="padding:32px 32px 24px 32px;">
-								<!-- Wordmark: handwritten Temperance Alley Archive header. -->
-								<img
-									src={logoUrl}
-									alt="TAG Archive"
-									width="320"
-									height="85"
-									style="display:block; width:320px; max-width:100%; height:auto; margin:0 0 20px 0; border:0;"
-								/>
+				<tr>
+					<td align="center" style="padding:40px 16px;">
+						<!-- Floating white card, echoing the artefact cards on the landing page. -->
+						<table
+							role="presentation"
+							width="100%"
+							cellpadding="0"
+							cellspacing="0"
+							style="max-width:440px; background-color:#ffffff; border-radius:8px; border:1px solid rgba(0,0,0,0.05); box-shadow:0 10px 25px rgba(0,0,0,0.12);"
+						>
+							<tbody>
+								<tr>
+									<td style="padding:32px 32px 24px 32px;">
+										<!-- Wordmark: handwritten Temperance Alley Archive header. -->
+										<img
+											src={logoUrl}
+											alt="TAG Archive"
+											width="320"
+											height="85"
+											style="display:block; width:320px; max-width:100%; height:auto; margin:0 0 20px 0; border:0;"
+										/>
 
-								<p style="margin:0 0 24px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};">
-									An account has been created for this email
-								</p>
+										<p
+											style="margin:0 0 24px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};"
+										>
+											An account has been created for this email
+										</p>
 
-								<!-- Sign-in button: centered frosted pill, matching the site's BackButton. -->
-								<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-									<tbody>
-									<tr>
-										<td align="center">
-											<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-												<tbody>
+										<!-- Sign-in button: centered frosted pill, matching the site's BackButton. -->
+										<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+											<tbody>
 												<tr>
-													<td align="center" style="border-radius:9999px; background-color:{btnBg};">
-														<a
-															href={signInUrl}
-															style="display:inline-block; padding:12px 24px; font-family:{serif}; font-size:22px; font-weight:600; color:{btnText}; text-decoration:none; border:1px solid {primaryBorder}; border-radius:9999px; box-shadow:0 1px 2px rgba(0,0,0,0.06);"
+													<td align="center">
+														<table
+															role="presentation"
+															cellpadding="0"
+															cellspacing="0"
+															style="margin:0 auto;"
 														>
-															Sign in&nbsp;&rarr;
-														</a>
+															<tbody>
+																<tr>
+																	<td
+																		align="center"
+																		style="border-radius:9999px; background-color:{btnBg};"
+																	>
+																		<a
+																			href={signInUrl}
+																			style="display:inline-block; padding:12px 24px; font-family:{serif}; font-size:22px; font-weight:600; color:{btnText}; text-decoration:none; border:1px solid {primaryBorder}; border-radius:9999px; box-shadow:0 1px 2px rgba(0,0,0,0.06);"
+																		>
+																			Sign in&nbsp;&rarr;
+																		</a>
+																	</td>
+																</tr>
+															</tbody>
+														</table>
 													</td>
 												</tr>
-												</tbody>
-											</table>
-										</td>
-									</tr>
-									</tbody>
-								</table>
-							</td>
-						</tr>
-						</tbody>
-					</table>
-				</td>
-			</tr>
+											</tbody>
+										</table>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</td>
+				</tr>
 			</tbody>
 		</table>
 	</body>

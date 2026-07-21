@@ -35,7 +35,7 @@
 			<img
 				src={firstUrl}
 				alt={artefactName}
-				class="h-full w-full object-contain rounded-sm transition-opacity duration-300 {loaded
+				class="h-full w-full rounded-sm object-contain transition-opacity duration-300 {loaded
 					? 'opacity-100'
 					: 'opacity-0'}"
 				onload={() => (loaded = true)}

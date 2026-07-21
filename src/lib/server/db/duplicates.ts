@@ -117,7 +117,8 @@ export function classifyPair(
 
 	const tokensA = normA.split(' ');
 	const tokensB = normB.split(' ');
-	if (sameTokenMultiset(tokensA, tokensB)) return { reason: 'Same words, different order', rank: 2 };
+	if (sameTokenMultiset(tokensA, tokensB))
+		return { reason: 'Same words, different order', rank: 2 };
 
 	// Small edit distance = likely typo. Tighten to a single edit for short names,
 	// where a 2-char gap sweeps in genuinely different names.

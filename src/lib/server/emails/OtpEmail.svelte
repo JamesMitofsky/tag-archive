@@ -60,71 +60,78 @@
 			style="background-color:{sky};"
 		>
 			<tbody>
-			<tr>
-				<td align="center" style="padding:40px 16px;">
-					<!-- Floating white card, echoing the artefact cards on the landing page. -->
-					<table
-						role="presentation"
-						width="100%"
-						cellpadding="0"
-						cellspacing="0"
-						style="max-width:440px; background-color:#ffffff; border-radius:8px; border:1px solid rgba(0,0,0,0.05); box-shadow:0 10px 25px rgba(0,0,0,0.12);"
-					>
-						<tbody>
-						<tr>
-							<td style="padding:32px 32px 24px 32px;">
-								<!-- Wordmark: handwritten Temperance Alley Archive header. -->
-								<img
-									src={logoUrl}
-									alt="TAG Archive"
-									width="320"
-									height="85"
-									style="display:block; width:320px; max-width:100%; height:auto; margin:0 0 20px 0; border:0;"
-								/>
+				<tr>
+					<td align="center" style="padding:40px 16px;">
+						<!-- Floating white card, echoing the artefact cards on the landing page. -->
+						<table
+							role="presentation"
+							width="100%"
+							cellpadding="0"
+							cellspacing="0"
+							style="max-width:440px; background-color:#ffffff; border-radius:8px; border:1px solid rgba(0,0,0,0.05); box-shadow:0 10px 25px rgba(0,0,0,0.12);"
+						>
+							<tbody>
+								<tr>
+									<td style="padding:32px 32px 24px 32px;">
+										<!-- Wordmark: handwritten Temperance Alley Archive header. -->
+										<img
+											src={logoUrl}
+											alt="TAG Archive"
+											width="320"
+											height="85"
+											style="display:block; width:320px; max-width:100%; height:auto; margin:0 0 20px 0; border:0;"
+										/>
 
-								<p style="margin:0 0 24px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};">
-									{intro}
-								</p>
-
-								<!-- Code well: auto-width table, centered, so it hugs the digits
-								     instead of stretching to the card edges. -->
-								<table role="presentation" align="center" cellpadding="0" cellspacing="0">
-									<tbody>
-									<tr>
-										<td
-											align="center"
-											style="padding:18px 12px; background-color:{primarySoft}; border:1px solid {primaryBorder}; border-radius:8px;"
+										<p
+											style="margin:0 0 24px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};"
 										>
-											<!-- Tight letter-spacing within each group, a wide gap between
+											{intro}
+										</p>
+
+										<!-- Code well: auto-width table, centered, so it hugs the digits
+								     instead of stretching to the card edges. -->
+										<table role="presentation" align="center" cellpadding="0" cellspacing="0">
+											<tbody>
+												<tr>
+													<td
+														align="center"
+														style="padding:18px 12px; background-color:{primarySoft}; border:1px solid {primaryBorder}; border-radius:8px;"
+													>
+														<!-- Tight letter-spacing within each group, a wide gap between
 											     groups. padding-left on the first group balances the trailing
 											     letter-spacing of the last, keeping the row centered. -->
-											{#each otpGroups as group, i (i)}
-												<span
-													style="font-family:{sans}; font-size:30px; font-weight:600; letter-spacing:0.25em; color:{navy}; {i === 0
-														? 'padding-left:0.25em;'
-														: 'margin-left:0.5em;'}"
-												>
-													{group}
-												</span>
-											{/each}
-										</td>
-									</tr>
-									</tbody>
-								</table>
+														{#each otpGroups as group, i (i)}
+															<span
+																style="font-family:{sans}; font-size:30px; font-weight:600; letter-spacing:0.25em; color:{navy}; {i ===
+																0
+																	? 'padding-left:0.25em;'
+																	: 'margin-left:0.5em;'}"
+															>
+																{group}
+															</span>
+														{/each}
+													</td>
+												</tr>
+											</tbody>
+										</table>
 
-								<p style="margin:24px 0 0 0; text-align:center; font-family:{serif}; font-size:13px; line-height:1.5; color:{muted};">
-									Expires in 5 minutes
-								</p>
-							</td>
-						</tr>
-						</tbody>
-					</table>
+										<p
+											style="margin:24px 0 0 0; text-align:center; font-family:{serif}; font-size:13px; line-height:1.5; color:{muted};"
+										>
+											Expires in 5 minutes
+										</p>
+									</td>
+								</tr>
+							</tbody>
+						</table>
 
-					<p style="margin:20px 0 0 0; text-align:center; font-family:{serif}; font-size:12px; line-height:1.5; color:{navy}; opacity:0.7;">
-						If you didn't request this, you can safely ignore this email.
-					</p>
-				</td>
-			</tr>
+						<p
+							style="margin:20px 0 0 0; text-align:center; font-family:{serif}; font-size:12px; line-height:1.5; color:{navy}; opacity:0.7;"
+						>
+							If you didn't request this, you can safely ignore this email.
+						</p>
+					</td>
+				</tr>
 			</tbody>
 		</table>
 	</body>

@@ -28,7 +28,9 @@ if (!S3_ENDPOINT) {
 	process.exit(0);
 }
 if (!R2_PUBLIC_URL) {
-	console.error('[seed-images] S3_ENDPOINT set but R2_PUBLIC_URL missing — cannot build public URLs.');
+	console.error(
+		'[seed-images] S3_ENDPOINT set but R2_PUBLIC_URL missing — cannot build public URLs.'
+	);
 	process.exit(1);
 }
 if (!DATABASE_URL) {
@@ -36,7 +38,9 @@ if (!DATABASE_URL) {
 	process.exit(1);
 }
 if (DATABASE_URL.startsWith('libsql://') || DATABASE_URL.startsWith('https://')) {
-	throw new Error(`Refusing to seed images against a remote database (${DATABASE_URL}). Local-only.`);
+	throw new Error(
+		`Refusing to seed images against a remote database (${DATABASE_URL}). Local-only.`
+	);
 }
 
 // How many artefacts get a sample scan attached.
@@ -109,7 +113,11 @@ const policySet = await client.fetch(`${bucketUrl}?policy`, {
 	headers: { 'Content-Type': 'application/json' }
 });
 if (!policySet.ok) {
-	console.warn('[seed-images] public-read policy not set:', policySet.status, await policySet.text());
+	console.warn(
+		'[seed-images] public-read policy not set:',
+		policySet.status,
+		await policySet.text()
+	);
 }
 
 // Pick the artefacts to decorate — lowest ids, so it's stable across runs.

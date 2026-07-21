@@ -57,7 +57,9 @@
 			<h1 class="text-2xl font-semibold tracking-tight break-words">{item.artefact}</h1>
 
 			<p class="mt-1 text-sm text-gray-500">
-				{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}{' · '}{/if}{item.event}{/if}
+				{#if item.date}{formatDate(
+						item.date
+					)}{/if}{#if item.event}{#if item.date}{' · '}{/if}{item.event}{/if}
 			</p>
 
 			{#if item.programArea.length > 0}
@@ -123,7 +125,6 @@
 					</div>
 				{/if}
 			</dl>
-
 		</article>
 	</div>
 </main>

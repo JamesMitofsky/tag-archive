@@ -64,11 +64,7 @@
 	{/if}
 	<!-- The field owns the open state via focus: opening on focusin, closing when focus
 	     leaves the container (relatedTarget outside). -->
-	<div
-		class="relative"
-		onfocusin={() => (open = true)}
-		onfocusout={handleFocusOut}
-	>
+	<div class="relative" onfocusin={() => (open = true)} onfocusout={handleFocusOut}>
 		<Command.Root
 			class="overflow-visible rounded-none bg-transparent p-0"
 			onkeydown={(e) => {

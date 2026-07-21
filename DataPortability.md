@@ -8,15 +8,15 @@ The guiding principle here is good: nearly every dependency speaks a **standard 
 
 ## Stack at a glance
 
-| Concern | Vendor | What speaks to it | Lock-in |
-|---|---|---|---|
-| Hosting + CD | **Netlify** | `@sveltejs/adapter-netlify` | Low |
-| DNS | **Netlify** (DNS) | nameservers | Low |
-| Domain registrar | **Namecheap** | — | Low |
-| Database | **Turso** (libSQL) | `drizzle-orm` + `@libsql/client` | Low |
-| Object storage | **Cloudflare R2** | `aws4fetch` (S3 API) | Low |
-| Transactional email | **Resend** | `src/lib/server/email` | Very low |
-| Auth | **Better Auth** (self-hosted lib) | `better-auth` | None (data lives in our DB) |
+| Concern             | Vendor                            | What speaks to it                | Lock-in                     |
+| ------------------- | --------------------------------- | -------------------------------- | --------------------------- |
+| Hosting + CD        | **Netlify**                       | `@sveltejs/adapter-netlify`      | Low                         |
+| DNS                 | **Netlify** (DNS)                 | nameservers                      | Low                         |
+| Domain registrar    | **Namecheap**                     | —                                | Low                         |
+| Database            | **Turso** (libSQL)                | `drizzle-orm` + `@libsql/client` | Low                         |
+| Object storage      | **Cloudflare R2**                 | `aws4fetch` (S3 API)             | Low                         |
+| Transactional email | **Resend**                        | `src/lib/server/email`           | Very low                    |
+| Auth                | **Better Auth** (self-hosted lib) | `better-auth`                    | None (data lives in our DB) |
 
 Everything is configured through **environment variables** — no vendor SDK is hardwired into business logic. See `.env.example` for the full list. That is the single most important portability fact about this codebase: swapping a provider is mostly an env change plus a data copy.
 
@@ -27,11 +27,13 @@ Everything is configured through **environment variables** — no vendor SDK is 
 **What it does.** Builds the SvelteKit app on every push (CD is Git-driven), serves it as SSR via serverless functions, and also acts as the DNS provider for the domain.
 
 **Where the coupling lives.**
+
 - `svelte.config.js` → `adapter: adapter()` from `@sveltejs/adapter-netlify`. This is the one piece of real Netlify-specific code — it shapes the build output into Netlify Functions.
 - `netlify.toml` → only sets `NODE_VERSION`. Trivial.
 - Production env vars (R2 keys, `DATABASE_URL`, `DATABASE_AUTH_TOKEN`, `BETTER_AUTH_SECRET`, `RESEND_*`, `ORIGIN`) are set in **Netlify → Site settings → Environment variables**, NOT in the repo. The `.env.production` file is loaded only by local `vite build`/`preview`; the live deploy does not read it.
 
 **Getting off safely.**
+
 1. Swap the adapter for the target platform's: `adapter-vercel`, `adapter-cloudflare`, or `adapter-node` (for any VPS/container). One-line change in `svelte.config.js` + `pnpm remove @sveltejs/adapter-netlify && pnpm add <new-adapter>`.
 2. Re-create every environment variable on the new host. **This is the step that silently breaks things** — a missing `DATABASE_AUTH_TOKEN` or `BETTER_AUTH_SECRET` produces a booting-but-broken site. Copy the full list from Netlify's env panel before you start; treat `.env.example` as the checklist.
 3. `adapter-node` is the true escape hatch — it produces a plain Node server that runs anywhere, ending all host lock-in at the cost of managing your own runtime.
@@ -47,6 +49,7 @@ Everything is configured through **environment variables** — no vendor SDK is 
 **What it does.** Sells and holds the domain registration. Separate from DNS (which Netlify runs) and from hosting.
 
 **Getting off safely.**
+
 1. Unlock the domain in Namecheap and request the **EPP/auth transfer code**.
 2. Initiate an inbound transfer at the new registrar; confirm via the admin-contact email.
 3. **Do this well before renewal** — transfers can take up to ~5 days and are blocked in the 60 days after registration or a prior transfer.
@@ -61,11 +64,13 @@ Everything is configured through **environment variables** — no vendor SDK is 
 **What it does.** Hosts the production database. Turso is **hosted SQLite** (libSQL is a SQLite fork), reached over an HTTP/libSQL URL.
 
 **Where the coupling lives.**
+
 - `src/lib/server/db/index.ts` → `createClient({ url, authToken })` from `@libsql/client`, wrapped by `drizzle-orm/libsql`.
 - `drizzle.config.ts` → `dialect: 'turso'`.
 - Config is entirely `DATABASE_URL` + `DATABASE_AUTH_TOKEN`. Local dev points the same code at a `turso dev` server or a raw `file:local.db` — proof the app is not bound to Turso's cloud.
 
 **Getting off safely.** Two tiers:
+
 1. **Any SQLite host / a file on disk.** Because it's plain SQLite, `turso db dump` (or copying the file) gives you a portable `.db` / SQL dump. Point `DATABASE_URL` at `file:...` or another libSQL server and the app runs unchanged. This is the low-effort path and the reason DB lock-in is minimal.
 2. **A different engine (Postgres/MySQL).** Larger job: Drizzle abstracts queries, but the schema in `src/lib/server/db/schema.ts` uses the SQLite dialect, so you'd regenerate it for the new dialect, change `drizzle.config.ts`, swap the client, and migrate the data. Do this only if you outgrow SQLite's single-writer model.
 
@@ -80,10 +85,12 @@ Everything is configured through **environment variables** — no vendor SDK is 
 **What it does.** Stores uploaded scan images. R2 is **S3-compatible**.
 
 **Where the coupling lives.**
+
 - Accessed via `aws4fetch` (a generic S3 request signer), NOT a Cloudflare SDK. The code talks the **S3 API**, not an R2-specific one.
 - Config: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL`, `S3_REGION`, and `S3_ENDPOINT`. Local dev points the exact same code at a **RustFS** container (`pnpm dev:storage`) — again proving no R2-specific dependency.
 
 **Getting off safely.**
+
 1. Pick any S3-compatible target: AWS S3, Backblaze B2, MinIO/RustFS self-hosted, Wasabi, etc.
 2. Copy the objects: `rclone sync r2:tag-archive newremote:tag-archive` (rclone speaks S3 to both ends) or `aws s3 sync`.
 3. Update the `R2_*` / `S3_ENDPOINT` / `R2_PUBLIC_URL` env vars to the new bucket. No code change — `aws4fetch` signs for whatever endpoint you give it.
@@ -98,6 +105,7 @@ Everything is configured through **environment variables** — no vendor SDK is 
 **What it does.** Delivers one-time login codes for Better Auth's email-OTP flow.
 
 **Where the coupling lives.**
+
 - Isolated behind `src/lib/server/email` (`sendOtpEmail`), called from `src/lib/server/auth.ts`.
 - Config: `RESEND_API_KEY`, `RESEND_FROM`. If `RESEND_API_KEY` is unset, OTP codes are **logged to the server console** instead — so local dev needs no email vendor at all.
 
@@ -114,6 +122,7 @@ Everything is configured through **environment variables** — no vendor SDK is 
 **Where the data lives.** In our own database, via `drizzleAdapter(db, { provider: 'sqlite' })`. User, session, and account tables are part of the same Turso/SQLite DB covered in §3, so they travel with the database dump. The auth schema is generated to `src/lib/server/db/auth.schema.ts` (regenerate with `pnpm auth:schema`).
 
 **Portability notes.**
+
 - `BETTER_AUTH_SECRET` must be preserved across any host move or **all existing sessions invalidate** (users get logged out — not fatal, but surprising). Treat it like a database credential.
 - Because auth state is just rows in our DB, migrating the database migrates the users. No separate export.
 
@@ -134,4 +143,4 @@ Ordered so the site never goes dark:
 7. **Registrar:** transfer the domain from Namecheap only when unrelated to an outage; allow ~5 days.
 8. **Verify:** login (OTP delivers), image loads (R2 URLs resolve), existing sessions behave, admin role intact.
 
-**The one rule that prevents most portability pain:** never let a secret or a data blob live *only* at a vendor. The DB is a file, the bucket is copyable, and every credential is enumerated in `.env.example`. Keep current backups of all three and no single vendor can strand this project.
+**The one rule that prevents most portability pain:** never let a secret or a data blob live _only_ at a vendor. The DB is a file, the bucket is copyable, and every credential is enumerated in `.env.example`. Keep current backups of all three and no single vendor can strand this project.

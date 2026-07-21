@@ -18,7 +18,9 @@ describe('PageScanner.svelte', () => {
 	});
 
 	it('renders initial uploaded images', async () => {
-		render(PageScanner, { initial: ['https://example.com/scan1.jpg', 'https://example.com/scan2.jpg'] });
+		render(PageScanner, {
+			initial: ['https://example.com/scan1.jpg', 'https://example.com/scan2.jpg']
+		});
 
 		const images = page.getByRole('img', { name: 'Attached scan' });
 		await expect.element(images.first()).toBeInTheDocument();

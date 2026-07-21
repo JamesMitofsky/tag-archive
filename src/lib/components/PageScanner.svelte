@@ -301,13 +301,7 @@
 				class="inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
 			>
 				<ImageSquareIcon size={16} /> Add from photos
-				<input
-					type="file"
-					accept="image/*"
-					multiple
-					onchange={onFiles}
-					class="sr-only"
-				/>
+				<input type="file" accept="image/*" multiple onchange={onFiles} class="sr-only" />
 			</label>
 		</div>
 	{/if}

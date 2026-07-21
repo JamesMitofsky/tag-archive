@@ -1,4 +1,15 @@
-import { and, desc, eq, exists, getTableColumns, inArray, like, notInArray, or, sql } from 'drizzle-orm';
+import {
+	and,
+	desc,
+	eq,
+	exists,
+	getTableColumns,
+	inArray,
+	like,
+	notInArray,
+	or,
+	sql
+} from 'drizzle-orm';
 import { client, db } from './index';
 import { stampInsert, stampUpdate } from './audit';
 import { artefact, artefactProvenance, event, eventHost, person, series } from './schema';

@@ -3,11 +3,7 @@
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import { getParentRoute } from '$lib/navigation/routes';
 
-	let {
-		href,
-		label,
-		ariaLabel
-	}: { href?: string; label?: string; ariaLabel?: string } = $props();
+	let { href, label, ariaLabel }: { href?: string; label?: string; ariaLabel?: string } = $props();
 
 	let resolved = $derived.by(() => {
 		const currentPath = page.url.pathname;

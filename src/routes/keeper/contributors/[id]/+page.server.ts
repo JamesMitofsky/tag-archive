@@ -3,7 +3,14 @@ import { desc, eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachHosts, attachProvenance } from '$lib/server/db/queries';
 import { stampUpdate } from '$lib/server/db/audit';
-import { artefact, artefactProvenance, event, eventHost, person, series } from '$lib/server/db/schema';
+import {
+	artefact,
+	artefactProvenance,
+	event,
+	eventHost,
+	person,
+	series
+} from '$lib/server/db/schema';
 import { idSchema } from '$lib/schemas';
 import type { Actions, PageServerLoad } from './$types';
 

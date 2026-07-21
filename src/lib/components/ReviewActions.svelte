@@ -34,7 +34,7 @@
 			class="inline-flex items-center gap-1.5 rounded-full bg-[#8cb369] px-3.5 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#7aa259] disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{#if approving}
-				<CircleNotchIcon size={15} class="animate-spin shrink-0" />
+				<CircleNotchIcon size={15} class="shrink-0 animate-spin" />
 			{:else}
 				<CheckIcon size={15} weight="bold" />
 			{/if}
@@ -66,7 +66,7 @@
 			class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3.5 py-1.5 text-sm font-medium text-gray-700 transition hover:border-[#bc4b51] hover:text-[#bc4b51] disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{#if rejecting}
-				<CircleNotchIcon size={15} class="animate-spin shrink-0" />
+				<CircleNotchIcon size={15} class="shrink-0 animate-spin" />
 			{:else}
 				<XIcon size={15} weight="bold" />
 			{/if}

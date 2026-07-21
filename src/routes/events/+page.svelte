@@ -5,12 +5,7 @@
 	import Drawing from '$lib/components/Drawing.svelte';
 </script>
 
-<CardCloud
-	endpoint="/api/events"
-	ariaLabel="Search events"
-	card={page}
-	{header}
-/>
+<CardCloud endpoint="/api/events" ariaLabel="Search events" card={page} {header} />
 
 {#snippet header()}
 	<Drawing
@@ -29,7 +24,8 @@
 			<h2 class="line-clamp-2 text-sm leading-tight font-medium">{item.title}</h2>
 			{#if item.date}
 				<p class="mt-1 text-[0.65rem] text-gray-500">
-					{formatDate(item.date)}{#if item.time} · {item.time}{/if}
+					{formatDate(item.date)}{#if item.time}
+						· {item.time}{/if}
 				</p>
 			{/if}
 		</div>
@@ -39,7 +35,9 @@
 		{#if item.hosts.length}
 			<div class="mt-auto flex flex-wrap gap-1 pt-3">
 				{#each item.hosts as host}
-					<span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[0.65rem] text-gray-600">{host}</span>
+					<span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[0.65rem] text-gray-600"
+						>{host}</span
+					>
 				{/each}
 			</div>
 		{/if}

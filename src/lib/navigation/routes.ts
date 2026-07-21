@@ -26,7 +26,10 @@ const STATIC_ROUTES: Record<string, RouteDefinition> = {
 	'/keeper/settings/review/series': { title: 'Review Queue', parent: '/keeper/settings/review' },
 	'/keeper/contributors': { title: 'Contributors', parent: '/keeper/settings' },
 	'/keeper/contributors/merge': { title: 'Merge Contributors', parent: '/keeper/contributors' },
-	'/keeper/contributors/merge/review': { title: 'Merge Contributors', parent: '/keeper/contributors/merge' }
+	'/keeper/contributors/merge/review': {
+		title: 'Merge Contributors',
+		parent: '/keeper/contributors/merge'
+	}
 };
 
 const DYNAMIC_ROUTE_PATTERNS: Array<{

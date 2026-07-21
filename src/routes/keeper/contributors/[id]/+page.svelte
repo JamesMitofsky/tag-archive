@@ -83,7 +83,7 @@
 										class="rounded-full border border-gray-200 bg-white/60 p-2 text-gray-600 transition hover:bg-white hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										{#if submitting}
-											<CircleNotchIcon size={16} class="animate-spin shrink-0" />
+											<CircleNotchIcon size={16} class="shrink-0 animate-spin" />
 										{:else}
 											<CheckIcon size={16} />
 										{/if}
@@ -234,7 +234,9 @@
 									</a>
 								</h3>
 								<p class="mt-0.5 text-sm text-gray-500">
-									{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}{' · '}{/if}<span
+									{#if item.date}{formatDate(
+											item.date
+										)}{/if}{#if item.event}{#if item.date}{' · '}{/if}<span
 											class="inline-flex items-center gap-1"
 										>
 											<CalendarBlankIcon size={13} />

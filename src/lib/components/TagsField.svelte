@@ -34,9 +34,7 @@
 	const query = $derived(draft.trim());
 
 	// Filter out items already selected as tags
-	const filteredSuggestions = $derived(
-		suggestions.filter((item) => !value.includes(item.name))
-	);
+	const filteredSuggestions = $derived(suggestions.filter((item) => !value.includes(item.name)));
 
 	// Show custom entry option if user typed something not already selected or matched in suggestions
 	const showCustom = $derived(
@@ -157,7 +155,7 @@
 		{#if open && (filteredSuggestions.length > 0 || showCustom || loading)}
 			<div
 				role="listbox"
-				class="absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white p-1 shadow-lg text-gray-900"
+				class="absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white p-1 text-gray-900 shadow-lg"
 			>
 				{#if loading && filteredSuggestions.length === 0}
 					<div class="flex items-center gap-2 px-3 py-2 text-xs text-gray-500">
@@ -176,7 +174,10 @@
 							e.preventDefault();
 							addTag(item.name);
 						}}
-						class="flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 {activeIndex === index ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-700'}"
+						class="flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 {activeIndex ===
+						index
+							? 'bg-gray-100 font-medium text-gray-900'
+							: 'text-gray-700'}"
 					>
 						<span>{item.name}</span>
 						<span class="text-xs text-gray-400">Existing</span>
@@ -193,7 +194,10 @@
 							e.preventDefault();
 							addTag(query);
 						}}
-						class="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 {activeIndex === -1 ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-700'}"
+						class="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 {activeIndex ===
+						-1
+							? 'bg-gray-100 font-medium text-gray-900'
+							: 'text-gray-700'}"
 					>
 						<PlusIcon class="size-4 shrink-0 text-gray-500" />
 						<span>Use “{query}” <span class="text-xs text-gray-400">(new person)</span></span>
@@ -204,7 +208,7 @@
 	</div>
 
 	{#if value.length > 0}
-		<div class="flex flex-wrap items-center gap-2 mt-1">
+		<div class="mt-1 flex flex-wrap items-center gap-2">
 			{#each value as tag, index (tag)}
 				<Badge variant="secondary" class="gap-1">
 					{tag}
@@ -212,7 +216,7 @@
 						type="button"
 						aria-label={`Remove ${tag}`}
 						onclick={() => removeTag(index)}
-						class="text-muted-foreground hover:text-foreground -me-0.5 flex items-center"
+						class="-me-0.5 flex items-center text-muted-foreground hover:text-foreground"
 					>
 						<XIcon class="size-3" />
 					</button>

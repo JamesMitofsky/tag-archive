@@ -63,9 +63,10 @@
 						Account created
 					</p>
 					<p class="mt-2 text-sm text-green-800">
-						<span class="font-medium">{form.created.name}</span> ({form.created.email}) can now
-						sign in with an email code as
-						<span class="font-medium">{roleMeta[form.created.role]?.label ?? form.created.role}</span
+						<span class="font-medium">{form.created.name}</span> ({form.created.email}) can now sign
+						in with an email code as
+						<span class="font-medium"
+							>{roleMeta[form.created.role]?.label ?? form.created.role}</span
 						>.
 					</p>
 				</div>
@@ -175,7 +176,7 @@
 						class="flex items-center gap-2 rounded-sm bg-[#14120f] px-4 py-2 text-sm text-white transition hover:bg-[#33302a] disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{#if submitting}
-							<CircleNotchIcon size={16} class="animate-spin shrink-0" />
+							<CircleNotchIcon size={16} class="shrink-0 animate-spin" />
 						{/if}
 						Create account
 					</button>

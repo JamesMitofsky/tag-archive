@@ -37,17 +37,17 @@ More detail (individual services, Drizzle Studio, prod storage) is below.
 One table, `artefact` (`src/lib/server/db/schema.ts`), mirroring the source
 export:
 
-| Column                 | Notes                                        |
-| ---------------------- | -------------------------------------------- |
-| `id`                   | Integer PK (from source `ID`)                |
-| `artefact`             | Title                                        |
-| `event`                | Event it came from; nullable                 |
-| `date`                 | ISO `YYYY-MM-DD`                             |
-| `provenance`           | Contributors — JSON `string[]`               |
-| `programArea`          | TAG program tags — JSON `string[]`           |
-| `description`          | Nullable                                     |
-| `fileUrl`              | Public URL of the attached scan image        |
-| `location`             | Physical storage, e.g. `Binder` / `Bin`      |
+| Column        | Notes                                   |
+| ------------- | --------------------------------------- |
+| `id`          | Integer PK (from source `ID`)           |
+| `artefact`    | Title                                   |
+| `event`       | Event it came from; nullable            |
+| `date`        | ISO `YYYY-MM-DD`                        |
+| `provenance`  | Contributors — JSON `string[]`          |
+| `programArea` | TAG program tags — JSON `string[]`      |
+| `description` | Nullable                                |
+| `fileUrl`     | Public URL of the attached scan image   |
+| `location`    | Physical storage, e.g. `Binder` / `Bin` |
 
 Multi-value columns (`provenance`, `programArea`) are normalized to JSON arrays.
 
@@ -99,15 +99,15 @@ stored as the artefact's `fileUrl`.
 
 `scans.ts` speaks the S3 API, so the same code targets two backends via env:
 
-| Env var                | Prod (R2)                        | Local dev (RustFS)                   |
-| ---------------------- | -------------------------------- | ------------------------------------ |
-| `R2_ACCESS_KEY_ID`     | R2 API token access key          | `rustfsadmin`                        |
-| `R2_SECRET_ACCESS_KEY` | R2 API token secret              | `rustfsadmin`                        |
-| `R2_BUCKET`            | bucket name                      | `tag-archive`                        |
-| `R2_PUBLIC_URL`        | bucket public URL (`pub-…r2.dev`)| injected by the run script           |
-| `S3_ENDPOINT`          | _(unset)_ → derived from account | injected by the run script (RustFS)  |
-| `S3_REGION`            | _(unset)_ → `auto`               | `auto`                               |
-| `R2_ACCOUNT_ID`        | Cloudflare account id            | _(unset)_                            |
+| Env var                | Prod (R2)                         | Local dev (RustFS)                  |
+| ---------------------- | --------------------------------- | ----------------------------------- |
+| `R2_ACCESS_KEY_ID`     | R2 API token access key           | `rustfsadmin`                       |
+| `R2_SECRET_ACCESS_KEY` | R2 API token secret               | `rustfsadmin`                       |
+| `R2_BUCKET`            | bucket name                       | `tag-archive`                       |
+| `R2_PUBLIC_URL`        | bucket public URL (`pub-…r2.dev`) | injected by the run script          |
+| `S3_ENDPOINT`          | _(unset)_ → derived from account  | injected by the run script (RustFS) |
+| `S3_REGION`            | _(unset)_ → `auto`                | `auto`                              |
+| `R2_ACCOUNT_ID`        | Cloudflare account id             | _(unset)_                           |
 
 - **Prod:** no `S3_ENDPOINT`, so `scans.ts` derives the R2 host from `R2_ACCOUNT_ID`.
   Set all `R2_*` in Netlify → Site settings → Environment variables (`.env.production`

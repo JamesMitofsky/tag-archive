@@ -192,9 +192,7 @@
 		<!-- Optional route-specific mark: absolutely positioned above the bar so it
 		     doesn't shift the searchbar off viewport center. -->
 		{#if header}
-			<div
-				class="pointer-events-none absolute bottom-full left-0 flex w-full justify-center"
-			>
+			<div class="pointer-events-none absolute bottom-full left-0 flex w-full justify-center">
 				{@render header()}
 			</div>
 		{/if}
@@ -208,7 +206,11 @@
 					aria-hidden="true"
 				>
 					<circle class="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
-					<path class="opacity-75" fill="currentColor" d="M12 3a9 9 0 0 1 9 9h-2a7 7 0 0 0-7-7V3Z" />
+					<path
+						class="opacity-75"
+						fill="currentColor"
+						d="M12 3a9 9 0 0 1 9 9h-2a7 7 0 0 0-7-7V3Z"
+					/>
 				</svg>
 			{:else}
 				<svg
@@ -317,8 +319,8 @@
 		transition:
 			width 700ms cubic-bezier(0.22, 1, 0.36, 1),
 			height 700ms cubic-bezier(0.22, 1, 0.36, 1),
-			/* eases the drift transform back to 0 on select, instead of snapping */
-				transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+			/* eases the drift transform back to 0 on select, instead of snapping */ transform 700ms
+				cubic-bezier(0.22, 1, 0.36, 1);
 	}
 
 	/* Freeze background pages' drift while one is open — keeps the compositor from

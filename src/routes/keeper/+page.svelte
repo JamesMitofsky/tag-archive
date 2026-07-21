@@ -147,7 +147,7 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<h1 class="text-2xl font-semibold text-gray-900 tracking-tight">Cloud Keeper</h1>
+				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">Cloud Keeper</h1>
 			</div>
 			{#if data.user}
 				<a
@@ -223,7 +223,7 @@
 													class="shrink-0 rounded-lg p-3 disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 												>
 													{#if emailSubmitting}
-														<CircleNotchIcon size={20} class="animate-spin shrink-0" />
+														<CircleNotchIcon size={20} class="shrink-0 animate-spin" />
 													{:else}
 														<PaperPlaneTiltIcon size={20} />
 													{/if}

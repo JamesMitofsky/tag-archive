@@ -35,11 +35,14 @@
 								<div class="min-w-0">
 									<p class="text-sm break-words">
 										{#each group.members as member, i (member.id)}{#if i > 0}<span
-													class="text-gray-400"> · </span
-												>{/if}<span class="font-medium">{member.name}</span>{/each}
+													class="text-gray-400"
+												>
+													·
+												</span>{/if}<span class="font-medium">{member.name}</span>{/each}
 									</p>
 									<p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-										<span class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">{group.reason}</span
+										<span class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600"
+											>{group.reason}</span
 										>
 										<span>{group.members.length} entries</span>
 									</p>

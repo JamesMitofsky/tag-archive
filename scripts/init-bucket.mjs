@@ -77,5 +77,9 @@ if (policySet.ok) {
 } else {
 	// Non-fatal: uploads still work; only browser-facing public GETs might 403 if
 	// the engine doesn't support PutBucketPolicy. Dev boots regardless.
-	console.warn('[init-bucket] public-read policy not set:', policySet.status, await policySet.text());
+	console.warn(
+		'[init-bucket] public-read policy not set:',
+		policySet.status,
+		await policySet.text()
+	);
 }

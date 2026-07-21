@@ -42,7 +42,7 @@
 					class="inline-flex items-center justify-center rounded-full border border-white/40 bg-white/25 p-2 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{#if signingOut}
-						<CircleNotchIcon size={18} class="animate-spin shrink-0" />
+						<CircleNotchIcon size={18} class="shrink-0 animate-spin" />
 					{:else}
 						<SignOutIcon size={18} />
 					{/if}
