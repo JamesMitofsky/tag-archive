@@ -3,6 +3,7 @@
 	import { programAreaMeta } from '$lib/programAreas';
 	import { formatDate } from '$lib/formatDate';
 	import CardCloud from '$lib/components/CardCloud.svelte';
+	import ArtefactFilePreview from '$lib/components/ArtefactFilePreview.svelte';
 </script>
 
 <CardCloud endpoint="/api/search" card={page} {header} />
@@ -30,11 +31,14 @@
 				<p class="mt-1 text-[0.65rem] text-gray-500">{formatDate(item.date)}</p>
 			{/if}
 		</div>
+		{#if item.fileUrls && item.fileUrls.length > 0}
+			<ArtefactFilePreview fileUrls={item.fileUrls} artefactName={item.artefact} />
+		{/if}
 		{#if item.description}
-			<p class="mt-1.5 line-clamp-5 text-xs leading-relaxed text-gray-800">{item.description}</p>
+			<p class="mt-1.5 line-clamp-3 text-xs leading-relaxed text-gray-800">{item.description}</p>
 		{/if}
 		{#if item.provenance.length || item.programArea.length}
-			<div class="mt-auto flex flex-wrap gap-1 pt-3">
+			<div class="mt-auto flex flex-wrap gap-1 pt-2">
 				{#each item.programArea as tag}
 					{@const Icon = programAreaMeta(tag).icon}
 					<span

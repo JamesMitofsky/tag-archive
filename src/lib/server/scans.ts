@@ -120,3 +120,18 @@ export async function uploadScan(
 
 	return { key, url: `${required('R2_PUBLIC_URL')}/${key}` };
 }
+
+/** Delete an object from R2 by key or public URL. */
+export async function deleteScan(urlOrKey: string): Promise<void> {
+	const key = urlOrKey.split('/').pop();
+	if (!key) return;
+
+	const c = client();
+	const res = await c.fetch(`${bucketEndpoint()}/${key}`, {
+		method: 'DELETE'
+	});
+
+	if (!res.ok && res.status !== 404) {
+		throw new Error(`R2 delete failed: ${res.status} ${await res.text()}`);
+	}
+}
