@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 	import { createVirtualizer } from '@tanstack/svelte-virtual';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
@@ -75,7 +76,7 @@
 		loading.add(page);
 		const v = version;
 		try {
-			const params = new URLSearchParams({
+			const params = new SvelteURLSearchParams({
 				q: query,
 				offset: String(base),
 				limit: String(pageSize)
@@ -99,7 +100,7 @@
 		loaded.clear();
 		loading.clear();
 		activeIndex = -1;
-		const params = new URLSearchParams({ q: query, offset: '0', limit: String(pageSize) });
+		const params = new SvelteURLSearchParams({ q: query, offset: '0', limit: String(pageSize) });
 		if (date) params.set('date', date);
 		const res = await fetch(`${endpoint}?${params}`);
 		if (!res.ok || v !== version) return;

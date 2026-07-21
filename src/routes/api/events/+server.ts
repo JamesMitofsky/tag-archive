@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { eq, getTableColumns, inArray, or, sql } from 'drizzle-orm';
+import { eq, getTableColumns, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachHosts } from '$lib/server/db/queries';
 import { event, eventHost, person } from '$lib/server/db/schema';

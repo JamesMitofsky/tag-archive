@@ -42,9 +42,9 @@
 								</a>
 							</h3>
 							<p class="mt-0.5 text-sm text-gray-500">
-								{#if item.date}{formatDate(
-										item.date
-									)}{/if}{#if item.time}{' · '}{item.time}{/if}{#if item.series}{' · '}{item.series}{/if}
+								{#if item.date}{formatDate(item.date)}{/if}{#if item.time}
+									· {item.time}{/if}{#if item.series}
+									· {item.series}{/if}
 							</p>
 							{#if item.location}
 								<p class="mt-0.5 text-sm text-gray-500">{item.location}</p>
