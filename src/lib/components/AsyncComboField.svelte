@@ -143,6 +143,20 @@
 		}
 	}
 
+	// Prioritise the list by proximity to the date as soon as one is set (or changed),
+	// without waiting for focus — the server re-orders by the `date` param, so re-run the
+	// search whenever it changes and pre-empt the focus-time first run.
+	let lastDate = untrack(() => date);
+	$effect(() => {
+		const d = date;
+		if (d === lastDate) return;
+		lastDate = d;
+		if (!d) return;
+		initialized = true;
+		lastQuery = query;
+		runSearch();
+	});
+
 	// Close when focus leaves the whole field (relatedTarget outside the container).
 	function handleFocusOut(event: FocusEvent) {
 		const next = event.relatedTarget;

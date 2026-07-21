@@ -232,6 +232,7 @@
 						name="provenance"
 						label="Provenance"
 						placeholder="Johnny B. Good"
+						prefetch
 						bind:value={provenanceTags}
 					/>
 					<p class="mt-1 text-xs text-gray-500">Press Enter to add</p>
