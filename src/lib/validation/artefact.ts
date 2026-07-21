@@ -37,8 +37,7 @@ export function createArtefactSuite() {
 
 		maxLen('event', data.event ?? '', 200, 'event');
 
-		const date = data.date ?? '';
-		check('date', 'Pick a valid date', date === '' || ISO_DATE_RE.test(date));
+		check('date', 'Pick a valid date', ISO_DATE_RE.test(data.date ?? ''));
 
 		maxLen('description', data.description ?? '', 2000, 'description');
 		maxLen('location', data.location ?? '', 200, 'location');

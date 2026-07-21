@@ -162,7 +162,7 @@ export const artefact = sqliteTable(
 		// A series is reachable transitively via the linked event's `seriesId`.
 		eventId: integer('event_id').references(() => event.id),
 		// ISO date (YYYY-MM-DD).
-		date: text('date'),
+		date: text('date').notNull(),
 		// TAG program area tags. Multi-value → JSON string array.
 		programArea: text('program_area', { mode: 'json' }).$type<string[]>().notNull().default([]),
 		description: text('description'),

@@ -108,7 +108,7 @@ export const actions: Actions = {
 			.set({
 				artefact: data.artefact,
 				eventId,
-				date: nullIfEmpty(data.date),
+				date: data.date,
 				description: nullIfEmpty(data.description),
 				location: nullIfEmpty(data.location),
 				fileUrls: data.fileUrls,

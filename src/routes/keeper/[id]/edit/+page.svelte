@@ -83,12 +83,12 @@
 	let deleting = $state(false);
 
 	// Block submit until required fields are filled and any upload is finalized.
-	const canSubmit = $derived(title.trim().length > 0 && !scanPending);
+	const canSubmit = $derived(title.trim().length > 0 && formDate.trim().length > 0 && !scanPending);
 
 	// Combos, tags, and the program-area cards mutate state without always firing a
 	// bubbling input event, so re-validate whenever any tracked field changes.
 	$effect(() => {
-		void [title, selectedAreas, provenanceTags, fileUrls];
+		void [title, formDate, selectedAreas, provenanceTags, fileUrls];
 		revalidate();
 	});
 
@@ -178,8 +178,10 @@
 					<DateField
 						name="date"
 						label="Date"
+						required
 						value={echoed?.date ?? data.artefact.date ?? ''}
-						onChange={() => {
+						onChange={(iso) => {
+							formDate = iso;
 							validator.touch('date');
 							revalidate();
 						}}

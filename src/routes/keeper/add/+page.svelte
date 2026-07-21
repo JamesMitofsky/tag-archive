@@ -92,7 +92,7 @@
 	let submitting = $state(false);
 
 	// Block submit until required fields are filled and any upload is finalized.
-	const canSubmit = $derived(title.trim().length > 0 && !scanPending);
+	const canSubmit = $derived(title.trim().length > 0 && formDate.trim().length > 0 && !scanPending);
 
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
@@ -153,6 +153,7 @@
 					<DateField
 						name="date"
 						label="Date"
+						required
 						value={echoed?.date ?? ''}
 						onChange={(iso) => {
 							formDate = iso;
