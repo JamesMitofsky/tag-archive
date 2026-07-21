@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
@@ -15,12 +16,15 @@
 		label,
 		placeholder = '',
 		endpoint = '/api/people',
+		prefetch = false,
 		value = $bindable([])
 	}: {
 		name: string;
 		label?: string;
 		placeholder?: string;
 		endpoint?: string;
+		/** Load the (empty-query) suggestion list on mount instead of waiting for focus. */
+		prefetch?: boolean;
 		value?: string[];
 	} = $props();
 
@@ -58,6 +62,11 @@
 			loading = false;
 		}
 	}
+
+	// Warm the suggestion list before the field is focused so existing people are ready.
+	onMount(() => {
+		if (prefetch) fetchSuggestions('');
+	});
 
 	function onInput() {
 		open = true;
