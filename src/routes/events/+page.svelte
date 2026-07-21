@@ -34,7 +34,7 @@
 		{/if}
 		{#if item.hosts.length}
 			<div class="mt-auto flex flex-wrap gap-1 pt-3">
-				{#each item.hosts as host}
+				{#each item.hosts as host (host)}
 					<span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[0.65rem] text-gray-600"
 						>{host}</span
 					>

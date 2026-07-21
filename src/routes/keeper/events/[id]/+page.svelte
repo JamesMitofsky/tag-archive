@@ -60,9 +60,9 @@
 			</div>
 
 			<p class="mt-1 text-sm text-gray-500">
-				{formatDate(
-					item.date
-				)}{#if item.time}{' · '}{item.time}{/if}{#if item.location}{' · '}{item.location}{/if}
+				{formatDate(item.date)}{#if item.time}
+					· {item.time}{/if}{#if item.location}
+					· {item.location}{/if}
 			</p>
 
 			{#if item.mayHaveException}

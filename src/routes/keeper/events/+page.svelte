@@ -22,9 +22,11 @@
 	let total = $state(untrack(() => data.total));
 	let items = $state<(EventItem | undefined)[]>(untrack(() => seed(data.events, data.total)));
 
+	import { SvelteSet } from 'svelte/reactivity';
+
 	// Page bookkeeping. Not reactive — only `items`/`total` drive the render.
-	const loaded = new Set<number>([0]);
-	const loading = new Set<number>();
+	const loaded = new SvelteSet<number>([0]);
+	const loading = new SvelteSet<number>();
 	// Bumped on every new search so in-flight page fetches from the old query drop.
 	let version = 0;
 
@@ -191,9 +193,9 @@
 												</a>
 											</h3>
 											<p class="mt-0.5 text-sm text-gray-500">
-												{formatDate(
-													item.date
-												)}{#if item.time}{' · '}{item.time}{/if}{#if item.location}{' · '}{item.location}{/if}
+												{formatDate(item.date)}{#if item.time}
+													· {item.time}{/if}{#if item.location}
+													· {item.location}{/if}
 											</p>
 										</div>
 										{#if item.series}

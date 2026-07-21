@@ -116,10 +116,8 @@
 										</h3>
 										<p class="mt-0.5 text-sm text-gray-500">
 											<!-- Count next to the name, low emphasis, per the pill convention. -->
-											{item.eventCount} events{#if span(item.firstDate, item.lastDate)}{' · '}{span(
-													item.firstDate,
-													item.lastDate
-												)}{/if}
+											{item.eventCount} events{#if span(item.firstDate, item.lastDate)}
+												· {span(item.firstDate, item.lastDate)}{/if}
 										</p>
 									</div>
 									<ArrowRightIcon size={18} class="shrink-0 text-gray-400" />
