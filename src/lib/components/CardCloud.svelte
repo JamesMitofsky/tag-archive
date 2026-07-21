@@ -189,8 +189,15 @@
 		class="searchbar fixed top-1/2 left-1/2 z-30 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 px-4"
 		class:hidden-ui={selected !== null}
 	>
-		<!-- Optional route-specific mark sits above the bar. -->
-		{@render header?.()}
+		<!-- Optional route-specific mark: absolutely positioned above the bar so it
+		     doesn't shift the searchbar off viewport center. -->
+		{#if header}
+			<div
+				class="pointer-events-none absolute bottom-full left-0 flex w-full justify-center select-none"
+			>
+				{@render header()}
+			</div>
+		{/if}
 		<div class="relative">
 			{#if loading}
 				<svg

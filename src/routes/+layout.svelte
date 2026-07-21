@@ -21,24 +21,29 @@
 	/>
 </a>
 
-<!-- Handwritten nav pinned to the top-right, on every route. -->
+<!-- Handwritten nav pinned to the top-right. Show only the link for the page
+     you're NOT on: Artefacts (/) shows Events, Events shows Artefacts. -->
 <nav class="fixed top-3 right-6 z-40 flex items-center gap-6">
-	<a href="/" aria-label="Artefacts" class="transition-opacity hover:opacity-70">
-		<img
-			src="/handwriting/nav-artefacts.png"
-			alt="Artefacts"
-			class="h-10 w-auto"
-			style="mix-blend-mode: multiply"
-		/>
-	</a>
-	<a href="/events" aria-label="Events" class="transition-opacity hover:opacity-70">
-		<img
-			src="/handwriting/nav-events.png"
-			alt="Events"
-			class="h-10 w-auto"
-			style="mix-blend-mode: multiply"
-		/>
-	</a>
+	{#if page.url.pathname !== '/'}
+		<a href="/" aria-label="Artefacts" class="transition-opacity hover:opacity-70">
+			<img
+				src="/handwriting/nav-artefacts.png"
+				alt="Artefacts"
+				class="h-10 w-auto"
+				style="mix-blend-mode: multiply"
+			/>
+		</a>
+	{/if}
+	{#if page.url.pathname !== '/events'}
+		<a href="/events" aria-label="Events" class="transition-opacity hover:opacity-70">
+			<img
+				src="/handwriting/nav-events.png"
+				alt="Events"
+				class="h-10 w-auto"
+				style="mix-blend-mode: multiply"
+			/>
+		</a>
+	{/if}
 </nav>
 
 <div class="route-wrap">
