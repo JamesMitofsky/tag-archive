@@ -2,6 +2,7 @@
 	import type { EventItem } from '$lib/events';
 	import { formatDate } from '$lib/formatDate';
 	import CardCloud from '$lib/components/CardCloud.svelte';
+	import Drawing from '$lib/components/Drawing.svelte';
 </script>
 
 <CardCloud
@@ -12,12 +13,11 @@
 />
 
 {#snippet header()}
-	<img
-		src="/drawing/text/events.png"
+	<Drawing
+		src="/drawing/text/events.webp"
 		alt=""
 		aria-hidden="true"
 		class="mx-auto mb-4 w-[8rem] max-w-full"
-		style="mix-blend-mode: multiply"
 	/>
 {/snippet}
 

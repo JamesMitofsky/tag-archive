@@ -18,6 +18,7 @@
 		label,
 		placeholder = 'Search or add…',
 		endpoint,
+		date,
 		value: initial = '',
 		pageSize = 40
 	}: {
@@ -26,6 +27,7 @@
 		placeholder?: string;
 		/** GET `?q=&offset=&limit=` → `{ rows: {name,date}[], total }`. */
 		endpoint: string;
+		date?: string;
 		value?: string;
 		pageSize?: number;
 	} = $props();
@@ -78,6 +80,7 @@
 				offset: String(base),
 				limit: String(pageSize)
 			});
+			if (date) params.set('date', date);
 			const res = await fetch(`${endpoint}?${params}`);
 			if (!res.ok || v !== version) return;
 			const body: { rows: Row[]; total: number } = await res.json();
@@ -97,6 +100,7 @@
 		loading.clear();
 		activeIndex = -1;
 		const params = new URLSearchParams({ q: query, offset: '0', limit: String(pageSize) });
+		if (date) params.set('date', date);
 		const res = await fetch(`${endpoint}?${params}`);
 		if (!res.ok || v !== version) return;
 		const body: { rows: Row[]; total: number } = await res.json();
@@ -115,7 +119,7 @@
 		if (q === lastQuery) return;
 		lastQuery = q;
 		clearTimeout(timer);
-		timer = setTimeout(runSearch, 250);
+		timer = setTimeout(runSearch, 150);
 	});
 
 	function onOpen() {

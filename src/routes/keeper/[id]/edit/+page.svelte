@@ -46,6 +46,10 @@
 	// svelte-ignore state_referenced_locally
 	const seed = form && 'values' in form && form.values ? (form.values as ArtefactFormValues) : null;
 
+	// Live form date, tracked so the event list can prioritise events near it.
+	// svelte-ignore state_referenced_locally
+	let formDate = $state(seed ? seed.date : (data.artefact.date ?? ''));
+
 	// Program-area picker state (multi-select — an artefact carries several).
 	// svelte-ignore state_referenced_locally
 	let selectedAreas = $state<string[]>(seed ? seed.programArea : [...data.artefact.programArea]);
@@ -164,6 +168,7 @@
 						label="Event"
 						placeholder="Search or add an event"
 						endpoint="/keeper/events/titles"
+						date={formDate}
 						value={echoed?.event ?? data.artefact.event ?? ''}
 					/>
 					<FieldError message={validator.error('event')} />

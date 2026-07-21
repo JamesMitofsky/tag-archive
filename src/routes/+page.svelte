@@ -4,17 +4,17 @@
 	import { formatDate } from '$lib/formatDate';
 	import CardCloud from '$lib/components/CardCloud.svelte';
 	import ArtefactFilePreview from '$lib/components/ArtefactFilePreview.svelte';
+	import Drawing from '$lib/components/Drawing.svelte';
 </script>
 
 <CardCloud endpoint="/api/search" card={page} {header} />
 
 {#snippet header()}
-	<img
-		src="/drawing/text/artefacts.png"
+	<Drawing
+		src="/drawing/text/artefacts.webp"
 		alt=""
 		aria-hidden="true"
 		class="mx-auto mb-1 w-[12rem] max-w-full"
-		style="mix-blend-mode: multiply"
 	/>
 {/snippet}
 

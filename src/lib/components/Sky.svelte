@@ -15,6 +15,12 @@
 
 	// Track load state for each cloud image to ensure seamless opacity fade-in
 	let loadedMap = $state<Record<number, boolean>>({});
+
+	function checkLoad(node: HTMLImageElement, index: number) {
+		if (node.complete) {
+			loadedMap[index] = true;
+		}
+	}
 </script>
 
 <!-- Watercolor paper backdrop, pinned behind everything. -->
@@ -25,6 +31,7 @@
 	{#each clouds as c, i (i)}
 		{@const isLoaded = loadedMap[i]}
 		<img
+			use:checkLoad={i}
 			class="cloud"
 			class:loaded={isLoaded}
 			src={c.src}
@@ -45,7 +52,7 @@
 		opacity: 0;
 		will-change: transform, opacity;
 		transform: translate3d(-45vw, 0, 0);
-		transition: opacity 600ms ease-in-out;
+		transition: opacity 100ms ease-in-out;
 		animation: cloud-drift var(--dur, 180s) linear var(--delay, 0s) infinite;
 	}
 
@@ -74,7 +81,7 @@
 			/* cloud mottle — soft gradient overlay for watercolor pigment variations */
 			radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.25), transparent 60%),
 			radial-gradient(circle at 80% 70%, rgba(120, 180, 210, 0.3), transparent 65%),
-			/* pre-rendered static paper noise tile (0% SVG filter rendering overhead) */
+			/* pre-rendered static paper noise tile (baked low-opacity noise tile) */
 			url('/paper-noise.png');
 		background-repeat: repeat;
 	}

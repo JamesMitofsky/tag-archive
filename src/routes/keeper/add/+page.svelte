@@ -183,6 +183,7 @@
 						label="Event"
 						placeholder="Search or add an event"
 						endpoint="/keeper/events/titles"
+						date={formDate}
 						value={echoed?.event ?? ''}
 					/>
 					<FieldError message={validator.error('event')} />
