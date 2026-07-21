@@ -170,9 +170,9 @@
 											</a>
 										</h3>
 										<p class="mt-0.5 text-sm text-gray-500">
-											{formatDate(
-												item.date
-											)}{#if item.time}{' · '}{item.time}{/if}{#if item.location}{' · '}{item.location}{/if}
+											{formatDate(item.date)}{#if item.time}
+												· {item.time}{/if}{#if item.location}
+												· {item.location}{/if}
 										</p>
 									</div>
 									{#if item.series}
@@ -234,11 +234,9 @@
 									</a>
 								</h3>
 								<p class="mt-0.5 text-sm text-gray-500">
-									{#if item.date}{formatDate(
-											item.date
-										)}{/if}{#if item.event}{#if item.date}{' · '}{/if}<span
-											class="inline-flex items-center gap-1"
-										>
+									{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
+											·
+										{/if}<span class="inline-flex items-center gap-1">
 											<CalendarBlankIcon size={13} />
 											{item.event}
 										</span>{/if}

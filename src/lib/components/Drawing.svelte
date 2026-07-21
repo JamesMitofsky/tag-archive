@@ -10,7 +10,7 @@
 		alt?: string;
 		class?: string;
 		style?: string;
-		[key: string]: any;
+		[key: string]: unknown;
 	} = $props();
 
 	let loaded = $state(false);

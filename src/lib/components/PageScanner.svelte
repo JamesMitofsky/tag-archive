@@ -10,6 +10,7 @@
 	// parent can block submit until every image is finalized.
 	let {
 		onChange,
+		// eslint-disable-next-line no-useless-assignment
 		pending = $bindable(false),
 		initial = []
 	}: {
@@ -267,7 +268,6 @@
 	<!-- Camera stage -->
 	{#if cameraOn}
 		<div class="mt-3 overflow-hidden rounded-md bg-black">
-			<!-- svelte-ignore a11y_media_has_caption -->
 			<video bind:this={video} playsinline class="block max-h-80 w-full object-contain"></video>
 		</div>
 		<div class="mt-2 flex flex-wrap gap-2">

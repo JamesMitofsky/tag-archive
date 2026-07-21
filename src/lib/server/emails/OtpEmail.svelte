@@ -21,7 +21,6 @@
 	// Landing-page palette (layout.css / Sky.svelte tokens → email-safe hex).
 	const sky = '#8ecbe6'; // Sky.svelte watercolor-paper backdrop
 	const muted = '#757575'; // --muted-foreground
-	const border = '#e5e7eb';
 	const primarySoft = '#e3f2f9'; // light-blue code well (tint of --primary)
 	const primaryBorder = '#a7d8ea'; // --primary
 	const navy = '#22304a'; // --primary-foreground

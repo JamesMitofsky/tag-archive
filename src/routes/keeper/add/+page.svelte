@@ -16,9 +16,9 @@
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
 	import type { ArtefactFormValues } from './+page.server';
-	import type { ActionData, PageData } from './$types';
+	import type { ActionData } from './$types';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let { form }: { form: ActionData } = $props();
 
 	// Isomorphic validation: the same vest suite runs here for live, per-field
 	// feedback and on the server as the authority. `errors` seeds field messages
