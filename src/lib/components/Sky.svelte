@@ -4,20 +4,39 @@
 	// pre-spread them across the viewport so the sky looks full at load instead
 	// of empty until the first cloud wanders in. Sits behind all page content.
 	// Loaded state tracks image decode completion per cloud for smooth CSS fade-in.
+	// Cloud widths (vw) are clamped to this range so no cloud dominates or vanishes.
+	const CLOUD_MIN_W = 9;
+	const CLOUD_MAX_W = 28;
+
+	const clampWidth = (w: number) => Math.min(Math.max(w, CLOUD_MIN_W), CLOUD_MAX_W);
+
+	// Larger clouds read as nearer the viewer, so they drift faster. Duration is
+	// inversely proportional to width, so the smallest (most distant) clouds nearly
+	// hang still while big ones sweep across. Duration (s) = DRIFT_SCALE / width(vw).
+	const DRIFT_SCALE = 10800;
+	function driftDuration(width: number): number {
+		return Math.round(DRIFT_SCALE / width);
+	}
+
 	const clouds = [
-		{ src: '/clouds/cloud-1.webp', top: 8, w: 20, dur: 300, delay: -20, op: 0.5 },
-		{ src: '/clouds/cloud-2.webp', top: 21, w: 13, dur: 420, delay: -95, op: 0.4 },
-		{ src: '/clouds/cloud-3.webp', top: 34, w: 26, dur: 240, delay: -70, op: 0.5 },
-		{ src: '/clouds/cloud-1.webp', top: 55, w: 11, dur: 470, delay: -150, op: 0.35 },
-		{ src: '/clouds/cloud-2.webp', top: 63, w: 23, dur: 270, delay: -120, op: 0.45 },
-		{ src: '/clouds/cloud-3.webp', top: 74, w: 16, dur: 370, delay: -50, op: 0.45 }
-	];
+		{ src: '/clouds/cloud-1.webp', top: 8, w: 12, delay: -284, op: 0.5 },
+		{ src: '/clouds/cloud-3.webp', top: 34, w: 28, delay: -65, op: 0.5 },
+		{ src: '/clouds/cloud-1.webp', top: 55, w: 9, delay: -790, op: 0.35 },
+		{ src: '/clouds/cloud-3.webp', top: 74, w: 15, delay: -398, op: 0.45 }
+	].map((c) => {
+		const w = clampWidth(c.w);
+		return { ...c, w, dur: driftDuration(w) };
+	});
 
 	// Track load state for each cloud image to ensure seamless opacity fade-in
 	let loadedMap = $state<Record<number, boolean>>({});
+	// Clouds already decoded at mount (cached). The fade only smooths the uncached
+	// first paint, so cached clouds skip the transition and appear instantly.
+	let cachedMap = $state<Record<number, boolean>>({});
 
 	function checkLoad(node: HTMLImageElement, index: number) {
 		if (node.complete) {
+			cachedMap[index] = true;
 			loadedMap[index] = true;
 		}
 	}
@@ -34,6 +53,7 @@
 			use:checkLoad={i}
 			class="cloud"
 			class:loaded={isLoaded}
+			class:instant={cachedMap[i]}
 			src={c.src}
 			alt=""
 			loading="lazy"
@@ -60,6 +80,11 @@
 		opacity: var(--target-op, 0.5);
 	}
 
+	/* Cached at mount: no fade, appear at target opacity instantly. */
+	.cloud.instant {
+		transition: none;
+	}
+
 	@keyframes cloud-drift {
 		from {
 			transform: translate3d(-45vw, 0, 0);
@@ -76,13 +101,9 @@
 	}
 
 	.paper {
-		background-color: #8ecbe6;
+		background-color: #94cae7;
 		background-image:
-			/* cloud mottle — soft gradient overlay for watercolor pigment variations */
-			radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.25), transparent 60%),
-			radial-gradient(circle at 80% 70%, rgba(120, 180, 210, 0.3), transparent 65%),
-			/* pre-rendered static paper noise tile (baked low-opacity noise tile) */
-			url('/paper-noise.png');
+			/* pre-rendered static paper noise tile (baked low-opacity noise tile) */ url('/paper-noise.png');
 		background-repeat: repeat;
 	}
 </style>
