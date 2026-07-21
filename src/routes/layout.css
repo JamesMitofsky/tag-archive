@@ -10,6 +10,12 @@ html {
 	scrollbar-gutter: stable both-edges;
 }
 
+/* Images are decorative here — never part of a text selection and not draggable. */
+img {
+	user-select: none;
+	-webkit-user-drag: none;
+}
+
 /* Class-based dark variant (shadcn-svelte). No `.dark` is applied yet — the app
    renders light — but the tokens below are defined so dark mode is a one-line
    toggle away. */
