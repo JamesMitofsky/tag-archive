@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import UserPlusIcon from 'phosphor-svelte/lib/UserPlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
@@ -44,6 +45,7 @@
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
+	<UnsavedChangesGuard form={formEl} />
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<BackButton />

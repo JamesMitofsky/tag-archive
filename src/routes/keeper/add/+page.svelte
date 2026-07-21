@@ -15,6 +15,7 @@
 	import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData } from './$types';
 
@@ -103,6 +104,7 @@
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
+	<UnsavedChangesGuard form={formEl} />
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
 			<BackButton />
