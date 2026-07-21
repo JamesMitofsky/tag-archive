@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"dev:local": "bash scripts/dev-local.sh",
+		"dev:fresh-start": "pnpm db:setup:local && pnpm dev:local",
 		"dev:db": "turso dev --db-file local.db --port 8081",
 		"dev:storage": "docker rm -f tag-archive-rustfs >/dev/null 2>&1; docker run --rm --name tag-archive-rustfs -p 9000:9000 -e RUSTFS_ACCESS_KEY=rustfsadmin -e RUSTFS_SECRET_KEY=rustfsadmin -e RUSTFS_ADDRESS=:9000 rustfs/rustfs:latest /data",
 		"dev:storage:init": "S3_ENDPOINT=http://127.0.0.1:9000 R2_PUBLIC_URL=http://127.0.0.1:9000/tag-archive node --env-file-if-exists=.env scripts/init-bucket.mjs",
