@@ -3,7 +3,7 @@
 		{
 			"title": "Launch event for the new community alley park",
 			"date": "2020-10-17",
-			"time": "10:00 AM – 4:00 PM",
+			"time": "10:00 AM \u2013 4:00 PM",
 			"location": "Alley park between U & T Streets and 12th & 13th Streets, Washington, DC 20009",
 			"description": "A gathering to celebrate and co-create the new community alley park for everyone's enjoyment and benefit. Attendees are asked to wear a mask and enjoy the park at a social distance.",
 			"hosts": [],
@@ -28,7 +28,7 @@
 		{
 			"title": "METTA-Ween Meditation",
 			"date": "2020-10-30",
-			"time": "11:00 AM – 11:30 AM",
+			"time": "11:00 AM \u2013 11:30 AM",
 			"location": "Alley Park Between 12th and 13th (and T and U Street), 1934 13th Street Northwest, Washington, DC, 20009",
 			"description": "A meditation class open to any individual irrespective of class, color, gender, or background, welcoming both experienced and novice practitioners. Chairs and cushions are provided for all attendees.",
 			"hosts": [
@@ -196,7 +196,7 @@
 		{
 			"title": "Sidewalk Palooza",
 			"date": "2021-06-12",
-			"time": "4:00 PM – 5:00 PM",
+			"time": "4:00 PM \u2013 5:00 PM",
 			"location": null,
 			"description": "An event addressing pedestrian infrastructure issues in the neighborhood. Participants gather at Temperance Alley to document infrastructure needs, submit 311 requests for sidewalk repairs, and participate in community chalk art activities. Organizers note that while potholes receive rapid city attention (3 business days average), sidewalk requests take approximately 270 days to fulfill, disproportionately affecting people with disabilities, parents with strollers, and seniors. Additional information at sidewalkpalooza.org.",
 			"hosts": [],
@@ -252,7 +252,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2021-06-23",
-			"time": "8:00 AM – 8:30 AM",
+			"time": "8:00 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "No description text was provided on the event page.",
 			"hosts": [
@@ -300,7 +300,7 @@
 		{
 			"title": "Introducing Interintellect: A Community of Conversation Arrives in DC",
 			"date": "2021-06-27",
-			"time": "5:00 PM – 6:30 PM",
+			"time": "5:00 PM \u2013 6:30 PM",
 			"location": null,
 			"description": "Interintellect, a global community of people who host learning clubs about philosophy, science, art, and technology, marks its return to in-person programming in partnership with Temperance Alley, its official DC partner. Expect a thought-provoking conversation.",
 			"hosts": [
@@ -313,7 +313,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2021-06-30",
-			"time": "8:00 AM – 8:30 AM",
+			"time": "8:00 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "No description text was provided on the event page.",
 			"hosts": [
@@ -375,7 +375,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2021-07-14",
-			"time": "8:00 AM – 8:30 AM",
+			"time": "8:00 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A 30-minute guided mindfulness meditation session.",
 			"hosts": [
@@ -572,7 +572,7 @@
 		{
 			"title": "How to See Grass",
 			"date": "2021-08-06",
-			"time": "5:00 PM – 6:00 PM",
+			"time": "5:00 PM \u2013 6:00 PM",
 			"location": null,
 			"description": "Guided spiritual ecology practice in the shared backyard garden. Participants learn the art of close observation and how to be in relationship with the garden's grasses. All ages welcome.",
 			"hosts": [
@@ -755,7 +755,7 @@
 			"title": "How to See a Plant: Vegetables",
 			"series": "How to See a Plant",
 			"date": "2021-09-23",
-			"time": "5:00 PM – 6:00 PM",
+			"time": "5:00 PM \u2013 6:00 PM",
 			"location": null,
 			"description": "Guided ecology practice in the shared backyard garden, designed to help participants overcome plant blindness by learning close observation and how to be in relationship with the garden's vegetable plants.",
 			"hosts": [
@@ -767,9 +767,9 @@
 		{
 			"title": "Art of Memory Workshop",
 			"date": "2021-09-24",
-			"time": "5:00 PM – 6:00 PM",
+			"time": "5:00 PM \u2013 6:00 PM",
 			"location": null,
-			"description": "A session exploring memorization as an artistic practice, beginning with an overview of memorization techniques—how they were invented and how they developed historically—then examining the connection between architecture and shared memory while practicing use of the garden as a memory palace.",
+			"description": "A session exploring memorization as an artistic practice, beginning with an overview of memorization techniques\u2014how they were invented and how they developed historically\u2014then examining the connection between architecture and shared memory while practicing use of the garden as a memory palace.",
 			"hosts": [
 				"Aaron Lewis"
 			],
@@ -840,7 +840,7 @@
 		{
 			"title": "Yoga in the Garden",
 			"date": "2021-10-16",
-			"time": "11:00 AM – 12:00 PM",
+			"time": "11:00 AM \u2013 12:00 PM",
 			"location": null,
 			"description": "Free all-levels yoga flow class in the garden with local instructors, open to any experience level. A few extra mats are available for those who don't have their own.",
 			"hosts": [
@@ -887,7 +887,7 @@
 		{
 			"title": "Yoga in the Garden",
 			"date": "2021-10-23",
-			"time": "10:00 AM – 11:00 AM",
+			"time": "10:00 AM \u2013 11:00 AM",
 			"location": null,
 			"description": "An outdoor children's yoga class ('Yoga &/In Nature') that proceeds rain or shine (chilly or rainy). Participants should bring a yoga mat, though extras are available to borrow. Led by a certified yoga instructor with prior experience teaching yoga to kids.",
 			"hosts": [
@@ -946,7 +946,7 @@
 			"title": "How to See a Plant: Vines",
 			"series": "How to See a Plant",
 			"date": "2021-10-28",
-			"time": "5:00 PM – 6:00 PM",
+			"time": "5:00 PM \u2013 6:00 PM",
 			"location": null,
 			"description": "Guided exercises in the shared backyard garden designed to help participants overcome plant blindness, practicing close observation and meaningful engagement with vine plants, described as having fun and chill vibes.",
 			"hosts": [
@@ -1125,7 +1125,7 @@
 		{
 			"title": "Winter Dome Assembly",
 			"date": "2021-12-11",
-			"time": "1:00 PM – 4:00 PM",
+			"time": "1:00 PM \u2013 4:00 PM",
 			"location": null,
 			"description": "The organization's dome structure has arrived and requires assembly. Volunteers are invited to help put together the many pieces or simply offer encouragement at the garden.",
 			"hosts": [],
@@ -1377,7 +1377,7 @@
 		{
 			"title": "Ring in the Spring Event",
 			"date": "2022-04-03",
-			"time": "5:30 PM – 7:00 PM",
+			"time": "5:30 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A spring neighborhood kickoff featuring free pizza & drinks, plant giveaways, brick painting, and games. Attendees are encouraged to wear floral clothing and bring snacks to share. A quarterly USNA meeting follows at 7:00 PM for those interested in learning about committee activities and local involvement opportunities.",
 			"hosts": [],
@@ -1462,7 +1462,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-04-23",
-			"time": "10:00 AM – 2:00 PM",
+			"time": "10:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "Community members celebrate Earth Day by joining garden volunteer hours starting at 10 AM, followed by a neighborhood trash cleanup starting around noon. Participants reconvene at the garden to review collected items and share refreshments. Gloves and bags provided; attendees encouraged to bring friends to cover their block.",
 			"hosts": [],
@@ -1592,7 +1592,7 @@
 		{
 			"title": "Welcome Committee Coffee Chat @ La Colombe",
 			"date": "2022-05-15",
-			"time": "1:00 PM – 2:30 PM",
+			"time": "1:00 PM \u2013 2:30 PM",
 			"location": "La Colombe Coffee, 1346 Florida Avenue Northwest, Washington, DC 20009",
 			"description": "Informal \"office hours\" hosted at La Colombe Coffee for both prospective and current members to learn about the organization as it works to expand membership and develop new approaches to engage community voices. \"The front door is open and we're here to answer all your questions.\"",
 			"hosts": [],
@@ -1677,7 +1677,7 @@
 		{
 			"title": "Ward 1 Mutual Aid Seed & Storytelling Event",
 			"date": "2022-05-22",
-			"time": "4:00 PM – 6:00 PM",
+			"time": "4:00 PM \u2013 6:00 PM",
 			"location": null,
 			"description": "A community gathering offering free meals, free seeds, Narcan training, and storytelling tied to a symbolic planting in the garden, part of the \"Watch Me Grow\" series addressing poverty stigma reduction in DC.",
 			"hosts": [
@@ -1690,7 +1690,7 @@
 		{
 			"title": "Yoga in the Garden",
 			"date": "2022-05-23",
-			"time": "6:30 PM – 7:30 PM",
+			"time": "6:30 PM \u2013 7:30 PM",
 			"location": null,
 			"description": "A session exploring the healing power of group laughter through breathing exercises designed to release endorphins. Described as easy, welcoming to all ages, not political, religious, competitive, or judgmental, and requiring no mat.",
 			"hosts": [
@@ -1877,7 +1877,7 @@
 		{
 			"title": "Ward 1 Council Candidate Forum",
 			"date": "2022-06-12",
-			"time": "6:00 PM – 8:00 PM (rain date June 13, 2022 at 6:00 PM)",
+			"time": "6:00 PM \u2013 8:00 PM (rain date June 13, 2022 at 6:00 PM)",
 			"location": null,
 			"description": "A community candidate forum moderated by USNA president Jenny Prime, giving residents the opportunity to ask questions of Ward 1 council candidates, followed by refreshments, produce harvesting and donation, and networking.",
 			"hosts": [
@@ -2147,7 +2147,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-07-07",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session. Organizers note that taking a pause in this fast-paced world is a bold move that gives space to remember what is important and act with more compassion and kindness.",
 			"hosts": [
@@ -2173,7 +2173,7 @@
 		{
 			"title": "Learn to Grow Mushrooms: A Series",
 			"date": "2022-07-09",
-			"time": "5:00 PM – 6:30 PM",
+			"time": "5:00 PM \u2013 6:30 PM",
 			"location": null,
 			"description": "A demonstration and hands-on workshop on how to grow oyster mushrooms in buckets, part of a multi-session series.",
 			"hosts": [],
@@ -2245,7 +2245,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-07-14",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session. Organizers note that taking a pause in this fast-paced world is a bold move.",
 			"hosts": [
@@ -2486,7 +2486,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-08-04",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session, with an emphasis on pausing in a fast-paced world to remember what is important and act with compassion and kindness.",
 			"hosts": [
@@ -2584,7 +2584,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-08-11",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session, framed as space to reflect on what matters and approach life with greater compassion.",
 			"hosts": [
@@ -2610,7 +2610,7 @@
 		{
 			"title": "Oyster Mushroom Cultivation and Cooking Workshop",
 			"date": "2022-08-14",
-			"time": "4:00 PM – 5:00 PM",
+			"time": "4:00 PM \u2013 5:00 PM",
 			"location": null,
 			"description": "Part of the 'Learn to Grow Mushrooms' series, this session features a mushroom cultivation introduction where participants build their own oyster mushroom grow kit to take home. Chef Iulian Fortu of Arcadia Ventures prepares and serves a mushroom dish while answering cooking questions. Free registration via Eventbrite was requested to help with supply planning, and grow kits were available while supplies lasted.",
 			"hosts": [
@@ -2685,7 +2685,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-08-18",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session, taking a pause in this fast-paced world.",
 			"hosts": [
@@ -2736,7 +2736,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-08-25",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session, framed as enabling reflection on priorities and acting with more compassion and kindness for others and oneself.",
 			"hosts": [
@@ -2810,7 +2810,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-09-01",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session; pausing gives space to remember what is important and act with more compassion and kindness.",
 			"hosts": [
@@ -2823,7 +2823,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-09-03",
-			"time": "10:00 AM – 11:00 AM",
+			"time": "10:00 AM \u2013 11:00 AM",
 			"location": null,
 			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for an afternoon of garden tending, landscaping, and hanging out with the plants. Plenty of materials and tasks are provided to help volunteers get their green fix for the week.",
 			"hosts": [
@@ -2858,7 +2858,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-09-08",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session, framed as an opportunity to remember priorities and act with more compassion and kindness for others and oneself.",
 			"hosts": [
@@ -2871,7 +2871,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-09-10",
-			"time": "10:00 AM – 1:00 PM",
+			"time": "10:00 AM \u2013 1:00 PM",
 			"location": null,
 			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants. Plenty of materials and tasks are provided, and volunteers get to take home their pick of veggies from the weekly harvest.",
 			"hosts": [
@@ -2933,7 +2933,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-09-15",
-			"time": "7:00 AM – 8:00 AM",
+			"time": "7:00 AM \u2013 8:00 AM",
 			"location": null,
 			"description": "A guided meditation, mindful sharing, and potential recreational activities session. Taking a pause in a fast-paced world gives space to remember what is important and act with compassion and kindness.",
 			"hosts": [
@@ -2957,7 +2957,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-09-17",
-			"time": "10:00 AM – 1:00 PM",
+			"time": "10:00 AM \u2013 1:00 PM",
 			"location": null,
 			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants. Plenty of materials and tasks are provided, and volunteers get to take home their pick of veggies from the weekly harvest.",
 			"hosts": [
@@ -2969,7 +2969,7 @@
 		{
 			"title": "Tricia's Foto Exhibition",
 			"date": "2022-09-17",
-			"time": "10:00 AM – 4:00 PM",
+			"time": "10:00 AM \u2013 4:00 PM",
 			"location": null,
 			"description": "This exhibition is the first ever showing of Tricia Ortiz's photographic work, emphasizing architectural elements in an abstract way, street photography, and travel photography. Tricia is a local resident of the U Street Neighborhood and photographer currently finishing her Master of Art in Photography at the Academy of Art University in San Francisco, CA. The weekend 'pop-up' gallery is open for viewing Friday 4-9pm, Saturday 10am-4pm, and Sunday 2-6pm.",
 			"hosts": [],
@@ -2979,7 +2979,7 @@
 		{
 			"title": "Tricia's Foto Exhibition",
 			"date": "2022-09-18",
-			"time": "1:00 PM – 6:00 PM",
+			"time": "1:00 PM \u2013 6:00 PM",
 			"location": null,
 			"description": "This exhibition is the first ever showing of Tricia Ortiz's photographic work, emphasizing architectural elements in an abstract way, street photography, and travel photography. Tricia is a local resident of the U Street Neighborhood and photographer currently finishing her Master of Art in Photography at the Academy of Art University in San Francisco, CA. The weekend 'pop-up' gallery is open for viewing Friday 4-9pm, Saturday 10am-4pm, and Sunday 2-6pm.",
 			"hosts": [],
@@ -3003,7 +3003,7 @@
 			"date": "2022-09-19",
 			"time": "7:00 PM - 7:45 PM",
 			"location": null,
-			"description": "A communal listening gathering in the garden at sunset to experience \"This sonic journey written and narrated by David G. Haskell brings us to the beginning of sound and song on planet Earth.\" The piece, made entirely of tiny trembling waves in air, combines spoken words with terrestrial sounds, inviting listeners into an experience of the living Earth and its history, and exploring how the chorus of modern sounds—from forest to oceans to human music—emerged from life's community. The event invites attendees on \"a journey into deep time and deep sound that will open your ears and your imagination.\"",
+			"description": "A communal listening gathering in the garden at sunset to experience \"This sonic journey written and narrated by David G. Haskell brings us to the beginning of sound and song on planet Earth.\" The piece, made entirely of tiny trembling waves in air, combines spoken words with terrestrial sounds, inviting listeners into an experience of the living Earth and its history, and exploring how the chorus of modern sounds\u2014from forest to oceans to human music\u2014emerged from life's community. The event invites attendees on \"a journey into deep time and deep sound that will open your ears and your imagination.\"",
 			"hosts": [],
 			"url": "https://www.ustreetcommunity.org/events/xki2owxeiol16yb57p6aqvc0wx0xjt",
 			"mayHaveException": false
@@ -3012,7 +3012,7 @@
 			"title": "Preserving Abundance: A Writing Workshop for the Autumnal Equinox",
 			"series": "Changing Seasons",
 			"date": "2022-09-20",
-			"time": "6:30 PM – 8:00 PM",
+			"time": "6:30 PM \u2013 8:00 PM",
 			"location": null,
 			"description": "A workshop gathering as \"the nights rise to balance the days,\" exploring writing across fiction, nonfiction, and poetry. Attendees depart with preserved memories, sealed intentions, and a handful of hopeful seeds.",
 			"hosts": [],
@@ -3061,7 +3061,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-09-22",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation, mindful sharing, and additional activities session, framed around pausing in a fast-paced world to act with more compassion and kindness for others and oneself.",
 			"hosts": [
@@ -3159,7 +3159,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-09-29",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session; taking a pause in this fast-paced world is described as a bold move.",
 			"hosts": [
@@ -3172,7 +3172,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-10-01",
-			"time": "10:00 AM – 1:00 PM",
+			"time": "10:00 AM \u2013 1:00 PM",
 			"location": null,
 			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants. Plenty of materials and tasks are provided, and volunteers get to take home their pick of veggies from the weekly harvest.",
 			"hosts": [
@@ -3232,7 +3232,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-10-06",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session. Taking a pause in today's hectic environment allows people to reconnect with what matters and respond with greater compassion toward themselves and others.",
 			"hosts": [
@@ -3256,7 +3256,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-10-08",
-			"time": "10:00 AM – 1:00 PM",
+			"time": "10:00 AM \u2013 1:00 PM",
 			"location": null,
 			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants. Plenty of materials and tasks are provided, and volunteers get to take home their pick of veggies from the weekly harvest.",
 			"hosts": [
@@ -3320,7 +3320,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-10-13",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session; taking a pause in this fast-paced world is described as a bold move.",
 			"hosts": [
@@ -3343,7 +3343,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-10-15",
-			"time": "10:00 AM – 1:00 PM",
+			"time": "10:00 AM \u2013 1:00 PM",
 			"location": null,
 			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants. Plenty of materials and tasks are provided, and volunteers get to take home their pick of veggies from the weekly harvest.",
 			"hosts": [
@@ -3412,7 +3412,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-10-20",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session, taking a pause in this fast-paced world.",
 			"hosts": [
@@ -3425,7 +3425,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-10-22",
-			"time": "10:00 AM – 1:00 PM",
+			"time": "10:00 AM \u2013 1:00 PM",
 			"location": null,
 			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants. Plenty of materials and tasks are provided, and volunteers get to take home their pick of veggies from the weekly harvest.",
 			"hosts": [
@@ -3500,7 +3500,7 @@
 			"title": "Morning Meditation",
 			"series": "Morning Meditation",
 			"date": "2022-10-27",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session; taking a pause today allows space to remember what is important and act with more compassion and kindness for others and oneself.",
 			"hosts": [
@@ -3525,7 +3525,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-10-29",
-			"time": "10:00 AM – 1:00 PM",
+			"time": "10:00 AM \u2013 1:00 PM",
 			"location": null,
 			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants. Plenty of materials and tasks are provided, and volunteers get to take home their pick of veggies from the weekly harvest.",
 			"hosts": [
@@ -3538,7 +3538,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-10-29",
-			"time": "10:00 AM – 1:00 PM",
+			"time": "10:00 AM \u2013 1:00 PM",
 			"location": null,
 			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants. Plenty of materials and tasks are provided, and volunteers get to take home their pick of veggies from the weekly harvest.",
 			"hosts": [
@@ -3551,7 +3551,7 @@
 			"title": "Your Ass is Grass Comedy",
 			"series": "\"Your Ass is Grass\" Comedy Show",
 			"date": "2022-10-29",
-			"time": "7:00 PM – 8:30 PM",
+			"time": "7:00 PM \u2013 8:30 PM",
 			"location": null,
 			"description": "A stand-up comedy showcase featuring some of the funniest and most genuine comics in the DMV area. Free and open to the public.",
 			"hosts": [
@@ -3614,7 +3614,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2022-11-05",
-			"time": "10:00 AM – 12:00 PM",
+			"time": "10:00 AM \u2013 12:00 PM",
 			"location": null,
 			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants. Plenty of materials and tasks are provided, and volunteers get to take home their pick of veggies from the weekly harvest.",
 			"hosts": [
@@ -3703,7 +3703,7 @@
 		{
 			"title": "Mindfulness of Running",
 			"date": "2022-11-17",
-			"time": "7:30 AM – 8:30 AM",
+			"time": "7:30 AM \u2013 8:30 AM",
 			"location": null,
 			"description": "A guided meditation and mindful sharing session; taking a pause in this fast-paced world offers space to remember what is important and act with more compassion and kindness for others and oneself.",
 			"hosts": [
@@ -3738,7 +3738,7 @@
 		{
 			"title": "Community Open Hours + Story Circle",
 			"date": "2022-12-03",
-			"time": "12:00 PM – 1:00 PM",
+			"time": "12:00 PM \u2013 1:00 PM",
 			"location": null,
 			"description": "Saturdays the gates will be open for a few hours starting at noon. Come join the stewards as they tend the winter greens, caretake the compost, and sip tea under the bubble dome. Bring your own baked goods to share with the circle and gather round to meet your neighbors.",
 			"hosts": [],
@@ -3759,7 +3759,7 @@
 		{
 			"title": "Community Open Hours + Story Circle",
 			"date": "2022-12-10",
-			"time": "12:00 PM – 1:00 PM",
+			"time": "12:00 PM \u2013 1:00 PM",
 			"location": null,
 			"description": "Saturdays the gates will be open for a few hours starting at noon. Come join the stewards as they tend the winter greens, caretake the compost, and sip tea under the bubble dome. Bring your own baked goods to share with the circle and gather round to meet your neighbors.",
 			"hosts": [],
@@ -3769,7 +3769,7 @@
 		{
 			"title": "How to See: Listening Party",
 			"date": "2022-12-10",
-			"time": "1:00 PM – 1:30 PM",
+			"time": "1:00 PM \u2013 1:30 PM",
 			"location": null,
 			"description": "A curated listening experience featuring Cars on Fire's recently released EP, played beneath the bubble dome during regular operating hours, with no skipping allowed.",
 			"hosts": [
@@ -3804,7 +3804,7 @@
 		{
 			"title": "Community Open Hours + Story Circle",
 			"date": "2022-12-31",
-			"time": "12:00 PM – 1:00 PM",
+			"time": "12:00 PM \u2013 1:00 PM",
 			"location": null,
 			"description": "Saturdays the gates will be open for a few hours starting at noon. Come join the stewards as they tend the winter greens, caretake the compost, and sip tea under the bubble dome. Bring your own baked goods to share with the circle and gather round to meet your neighbors.",
 			"hosts": [],
@@ -3814,7 +3814,7 @@
 		{
 			"title": "Open Hours + Zine Distribution",
 			"date": "2023-01-14",
-			"time": "12:00 PM – 1:00 PM",
+			"time": "12:00 PM \u2013 1:00 PM",
 			"location": null,
 			"description": "Saturdays the gates will be open for a few hours starting at noon, a chill space to socialize through winter hibernation and make plans for Temperance Alley Garden's season 3. Attendees can pick up copies of a newly printed recipe zine that Sara beautifully crafted, with thanks to her for over a month of work and to everyone who contributed to this garden love letter.",
 			"hosts": [],
@@ -3824,7 +3824,7 @@
 		{
 			"title": "Open Hours + Zine Distribution",
 			"date": "2023-01-21",
-			"time": "12:00 PM – 1:00 PM",
+			"time": "12:00 PM \u2013 1:00 PM",
 			"location": null,
 			"description": "Saturdays the gates will be open for a few hours starting at noon, a chill space to socialize through winter hibernation and make plans for Temperance Alley Garden's season 3. Attendees can pick up copies of a newly printed recipe zine that Sara beautifully crafted, with thanks to her for over a month of work and to everyone who contributed to this garden love letter.",
 			"hosts": [],
@@ -3846,7 +3846,7 @@
 		{
 			"title": "Open Hours",
 			"date": "2023-02-04",
-			"time": "12:00 PM – 1:30 PM",
+			"time": "12:00 PM \u2013 1:30 PM",
 			"location": null,
 			"description": "Saturdays the gates will be open for a few hours starting at noon, a chill space to socialize through winter hibernation and make plans for Temperance Alley Garden's season 3. Bring something to share if you like.",
 			"hosts": [],
@@ -3856,7 +3856,7 @@
 		{
 			"title": "Open Hours + Meditation",
 			"date": "2023-02-11",
-			"time": "12:00 PM – 1:30 PM",
+			"time": "12:00 PM \u2013 1:30 PM",
 			"location": null,
 			"description": "Saturdays the gates will be open for a few hours starting at noon, a chill space to socialize through winter hibernation; bring something to share if you like. Starting up again is the weekly meditation session led by Theo and friends, beginning right at noon for an optional group practice.",
 			"hosts": [
@@ -3878,7 +3878,7 @@
 		{
 			"title": "Garden Open Hours",
 			"date": "2023-02-18",
-			"time": "12:00 PM – 2:00 PM",
+			"time": "12:00 PM \u2013 2:00 PM",
 			"location": null,
 			"description": "Saturdays the gates will be open for a few hours starting at noon, a chill space to socialize through winter hibernation and make plans for Temperance Alley Garden's season 3. Bring something to share if you like.",
 			"hosts": [],
@@ -4055,7 +4055,7 @@
 			"title": "\"Your Ass is Grass\" Comedy Show",
 			"series": "\"Your Ass is Grass\" Comedy Show",
 			"date": "2023-04-21",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "A stand-up comedy showcase featuring performers from the DMV area. Free and open to the public.",
 			"hosts": [
@@ -4262,7 +4262,7 @@
 		{
 			"title": "\"Seed to Soul\" Connecting Communities of Color back to Nature through Urban Gardening",
 			"date": "2023-05-13",
-			"time": "3:00 PM – 6:00 PM",
+			"time": "3:00 PM \u2013 6:00 PM",
 			"location": null,
 			"description": "Soul Trak's 2023 Environmental Leaders Cohort, composed of 12 emerging outdoor leaders from the DMV area, presents an initiative focused on reconnecting communities of color to nature through exploration of local urban garden spaces and food environments. The program includes a gardening education workshop, environmental discussion, mini grow kits, and interactive activities suitable for all ages.",
 			"hosts": [
@@ -4336,7 +4336,7 @@
 			"title": "\"Your Ass is Grass\" Comedy Show",
 			"series": "\"Your Ass is Grass\" Comedy Show",
 			"date": "2023-05-19",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "A stand-up comedy showcase featuring comedians from the DMV area. Free and open to the public.",
 			"hosts": [
@@ -4470,7 +4470,7 @@
 		{
 			"title": "Journaling Hour ~ MondayGardenChill",
 			"date": "2023-06-05",
-			"time": "6:30 PM – 8:00 PM",
+			"time": "6:30 PM \u2013 8:00 PM",
 			"location": null,
 			"description": "A relaxed gathering for collaborative writing. Participants bring their own journaling materials or use provided supplies, with writing prompts available for inspiration. The session also features cut-out poetry, a creative collage activity using magazine text snippets arranged together.",
 			"hosts": [
@@ -4590,7 +4590,7 @@
 		{
 			"title": "Juggling for Everyone (yes, you!)",
 			"date": "2023-06-17",
-			"time": "5:00 PM – 6:30 PM",
+			"time": "5:00 PM \u2013 6:30 PM",
 			"location": "1909 13th Street Northwest, Washington, DC 20009",
 			"description": "An event inviting participants of all skill levels to learn juggling in a supportive, playful environment led by juggling instructors, with a garden host also participating. No prior experience is necessary, and attendees leave with their own set of juggling balls.",
 			"hosts": [
@@ -4614,7 +4614,7 @@
 			"mayHaveException": false
 		},
 		{
-			"title": "Craft in the Garden – MGC",
+			"title": "Craft in the Garden \u2013 MGC",
 			"date": "2023-06-19",
 			"time": "6:30 PM - 8:00 PM",
 			"location": null,
@@ -4628,7 +4628,7 @@
 		{
 			"title": "Secret Cacao Garden",
 			"date": "2023-06-20",
-			"time": "5:00 PM – 8:00 PM",
+			"time": "5:00 PM \u2013 8:00 PM",
 			"location": null,
 			"description": "An evening workshop exploring chocolate-making techniques. Participants will \"learn the artistry & alchemy behind turning cacao into chocolate\" and observe the process from seed to finished bar. The session includes harvesting fresh fruits, flowers, and herbs to incorporate into chocolate creations. Drop-in attendance is welcome.",
 			"hosts": [
@@ -4705,7 +4705,7 @@
 			"title": "\"Your Ass is Grass\" Comedy Show",
 			"series": "\"Your Ass is Grass\" Comedy Show",
 			"date": "2023-06-23",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "A stand-up comedy showcase featuring some of the funniest and most genuine comics in the DMV area.",
 			"hosts": [
@@ -4817,7 +4817,7 @@
 			"date": "2023-07-08",
 			"time": "11:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Community members join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants — tending shared crops, filling water barrels, and working on side projects together. Everyone is welcome, especially first-time visitors, and participants may take home harvested produce.",
+			"description": "Community members join the Temperance Alley garden stewards and partners at Farm the District for a morning of garden tending, landscaping, and hanging out with the plants \u2014 tending shared crops, filling water barrels, and working on side projects together. Everyone is welcome, especially first-time visitors, and participants may take home harvested produce.",
 			"hosts": [],
 			"url": "https://www.ustreetcommunity.org/events/tr5e35kxztgpy4z-cptza-75ljh-2sx76-7at6k-nb5n6-manls-etrra-jnsyx-ky9gx-2bc7f-c7bpb-a5slh-mfndz-twgt7-gmg8a-s8kz6-az4tk-ae9b4-nch3n-66wl3-8alny-7hyhm-7fg9y-kkg3n-9et9x-hzhsl-tm7bs-2trf7-h62ga-yf4e4",
 			"mayHaveException": true,
@@ -4933,7 +4933,7 @@
 			"mayHaveException": false
 		},
 		{
-			"title": "DIY crafting in the Garden – MGC",
+			"title": "DIY crafting in the Garden \u2013 MGC",
 			"date": "2023-07-17",
 			"time": "6:30 PM - 8:00 PM",
 			"location": null,
@@ -4985,7 +4985,7 @@
 			"date": "2023-07-20",
 			"time": "6:00 PM - 8:00 PM",
 			"location": null,
-			"description": "An informal gathering designed for songwriters at any skill level to bring their creative work — ideas, lyrics, and instruments — to collaborate and develop music in a supportive, low-pressure setting. Participants can also contribute to Temperance Alley Garden's community mixtape project, to be recorded and produced throughout the year.",
+			"description": "An informal gathering designed for songwriters at any skill level to bring their creative work \u2014 ideas, lyrics, and instruments \u2014 to collaborate and develop music in a supportive, low-pressure setting. Participants can also contribute to Temperance Alley Garden's community mixtape project, to be recorded and produced throughout the year.",
 			"hosts": [
 				"Matthew Gargano",
 				"Ben Roberts"
@@ -5009,7 +5009,7 @@
 			"title": "\"Your Ass is Grass\" Comedy Show",
 			"series": "\"Your Ass is Grass\" Comedy Show",
 			"date": "2023-07-21",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "A stand-up comedy showcase featuring local DMV comedians. Free and open to the public.",
 			"hosts": [
@@ -5116,7 +5116,7 @@
 		{
 			"title": "Journaling Hour ~ MondayGardenChill",
 			"date": "2023-07-31",
-			"time": "6:30 PM – 8:00 PM",
+			"time": "6:30 PM \u2013 8:00 PM",
 			"location": null,
 			"description": "A relaxed gathering for shared journaling with writing prompts provided, plus a cut-out poetry activity where participants collage using other people's words cut from magazines. Materials and supplies are provided by the host.",
 			"hosts": [
@@ -5166,7 +5166,7 @@
 			"date": "2023-08-03",
 			"time": "6:00 PM - 8:00 PM",
 			"location": null,
-			"description": "An informal gathering where songwriters at any skill level can bring their work — musical compositions, lyrical ideas, and instruments — to refine their pieces within a relaxed, cooperative setting. Participants may also contribute to a community mixtape project for Temperance Alley Garden, to be developed and produced throughout the year.",
+			"description": "An informal gathering where songwriters at any skill level can bring their work \u2014 musical compositions, lyrical ideas, and instruments \u2014 to refine their pieces within a relaxed, cooperative setting. Participants may also contribute to a community mixtape project for Temperance Alley Garden, to be developed and produced throughout the year.",
 			"hosts": [
 				"Matthew Gargano",
 				"Ben Roberts"
@@ -5179,7 +5179,7 @@
 			"date": "2023-08-05",
 			"time": "11:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a day of volunteer gardening — summer harvesting, tending shared crops, filling water barrels, and working on side projects together. Participants can take home fresh produce; first-time visitors are especially welcome.",
+			"description": "Join the Temperance Alley garden stewards and partners at Farm the District for a day of volunteer gardening \u2014 summer harvesting, tending shared crops, filling water barrels, and working on side projects together. Participants can take home fresh produce; first-time visitors are especially welcome.",
 			"hosts": [
 				"Temperance Alley garden stewards"
 			],
@@ -5240,7 +5240,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2023-08-12",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "A summer garden maintenance session where volunteers tend shared crops, fill water barrels, and work on side projects together with the Temperance Alley garden stewards and partners at Farm the District. Everyone is welcome, especially first-time visitors, and participants take home fresh produce.",
 			"hosts": [
@@ -5331,7 +5331,7 @@
 			"title": "\"Your Ass is Grass\" Comedy Show",
 			"series": "\"Your Ass is Grass\" Comedy Show",
 			"date": "2023-08-18",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "A stand-up comedy showcase featuring some of the funniest and most genuine comics in the DMV area. Free and open to the public.",
 			"hosts": [
@@ -5344,7 +5344,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2023-08-19",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "A summer garden maintenance session where volunteers tend shared crops, fill water barrels, and work on side projects together with the Temperance Alley garden stewards and partners at Farm the District. Everyone is welcome, especially first-time visitors, and participants take home a portion of fresh produce.",
 			"hosts": [
@@ -5590,7 +5590,7 @@
 		{
 			"title": "Yoga in the Garden",
 			"date": "2023-09-07",
-			"time": "6:30 PM – 7:30 PM",
+			"time": "6:30 PM \u2013 7:30 PM",
 			"location": null,
 			"description": "A laughter yoga session inviting more joy, play, and well-being into daily life, based on a practice created by cardiologist Dr. Madan Kataria in 1995. Requires no physical postures, special equipment, or attire; cited benefits include improved immune function, cardiovascular health, and sleep quality.",
 			"hosts": [
@@ -5776,7 +5776,7 @@
 			"title": "\"Your Ass is Still Grass\" Comedy Show",
 			"series": "\"Your Ass is Grass\" Comedy Show",
 			"date": "2023-09-22",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "A fall-themed stand-up comedy showcase featuring some of the funniest and most genuine comics in the DMV area. Free and open to all.",
 			"hosts": [
@@ -5801,7 +5801,7 @@
 		{
 			"title": "Math! with Matthew: a flowerside chat",
 			"date": "2023-09-25",
-			"time": "6:30 PM – 8:00 PM",
+			"time": "6:30 PM \u2013 8:00 PM",
 			"location": null,
 			"description": "An interactive learning session where Matthew introduces number theory basics, a mathematical field rarely covered in K-12 curricula. The event emphasizes 'question driven learning' to make mathematics more accessible and less intimidating for participants interested in gardening and math.",
 			"hosts": [
@@ -6132,7 +6132,7 @@
 		{
 			"title": "Mending Club: a Sunday Playtest",
 			"date": "2023-10-15",
-			"time": "5:00 PM – 6:30 PM",
+			"time": "5:00 PM \u2013 6:30 PM",
 			"location": null,
 			"description": "Attendees are invited to bring clothing items needing repair or fabric goods to upcycle: \"Bring her to the garden, let's see if we can fix her!\" This is diy/experimental mending rather than professional tailoring, embracing upcycling and mending old ripped jeans with love and care in the Garden.",
 			"hosts": [
@@ -6350,7 +6350,7 @@
 			"title": "\"Your Ass is Spooky Grass\" Comedy Show",
 			"series": "\"Your Ass is Grass\" Comedy Show",
 			"date": "2023-11-03",
-			"time": "7:00 PM – 8:00 PM",
+			"time": "7:00 PM \u2013 8:00 PM",
 			"location": null,
 			"description": "A Halloween-season stand-up comedy showcase featuring some of the funniest and most genuine stand-up talent in the DMV area. Free and open to the public.",
 			"hosts": [
@@ -6661,7 +6661,7 @@
 		{
 			"title": "Mid-Winter Huddle",
 			"date": "2024-02-03",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "A community gathering at the midpoint between winter solstice and spring equinox to mark the calendar, tidy up in preparation for Spring, and enjoy each other's company. Attendees are invited to bring games or activities to share, with discussion opportunities for those interested in deeper involvement with Temperance Alley Garden's upcoming season plans. All are welcome.",
 			"hosts": [
@@ -6673,7 +6673,7 @@
 		{
 			"title": "TAG Saturday Open Hours",
 			"date": "2024-02-10",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "During the final month of winter, the venue opens its gates on Saturdays for maintenance work ahead of spring and community gathering. Attendees are encouraged to bring games or activities to share. Organizers plan to discuss Season 4 initiatives for those interested in increased involvement. Part of a recurring Saturday open hours series (next session Feb 17).",
 			"hosts": [
@@ -6685,7 +6685,7 @@
 		{
 			"title": "TAG Saturday Open Hours",
 			"date": "2024-02-24",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "During the final winter month, the garden opens its gates on Saturdays for cleanup and spring preparation, welcoming all to enjoy community time together. Attendees are encouraged to bring games or activities. Organizers discuss Season 4 planning for those interested in deeper involvement.",
 			"hosts": [
@@ -6697,7 +6697,7 @@
 		{
 			"title": "TAG Saturday Open Hours",
 			"date": "2024-03-02",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "During the final month of winter, the gates open on Saturdays for tidying and socializing. Attendees are invited to bring games or activities. Organizers plan to discuss Season 4 involvement opportunities for the Temperance Alley Garden. Part of a recurring Saturday series (preceding event Feb 24; following event Mar 9).",
 			"hosts": [
@@ -6709,7 +6709,7 @@
 		{
 			"title": "TAG Saturday Open Hours",
 			"date": "2024-03-09",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "The gates open on Saturdays to tidy up in preparation for Spring and enjoy each other's company. Attendees are encouraged to bring games or activities to share, with opportunities to participate in Season 4 planning discussions for Temperance Alley Garden. Part of a recurring Saturday series (related events Mar 2 and Mar 16).",
 			"hosts": [
@@ -6721,7 +6721,7 @@
 		{
 			"title": "TAG Saturday Open Hours",
 			"date": "2024-03-16",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "During the final winter month, the garden gates open on Saturdays to tidy up in preparation for Spring and enjoy each other's company. Attendees are encouraged to bring games or activities and may participate in Season 4 planning discussions.",
 			"hosts": [
@@ -6757,7 +6757,7 @@
 		{
 			"title": "TAG Saturday Open Hours",
 			"date": "2024-03-23",
-			"time": "11:00 AM – 12:00 PM",
+			"time": "11:00 AM \u2013 12:00 PM",
 			"location": null,
 			"description": "Attendees are invited to come early to help set up for the Equinox celebration at noon and get a tour of the new 'nature preserve' parcel that the organization will manage this year across the alley.",
 			"hosts": [
@@ -6790,11 +6790,11 @@
 			"mayHaveException": false
 		},
 		{
-			"title": "Listening Party: Beyoncé's Cowboy Carter",
+			"title": "Listening Party: Beyonc\u00e9's Cowboy Carter",
 			"date": "2024-03-29",
 			"time": "5:00 PM - 6:00 PM",
 			"location": null,
-			"description": "Community gathering to intentionally listen to Beyoncé's Cowboy Carter album straight through with no skips (album starts 5:15 PM). Attendees encouraged to bring snacks, beverages, blankets, and cowboy hats.",
+			"description": "Community gathering to intentionally listen to Beyonc\u00e9's Cowboy Carter album straight through with no skips (album starts 5:15 PM). Attendees encouraged to bring snacks, beverages, blankets, and cowboy hats.",
 			"hosts": [
 				"Zachary"
 			],
@@ -6804,7 +6804,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2024-03-30",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "Participants assist with garden maintenance, including pruning meadow beds and clearing debris from a new nature preserve area. Zachary will be on hand to help attendees write letters to their future selves, a rescheduled activity from a Spring Equinox celebration. Serves as an alternative for those not attending Farm the District's UMD greenhouse program.",
 			"hosts": [
@@ -6829,7 +6829,7 @@
 		{
 			"title": "Morning Open Hours (Pilot)",
 			"date": "2024-04-04",
-			"time": "7:00 AM – 9:00 AM",
+			"time": "7:00 AM \u2013 9:00 AM",
 			"location": null,
 			"description": "An informal gathering to \"start your day the garden way\" through activities like meditation, walking pets, reading, or exploring. Coffee and tea will be provided, with no set group agenda; open to all.",
 			"hosts": [
@@ -6842,7 +6842,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2024-04-06",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "The event focuses on preparing raised beds before an upcoming transplant day, with tidying and repair projects to keep hands busy. New participants receive walking tours and information about contributing to the garden throughout the year, hosted in partnership with Farm the District.",
 			"hosts": [
@@ -6854,7 +6854,7 @@
 		{
 			"title": "La Pulga: Clothing Swap Flea Market",
 			"date": "2024-04-07",
-			"time": "11:00 AM – 1:00 PM",
+			"time": "11:00 AM \u2013 1:00 PM",
 			"location": null,
 			"description": "A community clothing and household item swap, described as 'like a buy nothing group but in real life,' with music and refreshments and a makeshift fitting area on site. Leftover items are donated or recycled after the event.",
 			"hosts": [],
@@ -6875,9 +6875,9 @@
 		{
 			"title": "Garden TRANSPLANT DAY",
 			"date": "2024-04-13",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
-			"description": "Described as \"the BIG ONE — time to get all our veggies into their beds for the season!\" Seedlings will be transplanted from the University of Maryland's greenhouses to the garden. The event emphasizes community engagement, with orientation tours and explanations of the communal growing model for newcomers. All ages and experience levels are welcome, hosted in partnership with Farm the District.",
+			"description": "Described as \"the BIG ONE \u2014 time to get all our veggies into their beds for the season!\" Seedlings will be transplanted from the University of Maryland's greenhouses to the garden. The event emphasizes community engagement, with orientation tours and explanations of the communal growing model for newcomers. All ages and experience levels are welcome, hosted in partnership with Farm the District.",
 			"hosts": [
 				"U Street Neighborhood Association",
 				"Farm the District"
@@ -6900,11 +6900,11 @@
 		{
 			"title": "Improv Comedy in the Garden",
 			"date": "2024-04-13",
-			"time": "3:00 PM – 5:00 PM",
+			"time": "3:00 PM \u2013 5:00 PM",
 			"location": null,
 			"description": "An afternoon of live improvisation performances with three shows in one afternoon, featuring a wide set of performers from across the DMV. The event concludes with a participatory improv jam session open to attendees of all skill levels; no prior experience required.",
 			"hosts": [
-				"Jacksón from Your Favorite Cookie"
+				"Jacks\u00f3n from Your Favorite Cookie"
 			],
 			"url": "https://www.ustreetcommunity.org/events/rock-and-shell-show-and-tell-gh98p",
 			"mayHaveException": false
@@ -6938,9 +6938,9 @@
 		{
 			"title": "Rock & Shell Show-and-Tell",
 			"date": "2024-04-16",
-			"time": "6:00 PM – 8:00 PM",
+			"time": "6:00 PM \u2013 8:00 PM",
 			"location": null,
-			"description": "An informal gathering where attendees bring their favorite geological specimens—rocks, crystals, fossils, and seashells—to share stories and \"mythologies\" about their collections. The event features a rock swap table for trading items. No geological expertise required; the atmosphere is deliberately casual and welcoming.",
+			"description": "An informal gathering where attendees bring their favorite geological specimens\u2014rocks, crystals, fossils, and seashells\u2014to share stories and \"mythologies\" about their collections. The event features a rock swap table for trading items. No geological expertise required; the atmosphere is deliberately casual and welcoming.",
 			"hosts": [
 				"Cory",
 				"Stephen"
@@ -6974,7 +6974,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2024-04-20",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "Volunteers are invited to get their hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Activities include weeding, watering, composting, repairing, crafting, and side projects, plus an orientation tour for newcomers.",
 			"hosts": [
@@ -6987,7 +6987,7 @@
 		{
 			"title": "Garden Volunteer Hours",
 			"date": "2024-04-20",
-			"time": "11:00 AM – 2:00 PM",
+			"time": "11:00 AM \u2013 2:00 PM",
 			"location": null,
 			"description": "A recurring Saturday volunteer opportunity inviting community members to help maintain the garden throughout the growing season, including weeding, watering, composting, repairing, crafting, and ongoing side projects. Newcomers receive orientation tours; no experience required, hosted in partnership with Farm the District.",
 			"hosts": [
@@ -7036,7 +7036,7 @@
 			"title": "\"Your Ass is Grass\" Comedy Show",
 			"series": "\"Your Ass is Grass\" Comedy Show",
 			"date": "2024-04-26",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "A return engagement of the comedy showcase highlighting new comics, continuing to feature some of the funniest and most genuine comics in the DMV area. Free and open to the public; virtual tip jar available with suggested donation of $5-$15.",
 			"hosts": [
@@ -7051,7 +7051,7 @@
 			"date": "2024-04-27",
 			"time": "11:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -7110,7 +7110,7 @@
 			"date": "2024-04-30",
 			"time": "7:00 PM - 9:15 PM",
 			"location": null,
-			"description": "A co-presented screening of an environmental-themed short film program focused on local filmmakers and causes. Films shown: Shad Run, Healing Baltimore's Harbor, People Rising: Ivy City, and Café y Aves. Followed by a community conversation with a featured local filmmaker and community activists, featuring Roshan Patel (Resident Filmmaker, Smithsonian's National Zoo and Conservation Biology Institute), Rosie Stone (Legal Specialist, Namati), and Sebrena Rhodes (Community Organizer, Empower DC), moderated by Monica Schorn (DCEFF Director).",
+			"description": "A co-presented screening of an environmental-themed short film program focused on local filmmakers and causes. Films shown: Shad Run, Healing Baltimore's Harbor, People Rising: Ivy City, and Caf\u00e9 y Aves. Followed by a community conversation with a featured local filmmaker and community activists, featuring Roshan Patel (Resident Filmmaker, Smithsonian's National Zoo and Conservation Biology Institute), Rosie Stone (Legal Specialist, Namati), and Sebrena Rhodes (Community Organizer, Empower DC), moderated by Monica Schorn (DCEFF Director).",
 			"hosts": [
 				"Stephen Stahr"
 			],
@@ -7157,7 +7157,7 @@
 			"date": "2024-05-04",
 			"time": "10:00 AM - 1:00 PM",
 			"location": null,
-			"description": "NEW START TIME (10AM). Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure. An orientation tour is given for newcomers.",
+			"description": "NEW START TIME (10AM). Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -7229,7 +7229,7 @@
 			"date": "2024-05-11",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -7289,7 +7289,7 @@
 			"date": "2024-05-18",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -7335,7 +7335,7 @@
 			"date": "2024-05-25",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -7428,7 +7428,7 @@
 			"date": "2024-06-01",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -7471,7 +7471,7 @@
 		{
 			"title": "New Moon Picnic & Ritual",
 			"date": "2024-06-06",
-			"time": "6:00 PM – 9:00 PM",
+			"time": "6:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "An evening gathering centered on new moon energy. Attendees are invited to bring snacks, spread blankets on the grass, and participate in intention-setting rituals aligned with the June lunar cycle. The event includes astrology readings and herbal tea selections.",
 			"hosts": [
@@ -7498,7 +7498,7 @@
 			"date": "2024-06-08",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -7508,7 +7508,7 @@
 		{
 			"title": "SharingCircle: the Speed of Life",
 			"date": "2024-06-09",
-			"time": "5:00 PM – 6:00 PM",
+			"time": "5:00 PM \u2013 6:00 PM",
 			"location": null,
 			"description": "A gathering aiming to \"cultivate community and connect in this first of its kind offering.\" Organizers emphasize inclusivity for all personality types and pledge to maintain a judgment-free space where folks participate in a way that feels best to them. The inaugural session explores the theme of \"The Speed of Life.\"",
 			"hosts": [
@@ -7607,7 +7607,7 @@
 			"date": "2024-06-15",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -7628,7 +7628,7 @@
 		{
 			"title": "Juneteenth Celebration at Harrison Park",
 			"date": "2024-06-19",
-			"time": "3:00 PM – 8:00 PM",
+			"time": "3:00 PM \u2013 8:00 PM",
 			"location": "Harrison Recreation Center, 1330 V Street Northwest, Washington, DC 20009",
 			"description": "A youth-centered community gathering with face painting, art making, and live music, plus a basketball tournament on a newly renovated court. Activities include a live band, a basketball giveaway, community speakers, a coloring mural, and a gallery tour of V Street Studio. Partners include Long Live GoGo, U Street Main Street, DPR, and the Kiwanis Club.",
 			"hosts": [],
@@ -7687,7 +7687,7 @@
 			"date": "2024-06-22",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -7758,7 +7758,7 @@
 			"date": "2024-06-29",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -7768,7 +7768,7 @@
 		{
 			"title": "\"Splash-Zone\" Improv Jam",
 			"date": "2024-06-29",
-			"time": "4:00 PM – 6:00 PM",
+			"time": "4:00 PM \u2013 6:00 PM",
 			"location": null,
 			"description": "An event featuring live comedy made up on the spot, with a splash-zone theme centered around all-participant improv. Attendees should expect to \"get soaked\" while enjoying collaborative improv games. No prior experience necessary; participants encouraged to bring friends and energy.",
 			"hosts": [
@@ -7793,7 +7793,7 @@
 		{
 			"title": "Meditation Jam for Musicians",
 			"date": "2024-06-30",
-			"time": "5:00 PM – 7:00 PM",
+			"time": "5:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "An experimental jam session encouraging musicians to stop overthinking and let the music flow, rather than forcing predetermined sounds, allowing music to emerge naturally without judgement. Open to musicians of all skill levels.",
 			"hosts": [
@@ -7850,7 +7850,7 @@
 			"date": "2024-07-06",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -8162,7 +8162,7 @@
 			"date": "2024-08-03",
 			"time": "10:00 AM - 1:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -8419,7 +8419,7 @@
 			"date": "2024-08-21",
 			"time": "7:00 PM - 8:00 PM",
 			"location": null,
-			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. Open to all skill levels — organizers teach attendees how to harvest as part of giving back to the community.",
+			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. Open to all skill levels \u2014 organizers teach attendees how to harvest as part of giving back to the community.",
 			"hosts": [
 				"Riley"
 			],
@@ -8456,7 +8456,7 @@
 			"date": "2024-08-24",
 			"time": "10:00 AM - 1:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -8468,7 +8468,7 @@
 			"date": "2024-08-24",
 			"time": "2:30 PM - 4:00 PM",
 			"location": null,
-			"description": "A playful dance workshop where participants embody various natural elements—roots, water, fire, trees—through guided and improvised movement. Emphasizes self-consent and boundaries; no prior dance experience required. Free event with optional RSVP via Eventbrite; donations to Soul Shine Theater Garden encouraged at the gate.",
+			"description": "A playful dance workshop where participants embody various natural elements\u2014roots, water, fire, trees\u2014through guided and improvised movement. Emphasizes self-consent and boundaries; no prior dance experience required. Free event with optional RSVP via Eventbrite; donations to Soul Shine Theater Garden encouraged at the gate.",
 			"hosts": [
 				"Sisi SoulShine"
 			],
@@ -8659,7 +8659,7 @@
 			"date": "2024-09-07",
 			"time": "10:00 AM - 1:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -8763,7 +8763,7 @@
 		{
 			"title": "Shabbat in the Garden",
 			"date": "2024-09-13",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "A community Shabbat gathering under the stars featuring reflective rituals and communal dining, part of OneTable's national 'Permission to Unplug' series for young adults. Potluck contributions are encouraged and pizza is provided; all are welcome.",
 			"hosts": [
@@ -8777,7 +8777,7 @@
 			"date": "2024-09-14",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "A pop-up petting zoo in the backyard — come chill with goats and other surprise animal guests, graciously hosted by local farmer friend Novian in the \"nature preserve\" parcel across the alley from the Garden. Plus the usual garden volunteering with partners at Farm the District: weeding, watering, composting, repairing, crafting, and side projects, with an orientation tour for newcomers and a share of the communal harvest to take home.",
+			"description": "A pop-up petting zoo in the backyard \u2014 come chill with goats and other surprise animal guests, graciously hosted by local farmer friend Novian in the \"nature preserve\" parcel across the alley from the Garden. Plus the usual garden volunteering with partners at Farm the District: weeding, watering, composting, repairing, crafting, and side projects, with an orientation tour for newcomers and a share of the communal harvest to take home.",
 			"hosts": [
 				"Novian",
 				"Farm the District"
@@ -8911,7 +8911,7 @@
 			"date": "2024-09-21",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -8933,7 +8933,7 @@
 		{
 			"title": "Mega-Zine Mixer with DMV Bartering",
 			"date": "2024-09-22",
-			"time": "12:00 PM – 4:00 PM",
+			"time": "12:00 PM \u2013 4:00 PM",
 			"location": null,
 			"description": "On the final day of summer, attendees can create their own zine, contribute to a group zine, donate items for distribution to local orgs, and chat about bartering with tabling members. MotorMouth offers zine-making demonstrations and guidance, and participants can join organizers in distributing donated items to community organizations.",
 			"hosts": [
@@ -8995,7 +8995,7 @@
 			"date": "2024-09-28",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -9048,7 +9048,7 @@
 			"date": "2024-10-02",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -9074,7 +9074,7 @@
 			"date": "2024-10-05",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -9142,7 +9142,7 @@
 			"date": "2024-10-09",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -9167,7 +9167,7 @@
 			"date": "2024-10-12",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -9177,9 +9177,9 @@
 		{
 			"title": "TAG-Along to the Mid-Atlantic Grain Fair!",
 			"date": "2024-10-12",
-			"time": "12:00 PM – 12:30 PM",
+			"time": "12:00 PM \u2013 12:30 PM",
 			"location": null,
-			"description": "A group field trip/bike ride from the garden to Peirce Mill for the annual Mid-Atlantic Grain Fair, featuring live hydropower demonstrations, cooking presentations, tastings, a farmers' market of regional grain products, music, and arts and crafts. Attendees can bring their own bike or use CaBi bike-share; the group departs at 12:30 PM sharp, and those unable to bike can meet at the mill around 1:00 PM. The fair itself runs 10:00 AM–4:00 PM.",
+			"description": "A group field trip/bike ride from the garden to Peirce Mill for the annual Mid-Atlantic Grain Fair, featuring live hydropower demonstrations, cooking presentations, tastings, a farmers' market of regional grain products, music, and arts and crafts. Attendees can bring their own bike or use CaBi bike-share; the group departs at 12:30 PM sharp, and those unable to bike can meet at the mill around 1:00 PM. The fair itself runs 10:00 AM\u20134:00 PM.",
 			"hosts": [
 				"Zachary"
 			],
@@ -9235,7 +9235,7 @@
 			"date": "2024-10-16",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -9272,7 +9272,7 @@
 			"date": "2024-10-19",
 			"time": "10:00 AM - 2:00 PM",
 			"location": null,
-			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects — find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
+			"description": "Come get your hands in the soil with partners at Farm the District, every Saturday throughout the growing season. Whether a first-timer or returning veteran, all are needed to help tend the shared backyard garden. Plenty of projects to keep hands busy, including weeding, watering, composting, repairing, crafting, and ongoing side projects \u2014 find a partner and choose your own adventure, and take home a share of the communal harvest. An orientation tour is given for newcomers.",
 			"hosts": [
 				"Farm the District"
 			],
@@ -9378,7 +9378,7 @@
 			"date": "2024-10-23",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -9530,7 +9530,7 @@
 			"date": "2024-10-30",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -9542,7 +9542,7 @@
 			"date": "2024-11-01",
 			"time": "6:30 PM - 9:00 PM",
 			"location": null,
-			"description": "Community screening of the animated miniseries \"Over the Garden Wall\" — all ten roughly 11-minute episodes (about two hours total), starting promptly at 7 PM. Family-friendly; follows brothers Wirt and Greg who get lost in the Unknown, a strange forest adrift in time, encountering mysterious characters. Attendees encouraged to bring warm beverages and blankets.",
+			"description": "Community screening of the animated miniseries \"Over the Garden Wall\" \u2014 all ten roughly 11-minute episodes (about two hours total), starting promptly at 7 PM. Family-friendly; follows brothers Wirt and Greg who get lost in the Unknown, a strange forest adrift in time, encountering mysterious characters. Attendees encouraged to bring warm beverages and blankets.",
 			"hosts": [
 				"Cory",
 				"Zachary"
@@ -9611,7 +9611,7 @@
 			"date": "2024-11-06",
 			"time": "7:00 PM - 8:00 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -9697,7 +9697,7 @@
 			"date": "2024-11-13",
 			"time": "7:00 PM - 8:00 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -9795,7 +9795,7 @@
 			"date": "2024-11-20",
 			"time": "7:00 PM - 8:00 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -10224,7 +10224,7 @@
 			"mayHaveException": false
 		},
 		{
-			"title": "Unplugged – Spring Open Mic",
+			"title": "Unplugged \u2013 Spring Open Mic",
 			"date": "2025-04-25",
 			"time": "6:30 PM - 9:00 PM",
 			"location": null,
@@ -10715,7 +10715,7 @@
 		{
 			"title": "Women's Circle",
 			"date": "2025-05-23",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "An evening combining physical movement and community connection: 30-45 minutes of physical exercises to connect with the body, followed by a circle of connection to share, listen, and feel held in community. Tea and vegan cookies provided; attendees asked to bring a mug and yoga mat or blanket. Described as a welcoming space for trans women, cis women, and nonbinary individuals centered on feminine experience.",
 			"hosts": [
@@ -10921,7 +10921,7 @@
 			"date": "2025-06-04",
 			"time": "7:00 PM - 8:00 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -11022,7 +11022,7 @@
 			"date": "2025-06-11",
 			"time": "7:00 PM - 8:00 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -11070,7 +11070,7 @@
 		{
 			"title": "Mending Workshop: Break Up with Fast Fashion",
 			"date": "2025-06-12",
-			"time": "6:00 PM – 8:00 PM",
+			"time": "6:00 PM \u2013 8:00 PM",
 			"location": null,
 			"description": "A beginner-friendly session on practical garment repair, teaching simple tips and tricks to extend the life of favorite clothes, saving money and reducing waste. Covers patching holes, hemming pants, sewing buttons, and basic tailoring. All experience levels welcome; supplies provided, though attendees may bring their own materials and optional clothing to practice on.",
 			"hosts": [
@@ -11132,9 +11132,9 @@
 		{
 			"title": "Rituals of Rest",
 			"date": "2025-06-17",
-			"time": "7:15 PM – 9:00 PM",
+			"time": "7:15 PM \u2013 9:00 PM",
 			"location": null,
-			"description": "A community gathering exploring personal and shared approaches to rest. The host describes the garden as \"a holy place of rest—a place where I can unwind, breathe deeply, and be in community\" and draws inspiration from Jewish Shabbat practices. Participants will discuss what makes them feel rested, whether rest connects to faith, culture, hobbies, or other sources, and examine similarities and differences across expressions of rest. Snacks provided; attendees welcome to bring dinner.",
+			"description": "A community gathering exploring personal and shared approaches to rest. The host describes the garden as \"a holy place of rest\u2014a place where I can unwind, breathe deeply, and be in community\" and draws inspiration from Jewish Shabbat practices. Participants will discuss what makes them feel rested, whether rest connects to faith, culture, hobbies, or other sources, and examine similarities and differences across expressions of rest. Snacks provided; attendees welcome to bring dinner.",
 			"hosts": [
 				"Yael"
 			],
@@ -11157,7 +11157,7 @@
 			"date": "2025-06-18",
 			"time": "7:00 PM - 8:00 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -11169,7 +11169,7 @@
 			"date": "2025-06-18",
 			"time": "7:00 PM - 8:15 PM",
 			"location": null,
-			"description": "Community members participate in call-and-response singing, learning straightforward musical pieces designed for easy participation. All voices and all levels of experience are welcome — come as you are.",
+			"description": "Community members participate in call-and-response singing, learning straightforward musical pieces designed for easy participation. All voices and all levels of experience are welcome \u2014 come as you are.",
 			"hosts": [
 				"Elizabeth Tuten",
 				"Sarah Netland",
@@ -11181,7 +11181,7 @@
 		{
 			"title": "Juneteenth at Harrison: 3rd Annual Celebration",
 			"date": "2025-06-19",
-			"time": "12:00 PM – 8:00 PM",
+			"time": "12:00 PM \u2013 8:00 PM",
 			"location": "Harrison Recreation Center, 1330 V Street Northwest, Washington, DC 20009",
 			"description": "A community celebration honoring Black culture, liberation, and community, featuring boxing exhibitions, a basketball tournament, live GoGo music, DJ performances, vendor tables, and local resource booths. Community partners include Hostels Guild, U Street Main Street, Long Live GoGo, and FREE DC.",
 			"hosts": [],
@@ -11252,7 +11252,7 @@
 			"date": "2025-06-25",
 			"time": "7:00 PM - 8:00 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -11263,7 +11263,7 @@
 			"title": "Creatives Club & Community Jam",
 			"date": "2025-06-26",
 			"time": "6:00 PM - 9:00 PM",
-			"location": "MLK Library Café, 901 G Street Northwest, Washington, DC 20001",
+			"location": "MLK Library Caf\u00e9, 901 G Street Northwest, Washington, DC 20001",
 			"description": "An artistic gathering where attendees can bring ongoing projects, musical instruments, or simply connect with fellow artists; some basic art supplies will be provided. The event was moved indoors to MLK Library from its usual garden venue due to heat.",
 			"hosts": [
 				"Cory",
@@ -11302,7 +11302,7 @@
 		{
 			"title": "Secret Garden: A Golden Hour Art Show",
 			"date": "2025-06-28",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "An evening gathering in the garden featuring curated artwork, live musical performances, and spoken word presentations. The event includes light refreshments and celebrates \"resilience, creativity, and the movement to decriminalize sex work\" as it progresses from evening into dusk. A fundraiser benefiting the Sex Worker Advocacy Coalition (SWAC).",
 			"hosts": [
@@ -11348,7 +11348,7 @@
 			"date": "2025-07-02",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary — organizers teach attendees how to harvest as part of giving back to the community.",
+			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary \u2014 organizers teach attendees how to harvest as part of giving back to the community.",
 			"hosts": [
 				"Riley"
 			],
@@ -11419,7 +11419,7 @@
 			"date": "2025-07-09",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary — organizers teach attendees how to harvest as part of giving back to the community.",
+			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary \u2014 organizers teach attendees how to harvest as part of giving back to the community.",
 			"hosts": [
 				"Riley"
 			],
@@ -11536,7 +11536,7 @@
 			"date": "2025-07-16",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -11642,7 +11642,7 @@
 			"date": "2025-07-23",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -11711,7 +11711,7 @@
 		{
 			"title": "Rest Club",
 			"date": "2025-07-28",
-			"time": "9:00 AM – 10:30 AM",
+			"time": "9:00 AM \u2013 10:30 AM",
 			"location": null,
 			"description": "An invitation to gather in the garden for unstructured quiet time, drawing on disability culture scholarship and Black feminist thought. The event supports \"reclaiming our individual and collective right to rest\" and welcomes attendees to bring comfort items like water bottles, cushions, blankets, or hand fans.",
 			"hosts": [
@@ -11745,7 +11745,7 @@
 			"date": "2025-07-30",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -11840,7 +11840,7 @@
 			"date": "2025-08-06",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -11923,7 +11923,7 @@
 		{
 			"title": "Rest Club",
 			"date": "2025-08-11",
-			"time": "8:30 AM – 10:00 AM",
+			"time": "8:30 AM \u2013 10:00 AM",
 			"location": null,
 			"description": "An invitation to gather in the garden for unstructured quiet time. The event draws from disability justice and Black feminist frameworks to position rest as an act of resistance. Participants are encouraged to bring items that support their comfort, such as water bottles, hats, fans, cushions, or blankets.",
 			"hosts": [
@@ -11933,11 +11933,11 @@
 			"mayHaveException": false
 		},
 		{
-			"title": "DIY Macramé! Yoga Mat Straps",
+			"title": "DIY Macram\u00e9! Yoga Mat Straps",
 			"date": "2025-08-12",
 			"time": "6:00 PM - 7:00 PM",
 			"location": null,
-			"description": "Participants learn the history and techniques of macramé while creating a yoga mat strap; all materials provided, no experience necessary. Attendees are welcome to stay for an additional yoga class from 7-8 PM.",
+			"description": "Participants learn the history and techniques of macram\u00e9 while creating a yoga mat strap; all materials provided, no experience necessary. Attendees are welcome to stay for an additional yoga class from 7-8 PM.",
 			"hosts": [
 				"Shira"
 			],
@@ -11958,7 +11958,7 @@
 		{
 			"title": "Breathe Easy: Group Meditation",
 			"date": "2025-08-13",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A weekly meditation community gathering featuring guided, silent, and relational practice to promote presence and compassion. All levels of experience welcomed; participants invited to contribute a practice to share.",
 			"hosts": [],
@@ -11970,7 +11970,7 @@
 			"date": "2025-08-13",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -12092,7 +12092,7 @@
 		{
 			"title": "Breathe Easy: Group Meditation",
 			"date": "2025-08-20",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A weekly meditation community meeting for re-centering and connection, featuring a mix of guided, silent, and relational practice with emphasis on presence and compassion. All experience levels welcome; participants invited to bring a practice to share.",
 			"hosts": [],
@@ -12104,7 +12104,7 @@
 			"date": "2025-08-20",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -12127,7 +12127,7 @@
 		{
 			"title": "Shabbat in the Garden",
 			"date": "2025-08-22",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "A special Shabbat dinner celebration featuring a harvest theme with a build-your-own smoothie bar potluck. Attendees are invited to bring fruits and vegetables to share. The event emphasizes community gathering in a garden setting to welcome Shabbat together; all are welcome.",
 			"hosts": [
@@ -12152,7 +12152,7 @@
 		{
 			"title": "Junk Lighter: Community Art Event",
 			"date": "2025-08-23",
-			"time": "2:00 PM – 5:00 PM",
+			"time": "2:00 PM \u2013 5:00 PM",
 			"location": null,
 			"description": "A free community art gathering where participants decorate lighters with charms, Sharpies, rhinestones, and other materials. Glue, lighters, and decorating supplies are provided, though attendees may bring their own lighters and materials. Described as a welcoming space to create, collaborate, and connect with local creatives.",
 			"hosts": [
@@ -12179,7 +12179,7 @@
 			"date": "2025-08-24",
 			"time": "6:00 PM - 8:00 PM",
 			"location": null,
-			"description": "Workshop for people processing loss of any kind — a loved one, pet, relationship, bodily changes, or abandoned dreams. Includes a demo of a tried-and-true way to paint a moving portrait, along with reflection prompts and sharing opportunities; participants can create self-portraits, portraits of meaningful people, or supportive friends. All materials provided, no prior art experience needed; attendees should bring journal reflections on their grief and reference photos. Facilitator Ellie notes she is not a licensed therapist but shares her perspective as an artist and person who has experienced grief.",
+			"description": "Workshop for people processing loss of any kind \u2014 a loved one, pet, relationship, bodily changes, or abandoned dreams. Includes a demo of a tried-and-true way to paint a moving portrait, along with reflection prompts and sharing opportunities; participants can create self-portraits, portraits of meaningful people, or supportive friends. All materials provided, no prior art experience needed; attendees should bring journal reflections on their grief and reference photos. Facilitator Ellie notes she is not a licensed therapist but shares her perspective as an artist and person who has experienced grief.",
 			"hosts": [
 				"Ellie",
 				"Sarah"
@@ -12234,7 +12234,7 @@
 		{
 			"title": "Breathe Easy: Group Meditation",
 			"date": "2025-08-27",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A weekly meditation community gathering featuring a mix of guided, silent, and relational practice to ground participants in presence and compassion. All experience levels welcome; attendees invited to share practices.",
 			"hosts": [],
@@ -12256,7 +12256,7 @@
 			"date": "2025-08-27",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -12268,7 +12268,7 @@
 			"date": "2025-08-28",
 			"time": "6:00 PM - 9:00 PM",
 			"location": null,
-			"description": "\"Harvest your own creative potential\" — gather for artistic work in the blooming garden. Bring projects in development, musical instruments, or simply participate socially. Organizers supply basic art materials.",
+			"description": "\"Harvest your own creative potential\" \u2014 gather for artistic work in the blooming garden. Bring projects in development, musical instruments, or simply participate socially. Organizers supply basic art materials.",
 			"hosts": [
 				"Cory",
 				"Creatives Club DC"
@@ -12330,7 +12330,7 @@
 		{
 			"title": "Liberation Commemoration: Honoring the Legacy of Nat Turner & John Brown",
 			"date": "2025-08-31",
-			"time": "4:00 PM – 5:00 PM",
+			"time": "4:00 PM \u2013 5:00 PM",
 			"location": "African-American Civil War Memorial, 1240 U Street Northwest, Washington, DC 20009",
 			"description": "A free public gathering featuring a ceremonial wreath laying and remarks reflecting on the courage, vision, and sacrifice of Nat Turner and John Brown in the struggle for freedom, and their impact on the community today. The program includes remarks from a local historian, a Griot Elder, and spoken word poetry.",
 			"hosts": [
@@ -12366,7 +12366,7 @@
 		{
 			"title": "Breathe Easy: Group Meditation",
 			"date": "2025-09-03",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A weekly meditation gathering where participants re-center and connect through guided, silent, and relational practices grounded in presence and compassion. Welcomes all experience levels; attendees invited to share a practice with the circle.",
 			"hosts": [],
@@ -12378,7 +12378,7 @@
 			"date": "2025-09-03",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary — organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
+			"description": "Weekly volunteer harvest at Temperance Alley Garden where participants pick produce donated to Martha's Table through an ongoing partnership with Farm the District. No experience necessary \u2014 organizers teach harvesting techniques on site. Held every Wednesday ('hump day') at 7 PM, part of a long-running partnership benefiting Martha's Table's health and wellness programs.",
 			"hosts": [
 				"Riley"
 			],
@@ -12499,7 +12499,7 @@
 		{
 			"title": "Breathe Easy: Group Meditation",
 			"date": "2025-09-10",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A weekly meditation community gathering featuring a mix of guided, silent, and relational practice to ground participants in presence and compassion. All experience levels welcome; attendees invited to share a practice with the circle.",
 			"hosts": [],
@@ -12511,7 +12511,7 @@
 			"date": "2025-09-10",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary — organizers teach attendees how to harvest as part of giving back to the community.",
+			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary \u2014 organizers teach attendees how to harvest as part of giving back to the community.",
 			"hosts": [
 				"Riley"
 			],
@@ -12534,7 +12534,7 @@
 		{
 			"title": "Weekday Reset: Rest & Reflect",
 			"date": "2025-09-12",
-			"time": "3:30 PM – 6:30 PM",
+			"time": "3:30 PM \u2013 6:30 PM",
 			"location": null,
 			"description": "An informal gathering to wind down at the end of the week through rest, meditation, creative practice, or reflection on prompts about transitioning into autumn, with a flowing, connecting format.",
 			"hosts": [
@@ -12604,7 +12604,7 @@
 		{
 			"title": "Breathe Easy: Group Meditation",
 			"date": "2025-09-17",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A weekly meditation community gathering including guided, silent, and relational practice focused on presence and compassion. Open to all experience levels, with participants invited to share practices with the group.",
 			"hosts": [],
@@ -12616,7 +12616,7 @@
 			"date": "2025-09-17",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary — organizers teach attendees how to harvest as part of giving back to the community.",
+			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary \u2014 organizers teach attendees how to harvest as part of giving back to the community.",
 			"hosts": [
 				"Riley"
 			],
@@ -12628,7 +12628,7 @@
 			"date": "2025-09-18",
 			"time": "7:00 PM - 9:00 PM",
 			"location": null,
-			"description": "Gathering inviting participants of all skill levels to explore flow arts—creative movement practices involving props such as juggling, hula hooping, poi spinning, and staffs. Features open practice time to learn from one another, share tips, and demonstrate tricks; own flow toys or shared equipment available.",
+			"description": "Gathering inviting participants of all skill levels to explore flow arts\u2014creative movement practices involving props such as juggling, hula hooping, poi spinning, and staffs. Features open practice time to learn from one another, share tips, and demonstrate tricks; own flow toys or shared equipment available.",
 			"hosts": [
 				"Cassie",
 				"Jacob"
@@ -12663,7 +12663,7 @@
 		{
 			"title": "We the People: Know Your Rights Workshop and Art Build",
 			"date": "2025-09-21",
-			"time": "4:00 PM – 6:00 PM",
+			"time": "4:00 PM \u2013 6:00 PM",
 			"location": null,
 			"description": "A community gathering featuring a Know Your Rights workshop on encounters with law enforcement, followed by an art-building session to create banners, posters, and window signs. Includes communal grounding/check-in time and local community group tabling. Attendees invited to bring materials such as cardboard, paper, or paint.",
 			"hosts": [
@@ -12690,7 +12690,7 @@
 		{
 			"title": "R&R in the Garden",
 			"date": "2025-09-23",
-			"time": "2:30 PM – 4:30 PM",
+			"time": "2:30 PM \u2013 4:30 PM",
 			"location": null,
 			"description": "A Rosh Hashanah gathering inviting attendees to \"rest & renew in the garden as we ring in Rosh Hashanah, the Jewish new year.\" The loosely structured afternoon welcomes participants to play, journal, meditate, create art, socialize, and enjoy apples with honey (provided). Attendees can arrive anytime during the window and bring personal items such as art projects or books. Drop-in format welcoming both Jewish community members and friends.",
 			"hosts": [
@@ -12704,7 +12704,7 @@
 			"date": "2025-09-23",
 			"time": "6:00 PM - 7:00 PM",
 			"location": null,
-			"description": "All-levels donation-suggested yoga flow in the garden amid greenery and open sky, focused on grounding and centering. Bring yourself, water, and a mat (a few extras available on site). Page notes a new start time for fall — 6pm.",
+			"description": "All-levels donation-suggested yoga flow in the garden amid greenery and open sky, focused on grounding and centering. Bring yourself, water, and a mat (a few extras available on site). Page notes a new start time for fall \u2014 6pm.",
 			"hosts": [],
 			"url": "https://www.ustreetcommunity.org/events/tagyoga-lpl44-hnpjc-2glng-9mffa-pa7ts-23tkg-t33yp-pthgz-db9s2-a9t3b-rbl8y-5e6zz-8t35d-rx368-zaw69-7rmdl-4y32h-lrz9d-4td7t-zw5l7-6keaa-56a77-6ywhe-wh7xj-5pfs6-mltrx-x9prz-n7m4m",
 			"mayHaveException": true,
@@ -12725,7 +12725,7 @@
 		{
 			"title": "Breathe Easy: Group Meditation",
 			"date": "2025-09-24",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A weekly meditation gathering welcoming all experience levels. Sessions combine guided, silent, and relational meditation practices with emphasis on presence and compassion. Participants encouraged to contribute practices to share with the group.",
 			"hosts": [],
@@ -12737,7 +12737,7 @@
 			"date": "2025-09-24",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary — organizers teach attendees how to harvest as part of giving back to the community.",
+			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary \u2014 organizers teach attendees how to harvest as part of giving back to the community.",
 			"hosts": [
 				"Riley"
 			],
@@ -12813,7 +12813,7 @@
 			"date": "2025-09-30",
 			"time": "7:00 PM - 8:15 PM",
 			"location": null,
-			"description": "A gathering to create space for honest reflection and intentional growth as the Jewish new year begins, including spiritual self-examination and conversation about teshuvah (return) and forgiveness — exploring returning to one's authentic self, healing Earth relationships, and mending interpersonal bonds. Attendees are invited to bring a journal or notebook and pen for personal reflection. The event welcomes Jewish individuals, interfaith families, and curious friends.",
+			"description": "A gathering to create space for honest reflection and intentional growth as the Jewish new year begins, including spiritual self-examination and conversation about teshuvah (return) and forgiveness \u2014 exploring returning to one's authentic self, healing Earth relationships, and mending interpersonal bonds. Attendees are invited to bring a journal or notebook and pen for personal reflection. The event welcomes Jewish individuals, interfaith families, and curious friends.",
 			"hosts": [
 				"Sarah"
 			],
@@ -12823,7 +12823,7 @@
 		{
 			"title": "Breathe Easy: Group Meditation",
 			"date": "2025-10-01",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A weekly meditation community gathering featuring a mix of guided, silent, and relational practice to ground participants in presence and compassion. Open to all experience levels.",
 			"hosts": [],
@@ -12835,7 +12835,7 @@
 			"date": "2025-10-01",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary — organizers teach attendees how to harvest as part of giving back to the community.",
+			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary \u2014 organizers teach attendees how to harvest as part of giving back to the community.",
 			"hosts": [
 				"Riley"
 			],
@@ -12867,7 +12867,7 @@
 		{
 			"title": "Breathe Easy: Group Meditation",
 			"date": "2025-10-08",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A weekly meditation gathering where participants re-center and connect through guided, silent, and relational practices, cultivating intentions while grounding in presence and compassion. Welcomes all experience levels; attendees invited to share a practice with the circle.",
 			"hosts": [],
@@ -12879,7 +12879,7 @@
 			"date": "2025-10-08",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary — organizers teach attendees how to harvest as part of giving back to the community.",
+			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary \u2014 organizers teach attendees how to harvest as part of giving back to the community.",
 			"hosts": [
 				"Riley"
 			],
@@ -12998,7 +12998,7 @@
 		{
 			"title": "Breathe Easy: Group Meditation",
 			"date": "2025-10-15",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A weekly meditation community gathering with guided, silent, and relational practice to re-center, connect, and cultivate intentions. Participants warmly welcomed at all experience levels; encouraged to bring a practice for the circle to share.",
 			"hosts": [],
@@ -13010,7 +13010,7 @@
 			"date": "2025-10-15",
 			"time": "7:00 PM - 8:30 PM",
 			"location": null,
-			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary — organizers teach attendees how to harvest as part of giving back to the community.",
+			"description": "Midweek harvest event where produce is donated to Martha's Table through a long-running partnership with Farm the District. No experience necessary \u2014 organizers teach attendees how to harvest as part of giving back to the community.",
 			"hosts": [
 				"Riley"
 			],
@@ -13071,7 +13071,7 @@
 			"date": "2025-10-18",
 			"time": "5:00 PM - 7:00 PM",
 			"location": null,
-			"description": "An original theater garden creation featuring ritual dance language that weaves together song, poetry, dance, and story sharing in dialogue with the garden and earth. Marks the culmination of Soul Shine Theater Garden's first season, \"Wild Faith: Believe. Blossom. Become.,\" and includes storytelling about local U Street neighborhood history and ancestral honoring. No on-site bathroom (nearest facilities at Brew on U Café or 14th Street Trader Joe's); outdoor, open-air space with limited shade structures. Donations encouraged to support Soul Shine Theater Garden. Part of Sisi's 2025 Artist in Residence program at the venue.",
+			"description": "An original theater garden creation featuring ritual dance language that weaves together song, poetry, dance, and story sharing in dialogue with the garden and earth. Marks the culmination of Soul Shine Theater Garden's first season, \"Wild Faith: Believe. Blossom. Become.,\" and includes storytelling about local U Street neighborhood history and ancestral honoring. No on-site bathroom (nearest facilities at Brew on U Caf\u00e9 or 14th Street Trader Joe's); outdoor, open-air space with limited shade structures. Donations encouraged to support Soul Shine Theater Garden. Part of Sisi's 2025 Artist in Residence program at the venue.",
 			"hosts": [
 				"Sisi SoulShine",
 				"Ms. Judith Bauer"
@@ -13204,7 +13204,7 @@
 		{
 			"title": "Improv at the Garden",
 			"date": "2025-10-25",
-			"time": "2:00 PM – 3:00 PM",
+			"time": "2:00 PM \u2013 3:00 PM",
 			"location": null,
 			"description": "An improvisational theater session featuring games and warm-ups designed to cultivate presence and mindfulness, culminating in a 10-minute montage where participants apply learned techniques to create a spontaneous collaborative performance. Draws parallels between improv's ephemeral nature and the garden's temporary existence, emphasizing savoring the moment, paying attention, and actively listening.",
 			"hosts": [
@@ -13229,7 +13229,7 @@
 		{
 			"title": "Seaton St Block Party",
 			"date": "2025-10-25",
-			"time": "4:00 PM – 7:00 PM",
+			"time": "4:00 PM \u2013 7:00 PM",
 			"location": null,
 			"description": "A neighborhood gathering featuring a potluck where residents can meet, learn local history, receive community updates, and enjoy music, food, and artmaking. The event welcomes families and leashed pets. Volunteers and food/item contributions are welcomed via a sign-up spreadsheet.",
 			"hosts": [],
@@ -13333,7 +13333,7 @@
 			"date": "2025-11-02",
 			"time": "2:00 PM - 4:30 PM",
 			"location": null,
-			"description": "Ecological restoration event at the Temperance Alley Sanctuary. Participants collect non-native plants for papermaking, transplant native species for attendee giveaways, and plant tree and understory seedlings, while learning how to rescue neighborhood plant seedlings, temporarily pot them, and plant them to thrive. The Sanctuary is described as a new extension of Temperance Alley Garden for quiet observation and cultivating reciprocity with the land — a time capsule of Indigenous stewardship, a native food/micro forest restoring biodiversity, and an ecological classroom.",
+			"description": "Ecological restoration event at the Temperance Alley Sanctuary. Participants collect non-native plants for papermaking, transplant native species for attendee giveaways, and plant tree and understory seedlings, while learning how to rescue neighborhood plant seedlings, temporarily pot them, and plant them to thrive. The Sanctuary is described as a new extension of Temperance Alley Garden for quiet observation and cultivating reciprocity with the land \u2014 a time capsule of Indigenous stewardship, a native food/micro forest restoring biodiversity, and an ecological classroom.",
 			"hosts": [
 				"Chandan",
 				"Amy"
@@ -13416,7 +13416,7 @@
 			"date": "2025-11-08",
 			"time": "4:00 PM - 5:30 PM",
 			"location": null,
-			"description": "A participatory dance workshop combining movement, storytelling, and games to explore interconnection with nature. Participants embody the five elements—earth, water, fire, air, and light—through guided movement requiring no prior dance experience. Emphasizes communal joy, \"inviting joy not absent of grief, heartache, tragedy but alongside and despite of.\" Recommended for ages 9 and up; children should be accompanied by and participate with adults. Donations to Soul Shine Theater Garden suggested at the gate.",
+			"description": "A participatory dance workshop combining movement, storytelling, and games to explore interconnection with nature. Participants embody the five elements\u2014earth, water, fire, air, and light\u2014through guided movement requiring no prior dance experience. Emphasizes communal joy, \"inviting joy not absent of grief, heartache, tragedy but alongside and despite of.\" Recommended for ages 9 and up; children should be accompanied by and participate with adults. Donations to Soul Shine Theater Garden suggested at the gate.",
 			"hosts": [
 				"Sisi SoulShine"
 			],
@@ -13720,7 +13720,7 @@
 		{
 			"title": "Meetup with Ward 1 Council Candidate Rashida Brown",
 			"date": "2026-03-10",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": "Thurgood Marshall Center, 1816 12th Street Northwest, Washington, DC 20009",
 			"description": "The U Street Neighborhood Association is hosting an informal meet-and-greet with Rashida Brown, who is running for Ward 1 Council and currently serves as an ANC Commissioner, to help community members get to know the candidate and share neighborhood concerns. Calendar export options (Google Calendar, ICS) available.",
 			"hosts": [
@@ -13757,7 +13757,7 @@
 		{
 			"title": "Sidewalk Astronomy in the Garden!",
 			"date": "2026-03-26",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "An evening stargazing event featuring multiple telescopes for viewing the waxing first quarter moon, planets including Venus and Jupiter, and deep sky objects such as the Orion Nebula and M81 galaxy. Attendees are encouraged to bring friends. POSTPONED due to cloudy skies; reschedule date TBD.",
 			"hosts": [
@@ -13790,7 +13790,7 @@
 		{
 			"title": "Meet & Greet with Ward 1 Council Candidate Miguel Trindade Deramo",
 			"date": "2026-04-06",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": "True Reformer Building, 1200 U Street Northwest, Washington, DC 20009",
 			"description": "The U Street Neighborhood Association is hosting an informal meet-and-greet with Miguel Trindade Deramo, a candidate for Ward 1 Council, as part of a series inviting candidates to meet the community: \"It's a way for us to meet the candidates AND to tell them about the needs of our community.\" All are welcome. Calendar export options (Google Calendar, ICS) available.",
 			"hosts": [
@@ -13864,7 +13864,7 @@
 		{
 			"title": "Meet & Greet with Ward 1 Council Candidate Jackie Reyes",
 			"date": "2026-04-13",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": "True Reformer Building, 1200 U Street Northwest, Washington, DC 20009",
 			"description": "The U Street Neighborhood Association is hosting an informal meet-and-greet with Jackie Reyes, a candidate for Ward 1 Council, the third in a series of candidate meetings, inviting community members to discuss neighborhood needs. All are welcome. Calendar export options (Google Calendar, ICS) available; additional candidates to be hosted based on availability.",
 			"hosts": [
@@ -14108,7 +14108,7 @@
 		{
 			"title": "Meet & Greet with Ward 1 Council Candidate Aparna Raj",
 			"date": "2026-04-27",
-			"time": "6:00 PM – 7:00 PM",
+			"time": "6:00 PM \u2013 7:00 PM",
 			"location": "True Reformer Building, 1200 U Street Northwest, Washington, DC 20009",
 			"description": "The U Street Neighborhood Association is inviting each candidate to join community meetings for informal meet-and-greet sessions; this session is with Ward 1 Council candidate Aparna Raj, giving community members a chance to meet her and discuss neighborhood priorities.",
 			"hosts": [
@@ -14231,9 +14231,9 @@
 		{
 			"title": "She Cried That Day: Documentary Screening",
 			"date": "2026-05-10",
-			"time": "7:30 PM – 9:00 PM",
+			"time": "7:30 PM \u2013 9:00 PM",
 			"location": null,
-			"description": "Free screening of a documentary following Christine, an Arikara, Dakota & Diné woman, as her family seeks justice after her sister Dione's death in 2015. The film examines systemic racism, generational trauma, and jurisdictional and structural nightmares, while highlighting the MMIWG2S (Missing and Murdered Indigenous Women, Girls, and Two-Spirit people) crisis affecting Indigenous communities.",
+			"description": "Free screening of a documentary following Christine, an Arikara, Dakota & Din\u00e9 woman, as her family seeks justice after her sister Dione's death in 2015. The film examines systemic racism, generational trauma, and jurisdictional and structural nightmares, while highlighting the MMIWG2S (Missing and Murdered Indigenous Women, Girls, and Two-Spirit people) crisis affecting Indigenous communities.",
 			"hosts": [
 				"Hope",
 				"Stephen"
@@ -14366,7 +14366,7 @@
 			"date": "2026-05-19",
 			"time": "6:00 PM - 7:00 PM",
 			"location": null,
-			"description": "All-levels yoga flow in the garden. Community donation-suggested class amid greenery and open sky, meant for grounding and centering. Bring yourself, water, and a mat (a few extras on hand). Event is cancelled due to extreme heat (page reads 'CANCELLED 🥵').",
+			"description": "All-levels yoga flow in the garden. Community donation-suggested class amid greenery and open sky, meant for grounding and centering. Bring yourself, water, and a mat (a few extras on hand). Event is cancelled due to extreme heat (page reads 'CANCELLED \ud83e\udd75').",
 			"hosts": [],
 			"url": "https://www.ustreetcommunity.org/events/tagyoga-lpl44-hnpjc-2glng-9mffa-pa7ts-23tkg-t33yp-pthgz-db9s2-a9t3b-rbl8y-5e6zz-8t35d-rx368-zaw69-7rmdl-4y32h-lrz9d-4td7t-hhg64-gmafc-ns79w-n65zc-56gt2",
 			"mayHaveException": true,
@@ -14400,7 +14400,7 @@
 			"date": "2026-05-21",
 			"time": "6:00 PM - 8:00 PM",
 			"location": null,
-			"description": "Collaborative creative session planned at the blooming garden — bring projects in progress, musical instruments, or simply attend to socialize; basic art supplies would have been provided. Event was cancelled: \"Sorry folks, rainy skies mean CC+Jam is CANCELLED this week :(\"",
+			"description": "Collaborative creative session planned at the blooming garden \u2014 bring projects in progress, musical instruments, or simply attend to socialize; basic art supplies would have been provided. Event was cancelled: \"Sorry folks, rainy skies mean CC+Jam is CANCELLED this week :(\"",
 			"hosts": [
 				"Cory",
 				"Creatives Club DC"
@@ -14424,7 +14424,7 @@
 			"date": "2026-05-24",
 			"time": "1:00 PM - 4:00 PM",
 			"location": null,
-			"description": "A workshop where participants bring their own clothing or fabric items to customize using TAG stamps for imprinting, plus instruction in fabric appliqué design using personal fabric scraps and repurposed garments. Attendees are invited to bring friends, family, and neighbors. The event functions as a fundraiser for the Garden; donations are encouraged, and attendees may also consider becoming a Friend of the U Street Neighborhood Association.",
+			"description": "A workshop where participants bring their own clothing or fabric items to customize using TAG stamps for imprinting, plus instruction in fabric appliqu\u00e9 design using personal fabric scraps and repurposed garments. Attendees are invited to bring friends, family, and neighbors. The event functions as a fundraiser for the Garden; donations are encouraged, and attendees may also consider becoming a Friend of the U Street Neighborhood Association.",
 			"hosts": [
 				"Alaanah",
 				"Chelsea",
@@ -14696,7 +14696,7 @@
 			"date": "2026-06-07",
 			"time": "11:00 AM - 1:00 PM",
 			"location": null,
-			"description": "A community clothing exchange focused on sustainability. Participants bring clothing they no longer wear and can select items others contributed, trying pieces on in changing booths with mirrors. No direct trade is required — attendees are free to take as much as they want or need. Unclaimed garments will be donated to DC-based mutual aid organizations or recycled.",
+			"description": "A community clothing exchange focused on sustainability. Participants bring clothing they no longer wear and can select items others contributed, trying pieces on in changing booths with mirrors. No direct trade is required \u2014 attendees are free to take as much as they want or need. Unclaimed garments will be donated to DC-based mutual aid organizations or recycled.",
 			"hosts": [
 				"Jules"
 			],
@@ -14778,7 +14778,7 @@
 			"date": "2026-06-11",
 			"time": "7:00 PM - 9:00 PM",
 			"location": null,
-			"description": "A gallery and graduation celebration featuring participants from the May cohort who spent a month using only dumbphones. Showcases creative projects developed during weekly challenges exploring communication, navigation, and boredom; participants share experiences and display work created during their digital detox. \"Phone-free event—you'll be asked to put your phone away at the gate.\" Call 1-844-OFFLINE for more information.",
+			"description": "A gallery and graduation celebration featuring participants from the May cohort who spent a month using only dumbphones. Showcases creative projects developed during weekly challenges exploring communication, navigation, and boredom; participants share experiences and display work created during their digital detox. \"Phone-free event\u2014you'll be asked to put your phone away at the gate.\" Call 1-844-OFFLINE for more information.",
 			"hosts": [
 				"Olivia",
 				"Aaron",
@@ -14960,7 +14960,7 @@
 		{
 			"title": "4th Annual Juneteenth Block Party",
 			"date": "2026-06-18",
-			"time": "3:00 PM – 9:00 PM",
+			"time": "3:00 PM \u2013 9:00 PM",
 			"location": "Harrison Recreation Center, 1330 V Street Northwest, Washington, DC 20009",
 			"description": "A free, family-friendly community celebration honoring Black culture and liberation, featuring a boxing exhibition, a basketball tournament, live GoGo music, and sets from a local DJ, plus vendor tables and resource booths from partners including Hostels Guild, U Street Main Street, and FREE DC.",
 			"hosts": [],
@@ -15053,7 +15053,7 @@
 			"mayHaveException": false
 		},
 		{
-			"title": "Restaurant Workers Be Ready: Bystander Training / Trabajadores de restaurantes, prepárense: Capacitación para observadores activos",
+			"title": "Restaurant Workers Be Ready: Bystander Training / Trabajadores de restaurantes, prep\u00e1rense: Capacitaci\u00f3n para observadores activos",
 			"date": "2026-06-23",
 			"time": "7:15 PM - 9:00 PM",
 			"location": null,
@@ -15173,9 +15173,9 @@
 		{
 			"title": "Sunset Strut",
 			"date": "2026-06-30",
-			"time": "7:00 PM – 9:00 PM",
+			"time": "7:00 PM \u2013 9:00 PM",
 			"location": null,
-			"description": "An event celebrating Beyoncé's music, inviting attendees to embrace their inner diva while listening, dancing, and reflecting together, with hopes of discussing her latest album release. Note: page title ('Sunset Strut') does not match the URL slug ('lino-block-party'), worth double-checking.",
+			"description": "An event celebrating Beyonc\u00e9's music, inviting attendees to embrace their inner diva while listening, dancing, and reflecting together, with hopes of discussing her latest album release. Note: page title ('Sunset Strut') does not match the URL slug ('lino-block-party'), worth double-checking.",
 			"hosts": [
 				"Jules"
 			],
@@ -15315,7 +15315,7 @@
 			"date": "2026-07-12",
 			"time": "4:00 PM - 6:00 PM",
 			"location": null,
-			"description": "A four-part play series exploring joy through the elements—water, air, earth, and fire. Participants play like the elements, give play offerings to the elements, and play with the elements; every being benefits from play, and attendees are encouraged to embrace imaginative, vibrant engagement through being both serious and silly. Drop-in format.",
+			"description": "A four-part play series exploring joy through the elements\u2014water, air, earth, and fire. Participants play like the elements, give play offerings to the elements, and play with the elements; every being benefits from play, and attendees are encouraged to embrace imaginative, vibrant engagement through being both serious and silly. Drop-in format.",
 			"hosts": [
 				"Mali"
 			],
@@ -15535,7 +15535,7 @@
 		{
 			"title": "Scrap to Sculpture: Make Your Own Wire Flower!",
 			"date": "2026-07-21",
-			"time": "7:00 PM – 8:00 PM",
+			"time": "7:00 PM \u2013 8:00 PM",
 			"location": null,
 			"description": "A hands-on workshop where participants learn to combine wires, basic masking tape, and paint to make a funky floral sculpture that sits on your head, repurposing scrap materials.",
 			"hosts": [
@@ -15569,7 +15569,7 @@
 		{
 			"title": "Volunteer Training and Appreciation with EC4DC",
 			"date": "2026-07-22",
-			"time": "7:00 PM – 8:00 PM",
+			"time": "7:00 PM \u2013 8:00 PM",
 			"location": null,
 			"description": "EC4DC-led volunteer training for tabling activities. The 30-minute session covers de-escalation, tabling best practices, mutual aid, and how EC/Plan B works, and certifies participants to table around DC. Refreshments provided.",
 			"hosts": [
@@ -15608,7 +15608,7 @@
 		{
 			"title": "Introduction to Acting: From Text to Performance",
 			"date": "2026-07-24",
-			"time": "6:00 PM – 9:00 PM",
+			"time": "6:00 PM \u2013 9:00 PM",
 			"location": null,
 			"description": "An introductory acting workshop requiring no prior experience, covering physical and vocal warm-ups from international theatrical traditions, text analysis fundamentals, and improvisation exercises exploring dramatic conflict. Participants progress through contentless scenes and conclude with scene presentations. Co-host Nick is a director of contemporary performance specializing in devised theatre and reimaginings of classic texts, with an MFA from UC San Diego.",
 			"hosts": [
@@ -15631,7 +15631,7 @@
 		{
 			"title": "Scripting Worlds: Feel & Flow Writing Workshop",
 			"date": "2026-07-26",
-			"time": "6:00 PM – 8:00 PM",
+			"time": "6:00 PM \u2013 8:00 PM",
 			"location": null,
 			"description": "A creative gathering designed to help participants transition from busy modes into reflective states through body-based practices, followed by unstructured writing and illustration time. The workshop emphasizes \"permission without a pressing need to finish\" rather than productivity, offering space for personal reflection, processing difficult experiences, or imagining future possibilities. No prior writing or artistic experience required. Attendees should bring a beverage of choice and a comfortable seating item (mat, blanket, chair, or pillow).",
 			"hosts": [
@@ -15758,6 +15758,29 @@
 			"url": "https://www.ustreetcommunity.org/events/no-buy-august-an-introduction",
 			"mayHaveException": true,
 			"possibleExceptionDescription": "One-time kickoff for month-long challenge"
+		},
+		{
+			"title": "Field Trip",
+			"date": "2026-05-12",
+			"time": "9:30 AM",
+			"location": "Temperance Alley Garden",
+			"description": "Field trip for Garrison Elementary School students.",
+			"hosts": [
+				"Aaron Lewis",
+				"Joshua Morin"
+			],
+			"url": null
+		},
+		{
+			"title": "Reimagining Work: Peer Support Group",
+			"date": "2026-07-16",
+			"time": "6:30 PM",
+			"location": "Temperance Alley Garden",
+			"description": "Peer support group for people changing their relationship to careering and finding new forms of work.",
+			"hosts": [
+				"Milo Strickland"
+			],
+			"url": null
 		}
 	],
 	"artefacts": [
@@ -15775,14 +15798,14 @@
 			],
 			"description": "Program from Symphonic Steep, an event where we listened to Edward Elgar's Enigma Variations",
 			"fileUrls": [
-				"/artefacts/TAG-001.jpg"
+				"/artefacts/Symphonic Steep Program.webp"
 			],
 			"location": "Binder"
 		},
 		{
 			"id": 2,
 			"artefact": "The No Cheese Temperance Alley Singalong Zine (Pt 1)",
-			"event": "Music in the Garden",
+			"event": "Music in the Garden ft. Magdalen Rose, Zach Beardsley, & No Cheese",
 			"date": "2025-11-21",
 			"provenance": [
 				"Matthew Gargano",
@@ -15793,7 +15816,7 @@
 			],
 			"description": "Zine from Music in the Garden ft. No Cheese",
 			"fileUrls": [
-				"/artefacts/TAG-002.jpg"
+				"/artefacts/The No Cheese Temperance Alley Singalong Zine (Pt 1).webp"
 			],
 			"location": "Binder"
 		},
@@ -15809,14 +15832,14 @@
 			"programArea": [],
 			"description": "The first TAG events menu, originally fastened directly to the fence",
 			"fileUrls": [
-				"/artefacts/TAG-003.jpg"
+				"/artefacts/July 2021 Events Menu.webp"
 			],
 			"location": "Bin"
 		},
 		{
 			"id": 4,
 			"artefact": "Paytato Sign",
-			"event": "Music in the Garden",
+			"event": "Music in the Garden!",
 			"date": "2025-07-18",
 			"provenance": [
 				"Sally Watanabe"
@@ -15826,7 +15849,7 @@
 			],
 			"description": "Sign from the Music in the Garden where we introduced the paytato, an NFC potato to encourage donations to the musicians, which raised over $200",
 			"fileUrls": [
-				"/artefacts/TAG-004.jpg"
+				"/artefacts/Paytato Sign.webp"
 			],
 			"location": "Binder"
 		},
@@ -15843,7 +15866,7 @@
 			],
 			"description": "Sally invited us to choose an object from the garden, imagine that it has magical powers that will help you with your intentions for the second half of the year, and write an advertisement for it",
 			"fileUrls": [
-				"/artefacts/TAG-005.jpg"
+				"/artefacts/Object Advertisements.webp"
 			],
 			"location": "Binder"
 		},
@@ -15875,7 +15898,7 @@
 			],
 			"description": "Participants wrote haikus about and to the garden",
 			"fileUrls": [
-				"/artefacts/TAG-007.jpg"
+				"/artefacts/Contemplative Haiku Walk Instructions.webp"
 			],
 			"location": "Binder"
 		},
@@ -15892,15 +15915,15 @@
 			],
 			"description": "Haiku book donated by Downtown Dharma, a collection of poems written on haiku hikes around DC",
 			"fileUrls": [
-				"/artefacts/TAG-008.jpg"
+				"/artefacts/a walk with others book.webp"
 			],
 			"location": "Bin"
 		},
 		{
 			"id": 9,
 			"artefact": "\"re-imagine your digital future\" zine",
-			"event": "Re-imagine Your Digital Future",
-			"date": "2026-04-26",
+			"event": "Re-Imagine Your Digital Future",
+			"date": "2026-04-27",
 			"provenance": [
 				"Kendall Schrohe",
 				"Chloe Hall",
@@ -15912,14 +15935,15 @@
 			],
 			"description": "Zine + worksheet to help participants find a healthier relationship to digital media",
 			"fileUrls": [
-				"/artefacts/TAG-009.pdf"
+				"/artefacts/re-imagine your digital future zine_page_1.webp",
+				"/artefacts/re-imagine your digital future zine_page_2.webp"
 			],
 			"location": "Binder"
 		},
 		{
 			"id": 10,
 			"artefact": "Attention Sphere launch zine",
-			"event": "Month Offline - April Exhibition",
+			"event": "Month Offline Exhibition",
 			"date": "2026-04-16",
 			"provenance": [
 				"Kendall Schrohe",
@@ -15930,7 +15954,8 @@
 			],
 			"description": "Introducing the Attention Sphere series at TAG, a wonderful outgrowth of all the attention activism energy that was generated during the first year of the Month Offline challenge in DC",
 			"fileUrls": [
-				"/artefacts/TAG-010.pdf"
+				"/artefacts/Attention Sphere launch zine_page_1.webp",
+				"/artefacts/Attention Sphere launch zine_page_2.webp"
 			],
 			"location": "Binder"
 		},
@@ -15948,14 +15973,14 @@
 			],
 			"description": "Sticker pack by Wild Seed Productions, from the programming they are hosting for students near the birthplace of Harriet Tubman, a beautiful exploration of freedom and our spiritual \"north stars\"",
 			"fileUrls": [
-				"/artefacts/TAG-011.jpg"
+				"/artefacts/North Star stickers.webp"
 			],
 			"location": "Binder"
 		},
 		{
 			"id": 12,
 			"artefact": "Land Acknowlegement",
-			"event": "Native Land Acknowledgement",
+			"event": "Native Land Acknowledgment Ceremony for Temperance Alley",
 			"date": "2021-09-19",
 			"provenance": [
 				"Armand Lione",
@@ -15966,7 +15991,7 @@
 			],
 			"description": "Text from a land acknowledgement ceremony, which was read aloud in the Story Circle, a special christening for the Garden because Virginia Ali of Ben's Chili Bowl was in attendance and shared her memories of Dr. King's work and presence in the U Street Neighborhood",
 			"fileUrls": [
-				"/artefacts/TAG-012.jpg"
+				"/artefacts/Land Acknowlegement.webp"
 			],
 			"location": "Binder"
 		},
@@ -15983,7 +16008,9 @@
 			],
 			"description": "Brainstorming cards from a community conversation after TAG was first offered a lease extension, we asked participants to reflect on what the Garden has been so far and what it might be in the future, in an effort to be intentional about continuing the project instead of walking mindlessly into the future, keeping in mind that the whole thing began as a Covid response and that its reason for being might need to change in the post-pandemic environment",
 			"fileUrls": [
-				"/artefacts/TAG-013.pdf"
+				"/artefacts/Season 4 What is it 4 Forum Reflections_page_1.webp",
+				"/artefacts/Season 4 What is it 4 Forum Reflections_page_2.webp",
+				"/artefacts/Season 4 What is it 4 Forum Reflections_page_3.webp"
 			],
 			"location": "Binder"
 		},
@@ -15998,7 +16025,7 @@
 			],
 			"description": "TAG encouraged people to break up with fast fashion and practice maintenance & care, sometimes hosting mending events directly after clothing swaps so that people could make the clothes their own",
 			"fileUrls": [
-				"/artefacts/TAG-014.jpg"
+				"/artefacts/Changing rooms available sign.webp"
 			],
 			"location": "Binder"
 		},
@@ -16015,7 +16042,14 @@
 			],
 			"description": "Resources from The Order of Good Death from the very first Death Cafe hosted at TAG in collaboration with the amazing Laura (death doula at Congressional Cemetery), a huge turnout despite extremely cold weather, satisfying a real hunger for conversation about death",
 			"fileUrls": [
-				"/artefacts/TAG-015.pdf"
+				"/artefacts/About the Order of Good Death_page_1.webp",
+				"/artefacts/About the Order of Good Death_page_2.webp",
+				"/artefacts/About the Order of Good Death_page_3.webp",
+				"/artefacts/About the Order of Good Death_page_4.webp",
+				"/artefacts/About the Order of Good Death_page_5.webp",
+				"/artefacts/About the Order of Good Death_page_6.webp",
+				"/artefacts/About the Order of Good Death_page_7.webp",
+				"/artefacts/About the Order of Good Death_page_8.webp"
 			],
 			"location": "Binder"
 		},
@@ -16032,14 +16066,14 @@
 			],
 			"description": "Worksheets designed by Wild Seed Productions, helping kids define their spiritual north stars, inspired by Harriet Tubman's underground railroad",
 			"fileUrls": [
-				"/artefacts/TAG-016.jpg"
+				"/artefacts/North Star worksheets.webp"
 			],
 			"location": "Binder"
 		},
 		{
 			"id": 17,
 			"artefact": "Twelve Theses on Attention",
-			"event": "Storykeeping Circle",
+			"event": "TAG StoryKeeping Circle",
 			"date": "2026-06-15",
 			"provenance": [
 				"Aaron Lewis",
@@ -16050,14 +16084,15 @@
 			],
 			"description": "From the School of Radical Attention, bringing the attention activism movement to Temperance Alley Garden, we introduced ourselves by sharing the line that stood out to us most and began to think of TAG as an \"attention sanctuary\"",
 			"fileUrls": [
-				"/artefacts/TAG-017.pdf"
+				"/artefacts/Twelve Theses on Attention_page_1.webp",
+				"/artefacts/Twelve Theses on Attention_page_2.webp"
 			],
 			"location": "Binder"
 		},
 		{
 			"id": 18,
 			"artefact": "Improv/Clown/Guided Meditation Jam Structure",
-			"event": "PLAY Jam: Improv in the Garden",
+			"event": "Creatives Club & Community Jam",
 			"date": "2026-06-18",
 			"provenance": [
 				"Kunal Duggal"
@@ -16067,7 +16102,11 @@
 			],
 			"description": "Run of show for improv event, a series exploring the importance of play",
 			"fileUrls": [
-				"/artefacts/TAG-018.pdf"
+				"/artefacts/Improv-Clown-Guided Meditation Jam Structure_page_1.webp",
+				"/artefacts/Improv-Clown-Guided Meditation Jam Structure_page_2.webp",
+				"/artefacts/Improv-Clown-Guided Meditation Jam Structure_page_3.webp",
+				"/artefacts/Improv-Clown-Guided Meditation Jam Structure_page_4.webp",
+				"/artefacts/Improv-Clown-Guided Meditation Jam Structure_page_5.webp"
 			],
 			"location": "Binder"
 		},
@@ -16085,7 +16124,10 @@
 			],
 			"description": null,
 			"fileUrls": [
-				"/artefacts/TAG-019.pdf"
+				"/artefacts/Common Ground agenda_page_1.webp",
+				"/artefacts/Common Ground agenda_page_2.webp",
+				"/artefacts/Common Ground agenda_page_3.webp",
+				"/artefacts/Common Ground agenda_page_4.webp"
 			],
 			"location": "Binder"
 		},
@@ -16103,8 +16145,116 @@
 			],
 			"description": "Dying Alone & Happy City excerpts brought by facilitators for discussion where participants drew a memorable place and talked about its functional features in regard to how cities/places can improve wellbeing",
 			"fileUrls": [
-				"/artefacts/TAG-020.pdf"
+				"/artefacts/Thru the Alleyway Discussion Papers_page_1.webp",
+				"/artefacts/Thru the Alleyway Discussion Papers_page_2.webp",
+				"/artefacts/Thru the Alleyway Discussion Papers_page_3.webp",
+				"/artefacts/Thru the Alleyway Discussion Papers_page_4.webp",
+				"/artefacts/Thru the Alleyway Discussion Papers_page_5.webp",
+				"/artefacts/Thru the Alleyway Discussion Papers_page_6.webp"
 			],
+			"location": "Binder"
+		},
+		{
+			"id": 21,
+			"artefact": "Growing Hope collage",
+			"event": "Growing Hope",
+			"date": "2026-04-26",
+			"provenance": [
+				"Leah Tribett"
+			],
+			"programArea": [
+				"Wellbeing"
+			],
+			"description": null,
+			"fileUrls": [
+				"/artefacts/Growing Hope collage.webp"
+			],
+			"location": "Binder"
+		},
+		{
+			"id": 22,
+			"artefact": "Singalong lyric sheet",
+			"event": "Acoustic Sing-Along",
+			"date": "2026-06-15",
+			"provenance": [
+				"Claire Tran"
+			],
+			"programArea": [
+				"DIY"
+			],
+			"description": "Lyric sheet from a very wholesome singalong, an event which always brings a very intergenerational crowd",
+			"fileUrls": [
+				"/artefacts/Singalong lyric sheet_page_1.webp",
+				"/artefacts/Singalong lyric sheet_page_2.webp"
+			],
+			"location": "Binder"
+		},
+		{
+			"id": 23,
+			"artefact": "Spring 2026 Field Trip Tracker",
+			"event": "Field Trip",
+			"date": "2026-05-12",
+			"provenance": [
+				"Aaron Lewis",
+				"Joshua Morin"
+			],
+			"programArea": [
+				"Learning Landscape"
+			],
+			"description": "Tracker for the elementary school field trips hosted in partnership with Garrison Elementary School, where city kids get to experience the magic of food growing directly out of the ground, usually for the first time ever",
+			"fileUrls": [
+				"/artefacts/Spring 2026 Field Trip Tracker.webp"
+			],
+			"location": "Binder"
+		},
+		{
+			"id": 24,
+			"artefact": "Oak Leaf",
+			"event": "Fall Foliage Fandango",
+			"date": "2025-11-03",
+			"provenance": [
+				"Stephen Stahr"
+			],
+			"programArea": [
+				"Learning Landscape"
+			],
+			"description": "A special leaf that Stephen collected en route to his event, where we looked closely at leaves for a long time and made an artistic assemblage of them",
+			"fileUrls": [
+				"/artefacts/Oak Leaf.webp"
+			],
+			"location": "Binder"
+		},
+		{
+			"id": 25,
+			"artefact": "Peer Support Group Community Agreements",
+			"event": "Reimagining Work: Peer Support Group",
+			"date": "2026-07-16",
+			"provenance": [
+				"Milo Strickland"
+			],
+			"programArea": [
+				"Wellbeing"
+			],
+			"description": "In the wake of mass federal layoffs, Milo began hosting a support group for people who wanted to change their relationship to careering and find new forms of work",
+			"fileUrls": [
+				"/artefacts/Peer Support Group Community Agreements.webp"
+			],
+			"location": "Binder"
+		},
+		{
+			"id": 26,
+			"artefact": "Tech Justice Working Group worksheet",
+			"event": "Tech Justice Working Group",
+			"date": "2025-09-07",
+			"provenance": [
+				"Aaron Lewis",
+				"Shushan Tesfuzigta"
+			],
+			"programArea": [
+				"Learning Landscape"
+			],
+			"description": "As part of the effort to break up with big tech, Shushan designed a workshop to help us leave Google behind and find alternatives, we discussed tech history and how it\u2019s shaping our psyches",
+			"fileUrls": [],
 			"location": "Binder"
 		}
 	]

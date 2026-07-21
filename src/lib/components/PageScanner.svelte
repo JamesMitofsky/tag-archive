@@ -3,6 +3,7 @@
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import ImageSquareIcon from 'phosphor-svelte/lib/ImageSquareIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
+	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
 
 	// Emits the current list of uploaded image URLs (display order) so the parent form
 	// can store them. `pending` (bindable) is true while an upload is in flight, so the
@@ -18,20 +19,31 @@
 		initial?: string[];
 	} = $props();
 
-	type Attached = { url: string; fileName: string; previewUrl: string };
+	type Attached = {
+		id: string;
+		url?: string;
+		fileName: string;
+		previewUrl: string;
+		status: 'uploading' | 'done' | 'error';
+		error?: string;
+	};
 
 	// Multiple scans per artefact; kept in the order they were added. Seeded from any
 	// `initial` URLs (edit flow), where the public URL doubles as its own preview.
 	// svelte-ignore state_referenced_locally
 	let attached = $state<Attached[]>(
-		initial.map((url) => ({ url, fileName: url.split('/').pop() ?? 'scan', previewUrl: url }))
+		initial.map((url) => ({
+			id: url,
+			url,
+			fileName: url.split('/').pop() ?? 'scan',
+			previewUrl: url,
+			status: 'done'
+		}))
 	);
-	const emit = () => onChange?.(attached.map((a) => a.url));
-	// Local preview shown in the image slot while the upload is in flight.
-	let pendingPreview = $state<string | null>(null);
-	let status = $state<'idle' | 'uploading' | 'error'>('idle');
+	const emit = () =>
+		onChange?.(attached.filter((a) => a.status === 'done' && a.url).map((a) => a.url!));
+
 	let error = $state('');
-	let uploadError = $state('');
 
 	let cameraOn = $state(false);
 	let video = $state<HTMLVideoElement>();
@@ -67,7 +79,29 @@
 		cameraOn = false;
 	}
 
-	/** Draw the current video frame to a canvas and upload it as a JPEG. */
+	function updateItem(id: string, patch: Partial<Attached>) {
+		attached = attached.map((a) => (a.id === id ? { ...a, ...patch } : a));
+	}
+
+	async function removeById(id: string) {
+		const target = attached.find((a) => a.id === id);
+		attached = attached.filter((a) => a.id !== id);
+		emit();
+
+		if (target?.url && !initial.includes(target.url)) {
+			try {
+				await fetch('/keeper/scans', {
+					method: 'DELETE',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ url: target.url })
+				});
+			} catch {
+				// Best-effort cleanup
+			}
+		}
+	}
+
+	/** Draw the current video frame to a canvas and upload it as a WebP image. */
 	function capture() {
 		if (!video?.videoWidth) return;
 		const canvas = document.createElement('canvas');
@@ -76,32 +110,122 @@
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 		ctx.drawImage(video, 0, 0);
+
+		const itemId = crypto.randomUUID();
+		const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+		const fileName = `scan-${stamp}.webp`;
+		const previewUrl = canvas.toDataURL('image/webp', 0.85);
+
+		stopCamera();
+
+		attached = [
+			...attached,
+			{
+				id: itemId,
+				fileName,
+				previewUrl,
+				status: 'uploading'
+			}
+		];
+
 		canvas.toBlob(
 			(blob) => {
-				if (!blob) return;
-				const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-				stopCamera();
-				upload(blob, `scan-${stamp}.jpg`, canvas.toDataURL('image/jpeg', 0.85));
+				if (!blob) {
+					updateItem(itemId, { status: 'error', error: 'Failed to capture frame' });
+					return;
+				}
+				void processUpload(itemId, blob, fileName, previewUrl);
 			},
-			'image/jpeg',
+			'image/webp',
 			0.85
 		);
 	}
 
-	/** Upload a picked image file directly. */
-	function onFiles(event: Event) {
+	/** Convert an uploaded File to a WebP Blob (scaling down if larger than 2560px). */
+	async function convertToWebP(
+		file: File,
+		maxDim = 2560,
+		quality = 0.85
+	): Promise<{ blob: Blob; fileName: string; previewUrl: string }> {
+		const webpFileName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
+
+		try {
+			const bitmap = await createImageBitmap(file);
+			let { width, height } = bitmap;
+
+			if (width > maxDim || height > maxDim) {
+				if (width > height) {
+					height = Math.round((height * maxDim) / width);
+					width = maxDim;
+				} else {
+					width = Math.round((width * maxDim) / height);
+					height = maxDim;
+				}
+			}
+
+			const canvas = document.createElement('canvas');
+			canvas.width = width;
+			canvas.height = height;
+			const ctx = canvas.getContext('2d');
+			if (ctx) {
+				ctx.drawImage(bitmap, 0, 0, width, height);
+				const webpBlob = await new Promise<Blob | null>((resolve) =>
+					canvas.toBlob(resolve, 'image/webp', quality)
+				);
+				if (webpBlob) {
+					return {
+						blob: webpBlob,
+						fileName: webpFileName,
+						previewUrl: canvas.toDataURL('image/webp', quality)
+					};
+				}
+			}
+		} catch {
+			// Fall back to original file if bitmap conversion fails
+		}
+
+		return {
+			blob: file,
+			fileName: file.name,
+			previewUrl: URL.createObjectURL(file)
+		};
+	}
+
+	/** Optimistically render picked photo and upload converted WebP. */
+	async function onFiles(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
 		input.value = '';
 		if (!file) return;
-		upload(file, file.name, URL.createObjectURL(file));
+
+		const itemId = crypto.randomUUID();
+		const immediatePreview = URL.createObjectURL(file);
+
+		// Optimistic rendering right away
+		attached = [
+			...attached,
+			{
+				id: itemId,
+				fileName: file.name,
+				previewUrl: immediatePreview,
+				status: 'uploading'
+			}
+		];
+
+		try {
+			const { blob, fileName, previewUrl } = await convertToWebP(file);
+			updateItem(itemId, { previewUrl });
+			await processUpload(itemId, blob, fileName, previewUrl);
+		} catch (e) {
+			updateItem(itemId, {
+				status: 'error',
+				error: e instanceof Error ? e.message : 'Image processing failed'
+			});
+		}
 	}
 
 	/** Push one image to R2 and hand its URL back to the form. */
-	async function upload(file: Blob, fileName: string, previewUrl: string) {
-		status = 'uploading';
-		uploadError = '';
-		pendingPreview = previewUrl;
+	async function processUpload(itemId: string, file: Blob, fileName: string, previewUrl: string) {
 		try {
 			const body = new FormData();
 			body.append('file', file, fileName);
@@ -109,27 +233,23 @@
 			if (!res.ok) throw new Error(await res.text());
 
 			const result = (await res.json()) as { url: string; fileName: string };
-			attached = [...attached, { url: result.url, fileName: result.fileName, previewUrl }];
-			status = 'idle';
+			updateItem(itemId, {
+				url: result.url,
+				fileName: result.fileName,
+				previewUrl,
+				status: 'done',
+				error: undefined
+			});
 			emit();
 		} catch (e) {
-			uploadError = e instanceof Error ? e.message : 'Upload failed';
-			status = 'error';
-		} finally {
-			pendingPreview = null;
+			const errMsg = e instanceof Error ? e.message : 'Upload failed';
+			updateItem(itemId, { status: 'error', error: errMsg });
 		}
 	}
 
-	function remove(index: number) {
-		attached = attached.filter((_, i) => i !== index);
-		status = 'idle';
-		uploadError = '';
-		emit();
-	}
-
-	// Block submit while an upload is in flight.
+	// Block submit while any upload is in flight.
 	$effect(() => {
-		pending = status === 'uploading';
+		pending = attached.some((a) => a.status === 'uploading');
 	});
 
 	$effect(() => {
@@ -191,21 +311,58 @@
 		<p class="mt-2 text-xs text-red-600" role="alert">{error}</p>
 	{/if}
 
-	{#if status === 'error'}
-		<p class="mt-3 text-xs text-red-600" role="alert">{uploadError}</p>
+	{#if attached.some((a) => a.status === 'error')}
+		<div
+			class="mt-3 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-700"
+			role="alert"
+		>
+			<p class="font-medium">One or more image uploads failed:</p>
+			<ul class="mt-1 list-inside list-disc space-y-0.5">
+				{#each attached.filter((a) => a.status === 'error') as errItem (errItem.id)}
+					<li>{errItem.fileName}: {errItem.error || 'Upload error'}</li>
+				{/each}
+			</ul>
+		</div>
 	{/if}
 
-	<!-- Image slot: every attached scan, plus a spinner tile while one is uploading -->
-	{#if attached.length > 0 || status === 'uploading'}
+	<!-- Image slot: attached scans and optimistic previews -->
+	{#if attached.length > 0}
 		<div class="mt-4 flex flex-wrap gap-3">
-			{#each attached as scan, i (scan.url)}
+			{#each attached as scan (scan.id)}
 				<div
-					class="relative inline-block overflow-hidden rounded-md border border-gray-200 bg-white"
+					class="relative inline-block overflow-hidden rounded-md border bg-white {scan.status ===
+					'error'
+						? 'border-red-400 ring-1 ring-red-400'
+						: 'border-gray-200'}"
 				>
-					<img src={scan.previewUrl} alt="Attached scan" class="max-h-40 w-auto object-contain" />
+					<img
+						src={scan.previewUrl}
+						alt="Attached scan"
+						class="max-h-40 w-auto object-contain {scan.status === 'uploading' ? 'opacity-50' : ''}"
+					/>
+
+					{#if scan.status === 'uploading'}
+						<div
+							class="absolute inset-0 flex flex-col items-center justify-center bg-black/30 text-white"
+						>
+							<CircleNotchIcon size={24} class="animate-spin" />
+							<span class="mt-1 text-[10px] font-medium">Uploading...</span>
+						</div>
+					{/if}
+
+					{#if scan.status === 'error'}
+						<div
+							class="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-red-600/90 px-1.5 py-1 text-[10px] font-medium text-white"
+							title={scan.error}
+						>
+							<WarningIcon size={12} class="shrink-0" />
+							<span class="truncate">{scan.error || 'Failed'}</span>
+						</div>
+					{/if}
+
 					<button
 						type="button"
-						onclick={() => remove(i)}
+						onclick={() => removeById(scan.id)}
 						aria-label="Remove image"
 						class="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white transition hover:bg-red-600"
 					>
@@ -213,16 +370,7 @@
 					</button>
 				</div>
 			{/each}
-			{#if status === 'uploading'}
-				<div
-					class="relative flex h-40 min-w-40 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50"
-				>
-					{#if pendingPreview}
-						<img src={pendingPreview} alt="" class="h-full w-auto object-contain opacity-30" />
-					{/if}
-					<CircleNotchIcon size={28} class="absolute animate-spin text-gray-500" />
-				</div>
-			{/if}
 		</div>
 	{/if}
 </div>
+
