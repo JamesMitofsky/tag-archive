@@ -186,7 +186,7 @@
 	<!-- Searchbar + handwriting header: pinned to viewport center, never moves.
 	     Fades out while a page is open so the opened artefact stands alone. -->
 	<div
-		class="searchbar fixed top-1/2 left-1/2 z-30 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4"
+		class="searchbar fixed top-1/2 left-1/2 z-30 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 px-4"
 		class:hidden-ui={selected !== null}
 	>
 		<!-- Optional route-specific mark sits above the bar. -->

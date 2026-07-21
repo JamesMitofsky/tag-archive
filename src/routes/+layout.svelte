@@ -1,42 +1,49 @@
 <script lang="ts">
 	import './layout.css';
-	import { fly } from 'svelte/transition';
-	import { beforeNavigate } from '$app/navigation';
+	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import Sky from '$lib/components/Sky.svelte';
-	import Handwriting from '$lib/components/Handwriting.svelte';
-	import { strokePaths, handwritingBox } from '$lib/handwriting';
 
 	let { children } = $props();
-
-	// Slide direction: forward navigations slide left, backward (browser/back
-	// button popstate with negative delta) slide the opposite way.
-	let dir = $state(1);
-	beforeNavigate((nav) => {
-		if (typeof nav.delta === 'number' && nav.delta < 0) dir = -1;
-		else dir = 1;
-	});
 </script>
 
 <!-- Persistent sky: mounted once here, outside the keyed transition, so clouds
      drift continuously across navigation and fill the slide gap behind pages. -->
 <Sky />
 
-<!-- Handwritten mark pinned to the top-left, part of the chrome on every route. -->
-<Handwriting
-	paths={strokePaths}
-	box={handwritingBox}
-	filterId="graphite-mark"
-	class="fixed top-3 left-3 z-40 w-40 max-w-[28vw]"
-/>
+<!-- Handwritten mark pinned to the top-left, links home, part of the chrome on every route. -->
+<a href="/" aria-label="Home" class="fixed top-3 left-3 z-40 transition-opacity hover:opacity-70">
+	<img
+		src="/handwriting/tag-archive.png"
+		alt="Home"
+		class="w-40 max-w-[28vw]"
+		style="mix-blend-mode: multiply"
+	/>
+</a>
+
+<!-- Handwritten nav pinned to the top-right, on every route. -->
+<nav class="fixed top-3 right-6 z-40 flex items-center gap-6">
+	<a href="/" aria-label="Artefacts" class="transition-opacity hover:opacity-70">
+		<img
+			src="/handwriting/nav-artefacts.png"
+			alt="Artefacts"
+			class="h-10 w-auto"
+			style="mix-blend-mode: multiply"
+		/>
+	</a>
+	<a href="/events" aria-label="Events" class="transition-opacity hover:opacity-70">
+		<img
+			src="/handwriting/nav-events.png"
+			alt="Events"
+			class="h-10 w-auto"
+			style="mix-blend-mode: multiply"
+		/>
+	</a>
+</nav>
 
 <div class="route-wrap">
 	{#key page.url.pathname}
-		<div
-			class="route"
-			in:fly={{ x: 20 * dir, duration: 250 }}
-			out:fly={{ x: -20 * dir, duration: 250 }}
-		>
+		<div class="route" in:fade={{ duration: 250 }} out:fade={{ duration: 250 }}>
 			{@render children()}
 		</div>
 	{/key}

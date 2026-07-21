@@ -2,8 +2,6 @@
 	import type { EventItem } from '$lib/events';
 	import { formatDate } from '$lib/formatDate';
 	import CardCloud from '$lib/components/CardCloud.svelte';
-	import Handwriting from '$lib/components/Handwriting.svelte';
-	import { strokePaths, handwritingBox } from '$lib/handwritingEvents';
 </script>
 
 <CardCloud
@@ -14,11 +12,12 @@
 />
 
 {#snippet header()}
-	<Handwriting
-		paths={strokePaths}
-		box={handwritingBox}
-		filterId="graphite-events"
+	<img
+		src="/handwriting/events.png"
+		alt=""
+		aria-hidden="true"
 		class="mx-auto mb-4 w-[8rem] max-w-full"
+		style="mix-blend-mode: multiply"
 	/>
 {/snippet}
 
