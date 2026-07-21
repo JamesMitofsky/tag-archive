@@ -92,8 +92,10 @@
 	// True while the form submit action is processing.
 	let submitting = $state(false);
 
-	// Block submit until required fields are filled and any upload is finalized.
-	const canSubmit = $derived(title.trim().length > 0 && formDate.trim().length > 0 && !scanPending);
+	// Block submit until required fields are filled, an image is attached, and any upload is finalized.
+	const canSubmit = $derived(
+		title.trim().length > 0 && formDate.trim().length > 0 && fileUrls.length > 0 && !scanPending
+	);
 
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
