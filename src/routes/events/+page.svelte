@@ -13,7 +13,7 @@
 
 {#snippet header()}
 	<img
-		src="/handwriting/events.png"
+		src="/drawing/text/events.png"
 		alt=""
 		aria-hidden="true"
 		class="mx-auto mb-4 w-[8rem] max-w-full"

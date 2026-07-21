@@ -149,12 +149,7 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<img
-					src="/handwriting/cloud-keeper.png"
-					alt="Cloud Keeper"
-					class="w-[12rem] max-w-full"
-					style="mix-blend-mode: multiply"
-				/>
+				<h1 class="text-2xl font-semibold text-gray-900 tracking-tight">Cloud Keeper</h1>
 			</div>
 			{#if data.user}
 				<a

@@ -11,40 +11,42 @@
      drift continuously across navigation and fill the slide gap behind pages. -->
 <Sky />
 
-<!-- Handwritten mark pinned to the top-left, links home, part of the chrome on every route. -->
-<a href="/" aria-label="Home" class="fixed top-3 left-3 z-40 transition-opacity hover:opacity-70">
-	<img
-		src="/handwriting/tag-archive.png"
-		alt="Home"
-		class="w-40 max-w-[28vw]"
-		style="mix-blend-mode: multiply"
-	/>
-</a>
+<!-- Invisible header to reserve spacing for the nav items and logo -->
+<header class="relative z-40 flex items-start justify-between pl-3 pr-6 pt-3 pb-6">
+	<!-- Handwritten mark linking home -->
+	<a href="/" aria-label="Home" class="transition-opacity hover:opacity-70">
+		<img
+			src="/drawing/text/tag-archive.png"
+			alt="Home"
+			class="w-40 max-w-[28vw]"
+			style="mix-blend-mode: multiply"
+		/>
+	</a>
 
-<!-- Handwritten nav pinned to the top-right. Show only the link for the page
-     you're NOT on: Artefacts (/) shows Events, Events shows Artefacts. -->
-<nav class="fixed top-3 right-6 z-40 flex items-center gap-6">
-	{#if page.url.pathname !== '/'}
-		<a href="/" aria-label="Artefacts" class="transition-opacity hover:opacity-70">
-			<img
-				src="/handwriting/nav-artefacts.png"
-				alt="Artefacts"
-				class="h-10 w-auto"
-				style="mix-blend-mode: multiply"
-			/>
-		</a>
-	{/if}
-	{#if page.url.pathname !== '/events'}
-		<a href="/events" aria-label="Events" class="transition-opacity hover:opacity-70">
-			<img
-				src="/handwriting/nav-events.png"
-				alt="Events"
-				class="h-10 w-auto"
-				style="mix-blend-mode: multiply"
-			/>
-		</a>
-	{/if}
-</nav>
+	<!-- Handwritten nav -->
+	<nav class="flex items-center gap-6 mt-1">
+		{#if page.url.pathname !== '/'}
+			<a href="/" aria-label="Artefacts" class="transition-opacity hover:opacity-70">
+				<img
+					src="/drawing/text/nav-artefacts.png"
+					alt="Artefacts"
+					class="h-10 w-auto"
+					style="mix-blend-mode: multiply"
+				/>
+			</a>
+		{/if}
+		{#if page.url.pathname !== '/events'}
+			<a href="/events" aria-label="Events" class="transition-opacity hover:opacity-70">
+				<img
+					src="/drawing/text/nav-events.png"
+					alt="Events"
+					class="h-10 w-auto"
+					style="mix-blend-mode: multiply"
+				/>
+			</a>
+		{/if}
+	</nav>
+</header>
 
 <div class="route-wrap">
 	{#key page.url.pathname}

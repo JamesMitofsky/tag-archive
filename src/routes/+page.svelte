@@ -9,7 +9,7 @@
 
 {#snippet header()}
 	<img
-		src="/handwriting/artefacts.png"
+		src="/drawing/text/artefacts.png"
 		alt=""
 		aria-hidden="true"
 		class="mx-auto mb-1 w-[12rem] max-w-full"
