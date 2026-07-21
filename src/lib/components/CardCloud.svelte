@@ -193,7 +193,7 @@
 		     doesn't shift the searchbar off viewport center. -->
 		{#if header}
 			<div
-				class="pointer-events-none absolute bottom-full left-0 flex w-full justify-center select-none"
+				class="pointer-events-none absolute bottom-full left-0 flex w-full justify-center"
 			>
 				{@render header()}
 			</div>
