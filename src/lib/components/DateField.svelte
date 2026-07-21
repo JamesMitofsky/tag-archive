@@ -37,7 +37,15 @@
 	const iso = $derived(value?.toString() ?? '');
 
 	// Surface the ISO value to a parent that needs it (e.g. to gate a submit).
+	// Skip the initial mount fire so a parent listening for a real pick (to mark
+	// the field touched) doesn't flag an untouched field on page load.
+	let mounted = false;
 	$effect(() => {
+		void iso;
+		if (!mounted) {
+			mounted = true;
+			return;
+		}
 		onChange?.(iso);
 	});
 </script>
