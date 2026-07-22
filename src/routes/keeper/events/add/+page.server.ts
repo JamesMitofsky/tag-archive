@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
+import { purgeArchiveCache } from '$lib/server/cache';
 import { resolvePersonIds, resolveSeriesId } from '$lib/server/db/queries';
 import { stampInsert } from '$lib/server/db/audit';
 import { isProposedAddition } from '$lib/server/db/proposals';
@@ -94,6 +95,8 @@ export const actions: Actions = {
 				}))
 			);
 		}
+
+		await purgeArchiveCache();
 
 		// Land back on the events list so the new event shows.
 		throw redirect(303, '/keeper/events');

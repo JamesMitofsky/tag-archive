@@ -6,34 +6,34 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
 
+	import { loadPeople } from '$lib/dataset';
+	import { filterPeople } from '$lib/search';
+
 	type PersonResult = { id?: number; name: string };
 
-	// Searchable tags input that queries an endpoint (defaulting to /api/people)
-	// for existing names to prevent duplicate creation. Composed from Input + Badge,
-	// mirrored into a hidden <input> as a comma-joined string.
+	// Searchable tags input backed by the local dataset (all people names).
+	// Composed from Input + Badge, mirrored into a hidden <input> as a comma-joined string.
 	let {
 		name,
 		label,
 		placeholder = '',
-		endpoint = '/api/people',
 		prefetch = false,
 		value = $bindable([])
 	}: {
 		name: string;
 		label?: string;
 		placeholder?: string;
-		endpoint?: string;
-		/** Load the (empty-query) suggestion list on mount instead of waiting for focus. */
 		prefetch?: boolean;
 		value?: string[];
 	} = $props();
 
 	let draft = $state('');
 	let open = $state(false);
+	let allPeople = $state<string[]>([]);
 	let suggestions = $state<PersonResult[]>([]);
 	let loading = $state(false);
+	let loaded = false;
 	let activeIndex = $state(-1);
-	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const query = $derived(draft.trim());
 
@@ -47,41 +47,44 @@
 			!filteredSuggestions.some((s) => s.name.toLowerCase() === query.toLowerCase())
 	);
 
-	async function fetchSuggestions(q: string) {
-		if (!endpoint) return;
+	async function ensureLoaded() {
+		if (loaded) return;
 		loading = true;
 		try {
-			const res = await fetch(`${endpoint}?q=${encodeURIComponent(q)}`);
-			if (res.ok) {
-				const data = await res.json();
-				suggestions = data.results || data.rows || [];
-			}
+			allPeople = await loadPeople();
+			loaded = true;
 		} catch (e) {
-			console.error('Failed to fetch suggestions:', e);
+			console.error('Failed to load people:', e);
 		} finally {
 			loading = false;
 		}
 	}
 
-	// Warm the suggestion list before the field is focused so existing people are ready.
+	function updateSuggestions() {
+		const matched = filterPeople(allPeople, query);
+		suggestions = matched.slice(0, 30).map((n) => ({ name: n }));
+	}
+
+	$effect(() => {
+		const q = query;
+		if (loaded) {
+			updateSuggestions();
+		}
+	});
+
 	onMount(() => {
-		if (prefetch) fetchSuggestions('');
+		void ensureLoaded().then(updateSuggestions);
 	});
 
 	function onInput() {
 		open = true;
 		activeIndex = -1;
-		if (debounceTimer) clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => {
-			fetchSuggestions(query);
-		}, 150);
+		void ensureLoaded().then(updateSuggestions);
 	}
 
 	function onOpen() {
 		open = true;
-		if (suggestions.length === 0 && !loading) {
-			fetchSuggestions(query);
-		}
+		void ensureLoaded().then(updateSuggestions);
 	}
 
 	function handleFocusOut(event: FocusEvent) {

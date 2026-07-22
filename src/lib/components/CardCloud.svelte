@@ -6,13 +6,15 @@
 	so the events page reuses the exact same behaviour — only the data changes.
 -->
 <script lang="ts" generics="T extends { id: number }">
-	import type { Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { cubicIn } from 'svelte/easing';
 
 	interface Props {
-		// Search endpoint; queried as `${endpoint}?q=…`, expected to return `{ results }`.
-		endpoint: string;
+		// Fetches the full list once (the cached dataset blob); searched in-memory after.
+		load: () => Promise<T[]>;
+		// Narrows the full list to the matches for the current query.
+		filter: (items: T[], q: string) => T[];
 		// Renders one card's contents (event/date/tags — whatever the data has).
 		card: Snippet<[T]>;
 		// Optional content shown directly above the searchbar (e.g. a route-specific mark).
@@ -21,11 +23,14 @@
 		placeholder?: string;
 	}
 
-	let { endpoint, card, header, ariaLabel = 'Search', placeholder }: Props = $props();
+	let { load, filter, card, header, ariaLabel = 'Search', placeholder }: Props = $props();
 
+	// The whole dataset, fetched once; searches run against it in memory. `loading`
+	// is that one initial fetch — not a per-search state (local filtering is instant).
+	let allItems = $state<T[]>([]);
 	let query = $state('');
 	let results = $state<T[]>([]);
-	let loading = $state(false);
+	let loading = $state(true);
 	let searched = $state(false);
 
 	// Click a floating page to open it: it glides to dead-center and grows to fill
@@ -59,9 +64,10 @@
 	}
 
 	let debounce: ReturnType<typeof setTimeout>;
-	let requestId = 0;
 
-	async function runSearch(q: string) {
+	// Filter the in-memory dataset for the current query. Synchronous — no network,
+	// so no out-of-order handling or per-search loading state is needed.
+	function runSearch(q: string) {
 		const trimmed = q.trim();
 		selected = null; // a new query resets any open page
 		zOrder = {};
@@ -69,23 +75,21 @@
 		if (!trimmed) {
 			results = [];
 			searched = false;
-			loading = false;
 			return;
 		}
-
-		const id = ++requestId;
-		loading = true;
-		try {
-			const res = await fetch(`${endpoint}?q=${encodeURIComponent(trimmed)}`);
-			const data = await res.json();
-			// Ignore out-of-order responses from earlier keystrokes.
-			if (id !== requestId) return;
-			results = data.results ?? [];
-			searched = true;
-		} finally {
-			if (id === requestId) loading = false;
-		}
+		results = filter(allItems, trimmed);
+		searched = true;
 	}
+
+	// Fetch the whole (small) dataset once; every search then runs against it locally.
+	onMount(async () => {
+		try {
+			allItems = await load();
+		} finally {
+			loading = false;
+			runSearch(query); // apply any query typed while the dataset was loading
+		}
+	});
 
 	// Only this many pages float in space; the bar reports the true total.
 	const CAP = 24;
@@ -175,7 +179,7 @@
 	$effect(() => {
 		const q = query;
 		clearTimeout(debounce);
-		debounce = setTimeout(() => runSearch(q), 150);
+		debounce = setTimeout(() => runSearch(q), 50);
 		return () => clearTimeout(debounce);
 	});
 </script>
@@ -197,7 +201,7 @@
 			</div>
 		{/if}
 		<div class="relative">
-			{#if loading}
+			{#if loading && query.trim().length > 0}
 				<svg
 					class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 animate-spin text-gray-700"
 					xmlns="http://www.w3.org/2000/svg"

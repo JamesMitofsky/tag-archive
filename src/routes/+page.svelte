@@ -2,12 +2,14 @@
 	import type { ArtefactWithEvent } from '$lib/server/db/schema';
 	import { programAreaMeta } from '$lib/programAreas';
 	import { formatDate } from '$lib/formatDate';
+	import { loadArtefacts } from '$lib/dataset';
+	import { filterArtefacts } from '$lib/search';
 	import CardCloud from '$lib/components/CardCloud.svelte';
 	import ArtefactFilePreview from '$lib/components/ArtefactFilePreview.svelte';
 	import Drawing from '$lib/components/Drawing.svelte';
 </script>
 
-<CardCloud endpoint="/api/search" card={page} {header} />
+<CardCloud load={loadArtefacts} filter={filterArtefacts} card={page} {header} />
 
 {#snippet header()}
 	<Drawing
