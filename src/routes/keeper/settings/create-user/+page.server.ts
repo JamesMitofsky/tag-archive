@@ -1,7 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
 import { auth } from '$lib/server/auth';
-import { sendAccountCreatedEmail } from '$lib/server/email';
 import { ASSIGNABLE_ROLES, createNewUserSuite, parseCreateUserForm } from '$lib/validation/auth';
 import type { Actions, PageServerLoad } from './$types';
 

@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 	import { createVirtualizer } from '@tanstack/svelte-virtual';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { formatDateShort } from '$lib/formatDate';
 
 	// Searchable single-select for a *large* server-backed list (event titles today).
@@ -55,6 +57,9 @@
 	// Bumped on every fresh search so stale in-flight pages from an old query drop.
 	let version = 0;
 	let initialized = false;
+	// True while a fresh top-of-list search is in flight, so the dropdown can show a
+	// spinner instead of "No results." before the first page lands.
+	let searching = $state(false);
 
 	function seed(rows: Row[], count: number): (Row | undefined)[] {
 		const arr = new Array<Row | undefined>(count);
@@ -75,7 +80,7 @@
 		loading.add(page);
 		const v = version;
 		try {
-			const params = new URLSearchParams({
+			const params = new SvelteURLSearchParams({
 				q: query,
 				offset: String(base),
 				limit: String(pageSize)
@@ -99,15 +104,22 @@
 		loaded.clear();
 		loading.clear();
 		activeIndex = -1;
-		const params = new URLSearchParams({ q: query, offset: '0', limit: String(pageSize) });
-		if (date) params.set('date', date);
-		const res = await fetch(`${endpoint}?${params}`);
-		if (!res.ok || v !== version) return;
-		const body: { rows: Row[]; total: number } = await res.json();
-		if (v !== version) return;
-		total = body.total;
-		items = seed(body.rows, body.total);
-		loaded.add(0);
+		searching = true;
+		try {
+			const params = new SvelteURLSearchParams({ q: query, offset: '0', limit: String(pageSize) });
+			if (date) params.set('date', date);
+			const res = await fetch(`${endpoint}?${params}`);
+			if (!res.ok || v !== version) return;
+			const body: { rows: Row[]; total: number } = await res.json();
+			if (v !== version) return;
+			total = body.total;
+			items = seed(body.rows, body.total);
+			loaded.add(0);
+		} finally {
+			// Only the latest search clears the flag; a superseded run leaves it set for
+			// the newer one still in flight.
+			if (v === version) searching = false;
+		}
 	}
 
 	// Debounce the search box; skip the run that just echoes a programmatic pick.
@@ -130,6 +142,20 @@
 			runSearch();
 		}
 	}
+
+	// Prioritise the list by proximity to the date as soon as one is set (or changed),
+	// without waiting for focus — the server re-orders by the `date` param, so re-run the
+	// search whenever it changes and pre-empt the focus-time first run.
+	let lastDate = untrack(() => date);
+	$effect(() => {
+		const d = date;
+		if (d === lastDate) return;
+		lastDate = d;
+		if (!d) return;
+		initialized = true;
+		lastQuery = query;
+		runSearch();
+	});
 
 	// Close when focus leaves the whole field (relatedTarget outside the container).
 	function handleFocusOut(event: FocusEvent) {
@@ -270,7 +296,14 @@
 				{/if}
 
 				<div bind:this={scrollEl} class="max-h-64 overflow-y-auto" style="scrollbar-width: thin;">
-					{#if total === 0}
+					{#if searching && total === 0}
+						<div
+							class="flex items-center justify-center gap-2 px-2 py-6 text-sm text-muted-foreground"
+						>
+							<CircleNotchIcon class="size-4 animate-spin" />
+							<span>Searching events…</span>
+						</div>
+					{:else if total === 0}
 						<div class="px-2 py-6 text-center text-sm text-muted-foreground">No results.</div>
 					{:else}
 						<div style="position: relative; height: {$virtualizer.getTotalSize()}px;">

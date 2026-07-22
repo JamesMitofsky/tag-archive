@@ -10,13 +10,18 @@
 		alt?: string;
 		class?: string;
 		style?: string;
-		[key: string]: any;
+		[key: string]: unknown;
 	} = $props();
 
 	let loaded = $state(false);
+	// True when the image is already decoded at mount (cached). The fade only
+	// exists to smooth the uncached first paint, so cached images skip it and
+	// appear instantly — no transition.
+	let cached = $state(false);
 
 	function checkLoad(node: HTMLImageElement) {
 		if (node.complete) {
+			cached = true;
 			loaded = true;
 		}
 	}
@@ -30,6 +35,7 @@
 	onload={() => (loaded = true)}
 	class="drawing {className}"
 	class:loaded
+	class:cached
 	style="mix-blend-mode: multiply; {style}"
 	{...restProps}
 />
@@ -43,5 +49,10 @@
 
 	.drawing.loaded {
 		opacity: 1;
+	}
+
+	/* Cached at mount: no fade, appear instantly. */
+	.drawing.cached {
+		transition: none;
 	}
 </style>

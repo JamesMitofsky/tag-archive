@@ -15,10 +15,11 @@
 	import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import type { ArtefactFormValues } from './+page.server';
-	import type { ActionData, PageData } from './$types';
+	import type { ActionData } from './$types';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let { form }: { form: ActionData } = $props();
 
 	// Isomorphic validation: the same vest suite runs here for live, per-field
 	// feedback and on the server as the authority. `errors` seeds field messages
@@ -91,8 +92,10 @@
 	// True while the form submit action is processing.
 	let submitting = $state(false);
 
-	// Block submit until required fields are filled and any upload is finalized.
-	const canSubmit = $derived(title.trim().length > 0 && formDate.trim().length > 0 && !scanPending);
+	// Block submit until required fields are filled, an image is attached, and any upload is finalized.
+	const canSubmit = $derived(
+		title.trim().length > 0 && formDate.trim().length > 0 && fileUrls.length > 0 && !scanPending
+	);
 
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
@@ -103,6 +106,7 @@
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
+	<UnsavedChangesGuard form={formEl} />
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex flex-col items-start gap-3">
 			<BackButton />
@@ -228,6 +232,7 @@
 						name="provenance"
 						label="Provenance"
 						placeholder="Johnny B. Good"
+						prefetch
 						bind:value={provenanceTags}
 					/>
 					<p class="mt-1 text-xs text-gray-500">Press Enter to add</p>
