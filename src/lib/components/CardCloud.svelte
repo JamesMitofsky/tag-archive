@@ -179,7 +179,7 @@
 	$effect(() => {
 		const q = query;
 		clearTimeout(debounce);
-		debounce = setTimeout(() => runSearch(q), 150);
+		debounce = setTimeout(() => runSearch(q), 50);
 		return () => clearTimeout(debounce);
 	});
 </script>
