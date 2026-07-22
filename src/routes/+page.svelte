@@ -2,12 +2,14 @@
 	import type { ArtefactWithEvent } from '$lib/server/db/schema';
 	import { programAreaMeta } from '$lib/programAreas';
 	import { formatDate } from '$lib/formatDate';
+	import { loadArtefacts } from '$lib/dataset';
+	import { filterArtefacts } from '$lib/search';
 	import CardCloud from '$lib/components/CardCloud.svelte';
 	import ArtefactFilePreview from '$lib/components/ArtefactFilePreview.svelte';
 	import Drawing from '$lib/components/Drawing.svelte';
 </script>
 
-<CardCloud endpoint="/api/search" card={page} {header} />
+<CardCloud load={loadArtefacts} filter={filterArtefacts} card={page} {header} />
 
 {#snippet header()}
 	<Drawing
@@ -39,7 +41,7 @@
 		{/if}
 		{#if item.provenance.length || item.programArea.length}
 			<div class="mt-auto flex flex-wrap gap-1 pt-2">
-				{#each item.programArea as tag}
+				{#each item.programArea as tag (tag)}
 					{@const Icon = programAreaMeta(tag).icon}
 					<span
 						class="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.65rem] {programAreaMeta(
@@ -50,7 +52,7 @@
 						{tag}
 					</span>
 				{/each}
-				{#each item.provenance as person}
+				{#each item.provenance as person (person)}
 					<span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[0.65rem] text-gray-600"
 						>{person}</span
 					>

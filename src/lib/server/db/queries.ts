@@ -11,6 +11,7 @@ import {
 	sql
 } from 'drizzle-orm';
 import { client, db } from './index';
+import { purgeArchiveCache } from '../cache';
 import { stampInsert, stampUpdate } from './audit';
 import { artefact, artefactProvenance, event, eventHost, person, series } from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
@@ -55,6 +56,8 @@ export async function mergePeople(
 	]);
 
 	await client.batch(statements, 'write');
+	// Re-pointed provenance/host names change the public blob — refresh it.
+	await purgeArchiveCache();
 }
 
 /**
@@ -378,6 +381,8 @@ export async function approveProposed(kind: ReviewKind, id: number, userId: stri
 		.update(table)
 		.set({ proposedAddition: false, ...stampUpdate(userId) })
 		.where(and(eq(table.id, id), eq(table.proposedAddition, true)));
+	// A vetted row becomes visible in the public blob — refresh it.
+	await purgeArchiveCache();
 }
 
 /** Discard a proposed row entirely. Clears the FK references a delete would trip
@@ -409,6 +414,8 @@ export async function rejectProposed(kind: ReviewKind, id: number, userId: strin
 		// Provenance links cascade on the artefact delete.
 		await db.delete(artefact).where(eq(artefact.id, id));
 	}
+	// A discarded row leaves the public blob — refresh it.
+	await purgeArchiveCache();
 }
 
 /**

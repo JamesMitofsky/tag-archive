@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { desc, eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
+import { purgeArchiveCache } from '$lib/server/cache';
 import { attachHosts, attachProvenance } from '$lib/server/db/queries';
 import { stampUpdate } from '$lib/server/db/audit';
 import {
@@ -89,6 +90,8 @@ export const actions: Actions = {
 			});
 		}
 
+		// The renamed contributor appears as provenance/host text in the public blob.
+		await purgeArchiveCache();
 		return { error: undefined };
 	}
 };
