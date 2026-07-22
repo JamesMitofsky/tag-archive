@@ -51,3 +51,48 @@ export function filterEvents(rows: EventItem[], q: string): EventItem[] {
 		return fields.some((field) => field.includes(term));
 	});
 }
+
+/**
+ * People: substring search across person names.
+ */
+export function filterPeople(names: string[], q: string): string[] {
+	const term = q.trim().toLowerCase();
+	if (!term) return names;
+	return names.filter((name) => name.toLowerCase().includes(term));
+}
+
+/**
+ * Event titles: substring search across event titles, sorted by date proximity
+ * to targetDate (if provided).
+ */
+export function filterAndSortEvents(
+	events: EventItem[],
+	q: string,
+	targetDate?: string
+): { name: string; date: string | null }[] {
+	const term = q.trim().toLowerCase();
+	const matched = term ? events.filter((e) => e.title.toLowerCase().includes(term)) : [...events];
+
+	if (targetDate) {
+		const targetMs = new Date(targetDate).getTime();
+		if (!isNaN(targetMs)) {
+			matched.sort((a, b) => {
+				const aMs = a.date ? new Date(a.date).getTime() : Infinity;
+				const bMs = b.date ? new Date(b.date).getTime() : Infinity;
+				const aDiff = isNaN(aMs) ? Infinity : Math.abs(aMs - targetMs);
+				const bDiff = isNaN(bMs) ? Infinity : Math.abs(bMs - targetMs);
+				return aDiff - bDiff;
+			});
+		}
+	}
+
+	const seen = new Set<string>();
+	const result: { name: string; date: string | null }[] = [];
+	for (const e of matched) {
+		if (!seen.has(e.title)) {
+			seen.add(e.title);
+			result.push({ name: e.title, date: e.date });
+		}
+	}
+	return result;
+}

@@ -2,15 +2,13 @@ import { json } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachHosts, attachProvenance } from '$lib/server/db/queries';
-import { artefact, event } from '$lib/server/db/schema';
+import { artefact, event, person } from '$lib/server/db/schema';
 import type { EventItem } from '$lib/events';
 import type { RequestHandler } from './$types';
 
 /**
- * The entire public archive as one blob: all artefacts and all events, each
- * denormalised (event title / provenance / hosts flattened in) into the same shape
- * the pages already render. The dataset is small (~140 KB gzipped), so the public
- * pages fetch this once and search it client-side — no per-keystroke DB queries.
+ * The entire archive dataset as one blob: all artefacts, events, and person names.
+ * The dataset is small, so client components fetch this once and search it client-side.
  *
  * Cached at Netlify's edge with a single `archive` tag; every keeper write purges
  * that tag (see `$lib/server/cache`). `s-maxage` is a self-healing backstop in case
@@ -40,5 +38,8 @@ export const GET: RequestHandler = async () => {
 		url: e.url
 	}));
 
-	return json({ artefacts, events }, { headers: CACHE_HEADERS });
+	const personRows = await db.select({ name: person.name }).from(person);
+	const people = personRows.map((p) => p.name);
+
+	return json({ artefacts, events, people }, { headers: CACHE_HEADERS });
 };

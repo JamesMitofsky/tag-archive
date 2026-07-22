@@ -183,57 +183,6 @@ export async function searchEvents({
 	return { rows, total };
 }
 
-/** One distinct event title plus its earliest date, for the create/edit comboboxes. */
-export type EventTitleOption = { name: string; date: string | null };
-
-/**
- * Searchable, paged list of *distinct* event titles for the artefact comboboxes.
- * A recurring title (series) collapses to one row — its earliest date rides along
- * as low-emphasis context. Filtering is server-side so the client never loads the
- * whole table; the combobox fetches a window at a time and virtualizes the rest.
- * When `date` is passed, titles are prioritized by closeness to that date.
- */
-export async function searchEventTitles({
-	q,
-	date,
-	offset,
-	limit
-}: {
-	q: string;
-	date?: string;
-	offset: number;
-	limit: number;
-}): Promise<{ rows: EventTitleOption[]; total: number }> {
-	const term = q.trim().toLowerCase();
-	const filter = term ? like(sql`lower(${event.title})`, `%${term}%`) : undefined;
-
-	const cleanDate = date?.trim();
-	const isValidDate = cleanDate && /^\d{4}-\d{2}-\d{2}$/.test(cleanDate);
-
-	// Slice and the distinct-title count are independent — one round-trip on a
-	// remote DB. The count matches the grouped set (distinct titles), not raw rows.
-	const [rows, [{ total }]] = await Promise.all([
-		db
-			.select({ name: event.title, date: sql<string | null>`min(${event.date})` })
-			.from(event)
-			.where(filter)
-			.groupBy(event.title)
-			.orderBy(
-				...(isValidDate
-					? [sql`abs(julianday(min(${event.date})) - julianday(${cleanDate})) ASC`, event.title]
-					: [event.title])
-			)
-			.limit(limit)
-			.offset(offset),
-		db
-			.select({ total: sql<number>`count(distinct ${event.title})` })
-			.from(event)
-			.where(filter)
-	]);
-
-	return { rows, total };
-}
-
 /**
  * Find-or-create each person by name, returning their ids. Dedupes names first
  * so the same person always maps to one row (canonical, searchable across the
@@ -259,57 +208,6 @@ export async function resolvePersonIds(names: string[], userId: string): Promise
 	}
 
 	return unique.map((name) => idByName.get(name)!);
-}
-
-/**
- * Search person names by case-insensitive prefix first (O(log N) index scan),
- * filling remaining slots up to `limit` with substring matches for full coverage.
- */
-export async function searchPeople({
-	q,
-	limit = 20
-}: {
-	q: string;
-	limit?: number;
-}): Promise<{ id: number; name: string }[]> {
-	const term = q.trim();
-	if (!term) {
-		return db
-			.select({ id: person.id, name: person.name })
-			.from(person)
-			.orderBy(person.name)
-			.limit(limit);
-	}
-
-	const termEscaped = term.replace(/[\\%_]/g, '\\$&');
-
-	// 1. Index-accelerated prefix search (term%) first
-	const prefixMatches = await db
-		.select({ id: person.id, name: person.name })
-		.from(person)
-		.where(sql`${person.name} LIKE ${termEscaped + '%'} ESCAPE '\\'`)
-		.orderBy(person.name)
-		.limit(limit);
-
-	if (prefixMatches.length >= limit) {
-		return prefixMatches;
-	}
-
-	// 2. Substring matches (%term%) for remaining slots
-	const prefixIds = new Set(prefixMatches.map((p) => p.id));
-	const substringMatches = await db
-		.select({ id: person.id, name: person.name })
-		.from(person)
-		.where(
-			and(
-				sql`${person.name} LIKE ${'%' + termEscaped + '%'} ESCAPE '\\'`,
-				prefixMatches.length > 0 ? notInArray(person.id, Array.from(prefixIds)) : undefined
-			)
-		)
-		.orderBy(person.name)
-		.limit(limit - prefixMatches.length);
-
-	return [...prefixMatches, ...substringMatches];
 }
 
 // ── Review queue ─────────────────────────────────────────────────────────────
