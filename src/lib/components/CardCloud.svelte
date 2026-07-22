@@ -201,7 +201,7 @@
 			</div>
 		{/if}
 		<div class="relative">
-			{#if loading}
+			{#if loading && query.trim().length > 0}
 				<svg
 					class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 animate-spin text-gray-700"
 					xmlns="http://www.w3.org/2000/svg"
