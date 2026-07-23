@@ -1,11 +1,15 @@
 /**
- * Shared archive-seeding logic for both `db:seed` (local dev) and `db:import`
- * (production). Reads the single source export (src/lib/data/seed-data.json,
- * `{ events, artefacts }`), normalises it, and rewrites the six archive tables
- * (series, event, person, event_host, artefact, artefact_provenance).
+ * Shared archive-seeding logic for `db:seed` (local dev only). Reads the single
+ * source export (src/lib/data/seed-data.json, `{ events, artefacts }`), normalises
+ * it, and rewrites the six archive tables (series, event, person, event_host,
+ * artefact, artefact_provenance).
+ *
+ * Seeding is dev-only by design — prod is already populated and its data evolves
+ * through the keeper UI, not a re-seed. `seed.ts` refuses remote DB URLs, so this
+ * can never rewrite production.
  *
  * Deliberately auth-agnostic: it never touches user/session/account/verification.
- * The local seed adds test accounts on top; the prod import leaves auth alone.
+ * The local seed adds test accounts on top.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

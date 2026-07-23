@@ -1,7 +1,8 @@
 <script lang="ts">
 	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
-	import { Image } from '@unpic/svelte';
+	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
+	import { isImageUrl } from '$lib/fileType';
 
 	let {
 		fileUrls,
@@ -13,21 +14,9 @@
 
 	let loaded = $state(false);
 
-	function fileExt(url: string): string {
-		const path = url.split('?')[0].split('#')[0];
-		return path.slice(path.lastIndexOf('.') + 1).toLowerCase();
-	}
-
 	const firstUrl = $derived(fileUrls[0] ?? '');
-	const ext = $derived(fileExt(firstUrl));
-	const isImage = $derived(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg'].includes(ext));
+	const isImage = $derived(isImageUrl(firstUrl));
 	const fileName = $derived(firstUrl.split('/').pop() ?? 'Attached file');
-
-	// Route rasters through the Netlify Image CDN (auto webp/avif, resize, edge cache)
-	// only in prod builds — `/.netlify/images` 404s under the plain vite dev server, and
-	// local scans live on RustFS which isn't allowlisted. svg/gif bypass it too: svg needs
-	// no raster optimization and transforming a gif drops its animation.
-	const useCdn = $derived(isImage && import.meta.env.PROD && !['svg', 'gif'].includes(ext));
 </script>
 
 {#if fileUrls.length > 0}
@@ -38,19 +27,15 @@
 			{#if !loaded}
 				<Skeleton class="absolute inset-0 h-full w-full rounded-sm bg-gray-200" />
 			{/if}
-			<Image
+			<OptimizedImage
 				src={firstUrl}
 				alt={artefactName}
-				cdn={useCdn ? 'netlify' : undefined}
-				layout="fullWidth"
 				sizes="(min-width: 768px) 33vw, 100vw"
-				unstyled
 				class="h-full w-full rounded-sm object-contain transition-opacity duration-300 {loaded
 					? 'opacity-100'
 					: 'opacity-0'}"
 				onload={() => (loaded = true)}
 				onerror={() => (loaded = true)}
-				loading="lazy"
 			/>
 			{#if fileUrls.length > 1}
 				<span
