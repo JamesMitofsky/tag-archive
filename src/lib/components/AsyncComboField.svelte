@@ -1,149 +1,70 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { SvelteURLSearchParams } from 'svelte/reactivity';
+	import { onMount, untrack } from 'svelte';
 	import { get } from 'svelte/store';
 	import { createVirtualizer } from '@tanstack/svelte-virtual';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { formatDateShort } from '$lib/formatDate';
+	import { loadEvents } from '$lib/dataset';
+	import { filterAndSortEvents } from '$lib/search';
+	import type { EventItem } from '$lib/events';
 
-	// Searchable single-select for a *large* server-backed list (event titles today).
-	// Unlike ComboField it never loads the whole set: it fetches a page at a time from
-	// `endpoint` (filtered server-side by the live query) and virtualizes the dropdown,
-	// so only the visible rows mount no matter how many titles exist. Like ComboField,
-	// the live text doubles as the submitted value and accepts a typed-in custom entry,
-	// mirrored into a hidden <input> so the native form POST still sends `name=<value>`.
-	type Row = { name: string; date: string | null };
-
+	// Searchable single-select for event titles backed by the local dataset.
+	// Filtered in-memory and sorted by date proximity to `date` (if provided).
 	let {
 		name,
 		label,
 		placeholder = 'Search or add…',
-		endpoint,
 		date,
-		value: initial = '',
-		pageSize = 40
+		value: initial = ''
 	}: {
 		name: string;
 		label?: string;
 		placeholder?: string;
-		/** GET `?q=&offset=&limit=` → `{ rows: {name,date}[], total }`. */
-		endpoint: string;
+		endpoint?: string;
 		date?: string;
 		value?: string;
 		pageSize?: number;
 	} = $props();
 
 	let open = $state(false);
-	// Live text in the search box — also the candidate custom value and the value the
-	// server reads. Seeded from any echoed/existing value.
-	// svelte-ignore state_referenced_locally
 	let search = $state(initial);
 	const query = $derived(search.trim());
 
-	// Sparse array the length of the whole (filtered) result: a hole (undefined) renders
-	// as a skeleton until its page arrives. `total` is the distinct-title count.
-	let items = $state<(Row | undefined)[]>([]);
-	let total = $state(0);
-	// Highlighted row for keyboard nav. -1 = the custom-entry row (when shown).
+	let allEvents = $state<EventItem[]>([]);
+	let loading = $state(false);
+	let loaded = false;
 	let activeIndex = $state(-1);
 
-	// Page bookkeeping — deliberately plain Sets, not reactive: they gate fetches and
-	// must not trigger re-renders (only `items`/`total` drive the view).
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
-	const loaded = new Set<number>();
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
-	const loading = new Set<number>();
-	// Bumped on every fresh search so stale in-flight pages from an old query drop.
-	let version = 0;
-	let initialized = false;
-	// True while a fresh top-of-list search is in flight, so the dropdown can show a
-	// spinner instead of "No results." before the first page lands.
-	let searching = $state(false);
-
-	function seed(rows: Row[], count: number): (Row | undefined)[] {
-		const arr = new Array<Row | undefined>(count);
-		for (let i = 0; i < rows.length; i++) arr[i] = rows[i];
-		return arr;
+	async function ensureLoaded() {
+		if (loaded) return;
+		loading = true;
+		try {
+			allEvents = await loadEvents();
+			loaded = true;
+		} catch (e) {
+			console.error('Failed to load events for combobox:', e);
+		} finally {
+			loading = false;
+		}
 	}
 
-	// Offer the typed text as a custom entry unless a *loaded* row already matches it.
-	// Only loaded rows are checked (the rest aren't in memory), but an exact-title
-	// custom pick resolves to the same event server-side, so a stray duplicate is safe.
+	const items = $derived(filterAndSortEvents(allEvents, query, date));
+	const total = $derived(items.length);
+
 	const showCustom = $derived(
-		query.length > 0 && !items.some((r) => r && r.name.toLowerCase() === query.toLowerCase())
+		query.length > 0 && !items.some((r) => r.name.toLowerCase() === query.toLowerCase())
 	);
 
-	async function fetchPage(page: number) {
-		const base = page * pageSize;
-		if (page < 0 || base >= total || loaded.has(page) || loading.has(page)) return;
-		loading.add(page);
-		const v = version;
-		try {
-			const params = new SvelteURLSearchParams({
-				q: query,
-				offset: String(base),
-				limit: String(pageSize)
-			});
-			if (date) params.set('date', date);
-			const res = await fetch(`${endpoint}?${params}`);
-			if (!res.ok || v !== version) return;
-			const body: { rows: Row[]; total: number } = await res.json();
-			if (v !== version) return;
-			for (let i = 0; i < body.rows.length; i++) items[base + i] = body.rows[i];
-			loaded.add(page);
-		} finally {
-			loading.delete(page);
-		}
-	}
-
-	// Fresh search from the top: new total, new sparse array, page cache wiped.
-	async function runSearch() {
-		version += 1;
-		const v = version;
-		loaded.clear();
-		loading.clear();
-		activeIndex = -1;
-		searching = true;
-		try {
-			const params = new SvelteURLSearchParams({ q: query, offset: '0', limit: String(pageSize) });
-			if (date) params.set('date', date);
-			const res = await fetch(`${endpoint}?${params}`);
-			if (!res.ok || v !== version) return;
-			const body: { rows: Row[]; total: number } = await res.json();
-			if (v !== version) return;
-			total = body.total;
-			items = seed(body.rows, body.total);
-			loaded.add(0);
-		} finally {
-			// Only the latest search clears the flag; a superseded run leaves it set for
-			// the newer one still in flight.
-			if (v === version) searching = false;
-		}
-	}
-
-	// Debounce the search box; skip the run that just echoes a programmatic pick.
-	let lastQuery = untrack(() => query);
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	$effect(() => {
-		const q = query;
-		if (!open) return;
-		if (q === lastQuery) return;
-		lastQuery = q;
-		clearTimeout(timer);
-		timer = setTimeout(runSearch, 150);
+	onMount(() => {
+		void ensureLoaded();
 	});
 
 	function onOpen() {
 		open = true;
-		if (!initialized) {
-			initialized = true;
-			lastQuery = query;
-			runSearch();
-		}
+		void ensureLoaded();
 	}
 
-	// Close when focus leaves the whole field (relatedTarget outside the container).
 	function handleFocusOut(event: FocusEvent) {
 		const next = event.relatedTarget;
 		const container = event.currentTarget as HTMLElement;
@@ -151,9 +72,8 @@
 		open = false;
 	}
 
-	function choose(value: string) {
-		search = value;
-		lastQuery = value.trim();
+	function choose(val: string) {
+		search = val;
 		open = false;
 	}
 
@@ -169,10 +89,6 @@
 		}))
 	);
 
-	// Re-sync the virtualizer when the row count or the (late-bound) scroll element
-	// changes. setOptions runs `_willUpdate`, which re-attaches observers once the
-	// dropdown's scroll container exists. Read the instance with get() — subscribing
-	// to `$virtualizer` here would loop on every scroll.
 	$effect(() => {
 		const count = items.length;
 		const el = scrollEl;
@@ -182,15 +98,6 @@
 			estimateSize: () => ROW_H,
 			overscan: 8
 		});
-	});
-
-	// Pull in any pages the rendered window just scrolled into view.
-	$effect(() => {
-		const rendered = $virtualizer.getVirtualItems();
-		if (!open || rendered.length === 0) return;
-		const first = rendered[0].index;
-		const last = rendered[rendered.length - 1].index;
-		for (let p = Math.floor(first / pageSize); p <= Math.floor(last / pageSize); p++) fetchPage(p);
 	});
 
 	// --- Keyboard ------------------------------------------------------------
@@ -282,12 +189,12 @@
 				{/if}
 
 				<div bind:this={scrollEl} class="max-h-64 overflow-y-auto" style="scrollbar-width: thin;">
-					{#if searching && total === 0}
+					{#if loading && total === 0}
 						<div
 							class="flex items-center justify-center gap-2 px-2 py-6 text-sm text-muted-foreground"
 						>
 							<CircleNotchIcon class="size-4 animate-spin" />
-							<span>Searching events…</span>
+							<span>Loading events…</span>
 						</div>
 					{:else if total === 0}
 						<div class="px-2 py-6 text-center text-sm text-muted-foreground">No results.</div>

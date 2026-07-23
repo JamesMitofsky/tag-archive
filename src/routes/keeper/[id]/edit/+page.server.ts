@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
+import { purgeArchiveCache } from '$lib/server/cache';
 import { attachProvenance, resolvePersonIds } from '$lib/server/db/queries';
 import { stampInsert, stampUpdate } from '$lib/server/db/audit';
 import { artefact, artefactProvenance, event } from '$lib/server/db/schema';
@@ -129,6 +130,8 @@ export const actions: Actions = {
 			);
 		}
 
+		await purgeArchiveCache();
+
 		// Back to the artefact page so the edits show.
 		throw redirect(303, `/keeper/${id.data}`);
 	},
@@ -144,6 +147,7 @@ export const actions: Actions = {
 		if (!id.success) return fail(400, { artefactError: 'Unknown artefact' });
 
 		await db.delete(artefact).where(eq(artefact.id, id.data));
+		await purgeArchiveCache();
 		// Nothing left to show here — back to the artefacts list.
 		throw redirect(303, '/keeper/artefacts');
 	}

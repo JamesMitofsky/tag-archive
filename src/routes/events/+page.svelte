@@ -1,11 +1,13 @@
 <script lang="ts">
 	import type { EventItem } from '$lib/events';
 	import { formatDate } from '$lib/formatDate';
+	import { loadEvents } from '$lib/dataset';
+	import { filterEvents } from '$lib/search';
 	import CardCloud from '$lib/components/CardCloud.svelte';
 	import Drawing from '$lib/components/Drawing.svelte';
 </script>
 
-<CardCloud endpoint="/api/events" ariaLabel="Search events" card={page} {header} />
+<CardCloud load={loadEvents} filter={filterEvents} ariaLabel="Search events" card={page} {header} />
 
 {#snippet header()}
 	<Drawing
