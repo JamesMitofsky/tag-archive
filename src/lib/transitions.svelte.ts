@@ -1,0 +1,113 @@
+// Shared-element "morph" page transitions for the keeper lists.
+//
+// When a card in the artefacts or events list is clicked, the browser's View
+// Transitions API morphs it into the detail page's hero card. Coordination lives
+// in the root layout's onNavigate; this module supplies the naming/scoping helpers
+// and a reactive flag the layout uses to stand down its own cross-fade.
+
+type MorphKind = 'artefact' | 'event' | 'series';
+
+// A stable per-item view-transition-name. Both the source card and the
+// destination hero carry the same name so the browser pairs them.
+export function morphName(kind: MorphKind, id: string | number): string {
+	return `${kind}-${id}`;
+}
+
+function stripTrailingSlash(path: string): string {
+	return path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
+}
+
+// If `path` is an in-scope detail page, return its morph name; else null.
+function detailName(path: string): string | null {
+	const p = stripTrailingSlash(path);
+
+	// Event detail: /keeper/events/{id} (id ≠ add).
+	const event = p.match(/^\/keeper\/events\/([^/]+)$/);
+	if (event) {
+		const id = event[1];
+		return id === 'add' ? null : morphName('event', id);
+	}
+
+	// Artefact detail: /keeper/artefacts/{id} (id ≠ add).
+	const artefact = p.match(/^\/keeper\/artefacts\/([^/]+)$/);
+	if (artefact) {
+		const id = artefact[1];
+		return id === 'add' ? null : morphName('artefact', id);
+	}
+
+	// Series detail: /keeper/series/{id} (id ≠ add).
+	const series = p.match(/^\/keeper\/series\/([^/]+)$/);
+	if (series) {
+		const id = series[1];
+		return id === 'add' ? null : morphName('series', id);
+	}
+
+	return null;
+}
+
+const isArtefactsList = (p: string) => stripTrailingSlash(p) === '/keeper/artefacts';
+const isEventsList = (p: string) => stripTrailingSlash(p) === '/keeper/events';
+const isSeriesList = (p: string) => stripTrailingSlash(p) === '/keeper/series';
+
+// Returns the morph name to run for a from→to navigation, or null if the pair is
+// not an in-scope list↔detail move (either direction).
+export function morphNameForPair(from: string | undefined, to: string | undefined): string | null {
+	if (!from || !to) return null;
+
+	// Forward: list → detail.
+	const toDetail = detailName(to);
+	if (toDetail) {
+		if (toDetail.startsWith('artefact-') && isArtefactsList(from)) return toDetail;
+		if (toDetail.startsWith('event-') && isEventsList(from)) return toDetail;
+		if (toDetail.startsWith('series-') && isSeriesList(from)) return toDetail;
+		return null;
+	}
+
+	// Back: detail → list.
+	const fromDetail = detailName(from);
+	if (fromDetail) {
+		if (fromDetail.startsWith('artefact-') && isArtefactsList(to)) return fromDetail;
+		if (fromDetail.startsWith('event-') && isEventsList(to)) return fromDetail;
+		if (fromDetail.startsWith('series-') && isSeriesList(to)) return fromDetail;
+	}
+
+	return null;
+}
+
+export function reducedMotion(): boolean {
+	return (
+		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+	);
+}
+
+// Active morph state, read reactively by the list pages and the root layout.
+// `name` is the item's morph name while a transition is in flight (else null);
+// list cards use it to apply their view-transition-name so the browser can pair
+// the card with the detail hero — this is what makes the reverse (back) morph
+// work, since the incoming list card must carry the name too. `active` zeroes the
+// keyed page fade so the two don't animate the same pixels at once.
+let _morphName = $state<string | null>(null);
+let _morphActive = $state(false);
+
+export const morph = {
+	get active(): boolean {
+		return _morphActive;
+	},
+	set active(value: boolean) {
+		_morphActive = value;
+	},
+	get name(): string | null {
+		return _morphName;
+	},
+	set name(value: string | null) {
+		_morphName = value;
+	}
+};
+
+// The view-transition-name a list card should carry right now: its full name when
+// it's the item being morphed, else undefined (removes the attribute). `part`
+// suffixes an inner region (title/meta/tags) so each morphs independently.
+export function morphVar(kind: MorphKind, id: string | number, part?: string): string | undefined {
+	if (_morphName !== morphName(kind, id)) return undefined;
+	return part ? `${_morphName}-${part}` : _morphName;
+}

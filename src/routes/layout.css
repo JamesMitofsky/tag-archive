@@ -103,3 +103,20 @@ img {
 	--radius-lg: var(--radius);
 	--radius-xl: calc(var(--radius) + 4px);
 }
+
+/* Keeper list ↔ item morph: a clicked card grows into the detail hero. Named
+   pairs are assigned dynamically (see src/lib/transitions.svelte.ts), so the
+   wildcard covers every per-id pair. */
+::view-transition-group(*) {
+	animation-duration: 300ms;
+	animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Respect reduced motion even if a transition slips through: snap instantly. */
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
+	}
+}

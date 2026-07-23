@@ -4,6 +4,7 @@
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import { programAreaMeta } from '$lib/programAreas';
+	import { morphVar } from '$lib/transitions.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -53,11 +54,11 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<BackButton />
-				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Artefacts</h1>
+				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Artefacts</h1>
+				<BackButton class="mt-2" />
 			</div>
 			<a
-				href="/keeper/add"
+				href="/keeper/artefacts/add"
 				aria-label="Add artefact"
 				title="Add artefact"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
@@ -81,12 +82,6 @@
 			/>
 		</div>
 
-		<p class="mt-3 text-sm text-gray-600">
-			{filtered.length}
-			{filtered.length === 1 ? 'artefact' : 'artefacts'}{#if query}
-				· <span class="text-gray-500">of {data.artefacts.length}</span>{/if}
-		</p>
-
 		<section class="mt-4">
 			{#if data.artefacts.length === 0}
 				<p
@@ -108,6 +103,7 @@
 						<div class="px-2 py-2">
 							<!-- Each artefact is its own page, scattered ever so slightly like loose paper. -->
 							<article
+								style:view-transition-name={morphVar('artefact', item.id)}
 								class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
 								{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
 							>
@@ -115,11 +111,17 @@
 									<div class="min-w-0">
 										<!-- Stretched link: the ::after overlay makes the whole card open the artefact page. -->
 										<h3 class="font-medium break-words">
-											<a href="/keeper/{item.id}" class="after:absolute after:inset-0 after:z-[1]">
+											<a
+												href="/keeper/artefacts/{item.id}"
+												class="after:absolute after:inset-0 after:z-[1]"
+											>
 												{item.artefact}
 											</a>
 										</h3>
-										<p class="mt-0.5 text-sm text-gray-500">
+										<p
+											style:view-transition-name={morphVar('artefact', item.id, 'meta')}
+											class="mt-0.5 text-sm text-gray-500"
+										>
 											{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
 													·
 												{/if}{item.event}{/if}
@@ -140,7 +142,10 @@
 									</p>
 								{/if}
 								{#if item.programArea.length > 0 || item.provenance.length > 0}
-									<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+									<div
+										style:view-transition-name={morphVar('artefact', item.id, 'tags')}
+										class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5"
+									>
 										{#each item.programArea as area (area)}
 											{@const Icon = programAreaMeta(area).icon}
 											<span

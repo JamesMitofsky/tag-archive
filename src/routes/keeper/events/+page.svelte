@@ -5,6 +5,7 @@
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
+	import { morphVar } from '$lib/transitions.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -128,8 +129,8 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<BackButton />
-				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Events</h1>
+				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Events</h1>
+				<BackButton class="mt-2" />
 			</div>
 			<a
 				href="/keeper/events/add"
@@ -156,11 +157,6 @@
 			/>
 		</div>
 
-		<p class="mt-3 text-sm text-gray-600">
-			{total}
-			{total === 1 ? 'event' : 'events'}
-		</p>
-
 		<section class="mt-4">
 			{#if total === 0}
 				<p
@@ -178,6 +174,7 @@
 							{#if item}
 								<!-- Each event is a card, scattered ever so slightly like loose paper. -->
 								<article
+									style:view-transition-name={morphVar('event', item.id)}
 									class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
 									{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
 								>
@@ -192,7 +189,10 @@
 													{item.title}
 												</a>
 											</h3>
-											<p class="mt-0.5 text-sm text-gray-500">
+											<p
+												style:view-transition-name={morphVar('event', item.id, 'meta')}
+												class="mt-0.5 text-sm text-gray-500"
+											>
 												{formatDate(item.date)}{#if item.time}
 													· {item.time}{/if}{#if item.location}
 													· {item.location}{/if}
@@ -201,6 +201,7 @@
 										{#if item.series}
 											<!-- Series banner: low emphasis, marks this as one of several connected events. -->
 											<span
+												style:view-transition-name={morphVar('event', item.id, 'tags')}
 												class="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600"
 												title="Part of the “{item.series}” series"
 											>

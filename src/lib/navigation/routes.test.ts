@@ -23,7 +23,7 @@ describe('getParentRoute & getRouteTitle', () => {
 			label: 'Cloud Keeper'
 		});
 
-		expect(getParentRoute('/keeper/add')).toEqual({
+		expect(getParentRoute('/keeper/artefacts/add')).toEqual({
 			href: '/keeper/artefacts',
 			label: 'Artefacts'
 		});
@@ -35,13 +35,13 @@ describe('getParentRoute & getRouteTitle', () => {
 	});
 
 	it('infers parent route and label for dynamic routes with IDs', () => {
-		expect(getParentRoute('/keeper/item-123')).toEqual({
+		expect(getParentRoute('/keeper/artefacts/item-123')).toEqual({
 			href: '/keeper/artefacts',
 			label: 'Artefacts'
 		});
 
-		expect(getParentRoute('/keeper/item-123/edit')).toEqual({
-			href: '/keeper/item-123',
+		expect(getParentRoute('/keeper/artefacts/item-123/edit')).toEqual({
+			href: '/keeper/artefacts/item-123',
 			label: 'Artefact'
 		});
 
@@ -72,7 +72,7 @@ describe('getParentRoute & getRouteTitle', () => {
 			label: 'Cloud Keeper'
 		});
 
-		expect(getParentRoute('/keeper/add', '/keeper/artefacts')).toEqual({
+		expect(getParentRoute('/keeper/artefacts/add', '/keeper/artefacts')).toEqual({
 			href: '/keeper/artefacts',
 			label: 'Artefacts'
 		});
@@ -81,7 +81,7 @@ describe('getParentRoute & getRouteTitle', () => {
 	it('resolves titles correctly', () => {
 		expect(getRouteTitle('/keeper')).toBe('Cloud Keeper');
 		expect(getRouteTitle('/keeper/artefacts')).toBe('Artefacts');
-		expect(getRouteTitle('/keeper/item-123')).toBe('Artefact');
+		expect(getRouteTitle('/keeper/artefacts/item-123')).toBe('Artefact');
 		expect(getRouteTitle('/keeper/events/456')).toBe('Event');
 		expect(getRouteTitle('/keeper/series/42')).toBe('Series');
 	});

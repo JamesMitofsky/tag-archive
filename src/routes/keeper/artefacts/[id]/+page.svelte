@@ -3,6 +3,7 @@
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import { programAreaMeta } from '$lib/programAreas';
+	import { morphName } from '$lib/transitions.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -38,32 +39,43 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
-			<BackButton />
+			<div>
+				<h1 class="text-2xl font-semibold tracking-tight break-words text-[#14120f]">
+					{item.artefact}
+				</h1>
+				<BackButton class="mt-2" />
+			</div>
 			{#if data.user.role === 'admin'}
 				<a
-					href="/keeper/{item.id}/edit"
+					href="/keeper/artefacts/{item.id}/edit"
 					aria-label="Edit {item.artefact}"
 					title="Edit artefact"
-					class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
+					class="inline-flex shrink-0 items-center rounded-full border border-white/40 bg-white/25 p-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
 				>
 					<PencilSimpleIcon size={18} />
-					Edit
 				</a>
 			{/if}
 		</header>
 
 		<!-- The artefact as its own sheet of paper, matching the create form. -->
-		<article class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8">
-			<h1 class="text-2xl font-semibold tracking-tight break-words">{item.artefact}</h1>
-
-			<p class="mt-1 text-sm text-gray-500">
+		<article
+			style="view-transition-name:{morphName('artefact', item.id)}"
+			class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8"
+		>
+			<p
+				style="view-transition-name:{morphName('artefact', item.id)}-meta"
+				class="text-sm text-gray-500"
+			>
 				{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
 						·
 					{/if}{item.event}{/if}
 			</p>
 
 			{#if item.programArea.length > 0}
-				<div class="mt-4 flex flex-wrap gap-1.5">
+				<div
+					style="view-transition-name:{morphName('artefact', item.id)}-tags"
+					class="mt-4 flex flex-wrap gap-1.5"
+				>
 					{#each item.programArea as area (area)}
 						{@const Icon = programAreaMeta(area).icon}
 						<span

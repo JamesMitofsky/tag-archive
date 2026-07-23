@@ -14,12 +14,12 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8">
-			<BackButton />
-			<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Review artefacts</h1>
+			<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Review artefacts</h1>
 			<p class="mt-1 text-sm text-gray-600">
 				{data.artefacts.length}
 				{data.artefacts.length === 1 ? 'artefact' : 'artefacts'} awaiting approval.
 			</p>
+			<BackButton class="mt-2" />
 		</header>
 
 		<section>

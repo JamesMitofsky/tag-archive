@@ -27,12 +27,12 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<BackButton />
-				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Contributors</h1>
+				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Contributors</h1>
 				<p class="mt-1 text-sm text-gray-600">
 					Everyone in the archive — hosts and provenance alike. Open one to rename it or see its
 					events and artefacts.
 				</p>
+				<BackButton class="mt-2" />
 			</div>
 			<a
 				href="/keeper/contributors/merge"
@@ -58,12 +58,6 @@
 				class="py-3 pr-3 pl-10 {glassInput}"
 			/>
 		</div>
-
-		<p class="mt-3 text-sm text-gray-600">
-			{filtered.length}
-			{filtered.length === 1 ? 'person' : 'people'}{#if query}
-				· <span class="text-gray-500">of {data.people.length}</span>{/if}
-		</p>
 
 		<section class="mt-4">
 			{#if filtered.length === 0}

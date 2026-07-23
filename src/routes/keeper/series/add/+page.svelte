@@ -70,9 +70,7 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<UnsavedChangesGuard form={formEl} />
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
-		<header class="mb-8 flex flex-col items-start gap-3">
-			<BackButton />
-		</header>
+		<BackButton class="mb-6" />
 
 		<!-- The create form is a fresh sheet of paper, like the series pages. -->
 		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
