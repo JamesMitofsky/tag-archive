@@ -1,5 +1,6 @@
 <script lang="ts">
 	import './layout.css';
+	import { flushSync } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { onNavigate } from '$app/navigation';
@@ -9,30 +10,22 @@
 
 	let { children } = $props();
 
-	// Shared-element morph for keeper list ↔ item navigations. onNavigate runs
-	// before the DOM swaps, so the outgoing card is named while startViewTransition
-	// snapshots the old page; the browser then pairs it with the incoming hero of
-	// the same name. Anything not in scope (or an unsupporting browser) falls
-	// through to the keyed fade below.
+	// Shared-element morph for keeper list ↔ item navigations. Setting morph.name
+	// makes the matching card (shell + title/meta/tags) reactively carry its
+	// view-transition-name; flushSync applies that to the OUTGOING page synchronously
+	// before startViewTransition snapshots it, while the INCOMING page renders with
+	// the same names — so the browser pairs them in both directions (this is what
+	// makes the back button reverse the morph). The detail hero carries the names
+	// statically. Out-of-scope navigations (and unsupporting browsers) fall through
+	// to the keyed fade below.
 	onNavigate((nav) => {
 		if (!document.startViewTransition || reducedMotion()) return;
 		const name = morphNameForPair(nav.from?.url.pathname, nav.to?.url.pathname);
 		if (!name) return;
 
-		// Name the clicked card (shell) and its labelled inner parts (title, meta,
-		// tags) so each morphs into its detail-page counterpart, not just the sheet.
-		const src = document.querySelector<HTMLElement>(`[data-vt-id="${name}"]`);
-		const named: HTMLElement[] = [];
-		if (src) {
-			src.style.viewTransitionName = name;
-			named.push(src);
-			src.querySelectorAll<HTMLElement>('[data-vt-part]').forEach((el) => {
-				el.style.viewTransitionName = `${name}-${el.dataset.vtPart}`;
-				named.push(el);
-			});
-		}
-
+		morph.name = name;
 		morph.active = true; // stands the keyed fade down so the two don't fight
+		flushSync(); // paint the name onto the outgoing card before it is snapshotted
 		return new Promise<void>((resolve) => {
 			const transition = document.startViewTransition(async () => {
 				resolve();
@@ -40,7 +33,7 @@
 			});
 			transition.finished.finally(() => {
 				morph.active = false;
-				named.forEach((el) => (el.style.viewTransitionName = ''));
+				morph.name = null;
 			});
 		});
 	});

@@ -46,7 +46,6 @@
 
 		<!-- The event as its own sheet of paper, matching the artefact page. -->
 		<article
-			data-vt-id={morphName('event', item.id)}
 			style="view-transition-name:{morphName('event', item.id)}"
 			class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8"
 		>

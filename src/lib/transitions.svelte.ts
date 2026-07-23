@@ -82,8 +82,13 @@ export function reducedMotion(): boolean {
 	);
 }
 
-// True while a morph view transition is in flight. The root layout reads this to
-// zero out its keyed fade so the two don't animate the same pixels at once.
+// Active morph state, read reactively by the list pages and the root layout.
+// `name` is the item's morph name while a transition is in flight (else null);
+// list cards use it to apply their view-transition-name so the browser can pair
+// the card with the detail hero — this is what makes the reverse (back) morph
+// work, since the incoming list card must carry the name too. `active` zeroes the
+// keyed page fade so the two don't animate the same pixels at once.
+let _morphName = $state<string | null>(null);
 let _morphActive = $state(false);
 
 export const morph = {
@@ -92,5 +97,19 @@ export const morph = {
 	},
 	set active(value: boolean) {
 		_morphActive = value;
+	},
+	get name(): string | null {
+		return _morphName;
+	},
+	set name(value: string | null) {
+		_morphName = value;
 	}
 };
+
+// The view-transition-name a list card should carry right now: its full name when
+// it's the item being morphed, else undefined (removes the attribute). `part`
+// suffixes an inner region (title/meta/tags) so each morphs independently.
+export function morphVar(kind: MorphKind, id: string | number, part?: string): string | undefined {
+	if (_morphName !== morphName(kind, id)) return undefined;
+	return part ? `${_morphName}-${part}` : _morphName;
+}

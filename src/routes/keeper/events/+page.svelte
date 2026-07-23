@@ -5,7 +5,7 @@
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
-	import { morphName } from '$lib/transitions.svelte';
+	import { morphVar } from '$lib/transitions.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -179,14 +179,17 @@
 							{#if item}
 								<!-- Each event is a card, scattered ever so slightly like loose paper. -->
 								<article
-									data-vt-id={morphName('event', item.id)}
+									style:view-transition-name={morphVar('event', item.id)}
 									class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
 									{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
 								>
 									<div class="flex items-start justify-between gap-3">
 										<div class="min-w-0">
 											<!-- Stretched link: the ::after overlay makes the whole card open the event page. -->
-											<h3 data-vt-part="title" class="font-medium break-words">
+											<h3
+												style:view-transition-name={morphVar('event', item.id, 'title')}
+												class="font-medium break-words"
+											>
 												<a
 													href="/keeper/events/{item.id}"
 													class="after:absolute after:inset-0 after:z-[1]"
@@ -194,7 +197,10 @@
 													{item.title}
 												</a>
 											</h3>
-											<p data-vt-part="meta" class="mt-0.5 text-sm text-gray-500">
+											<p
+												style:view-transition-name={morphVar('event', item.id, 'meta')}
+												class="mt-0.5 text-sm text-gray-500"
+											>
 												{formatDate(item.date)}{#if item.time}
 													· {item.time}{/if}{#if item.location}
 													· {item.location}{/if}
@@ -203,7 +209,7 @@
 										{#if item.series}
 											<!-- Series banner: low emphasis, marks this as one of several connected events. -->
 											<span
-												data-vt-part="tags"
+												style:view-transition-name={morphVar('event', item.id, 'tags')}
 												class="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600"
 												title="Part of the “{item.series}” series"
 											>
