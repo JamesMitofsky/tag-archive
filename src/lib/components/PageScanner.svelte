@@ -4,6 +4,7 @@
 	import ImageSquareIcon from 'phosphor-svelte/lib/ImageSquareIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
+	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
 
 	// Emits the current list of uploaded image URLs (display order) so the parent form
 	// can store them. `pending` (bindable) is true while an upload is in flight, so the
@@ -334,7 +335,7 @@
 						? 'border-red-400 ring-1 ring-red-400'
 						: 'border-gray-200'}"
 				>
-					<img
+					<OptimizedImage
 						src={scan.previewUrl}
 						alt="Attached scan"
 						class="max-h-40 w-auto object-contain {scan.status === 'uploading' ? 'opacity-50' : ''}"

@@ -2,6 +2,8 @@
 	import BackButton from '$lib/components/BackButton.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
+	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
+	import { isImageUrl } from '$lib/fileType';
 	import { programAreaMeta } from '$lib/programAreas';
 	import { morphName } from '$lib/transitions.svelte';
 	import type { PageData } from './$types';
@@ -10,14 +12,8 @@
 
 	const item = $derived(data.artefact);
 
-	// Render each file by extension (ignoring any query string); images embed,
-	// anything else falls back to a plain link.
-	function fileExt(url: string): string {
-		const path = url.split('?')[0].split('#')[0];
-		return path.slice(path.lastIndexOf('.') + 1).toLowerCase();
-	}
-	const isImage = (url: string) =>
-		['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg'].includes(fileExt(url));
+	// Images embed; anything else falls back to a plain link.
+	const isImage = isImageUrl;
 
 	// Render dates like "July 4, 2023"; fall back to raw string if unparseable.
 	function formatDate(value: string): string {
@@ -100,13 +96,13 @@
 				<div class="mt-6 space-y-4">
 					{#each item.fileUrls as url, i (url)}
 						{#if isImage(url)}
-							<img
+							<OptimizedImage
 								src={url}
 								alt={item.fileUrls.length > 1
 									? `${item.artefact} (${i + 1} of ${item.fileUrls.length})`
 									: item.artefact}
+								sizes="(min-width: 768px) 42rem, 100vw"
 								class="w-full rounded-sm ring-1 ring-black/5"
-								loading="lazy"
 							/>
 						{:else}
 							<a
