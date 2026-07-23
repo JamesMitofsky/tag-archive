@@ -3,6 +3,7 @@
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
+	import { morphName } from '$lib/transitions.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -44,13 +45,23 @@
 		</header>
 
 		<!-- The event as its own sheet of paper, matching the artefact page. -->
-		<article class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8">
+		<article
+			data-vt-id={morphName('event', item.id)}
+			style="view-transition-name:{morphName('event', item.id)}"
+			class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8"
+		>
 			<div class="flex items-start justify-between gap-3">
-				<h1 class="text-2xl font-semibold tracking-tight break-words">{item.title}</h1>
+				<h1
+					style="view-transition-name:{morphName('event', item.id)}-title"
+					class="text-2xl font-semibold tracking-tight break-words"
+				>
+					{item.title}
+				</h1>
 				{#if item.series}
 					<!-- Series banner: low emphasis, marks this as one of several connected events. -->
 					<a
 						href="/keeper/events?q={encodeURIComponent(item.series)}"
+						style="view-transition-name:{morphName('event', item.id)}-tags"
 						class="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 transition hover:bg-gray-200"
 						title="Part of the “{item.series}” series"
 					>
@@ -59,7 +70,10 @@
 				{/if}
 			</div>
 
-			<p class="mt-1 text-sm text-gray-500">
+			<p
+				style="view-transition-name:{morphName('event', item.id)}-meta"
+				class="mt-1 text-sm text-gray-500"
+			>
 				{formatDate(item.date)}{#if item.time}
 					· {item.time}{/if}{#if item.location}
 					· {item.location}{/if}

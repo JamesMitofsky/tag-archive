@@ -4,6 +4,7 @@
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import { programAreaMeta } from '$lib/programAreas';
+	import { morphName } from '$lib/transitions.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -108,18 +109,19 @@
 						<div class="px-2 py-2">
 							<!-- Each artefact is its own page, scattered ever so slightly like loose paper. -->
 							<article
+								data-vt-id={morphName('artefact', item.id)}
 								class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
 								{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
 							>
 								<div class="flex items-start justify-between gap-3">
 									<div class="min-w-0">
 										<!-- Stretched link: the ::after overlay makes the whole card open the artefact page. -->
-										<h3 class="font-medium break-words">
+										<h3 data-vt-part="title" class="font-medium break-words">
 											<a href="/keeper/{item.id}" class="after:absolute after:inset-0 after:z-[1]">
 												{item.artefact}
 											</a>
 										</h3>
-										<p class="mt-0.5 text-sm text-gray-500">
+										<p data-vt-part="meta" class="mt-0.5 text-sm text-gray-500">
 											{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
 													·
 												{/if}{item.event}{/if}
@@ -140,7 +142,10 @@
 									</p>
 								{/if}
 								{#if item.programArea.length > 0 || item.provenance.length > 0}
-									<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+									<div
+										data-vt-part="tags"
+										class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5"
+									>
 										{#each item.programArea as area (area)}
 											{@const Icon = programAreaMeta(area).icon}
 											<span

@@ -3,6 +3,7 @@
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import { programAreaMeta } from '$lib/programAreas';
+	import { morphName } from '$lib/transitions.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -53,17 +54,32 @@
 		</header>
 
 		<!-- The artefact as its own sheet of paper, matching the create form. -->
-		<article class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8">
-			<h1 class="text-2xl font-semibold tracking-tight break-words">{item.artefact}</h1>
+		<article
+			data-vt-id={morphName('artefact', item.id)}
+			style="view-transition-name:{morphName('artefact', item.id)}"
+			class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8"
+		>
+			<h1
+				style="view-transition-name:{morphName('artefact', item.id)}-title"
+				class="text-2xl font-semibold tracking-tight break-words"
+			>
+				{item.artefact}
+			</h1>
 
-			<p class="mt-1 text-sm text-gray-500">
+			<p
+				style="view-transition-name:{morphName('artefact', item.id)}-meta"
+				class="mt-1 text-sm text-gray-500"
+			>
 				{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
 						·
 					{/if}{item.event}{/if}
 			</p>
 
 			{#if item.programArea.length > 0}
-				<div class="mt-4 flex flex-wrap gap-1.5">
+				<div
+					style="view-transition-name:{morphName('artefact', item.id)}-tags"
+					class="mt-4 flex flex-wrap gap-1.5"
+				>
 					{#each item.programArea as area (area)}
 						{@const Icon = programAreaMeta(area).icon}
 						<span
