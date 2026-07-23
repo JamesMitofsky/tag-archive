@@ -228,7 +228,7 @@
 						type="button"
 						aria-label={`Remove ${tag}`}
 						onclick={() => removeTag(index)}
-						class="-me-0.5 flex items-center text-muted-foreground hover:text-foreground"
+						class="-me-0.5 flex items-center rounded-full p-0.5 text-muted-foreground hover:text-foreground"
 					>
 						<XIcon class="size-3" />
 					</button>

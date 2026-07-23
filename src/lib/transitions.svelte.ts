@@ -5,7 +5,7 @@
 // in the root layout's onNavigate; this module supplies the naming/scoping helpers
 // and a reactive flag the layout uses to stand down its own cross-fade.
 
-type MorphKind = 'artefact' | 'event';
+type MorphKind = 'artefact' | 'event' | 'series';
 
 // A stable per-item view-transition-name. Both the source card and the
 // destination hero carry the same name so the browser pairs them.
@@ -35,14 +35,22 @@ function detailName(path: string): string | null {
 		return id === 'add' ? null : morphName('artefact', id);
 	}
 
+	// Series detail: /keeper/series/{id} (id ≠ add).
+	const series = p.match(/^\/keeper\/series\/([^/]+)$/);
+	if (series) {
+		const id = series[1];
+		return id === 'add' ? null : morphName('series', id);
+	}
+
 	return null;
 }
 
 const isArtefactsList = (p: string) => stripTrailingSlash(p) === '/keeper/artefacts';
 const isEventsList = (p: string) => stripTrailingSlash(p) === '/keeper/events';
+const isSeriesList = (p: string) => stripTrailingSlash(p) === '/keeper/series';
 
 // Returns the morph name to run for a from→to navigation, or null if the pair is
-// not an in-scope list↔detail move (either direction). Series is never in scope.
+// not an in-scope list↔detail move (either direction).
 export function morphNameForPair(from: string | undefined, to: string | undefined): string | null {
 	if (!from || !to) return null;
 
@@ -51,6 +59,7 @@ export function morphNameForPair(from: string | undefined, to: string | undefine
 	if (toDetail) {
 		if (toDetail.startsWith('artefact-') && isArtefactsList(from)) return toDetail;
 		if (toDetail.startsWith('event-') && isEventsList(from)) return toDetail;
+		if (toDetail.startsWith('series-') && isSeriesList(from)) return toDetail;
 		return null;
 	}
 
@@ -59,6 +68,7 @@ export function morphNameForPair(from: string | undefined, to: string | undefine
 	if (fromDetail) {
 		if (fromDetail.startsWith('artefact-') && isArtefactsList(to)) return fromDetail;
 		if (fromDetail.startsWith('event-') && isEventsList(to)) return fromDetail;
+		if (fromDetail.startsWith('series-') && isSeriesList(to)) return fromDetail;
 	}
 
 	return null;

@@ -1,9 +1,10 @@
 <script lang="ts">
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import KeeperList from '$lib/components/KeeperList.svelte';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
+	import { morphVar } from '$lib/transitions.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -54,7 +55,7 @@
 			<div>
 				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Series</h1>
 				<p class="mt-1 text-sm text-gray-600">Banners under which some events exist.</p>
-				<Breadcrumbs class="mt-2" />
+				<BackButton class="mt-2" />
 			</div>
 			<a
 				href="/keeper/series/add"
@@ -80,12 +81,6 @@
 			/>
 		</div>
 
-		<p class="mt-3 text-sm text-gray-600">
-			{filtered.length}
-			{filtered.length === 1 ? 'series' : 'series'}{#if query}
-				· <span class="text-gray-500">of {data.series.length}</span>{/if}
-		</p>
-
 		<section class="mt-4">
 			{#if filtered.length === 0}
 				<p
@@ -100,6 +95,7 @@
 						<!-- py-2 doubles as the inter-card gap (measured), px-2 leaves shadow room. -->
 						<div class="px-2 py-2">
 							<article
+								style:view-transition-name={morphVar('series', item.id)}
 								class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
 								{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
 							>
@@ -114,11 +110,11 @@
 												{item.name}
 											</a>
 										</h3>
-										<p class="mt-0.5 text-sm text-gray-500">
-											<!-- Count next to the name, low emphasis, per the pill convention. -->
-											{item.eventCount} events{#if span(item.firstDate, item.lastDate)}
-												· {span(item.firstDate, item.lastDate)}{/if}
-										</p>
+										{#if span(item.firstDate, item.lastDate)}
+											<p class="mt-0.5 text-sm text-gray-500">
+												{span(item.firstDate, item.lastDate)}
+											</p>
+										{/if}
 									</div>
 									<ArrowRightIcon size={18} class="shrink-0 text-gray-400" />
 								</div>

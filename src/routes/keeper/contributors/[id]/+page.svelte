@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import { programAreaMeta } from '$lib/programAreas';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
@@ -134,7 +134,7 @@
 				{artefacts.length === 1 ? 'artefact' : 'artefacts'} · {events.length}
 				{events.length === 1 ? 'event' : 'events'}
 			</p>
-			<Breadcrumbs class="mt-3" />
+			<BackButton class="mt-3" />
 		</header>
 
 		<!-- Events they host. -->

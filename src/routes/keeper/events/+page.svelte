@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import KeeperList from '$lib/components/KeeperList.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
@@ -130,7 +130,7 @@
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
 				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Events</h1>
-				<Breadcrumbs class="mt-2" />
+				<BackButton class="mt-2" />
 			</div>
 			<a
 				href="/keeper/events/add"
@@ -157,11 +157,6 @@
 			/>
 		</div>
 
-		<p class="mt-3 text-sm text-gray-600">
-			{total}
-			{total === 1 ? 'event' : 'events'}
-		</p>
-
 		<section class="mt-4">
 			{#if total === 0}
 				<p
@@ -186,10 +181,7 @@
 									<div class="flex items-start justify-between gap-3">
 										<div class="min-w-0">
 											<!-- Stretched link: the ::after overlay makes the whole card open the event page. -->
-											<h3
-												style:view-transition-name={morphVar('event', item.id, 'title')}
-												class="font-medium break-words"
-											>
+											<h3 class="font-medium break-words">
 												<a
 													href="/keeper/events/{item.id}"
 													class="after:absolute after:inset-0 after:z-[1]"

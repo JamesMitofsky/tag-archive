@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import ArrowsMergeIcon from 'phosphor-svelte/lib/ArrowsMergeIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
@@ -32,7 +32,7 @@
 					Everyone in the archive — hosts and provenance alike. Open one to rename it or see its
 					events and artefacts.
 				</p>
-				<Breadcrumbs class="mt-2" />
+				<BackButton class="mt-2" />
 			</div>
 			<a
 				href="/keeper/contributors/merge"
@@ -58,12 +58,6 @@
 				class="py-3 pr-3 pl-10 {glassInput}"
 			/>
 		</div>
-
-		<p class="mt-3 text-sm text-gray-600">
-			{filtered.length}
-			{filtered.length === 1 ? 'person' : 'people'}{#if query}
-				· <span class="text-gray-500">of {data.people.length}</span>{/if}
-		</p>
 
 		<section class="mt-4">
 			{#if filtered.length === 0}

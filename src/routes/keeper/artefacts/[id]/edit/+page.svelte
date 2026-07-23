@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
@@ -105,7 +105,7 @@
 	<UnsavedChangesGuard form={formEl} />
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<!-- The edit form is a sheet of paper, like the artefact pages. -->
-		<Breadcrumbs class="mb-6" />
+		<BackButton class="mb-6" />
 
 		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
 			<h1 class="mb-6 text-2xl font-semibold tracking-tight text-gray-900">Edit artefact</h1>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import ReviewActions from '$lib/components/ReviewActions.svelte';
 	import { formatDate } from '$lib/formatDate';
 	import type { PageData } from './$types';
@@ -19,7 +19,7 @@
 				{data.artefacts.length}
 				{data.artefacts.length === 1 ? 'artefact' : 'artefacts'} awaiting approval.
 			</p>
-			<Breadcrumbs class="mt-2" />
+			<BackButton class="mt-2" />
 		</header>
 
 		<section>

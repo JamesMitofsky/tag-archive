@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import { programAreaMeta } from '$lib/programAreas';
@@ -38,37 +38,33 @@
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
-		<header class="mb-8 flex items-start justify-end gap-4">
+		<header class="mb-8 flex items-start justify-between gap-4">
+			<div>
+				<h1 class="text-2xl font-semibold tracking-tight break-words text-[#14120f]">
+					{item.artefact}
+				</h1>
+				<BackButton class="mt-2" />
+			</div>
 			{#if data.user.role === 'admin'}
 				<a
 					href="/keeper/artefacts/{item.id}/edit"
 					aria-label="Edit {item.artefact}"
 					title="Edit artefact"
-					class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
+					class="inline-flex shrink-0 items-center rounded-full border border-white/40 bg-white/25 p-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
 				>
 					<PencilSimpleIcon size={18} />
-					Edit
 				</a>
 			{/if}
 		</header>
-
-		<Breadcrumbs class="mb-6" />
 
 		<!-- The artefact as its own sheet of paper, matching the create form. -->
 		<article
 			style="view-transition-name:{morphName('artefact', item.id)}"
 			class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8"
 		>
-			<h1
-				style="view-transition-name:{morphName('artefact', item.id)}-title"
-				class="text-2xl font-semibold tracking-tight break-words"
-			>
-				{item.artefact}
-			</h1>
-
 			<p
 				style="view-transition-name:{morphName('artefact', item.id)}-meta"
-				class="mt-1 text-sm text-gray-500"
+				class="text-sm text-gray-500"
 			>
 				{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
 						·

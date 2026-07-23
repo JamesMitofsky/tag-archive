@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import ReviewActions from '$lib/components/ReviewActions.svelte';
 	import { formatDate } from '$lib/formatDate';
 	import type { PageData } from './$types';
@@ -19,7 +19,7 @@
 				{data.events.length}
 				{data.events.length === 1 ? 'event' : 'events'} awaiting approval.
 			</p>
-			<Breadcrumbs class="mt-2" />
+			<BackButton class="mt-2" />
 		</header>
 
 		<section>

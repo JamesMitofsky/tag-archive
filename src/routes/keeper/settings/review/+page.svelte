@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import StackIcon from 'phosphor-svelte/lib/StackIcon';
@@ -46,7 +46,7 @@
 				Contributor submissions awaiting a keeper's approval. Approve to add them to the archive, or
 				reject to discard.
 			</p>
-			<Breadcrumbs class="mt-2" />
+			<BackButton class="mt-2" />
 		</header>
 
 		<article class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8">
