@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
+	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import KeeperList from '$lib/components/KeeperList.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
@@ -54,8 +54,8 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<BackButton />
-				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Artefacts</h1>
+				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Artefacts</h1>
+				<Breadcrumbs class="mt-2" />
 			</div>
 			<a
 				href="/keeper/add"

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
+	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import { programAreaMeta } from '$lib/programAreas';
@@ -38,8 +38,7 @@
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
-		<header class="mb-8 flex items-start justify-between gap-4">
-			<BackButton />
+		<header class="mb-8 flex items-start justify-end gap-4">
 			{#if data.user.role === 'admin'}
 				<a
 					href="/keeper/{item.id}/edit"
@@ -52,6 +51,8 @@
 				</a>
 			{/if}
 		</header>
+
+		<Breadcrumbs class="mb-6" />
 
 		<!-- The artefact as its own sheet of paper, matching the create form. -->
 		<article

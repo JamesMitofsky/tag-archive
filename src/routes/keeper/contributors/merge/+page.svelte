@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
+	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import MergePicker from '$lib/components/MergePicker.svelte';
 	import type { PageData, ActionData } from './$types';
 
@@ -13,8 +13,8 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8">
-			<BackButton />
-			<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Merge contributors</h1>
+			<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Merge contributors</h1>
+			<Breadcrumbs class="mt-2" />
 		</header>
 
 		<!-- Likely duplicates: near-match groups the roster can't surface itself

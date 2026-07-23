@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
+	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import StackIcon from 'phosphor-svelte/lib/StackIcon';
@@ -41,12 +41,12 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8">
-			<BackButton />
-			<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Review</h1>
+			<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Review</h1>
 			<p class="mt-1 text-sm text-gray-600">
 				Contributor submissions awaiting a keeper's approval. Approve to add them to the archive, or
 				reject to discard.
 			</p>
+			<Breadcrumbs class="mt-2" />
 		</header>
 
 		<article class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8">

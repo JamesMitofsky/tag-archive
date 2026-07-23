@@ -82,6 +82,21 @@ export function getRouteTitle(href: string): string | null {
 	return null;
 }
 
+export function getBreadcrumbs(currentPathname: string, explicitHref?: string): ParentRouteInfo[] {
+	const crumbs: ParentRouteInfo[] = [];
+	const seen = new Set<string>();
+
+	let node = getParentRoute(currentPathname, explicitHref);
+	// Exclude the Home root ('/') — trail starts at the first named section.
+	while (!seen.has(node.href) && node.href !== '/') {
+		crumbs.push(node);
+		seen.add(node.href);
+		node = getParentRoute(node.href);
+	}
+
+	return crumbs.reverse();
+}
+
 export function getParentRoute(currentPathname: string, explicitHref?: string): ParentRouteInfo {
 	if (explicitHref) {
 		const cleanHref = explicitHref.replace(/\/$/, '') || '/';

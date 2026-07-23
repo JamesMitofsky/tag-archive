@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
@@ -19,9 +19,7 @@
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
-		<header class="mb-8 flex items-start justify-between gap-4">
-			<BackButton />
-
+		<header class="mb-8 flex items-start justify-end gap-4">
 			<form
 				method="POST"
 				action="?/signOut"
@@ -49,6 +47,8 @@
 				</button>
 			</form>
 		</header>
+
+		<Breadcrumbs class="mb-6" />
 
 		<article class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8">
 			<h1 class="text-2xl font-semibold tracking-tight">Settings</h1>

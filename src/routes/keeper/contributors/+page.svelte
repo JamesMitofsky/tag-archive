@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
+	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import ArrowsMergeIcon from 'phosphor-svelte/lib/ArrowsMergeIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
@@ -27,12 +27,12 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<BackButton />
-				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Contributors</h1>
+				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Contributors</h1>
 				<p class="mt-1 text-sm text-gray-600">
 					Everyone in the archive — hosts and provenance alike. Open one to rename it or see its
 					events and artefacts.
 				</p>
+				<Breadcrumbs class="mt-2" />
 			</div>
 			<a
 				href="/keeper/contributors/merge"

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
+	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import ReviewActions from '$lib/components/ReviewActions.svelte';
 	import { formatDate } from '$lib/formatDate';
 	import type { PageData } from './$types';
@@ -14,12 +14,12 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8">
-			<BackButton />
-			<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Review events</h1>
+			<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Review events</h1>
 			<p class="mt-1 text-sm text-gray-600">
 				{data.events.length}
 				{data.events.length === 1 ? 'event' : 'events'} awaiting approval.
 			</p>
+			<Breadcrumbs class="mt-2" />
 		</header>
 
 		<section>
