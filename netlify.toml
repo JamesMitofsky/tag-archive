@@ -1,2 +1,8 @@
 [build.environment]
   NODE_VERSION = "22"
+
+# Allow the Netlify Image CDN (/.netlify/images) to fetch + transform artefact
+# scans served from the public R2 bucket. Strict regex allowlist: any source URL
+# not matching 404s, so keep this in sync with R2_PUBLIC_URL.
+[images]
+  remote_images = ["https://pub-2aae3e1d40a245af80fe282a8fe00be7\\.r2\\.dev/.*"]
