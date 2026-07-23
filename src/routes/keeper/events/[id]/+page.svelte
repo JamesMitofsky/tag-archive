@@ -50,7 +50,7 @@
 				{#if item.series}
 					<!-- Series banner: low emphasis, marks this as one of several connected events. -->
 					<a
-						href="/keeper/events?q={encodeURIComponent(item.series)}"
+						href="/keeper/series/{item.seriesId}"
 						class="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 transition hover:bg-gray-200"
 						title="Part of the “{item.series}” series"
 					>

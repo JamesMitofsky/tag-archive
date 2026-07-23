@@ -38,6 +38,12 @@ const DYNAMIC_ROUTE_PATTERNS: Array<{
 	getParent: (match: RegExpMatchArray) => ParentRouteInfo;
 }> = [
 	{
+		// /keeper/series/[id]
+		pattern: /^\/keeper\/series\/([^/]+)$/,
+		title: 'Series',
+		getParent: () => ({ href: '/keeper/series', label: 'Series' })
+	},
+	{
 		// /keeper/events/[id]/edit
 		pattern: /^\/keeper\/events\/([^/]+)\/edit$/,
 		title: 'Edit Event',
