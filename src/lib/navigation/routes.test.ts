@@ -59,6 +59,11 @@ describe('getParentRoute & getRouteTitle', () => {
 			href: '/keeper/contributors',
 			label: 'Contributors'
 		});
+
+		expect(getParentRoute('/keeper/series/42')).toEqual({
+			href: '/keeper/series',
+			label: 'Series'
+		});
 	});
 
 	it('handles explicit href overrides with auto label lookup', () => {
@@ -78,5 +83,6 @@ describe('getParentRoute & getRouteTitle', () => {
 		expect(getRouteTitle('/keeper/artefacts')).toBe('Artefacts');
 		expect(getRouteTitle('/keeper/item-123')).toBe('Artefact');
 		expect(getRouteTitle('/keeper/events/456')).toBe('Event');
+		expect(getRouteTitle('/keeper/series/42')).toBe('Series');
 	});
 });

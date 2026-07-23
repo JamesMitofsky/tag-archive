@@ -108,7 +108,7 @@
 										<!-- Stretched link opens the events view filtered to this series. -->
 										<h3 class="font-medium break-words">
 											<a
-												href="/keeper/events?q={encodeURIComponent(item.name)}"
+												href="/keeper/series/{item.id}"
 												class="after:absolute after:inset-0 after:z-[1]"
 											>
 												{item.name}
