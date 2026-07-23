@@ -41,7 +41,7 @@
 		<header class="mb-8 flex items-start justify-end gap-4">
 			{#if data.user.role === 'admin'}
 				<a
-					href="/keeper/{item.id}/edit"
+					href="/keeper/artefacts/{item.id}/edit"
 					aria-label="Edit {item.artefact}"
 					title="Edit artefact"
 					class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"

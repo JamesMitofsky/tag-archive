@@ -13,18 +13,6 @@ export function morphName(kind: MorphKind, id: string | number): string {
 	return `${kind}-${id}`;
 }
 
-// The artefact detail route is the catch-all /keeper/[id], so these segments are
-// sibling routes rather than artefact ids and must never be treated as a detail.
-const ARTEFACT_DETAIL_DENY = new Set([
-	'artefacts',
-	'events',
-	'series',
-	'add',
-	'contributors',
-	'settings',
-	'scans'
-]);
-
 function stripTrailingSlash(path: string): string {
 	return path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
 }
@@ -40,11 +28,11 @@ function detailName(path: string): string | null {
 		return id === 'add' ? null : morphName('event', id);
 	}
 
-	// Artefact detail: /keeper/{id}, id not a sibling route.
-	const artefact = p.match(/^\/keeper\/([^/]+)$/);
+	// Artefact detail: /keeper/artefacts/{id} (id ≠ add).
+	const artefact = p.match(/^\/keeper\/artefacts\/([^/]+)$/);
 	if (artefact) {
 		const id = artefact[1];
-		return ARTEFACT_DETAIL_DENY.has(id) ? null : morphName('artefact', id);
+		return id === 'add' ? null : morphName('artefact', id);
 	}
 
 	return null;
