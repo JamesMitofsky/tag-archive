@@ -40,6 +40,7 @@ export function createArtefactSuite() {
 		check('date', 'Pick a valid date', ISO_DATE_RE.test(data.date ?? ''));
 
 		maxLen('description', data.description ?? '', 2000, 'description');
+		check('location', 'Location is required', (data.location ?? '').trim().length > 0);
 		maxLen('location', data.location ?? '', 200, 'location');
 
 		const fileUrls = data.fileUrls ?? [];

@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { purgeArchiveCache } from '$lib/server/cache';
 import { resolvePersonIds } from '$lib/server/db/queries';
@@ -49,10 +49,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// The create form is signed-in only; bounce guests back to the keeper page.
 	if (!locals.user) throw redirect(303, '/keeper');
 
-	// The event combobox fetches its (distinct-title) options on demand from
-	// `/keeper/events/titles`, so nothing but the auth check loads up front.
+	// Distinct previously-used locations, so anything a keeper typed in before
+	// resurfaces as a picker option next time. Non-empty, sorted for stable UI.
+	const rows = await db
+		.selectDistinct({ location: artefact.location })
+		.from(artefact)
+		.where(isNotNull(artefact.location))
+		.orderBy(sql`lower(${artefact.location})`);
+	const locations = rows.map((r) => r.location?.trim()).filter((v): v is string => !!v);
+
 	return {
-		user: { email: locals.user.email, role: locals.user.role }
+		user: { email: locals.user.email, role: locals.user.role },
+		locations
 	};
 };
 
