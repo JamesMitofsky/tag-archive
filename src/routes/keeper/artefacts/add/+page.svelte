@@ -17,9 +17,9 @@
 	import FieldError from '$lib/components/FieldError.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import type { ArtefactFormValues } from './+page.server';
-	import type { ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	// Isomorphic validation: the same vest suite runs here for live, per-field
 	// feedback and on the server as the authority. `errors` seeds field messages
@@ -40,7 +40,7 @@
 	// Combos, tags, and the program-area cards mutate state without always firing a
 	// bubbling input event, so re-validate whenever any tracked field changes.
 	$effect(() => {
-		void [title, formDate, selectedAreas, provenanceTags, fileUrls];
+		void [title, formDate, location, selectedAreas, provenanceTags, fileUrls];
 		revalidate();
 	});
 
@@ -66,8 +66,15 @@
 		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).date : ''
 	);
 
-	// Location: preset options, but the combobox also accepts a typed-in custom value.
-	const LOCATION_OPTIONS = ['Binder', 'Bin'];
+	// Location: preset options merged with any previously-typed values from the DB,
+	// case-insensitively deduped and alphabetised. The combobox also accepts a
+	// typed-in custom value, so new locations save on submit and resurface here next load.
+	const LOCATION_PRESETS = ['Binder', 'Bin'];
+	const locationOptions = $derived(
+		Array.from(
+			new Map([...LOCATION_PRESETS, ...data.locations].map((v) => [v.toLowerCase(), v])).values()
+		).sort((a, b) => a.localeCompare(b))
+	);
 	const artefactError = $derived(form && 'artefactError' in form ? form.artefactError : undefined);
 	// Kit flattens the action-data union, so restore the echoed values' shape.
 	const echoed = $derived(
@@ -87,6 +94,13 @@
 		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).artefact : ''
 	);
 
+	// Location is required — track for the submit gate; ComboField writes back through its
+	// hidden input on submit, but we need a live value to gate on before that.
+	// svelte-ignore state_referenced_locally
+	let location = $state(
+		form && 'values' in form && form.values ? (form.values as ArtefactFormValues).location : ''
+	);
+
 	// True while an image upload is in flight.
 	let scanPending = $state(false);
 	// True while the form submit action is processing.
@@ -94,7 +108,11 @@
 
 	// Block submit until required fields are filled, an image is attached, and any upload is finalized.
 	const canSubmit = $derived(
-		title.trim().length > 0 && formDate.trim().length > 0 && fileUrls.length > 0 && !scanPending
+		title.trim().length > 0 &&
+			formDate.trim().length > 0 &&
+			location.trim().length > 0 &&
+			fileUrls.length > 0 &&
+			!scanPending
 	);
 
 	// Ink button, same graphite tone as the landing handwriting.
@@ -255,10 +273,10 @@
 				<div>
 					<ComboField
 						name="location"
-						label="Location"
+						label="Location *"
 						placeholder="Search or add a location"
-						options={LOCATION_OPTIONS}
-						value={echoed?.location ?? ''}
+						options={locationOptions}
+						bind:value={location}
 					/>
 					<FieldError message={validator.error('location')} />
 				</div>
