@@ -36,6 +36,20 @@ describe('artefact suite', () => {
 		expect(r.isValid()).toBe(true);
 	});
 
+	it('accepts a date known only to the month or the year', () => {
+		for (const date of ['2021-07', '2021']) {
+			const r = run(parseArtefactForm(fd({ artefact: 'Steep Program', date })));
+			expect(r.isValid()).toBe(true);
+		}
+	});
+
+	it('still rejects a date that cannot exist', () => {
+		for (const date of ['2021-13', '2021-02-30', '2021-7']) {
+			const r = run(parseArtefactForm(fd({ artefact: 'Steep Program', date })));
+			expect(r.getErrors('date')).toContain('Pick a valid date');
+		}
+	});
+
 	it('collects errors across multiple fields at once', () => {
 		const r = run(
 			parseArtefactForm(
@@ -84,6 +98,13 @@ describe('event suite', () => {
 	it('accepts a titled, dated event', () => {
 		const r = run(parseEventForm(fd({ title: 'Show', date: '2026-05-05' })));
 		expect(r.isValid()).toBe(true);
+	});
+
+	it('demands an exact day — an event happens on one, unlike an artefact', () => {
+		for (const date of ['2026-05', '2026']) {
+			const r = run(parseEventForm(fd({ title: 'Show', date })));
+			expect(r.getErrors('date')).toContain('Pick a valid date');
+		}
 	});
 
 	it('rejects a malformed url but allows an empty one', () => {

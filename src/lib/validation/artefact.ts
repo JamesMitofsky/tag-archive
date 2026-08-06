@@ -1,5 +1,5 @@
 import { PROGRAM_AREAS } from '$lib/programAreas';
-import { ISO_DATE_RE, check, defineSuite, isHttpUrl, maxLen, splitList, str } from './helpers';
+import { check, defineSuite, isHttpUrl, isPartialDate, maxLen, splitList, str } from './helpers';
 
 /** Normalised artefact form values — validated, then used for the DB write. */
 export type ArtefactData = {
@@ -37,7 +37,10 @@ export function createArtefactSuite() {
 
 		maxLen('event', data.event ?? '', 200, 'event');
 
-		check('date', 'Pick a valid date', ISO_DATE_RE.test(data.date ?? ''));
+		// An artefact's date may be vaguer than a single day: a program known only
+		// to be from July 2019, or from 2019. `YYYY`, `YYYY-MM` and `YYYY-MM-DD`
+		// are all accepted, each carrying its own precision.
+		check('date', 'Pick a valid date', isPartialDate(data.date ?? ''));
 
 		maxLen('description', data.description ?? '', 2000, 'description');
 		maxLen('location', data.location ?? '', 200, 'location');

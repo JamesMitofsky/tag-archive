@@ -10,6 +10,7 @@ import {
 	or,
 	sql
 } from 'drizzle-orm';
+import { startOfPartialDate } from '$lib/partialDate';
 import { client, db } from './index';
 import { stampInsert, stampUpdate } from './audit';
 import { artefact, artefactProvenance, event, eventHost, person, series } from './schema';
@@ -204,8 +205,12 @@ export async function searchEventTitles({
 	const term = q.trim().toLowerCase();
 	const filter = term ? like(sql`lower(${event.title})`, `%${term}%`) : undefined;
 
-	const cleanDate = date?.trim();
-	const isValidDate = cleanDate && /^\d{4}-\d{2}-\d{2}$/.test(cleanDate);
+	// The artefact form's date may be vague (`2019`, `2019-07`), and `julianday()`
+	// returns NULL for those, which would silently collapse the ranking to
+	// alphabetical. Widen to the first day of the span instead: for ordering
+	// "somewhere in July 2019" by nearness, July 1st is a sound stand-in, and the
+	// widened value is used for nothing else.
+	const anchorDate = date ? startOfPartialDate(date) : null;
 
 	// Slice and the distinct-title count are independent — one round-trip on a
 	// remote DB. The count matches the grouped set (distinct titles), not raw rows.
@@ -216,8 +221,8 @@ export async function searchEventTitles({
 			.where(filter)
 			.groupBy(event.title)
 			.orderBy(
-				...(isValidDate
-					? [sql`abs(julianday(min(${event.date})) - julianday(${cleanDate})) ASC`, event.title]
+				...(anchorDate
+					? [sql`abs(julianday(min(${event.date})) - julianday(${anchorDate})) ASC`, event.title]
 					: [event.title])
 			)
 			.limit(limit)

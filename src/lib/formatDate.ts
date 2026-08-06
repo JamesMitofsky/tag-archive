@@ -1,23 +1,13 @@
-// Render dates like "July 4, 2023"; fall back to the raw string if unparseable.
+import { formatPartialDate } from '$lib/partialDate';
+
+// Render a date at whatever precision it carries — "July 4, 2023", "July 2023",
+// or "2023"; falls back to the raw string if unparseable. See $lib/partialDate
+// for why artefact dates may be truncated.
 export function formatDate(value: string): string {
-	const parsed = new Date(value);
-	if (Number.isNaN(parsed.getTime())) return value;
-	return parsed.toLocaleDateString('en-US', {
-		year: 'numeric',
-		month: 'long',
-		day: 'numeric',
-		timeZone: 'UTC'
-	});
+	return formatPartialDate(value);
 }
 
-// Shortened human-readable form, like "Jul 4, 2023"; falls back to raw string.
+// Shortened human-readable form — "Jul 4, 2023", "Jul 2023", "2023".
 export function formatDateShort(value: string): string {
-	const parsed = new Date(value);
-	if (Number.isNaN(parsed.getTime())) return value;
-	return parsed.toLocaleDateString('en-US', {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		timeZone: 'UTC'
-	});
+	return formatPartialDate(value, { short: true });
 }
