@@ -1,11 +1,42 @@
 <script lang="ts">
 	import './layout.css';
+	import { flushSync } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
+	import { onNavigate } from '$app/navigation';
+	import { morph, morphNameForPair, reducedMotion } from '$lib/transitions.svelte';
 	import Sky from '$lib/components/Sky.svelte';
 	import Drawing from '$lib/components/Drawing.svelte';
 
 	let { children } = $props();
+
+	// Shared-element morph for keeper list ↔ item navigations. Setting morph.name
+	// makes the matching card (shell + title/meta/tags) reactively carry its
+	// view-transition-name; flushSync applies that to the OUTGOING page synchronously
+	// before startViewTransition snapshots it, while the INCOMING page renders with
+	// the same names — so the browser pairs them in both directions (this is what
+	// makes the back button reverse the morph). The detail hero carries the names
+	// statically. Out-of-scope navigations (and unsupporting browsers) fall through
+	// to the keyed fade below.
+	onNavigate((nav) => {
+		if (!document.startViewTransition || reducedMotion()) return;
+		const name = morphNameForPair(nav.from?.url.pathname, nav.to?.url.pathname);
+		if (!name) return;
+
+		morph.name = name;
+		morph.active = true; // stands the keyed fade down so the two don't fight
+		flushSync(); // paint the name onto the outgoing card before it is snapshotted
+		return new Promise<void>((resolve) => {
+			const transition = document.startViewTransition(async () => {
+				resolve();
+				await nav.complete;
+			});
+			transition.finished.finally(() => {
+				morph.active = false;
+				morph.name = null;
+			});
+		});
+	});
 </script>
 
 <!-- Persistent sky: mounted once here, outside the keyed transition, so clouds
@@ -38,7 +69,11 @@
 
 <div class="route-wrap">
 	{#key page.url.pathname}
-		<div class="route" in:fade={{ duration: 250 }} out:fade={{ duration: 250 }}>
+		<div
+			class="route"
+			in:fade={{ duration: morph.active ? 0 : 250 }}
+			out:fade={{ duration: morph.active ? 0 : 250 }}
+		>
 			{@render children()}
 		</div>
 	{/key}

@@ -59,8 +59,7 @@
 							};
 						}}
 					>
-						<div class="flex items-center justify-between gap-2">
-							<BackButton />
+						<div class="flex items-center justify-end gap-2">
 							<div class="flex shrink-0 items-center gap-2">
 								{#if dirty}
 									<button
@@ -99,8 +98,7 @@
 						/>
 					</form>
 				{:else}
-					<div class="flex items-center justify-between gap-2">
-						<BackButton />
+					<div class="flex items-center justify-end gap-2">
 						<button
 							type="button"
 							onclick={startEditing}
@@ -117,8 +115,7 @@
 					<p class="mt-1 px-2 text-sm text-red-600">{form.error}</p>
 				{/if}
 			{:else}
-				<BackButton />
-				<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">{person.name}</h1>
+				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">{person.name}</h1>
 			{/if}
 			<p class="mt-1 px-2 text-sm text-gray-600">
 				<!-- Counts, low emphasis, per the pill convention. -->
@@ -126,6 +123,7 @@
 				{artefacts.length === 1 ? 'artefact' : 'artefacts'} · {events.length}
 				{events.length === 1 ? 'event' : 'events'}
 			</p>
+			<BackButton class="mt-3" />
 		</header>
 
 		<!-- Events they host. -->
@@ -159,9 +157,9 @@
 											</a>
 										</h3>
 										<p class="mt-0.5 text-sm text-gray-500">
-											{formatDate(
-												item.date
-											)}{#if item.time}{' · '}{item.time}{/if}{#if item.location}{' · '}{item.location}{/if}
+											{formatDate(item.date)}{#if item.time}
+												· {item.time}{/if}{#if item.location}
+												· {item.location}{/if}
 										</p>
 									</div>
 									{#if item.series}
@@ -223,11 +221,9 @@
 									</a>
 								</h3>
 								<p class="mt-0.5 text-sm text-gray-500">
-									{#if item.date}{formatDate(
-											item.date
-										)}{/if}{#if item.event}{#if item.date}{' · '}{/if}<span
-											class="inline-flex items-center gap-1"
-										>
+									{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
+											·
+										{/if}<span class="inline-flex items-center gap-1">
 											<CalendarBlankIcon size={13} />
 											{item.event}
 										</span>{/if}

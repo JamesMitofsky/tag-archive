@@ -13,8 +13,8 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8">
-			<BackButton />
-			<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Merge contributors</h1>
+			<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Merge contributors</h1>
+			<BackButton class="mt-2" />
 		</header>
 
 		<!-- Likely duplicates: near-match groups the roster can't surface itself

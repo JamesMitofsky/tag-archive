@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
+import { purgeArchiveCache } from '$lib/server/cache';
 import { stampInsert } from '$lib/server/db/audit';
 import { isProposedAddition } from '$lib/server/db/proposals';
 import { series } from '$lib/server/db/schema';
@@ -73,6 +74,8 @@ export const actions: Actions = {
 			proposedAddition: isProposedAddition(locals.user.role),
 			...stampInsert(locals.user.id)
 		});
+
+		await purgeArchiveCache();
 
 		// Land back on the series list so the new banner shows.
 		throw redirect(303, '/keeper/series');

@@ -16,6 +16,7 @@
 	import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -101,12 +102,11 @@
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
+	<UnsavedChangesGuard form={formEl} />
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
-		<header class="mb-8 flex flex-col items-start gap-3">
-			<BackButton />
-		</header>
-
 		<!-- The edit form is a sheet of paper, like the artefact pages. -->
+		<BackButton class="mb-6" />
+
 		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
 			<h1 class="mb-6 text-2xl font-semibold tracking-tight text-gray-900">Edit artefact</h1>
 			<form
@@ -167,7 +167,6 @@
 						name="event"
 						label="Event"
 						placeholder="Search or add an event"
-						endpoint="/keeper/events/titles"
 						date={formDate}
 						value={echoed?.event ?? data.artefact.event ?? ''}
 					/>

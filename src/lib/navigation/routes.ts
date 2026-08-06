@@ -13,7 +13,7 @@ const STATIC_ROUTES: Record<string, RouteDefinition> = {
 	'/events': { title: 'Events', parent: '/' },
 	'/keeper': { title: 'Cloud Keeper', parent: '/' },
 	'/keeper/artefacts': { title: 'Artefacts', parent: '/keeper' },
-	'/keeper/add': { title: 'Artefacts', parent: '/keeper/artefacts' },
+	'/keeper/artefacts/add': { title: 'Artefacts', parent: '/keeper/artefacts' },
 	'/keeper/events': { title: 'Events', parent: '/keeper' },
 	'/keeper/events/add': { title: 'Events', parent: '/keeper/events' },
 	'/keeper/series': { title: 'Series', parent: '/keeper' },
@@ -38,6 +38,12 @@ const DYNAMIC_ROUTE_PATTERNS: Array<{
 	getParent: (match: RegExpMatchArray) => ParentRouteInfo;
 }> = [
 	{
+		// /keeper/series/[id]
+		pattern: /^\/keeper\/series\/([^/]+)$/,
+		title: 'Series',
+		getParent: () => ({ href: '/keeper/series', label: 'Series' })
+	},
+	{
 		// /keeper/events/[id]/edit
 		pattern: /^\/keeper\/events\/([^/]+)\/edit$/,
 		title: 'Edit Event',
@@ -56,14 +62,14 @@ const DYNAMIC_ROUTE_PATTERNS: Array<{
 		getParent: () => ({ href: '/keeper/contributors', label: 'Contributors' })
 	},
 	{
-		// /keeper/[id]/edit
-		pattern: /^\/keeper\/([^/]+)\/edit$/,
+		// /keeper/artefacts/[id]/edit
+		pattern: /^\/keeper\/artefacts\/([^/]+)\/edit$/,
 		title: 'Edit Artefact',
-		getParent: (m) => ({ href: `/keeper/${m[1]}`, label: 'Artefact' })
+		getParent: (m) => ({ href: `/keeper/artefacts/${m[1]}`, label: 'Artefact' })
 	},
 	{
-		// /keeper/[id]
-		pattern: /^\/keeper\/([^/]+)$/,
+		// /keeper/artefacts/[id]
+		pattern: /^\/keeper\/artefacts\/([^/]+)$/,
 		title: 'Artefact',
 		getParent: () => ({ href: '/keeper/artefacts', label: 'Artefacts' })
 	}

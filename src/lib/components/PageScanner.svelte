@@ -4,12 +4,14 @@
 	import ImageSquareIcon from 'phosphor-svelte/lib/ImageSquareIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
+	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
 
 	// Emits the current list of uploaded image URLs (display order) so the parent form
 	// can store them. `pending` (bindable) is true while an upload is in flight, so the
 	// parent can block submit until every image is finalized.
 	let {
 		onChange,
+		// eslint-disable-next-line no-useless-assignment
 		pending = $bindable(false),
 		initial = []
 	}: {
@@ -267,7 +269,6 @@
 	<!-- Camera stage -->
 	{#if cameraOn}
 		<div class="mt-3 overflow-hidden rounded-md bg-black">
-			<!-- svelte-ignore a11y_media_has_caption -->
 			<video bind:this={video} playsinline class="block max-h-80 w-full object-contain"></video>
 		</div>
 		<div class="mt-2 flex flex-wrap gap-2">
@@ -334,7 +335,7 @@
 						? 'border-red-400 ring-1 ring-red-400'
 						: 'border-gray-200'}"
 				>
-					<img
+					<OptimizedImage
 						src={scan.previewUrl}
 						alt="Attached scan"
 						class="max-h-40 w-auto object-contain {scan.status === 'uploading' ? 'opacity-50' : ''}"

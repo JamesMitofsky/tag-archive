@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
+import { purgeArchiveCache } from '$lib/server/cache';
 import { attachProvenance, resolvePersonIds } from '$lib/server/db/queries';
 import { stampInsert, stampUpdate } from '$lib/server/db/audit';
 import { artefact, artefactProvenance, event } from '$lib/server/db/schema';
@@ -46,7 +47,7 @@ async function resolveEventId(name: string): Promise<number | null> {
 export const load: PageServerLoad = async ({ params, locals }) => {
 	// Editing is admin-only; bounce anyone else back to the keeper page.
 	if (!locals.user) throw redirect(303, '/keeper');
-	if (locals.user.role !== 'admin') throw redirect(303, `/keeper/${params.id}`);
+	if (locals.user.role !== 'admin') throw redirect(303, `/keeper/artefacts/${params.id}`);
 
 	const id = idSchema.safeParse(params.id);
 	if (!id.success) throw error(404, 'Artefact not found');
@@ -129,8 +130,10 @@ export const actions: Actions = {
 			);
 		}
 
+		await purgeArchiveCache();
+
 		// Back to the artefact page so the edits show.
-		throw redirect(303, `/keeper/${id.data}`);
+		throw redirect(303, `/keeper/artefacts/${id.data}`);
 	},
 
 	deleteArtefact: async ({ params, locals }) => {
@@ -144,6 +147,7 @@ export const actions: Actions = {
 		if (!id.success) return fail(400, { artefactError: 'Unknown artefact' });
 
 		await db.delete(artefact).where(eq(artefact.id, id.data));
+		await purgeArchiveCache();
 		// Nothing left to show here — back to the artefacts list.
 		throw redirect(303, '/keeper/artefacts');
 	}

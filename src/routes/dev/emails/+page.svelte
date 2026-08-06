@@ -6,7 +6,7 @@
 	<h1 class="mb-1 text-xl font-semibold">Email previews</h1>
 	<p class="mb-6 text-sm text-gray-600">Dev-only. Rendered server-side.</p>
 
-	{#each data.previews as preview}
+	{#each data.previews as preview (preview.label)}
 		<section class="mb-8">
 			<h2 class="mb-1 text-sm font-medium text-gray-700">{preview.label}</h2>
 			<p class="mb-2 text-sm text-gray-500">

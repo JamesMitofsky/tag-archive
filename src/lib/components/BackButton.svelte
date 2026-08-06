@@ -3,12 +3,14 @@
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import { getParentRoute } from '$lib/navigation/routes';
 
-	let { href, label, ariaLabel }: { href?: string; label?: string; ariaLabel?: string } = $props();
+	let {
+		href,
+		label,
+		ariaLabel,
+		class: className = ''
+	}: { href?: string; label?: string; ariaLabel?: string; class?: string } = $props();
 
-	let resolved = $derived.by(() => {
-		const currentPath = page.url.pathname;
-		return getParentRoute(currentPath, href);
-	});
+	let resolved = $derived.by(() => getParentRoute(page.url.pathname, href));
 
 	let finalHref = $derived(href ?? resolved.href);
 	let finalLabel = $derived(label ?? resolved.label);
@@ -19,8 +21,8 @@
 	href={finalHref}
 	aria-label={finalAriaLabel}
 	title={finalAriaLabel}
-	class="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/25 px-3 py-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
+	class="inline-flex items-center gap-1 rounded text-sm text-gray-500 transition hover:text-gray-900 hover:underline {className}"
 >
-	<ArrowLeftIcon size={18} />
+	<ArrowLeftIcon size={14} aria-hidden="true" />
 	{finalLabel}
 </a>

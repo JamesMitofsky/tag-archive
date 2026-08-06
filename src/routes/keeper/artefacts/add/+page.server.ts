@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
+import { purgeArchiveCache } from '$lib/server/cache';
 import { resolvePersonIds } from '$lib/server/db/queries';
 import { stampInsert } from '$lib/server/db/audit';
 import { isProposedAddition } from '$lib/server/db/proposals';
@@ -110,6 +111,8 @@ export const actions: Actions = {
 				}))
 			);
 		}
+
+		await purgeArchiveCache();
 
 		// Land back on the artefacts list so the new artefact shows.
 		throw redirect(303, '/keeper/artefacts');

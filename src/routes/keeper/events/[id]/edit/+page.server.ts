@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
+import { purgeArchiveCache } from '$lib/server/cache';
 import { attachHosts, resolvePersonIds, resolveSeriesId } from '$lib/server/db/queries';
 import { stampInsert, stampUpdate } from '$lib/server/db/audit';
 import { artefact, event, eventHost, person, series } from '$lib/server/db/schema';
@@ -115,6 +116,8 @@ export const actions: Actions = {
 			);
 		}
 
+		await purgeArchiveCache();
+
 		// Back to the event page so the edits show.
 		throw redirect(303, `/keeper/events/${id.data}`);
 	},
@@ -136,6 +139,7 @@ export const actions: Actions = {
 			.set({ eventId: null, ...stampUpdate(locals.user.id) })
 			.where(eq(artefact.eventId, id.data));
 		await db.delete(event).where(eq(event.id, id.data));
+		await purgeArchiveCache();
 		// Nothing left to show here — back to the events list.
 		throw redirect(303, '/keeper/events');
 	}

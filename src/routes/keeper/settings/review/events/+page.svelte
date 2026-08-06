@@ -14,12 +14,12 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8">
-			<BackButton />
-			<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">Review events</h1>
+			<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Review events</h1>
 			<p class="mt-1 text-sm text-gray-600">
 				{data.events.length}
 				{data.events.length === 1 ? 'event' : 'events'} awaiting approval.
 			</p>
+			<BackButton class="mt-2" />
 		</header>
 
 		<section>
@@ -42,9 +42,9 @@
 								</a>
 							</h3>
 							<p class="mt-0.5 text-sm text-gray-500">
-								{#if item.date}{formatDate(
-										item.date
-									)}{/if}{#if item.time}{' · '}{item.time}{/if}{#if item.series}{' · '}{item.series}{/if}
+								{#if item.date}{formatDate(item.date)}{/if}{#if item.time}
+									· {item.time}{/if}{#if item.series}
+									· {item.series}{/if}
 							</p>
 							{#if item.location}
 								<p class="mt-0.5 text-sm text-gray-500">{item.location}</p>

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
+	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
+	import { isImageUrl } from '$lib/fileType';
 
 	let {
 		fileUrls,
@@ -12,15 +14,8 @@
 
 	let loaded = $state(false);
 
-	function fileExt(url: string): string {
-		const path = url.split('?')[0].split('#')[0];
-		return path.slice(path.lastIndexOf('.') + 1).toLowerCase();
-	}
-
 	const firstUrl = $derived(fileUrls[0] ?? '');
-	const isImage = $derived(
-		['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg'].includes(fileExt(firstUrl))
-	);
+	const isImage = $derived(isImageUrl(firstUrl));
 	const fileName = $derived(firstUrl.split('/').pop() ?? 'Attached file');
 </script>
 
@@ -32,15 +27,15 @@
 			{#if !loaded}
 				<Skeleton class="absolute inset-0 h-full w-full rounded-sm bg-gray-200" />
 			{/if}
-			<img
+			<OptimizedImage
 				src={firstUrl}
 				alt={artefactName}
+				sizes="(min-width: 768px) 33vw, 100vw"
 				class="h-full w-full rounded-sm object-contain transition-opacity duration-300 {loaded
 					? 'opacity-100'
 					: 'opacity-0'}"
 				onload={() => (loaded = true)}
 				onerror={() => (loaded = true)}
-				loading="lazy"
 			/>
 			{#if fileUrls.length > 1}
 				<span

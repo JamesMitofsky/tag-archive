@@ -20,8 +20,10 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
-			<BackButton />
-
+			<div>
+				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">Settings</h1>
+				<BackButton class="mt-2" />
+			</div>
 			<form
 				method="POST"
 				action="?/signOut"
@@ -51,9 +53,7 @@
 		</header>
 
 		<article class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8">
-			<h1 class="text-2xl font-semibold tracking-tight">Settings</h1>
-
-			<p class="mt-10 text-lg text-gray-800">{data.user.email}</p>
+			<p class="text-lg text-gray-800">{data.user.email}</p>
 
 			{#if data.user.role === 'admin'}
 				<div class="mt-6 space-y-3 pt-6">
