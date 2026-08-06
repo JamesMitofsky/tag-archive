@@ -156,6 +156,7 @@
 						name="date"
 						label="Date"
 						required
+						allowPartial
 						value={echoed?.date ?? ''}
 						onChange={(iso) => {
 							formDate = iso;

@@ -1,7 +1,11 @@
 import { create, test, enforce } from 'vest';
 
-/** ISO calendar date, e.g. 2026-07-18. */
-export const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// Date rules live in $lib/partialDate — the single definition of what a date
+// string may look like — and are re-exported so suites keep one import source.
+// `isFullDate` demands an exact day; `isPartialDate` also accepts a date known
+// only to the month or the year. Both reject impossible dates like 2026-02-31,
+// which the previous shape-only regex let through.
+export { isFullDate, isPartialDate } from '$lib/partialDate';
 
 /**
  * Pragmatic email shape check — mirrors the intent of the old zod `.email()`

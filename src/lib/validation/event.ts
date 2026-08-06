@@ -1,4 +1,4 @@
-import { ISO_DATE_RE, check, defineSuite, isHttpUrl, maxLen, splitList, str } from './helpers';
+import { check, defineSuite, isFullDate, isHttpUrl, maxLen, splitList, str } from './helpers';
 
 /** Normalised event create-form values — validated, then used for the DB write. */
 export type EventData = {
@@ -34,8 +34,10 @@ export function createEventSuite() {
 
 		maxLen('series', data.series ?? '', 200, 'series');
 
-		// A date is required for an event (it's a dated happening).
-		check('date', 'Pick a valid date', ISO_DATE_RE.test(data.date ?? ''));
+		// A date is required for an event, and to the exact day: an event is one
+		// real happening on one day, so the vaguer forms an artefact may carry
+		// (see $lib/partialDate) are deliberately not accepted here.
+		check('date', 'Pick a valid date', isFullDate(data.date ?? ''));
 
 		maxLen('time', data.time ?? '', 100, 'time');
 		maxLen('location', data.location ?? '', 200, 'location');

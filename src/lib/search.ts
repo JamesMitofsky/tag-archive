@@ -6,6 +6,7 @@
  */
 import type { ArtefactWithEvent } from '$lib/server/db/schema';
 import type { EventItem } from '$lib/events';
+import { startOfPartialDate } from '$lib/partialDate';
 
 /** Lowercased, whitespace-split, empty-dropped query tokens. */
 function tokenize(q: string): string[] {
@@ -73,8 +74,14 @@ export function filterAndSortEvents(
 	const term = q.trim().toLowerCase();
 	const matched = term ? events.filter((e) => e.title.toLowerCase().includes(term)) : [...events];
 
+	// The artefact form's date may be vague (`2019`, `2019-07`). Widen it to the
+	// first day of the span it covers before measuring distance: for ranking
+	// "somewhere in July 2019" by nearness, July 1st is a sound stand-in, and the
+	// widened value is used for nothing else. Explicit rather than leaning on
+	// `new Date('2019-07')` happening to land there.
 	if (targetDate) {
-		const targetMs = new Date(targetDate).getTime();
+		const anchor = startOfPartialDate(targetDate);
+		const targetMs = anchor ? new Date(anchor).getTime() : NaN;
 		if (!isNaN(targetMs)) {
 			matched.sort((a, b) => {
 				const aMs = a.date ? new Date(a.date).getTime() : Infinity;
