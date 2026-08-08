@@ -76,6 +76,13 @@ img {
 	--font-friendly: 'Chalkboard SE', 'Comic Neue', sans-serif;
 }
 
+/* Every error / status message speaks in the friendly hand, without each call
+   site having to remember `font-friendly`. Keyed off role="alert" because that
+   is the attribute these messages already need for screen readers. */
+[role='alert'] {
+	font-family: var(--font-friendly);
+}
+
 /* Map the theme tokens to Tailwind color + radius utilities so components
    resolve bg-background / text-foreground / rounded-md / etc. */
 @theme inline {
