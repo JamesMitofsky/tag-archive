@@ -48,7 +48,8 @@
 <a
 	href="/"
 	aria-label="Home"
-	class="fixed top-3 left-3 z-40 touch-manipulation p-2 transition-opacity duration-100 hover:opacity-70"
+	style="--fade-delay: 120ms"
+	class="load-fade fixed top-3 left-3 z-40 touch-manipulation p-2 transition-opacity duration-100 hover:opacity-70"
 >
 	<Drawing src="/drawing/text/tag-archive.webp" alt="Home" class="w-44 max-w-[32vw]" />
 </a>

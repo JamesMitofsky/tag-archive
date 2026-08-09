@@ -17,7 +17,10 @@
 </script>
 
 <!-- Handwritten nav pinned to the top-right; collapses to a menu on small screens. -->
-<nav class="fixed top-3 right-6 z-40 hidden items-center gap-6 md:flex">
+<nav
+	class="load-fade fixed top-3 right-6 z-40 hidden items-center gap-6 md:flex"
+	style="--fade-delay: 120ms"
+>
 	{#each links as link (link.href)}
 		<a
 			href={link.href}
@@ -32,7 +35,8 @@
 <DialogPrimitive.Root bind:open>
 	<DialogPrimitive.Trigger
 		aria-label="Menu"
-		class="fixed top-4 right-5 z-40 touch-manipulation p-2 transition-opacity duration-100 data-[state=open]:opacity-40 md:hidden"
+		style="--fade-delay: 120ms"
+		class="load-fade fixed top-4 right-5 z-40 touch-manipulation p-2 transition-opacity duration-100 data-[state=open]:opacity-40 md:hidden"
 	>
 		<Drawing src="/drawing/icons/hamburger.svg" alt="" class="w-9" />
 	</DialogPrimitive.Trigger>

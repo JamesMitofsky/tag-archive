@@ -196,11 +196,16 @@
 		<!-- Optional route-specific mark: absolutely positioned above the bar so it
 		     doesn't shift the searchbar off viewport center. -->
 		{#if header}
-			<div class="pointer-events-none absolute bottom-full left-0 flex w-full justify-center">
+			<div
+				class="load-fade pointer-events-none absolute bottom-full left-0 flex w-full justify-center"
+			>
 				{@render header()}
 			</div>
 		{/if}
-		<div class="relative">
+		<!-- Fades in on load. Applied to the wrapper, not the input, so the field and
+		     its icon come up as a single composited layer (and so it doesn't collide
+		     with the searchbar's own opacity transition on the parent). -->
+		<div class="load-fade relative">
 			{#if loading && query.trim().length > 0}
 				<svg
 					class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 animate-spin text-gray-700"

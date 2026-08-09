@@ -26,6 +26,20 @@ img {
 :root {
 	--radius: 0.5rem;
 
+	/* Named easing curves. The Bézier is a fit to the trig function the name refers
+	   to — cubic-bezier() cannot express a sine — but deviation peaks at ~0.002, so
+	   they are interchangeable in practice. */
+	--ease-in-out-sine: cubic-bezier(0.37, 0, 0.63, 1);
+
+	/* Two knobs for the whole first-paint fade (.load-fade below). Sky's per-cloud
+	   decode transition reads them too, so tuning here keeps every element in step.
+	   Sine, not ease-out: ease-out is built to decelerate into an arrival, which
+	   alpha does not have. It spends ~70% of the fade in the first half and hides
+	   the rest in a tail too shallow to see, so a long duration reads short. The
+	   symmetric curve actually uses the time it is given. */
+	--load-fade-duration: 2000ms;
+	--load-fade-ease: var(--ease-in-out-sine);
+
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.1776 0 0);
 	--card: oklch(1 0 0);
@@ -109,6 +123,32 @@ img {
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
 	--radius-xl: calc(var(--radius) + 4px);
+}
+
+/* First-paint fade for the page chrome (searchbar, nav marks). Deliberately
+   cheap: opacity only, so the compositor handles it on the GPU with no layout,
+   paint, or main-thread work — it still runs at full framerate while the
+   dataset is downloading on a slow connection. It is pure CSS, so it starts at
+   first paint rather than waiting on hydration.
+   fill-mode is `backwards`, NOT `both`: backwards holds the transparent start
+   state through the delay (no flash of content before the fade), while leaving
+   opacity back under the stylesheet's control once the animation ends — with
+   `forwards` the animated value would win forever and dead-stop hover:opacity. */
+.load-fade {
+	animation: load-fade var(--load-fade-duration) var(--load-fade-ease) var(--fade-delay, 0ms)
+		backwards;
+}
+
+@keyframes load-fade {
+	from {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.load-fade {
+		animation: none;
+	}
 }
 
 /* Keeper list ↔ item morph: a clicked card grows into the detail hero. Named
