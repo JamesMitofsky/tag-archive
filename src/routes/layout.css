@@ -8,6 +8,13 @@
    the horizontal shift when navigating between routes with different overflow. */
 html {
 	scrollbar-gutter: stable both-edges;
+
+	/* Kill the 300ms double-tap-zoom delay across the whole site. `touch-action`
+	   combines down the ancestor chain, so declaring it here covers every element
+	   without each tap target opting in. `manipulation` (not `none`) deliberately
+	   KEEPS pinch-to-zoom and panning — only the double-tap gesture goes. Inert on
+	   a device with no touch input. */
+	touch-action: manipulation;
 }
 
 /* Images are decorative here — never part of a text selection and not draggable. */
@@ -88,6 +95,11 @@ img {
 @theme {
 	--font-sans: 'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, serif;
 	--font-friendly: 'Chalkboard SE', 'Comic Neue', sans-serif;
+
+	/* Tint for the frosted surfaces (mobile top strip, mobile menu panel). Keyed
+	   to the paper sky so the glass reads as the background itself thickening,
+	   rather than as a foreign panel laid over it. */
+	--color-glass: #94c9e6;
 }
 
 /* Every error / status message speaks in the friendly hand, without each call

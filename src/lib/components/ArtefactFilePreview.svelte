@@ -6,10 +6,18 @@
 
 	let {
 		fileUrls,
-		artefactName
+		artefactName,
+		sizes = '192px'
 	}: {
 		fileUrls: string[];
 		artefactName: string;
+		/**
+		 * Rendered width of the image. Defaults to the card cloud's closed-card
+		 * width; callers pass something larger for the opened page, which is ~3x
+		 * bigger. The old `(min-width: 768px) 33vw, 100vw` asked for a
+		 * viewport-wide raster to fill a thumbnail.
+		 */
+		sizes?: string;
 	} = $props();
 
 	let loaded = $state(false);
@@ -30,7 +38,7 @@
 			<OptimizedImage
 				src={firstUrl}
 				alt={artefactName}
-				sizes="(min-width: 768px) 33vw, 100vw"
+				{sizes}
 				class="h-full w-full rounded-sm object-contain transition-opacity duration-300 {loaded
 					? 'opacity-100'
 					: 'opacity-0'}"
