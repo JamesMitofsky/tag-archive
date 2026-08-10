@@ -19,7 +19,7 @@
 		aria-hidden="true"
 		width="516"
 		height="207"
-		class="h-5 w-auto"
+		class="h-7 w-auto"
 	/>
 {/snippet}
 
