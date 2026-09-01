@@ -9,6 +9,13 @@
 html {
 	scrollbar-gutter: stable both-edges;
 
+	/* Sky's `.paper` is `fixed inset-0`, so it stops at the viewport edge and
+	   leaves the browser's own canvas — the iOS safe areas around the notch and
+	   the overscroll area past the top of the page — painting the default white.
+	   Repeating the colour on the root element hands it to that canvas too, which
+	   is what the UA propagates when `body` has no background of its own. */
+	background-color: var(--color-paper);
+
 	/* Kill the 300ms double-tap-zoom delay across the whole site. `touch-action`
 	   combines down the ancestor chain, so declaring it here covers every element
 	   without each tap target opting in. `manipulation` (not `none`) deliberately
@@ -95,6 +102,13 @@ img {
 @theme {
 	--font-sans: 'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, serif;
 	--font-friendly: 'Chalkboard SE', 'Comic Neue', sans-serif;
+
+	/* The watercolour-paper sky. Single source of truth: Sky paints it, `html`
+	   above repeats it so the browser has it for the areas the page never reaches
+	   (iOS safe areas / notch, overscroll rubber-banding), and the `theme-color`
+	   meta in app.html mirrors the same hex for the iOS status bar and Android
+	   chrome. Change it here and in app.html together. */
+	--color-paper: #94cae7;
 
 	/* Tint for the frosted surfaces (mobile top strip, mobile menu panel). Keyed
 	   to the paper sky so the glass reads as the background itself thickening,
