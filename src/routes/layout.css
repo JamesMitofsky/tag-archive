@@ -100,6 +100,13 @@ img {
 	   to the paper sky so the glass reads as the background itself thickening,
 	   rather than as a foreign panel laid over it. */
 	--color-glass: #94c9e6;
+
+	/* Height of the fixed frosted strip that carries the home mark and the menu
+	   button on mobile. Single source of truth: the strip sizes itself with
+	   `h-chrome` and every page that scrolls underneath clears it with
+	   `pt-chrome`, so the two can never drift apart and clip a control that
+	   happens to sit at the top of the page. */
+	--spacing-chrome: 4rem;
 }
 
 /* Every error / status message speaks in the friendly hand, without each call

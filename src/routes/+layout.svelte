@@ -52,7 +52,7 @@
 <div
 	aria-hidden="true"
 	style="--fade-delay: 120ms"
-	class="load-fade pointer-events-none fixed inset-x-0 top-0 z-30 h-16 bg-glass/60 backdrop-blur-md md:hidden"
+	class="load-fade pointer-events-none fixed inset-x-0 top-0 z-30 h-chrome bg-glass/60 backdrop-blur-md md:hidden"
 ></div>
 
 <!-- Handwritten mark linking home -->
