@@ -168,9 +168,7 @@
 				<div class="view" in:fly={{ x: 20, duration: 250 }} out:fly={{ x: -20, duration: 250 }}>
 					{#if !data.user}
 						<!-- Sign-in floats on the sky as a frosted glass panel, like the searchbar. -->
-						<section
-							class="rounded-lg border border-white/40 bg-white/25 p-6 shadow-sm backdrop-blur-md"
-						>
+						<section>
 							<!-- Grid-stack the step swap so the incoming/outgoing views overlap
 				     (no vertical jump) and fly like the route transitions do. -->
 							<div class="auth-steps">
@@ -181,9 +179,6 @@
 										out:fly={{ x: -20, duration: 250 }}
 									>
 										{#if authStep === 'email'}
-											<p class="mt-1 text-sm text-gray-700">
-												Connections are passwordless! You'll be sent a special code by email.
-											</p>
 											<form
 												method="POST"
 												action="?/sendOtp"
@@ -202,7 +197,7 @@
 														emailSubmitting = false;
 													};
 												}}
-												class="mt-5 flex gap-2"
+												class="flex gap-2"
 											>
 												<label class="sr-only" for="email">Email</label>
 												<input
