@@ -3,6 +3,10 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- Tints the iOS status bar / Android browser chrome with the sky instead of
+		     the default white. Must stay in sync with --color-paper in layout.css;
+		     a meta tag cannot read a CSS variable, so the hex is repeated here. -->
+		<meta name="theme-color" content="#94cae7" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="text-scale" content="scale" />
 		%sveltekit.head%
