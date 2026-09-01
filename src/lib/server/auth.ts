@@ -5,6 +5,29 @@ import { admin, emailOTP, magicLink } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
+import { emailOnlySignIn } from '$lib/server/auth-plugins/email-only';
+
+/**
+ * Whether sign-in requires an emailed one-time code. Off by default: keepers
+ * sign in with their email alone (see auth-plugins/email-only.ts). Set
+ * AUTH_OTP="true" to restore the code step; the two plugins are registered
+ * mutually exclusively so the unused sign-in endpoint isn't reachable at all.
+ */
+export const OTP_SIGN_IN = env.AUTH_OTP === 'true';
+
+const otpPlugin = emailOTP({
+	otpLength: 6,
+	expiresIn: 300,
+	storeOTP: 'hashed',
+	sendVerificationOTP: async ({ email, otp }) => {
+		// Sign-in is the only OTP flow (passwordless app), so `type` is ignored.
+		// Imported lazily so `better-auth generate` can load this config
+		// without the Node ESM loader traversing OtpEmail.svelte (which it
+		// can't parse — ERR_UNKNOWN_FILE_EXTENSION on ".svelte").
+		const { sendOtpEmail } = await import('$lib/server/email');
+		return sendOtpEmail(email, otp);
+	}
+});
 
 export const auth = betterAuth({
 	baseURL: env.ORIGIN,
@@ -21,24 +44,12 @@ export const auth = betterAuth({
 		cookieCache: { enabled: true, maxAge: 300 }
 	},
 	plugins: [
-		emailOTP({
-			otpLength: 6,
-			expiresIn: 300,
-			storeOTP: 'hashed',
-			sendVerificationOTP: async ({ email, otp }) => {
-				// Sign-in is the only OTP flow (passwordless app), so `type` is ignored.
-				// Imported lazily so `better-auth generate` can load this config
-				// without the Node ESM loader traversing OtpEmail.svelte (which it
-				// can't parse — ERR_UNKNOWN_FILE_EXTENSION on ".svelte").
-				const { sendOtpEmail } = await import('$lib/server/email');
-				return sendOtpEmail(email, otp);
-			}
-		}),
+		OTP_SIGN_IN ? otpPlugin : emailOnlySignIn(),
 		magicLink({
 			// One-click sign-in embedded in the account-created email. Long-lived
 			// (7 days) so a newly-invited user can act on the email at their leisure;
 			// once it lapses the verify endpoint just bounces them to /keeper, where
-			// they request a fresh OTP. Hashed at rest to match the OTP flow.
+			// they sign in as usual. Hashed at rest to match the OTP flow.
 			expiresIn: 60 * 60 * 24 * 7,
 			storeToken: 'hashed',
 			// The link only ever targets pre-created accounts, so never silently

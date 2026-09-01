@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
-import { auth } from '$lib/server/auth';
+import { auth, OTP_SIGN_IN } from '$lib/server/auth';
 import {
 	createEmailSuite,
 	createOtpSuite,
@@ -13,12 +13,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// The keeper page is the sign-in gateway + hub; the archive lists live on the
 	// artefacts/events/series sub-routes.
 	return {
-		user: locals.user ? { email: locals.user.email, role: locals.user.role } : null
+		user: locals.user ? { email: locals.user.email, role: locals.user.role } : null,
+		otpSignIn: OTP_SIGN_IN
 	};
 };
 
 export const actions: Actions = {
-	sendOtp: async ({ request }) => {
+	/**
+	 * Email step. With OTP off (the default) this signs the keeper straight in;
+	 * with AUTH_OTP on it emails a code and hands off to the `verifyOtp` step.
+	 * `auth` only registers one of the two sign-in plugins, so each branch is
+	 * guarded by the same flag that picked the plugin.
+	 */
+	signIn: async ({ request }) => {
 		const form = await request.formData();
 		const { email } = parseEmailForm(form);
 		if (!createEmailSuite()({ email }).isValid()) {
@@ -29,21 +36,42 @@ export const actions: Actions = {
 			});
 		}
 
-		try {
-			await auth.api.sendVerificationOTP({ body: { email, type: 'sign-in' } });
-		} catch (e) {
-			console.error('[keeper] failed to send OTP', e);
-			return fail(500, {
-				step: 'email' as const,
-				email,
-				error: 'Could not send the code. Try again in a moment.'
-			});
+		if (OTP_SIGN_IN) {
+			try {
+				await auth.api.sendVerificationOTP({ body: { email, type: 'sign-in' } });
+			} catch (e) {
+				console.error('[keeper] failed to send OTP', e);
+				return fail(500, {
+					step: 'email' as const,
+					email,
+					error: 'Could not send the code. Try again in a moment.'
+				});
+			}
+			return { step: 'otp' as const, email };
 		}
 
-		return { step: 'otp' as const, email };
+		try {
+			// sveltekitCookies (last auth plugin) sets the session cookie on this event.
+			await auth.api.signInEmailOnly({ body: { email }, headers: request.headers });
+		} catch (e) {
+			if (e instanceof APIError) {
+				return fail(401, {
+					step: 'email' as const,
+					email,
+					error: e.message,
+					errors: { email: [e.message] }
+				});
+			}
+			console.error('[keeper] email sign-in failed', e);
+			return fail(500, { step: 'email' as const, email, error: 'Sign-in failed. Try again.' });
+		}
+
+		return { step: 'signed-in' as const };
 	},
 
 	verifyOtp: async ({ request }) => {
+		if (!OTP_SIGN_IN) return fail(404, { step: 'email' as const, error: 'Not found' });
+
 		const form = await request.formData();
 		const { email } = parseEmailForm(form);
 		const { otp } = parseOtpForm(form);

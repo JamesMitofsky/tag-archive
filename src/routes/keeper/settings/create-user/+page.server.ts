@@ -28,7 +28,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			// No password: OTP-only users have no credential account. Passing the
+			// No password: this app is passwordless, so users have no credential account. Passing the
 			// admin's headers authorises the privileged create-user endpoint.
 			await auth.api.createUser({
 				// `role`'s type is the plugin's built-in union ('user' | 'admin'); this
