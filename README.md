@@ -195,6 +195,35 @@ Inspect the local DB with Drizzle Studio (opens at <https://local.drizzle.studio
 DATABASE_URL=http://127.0.0.1:8081 pnpm db:studio
 ```
 
+## Testing on a phone (ngrok)
+
+Bare minimum — dev server already running on `:5173`:
+
+```sh
+ngrok http 5173     # open the printed https:// URL on the phone
+```
+
+Use the **HTTPS** URL, not your Mac's LAN IP. The scanner calls
+`navigator.mediaDevices.getUserMedia`, which only exists in a secure context —
+over plain `http://192.168.x.x:5173` the camera is silently unavailable and
+`PageScanner` falls back to its no-camera path.
+
+`vite.config.ts` allowlists the `ngrok-free.dev` / `ngrok-free.app` / `ngrok.dev` /
+`ngrok.app` wildcards so Vite's DNS-rebinding guard doesn't reject the tunnel's
+`Host` header.
+
+Login on the phone also needs `ORIGIN` in `.env` to match the tunnel URL
+(better-auth uses it as `baseURL`). Reserve a free static ngrok domain so the URL
+stops changing every run, then set it once:
+
+```sh
+ngrok http 5173 --url=your-name.ngrok-free.dev
+# .env → ORIGIN="https://your-name.ngrok-free.dev"
+```
+
+The tunnel exposes the dev server and `local.db` to anyone with the URL. Ctrl-C
+when done.
+
 ## Building
 
 ```sh
