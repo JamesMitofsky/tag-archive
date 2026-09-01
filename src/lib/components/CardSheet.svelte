@@ -35,9 +35,15 @@
 		tags?: SheetTag[];
 		/** Optional media block between the rule and the description. */
 		media?: Snippet;
+		/**
+		 * Optional controls pinned to the top-right of the header, beside the title
+		 * (a download, say). Only pass this on the OPENED page: the closed card is
+		 * wrapped in a button, and nested interactive content is invalid HTML.
+		 */
+		actions?: Snippet;
 	}
 
-	let { title, meta = [], description, lines = 3, tags = [], media }: Props = $props();
+	let { title, meta = [], description, lines = 3, tags = [], media, actions }: Props = $props();
 
 	const metaLines = $derived(meta.filter((m): m is string => !!m));
 </script>
@@ -50,13 +56,20 @@
 	<div
 		class="flex h-full flex-col overflow-hidden rounded-sm bg-white/95 p-[clamp(0.5rem,8.33cqi,1rem)] text-gray-900 shadow-xl ring-1 ring-black/5"
 	>
-		<div class="border-b border-gray-200 pb-2">
-			<h2 class="line-clamp-2 text-[clamp(0.75rem,7.29cqi,0.875rem)] leading-tight font-medium">
-				{title}
-			</h2>
-			{#each metaLines as line, i (i)}
-				<p class="mt-1 text-[clamp(0.5625rem,5.42cqi,0.65rem)] text-gray-500">{line}</p>
-			{/each}
+		<div class="flex items-start justify-between gap-2 border-b border-gray-200 pb-2">
+			<div class="min-w-0">
+				<h2 class="line-clamp-2 text-[clamp(0.75rem,7.29cqi,0.875rem)] leading-tight font-medium">
+					{title}
+				</h2>
+				{#each metaLines as line, i (i)}
+					<p class="mt-1 text-[clamp(0.5625rem,5.42cqi,0.65rem)] text-gray-500">{line}</p>
+				{/each}
+			</div>
+			{#if actions}
+				<div class="flex shrink-0 items-center gap-1">
+					{@render actions()}
+				</div>
+			{/if}
 		</div>
 
 		{@render media?.()}

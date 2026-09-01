@@ -63,7 +63,9 @@ export async function fetchNormalizedImage(url: string, origin: string): Promise
 		return { bytes: new Uint8Array(await viaCdn.arrayBuffer()), type: 'jpg' };
 	}
 
-	const direct = await safeFetch(url);
+	// Seed scans are stored as site-relative paths (`/artefacts/…`); `fetch` needs an
+	// absolute URL, so resolve against the site. Absolute R2 URLs pass through as-is.
+	const direct = await safeFetch(new URL(url, origin).href);
 	if (!direct?.ok) return null;
 
 	const contentType = (direct.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();

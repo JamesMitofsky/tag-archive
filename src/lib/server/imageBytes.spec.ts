@@ -49,6 +49,19 @@ describe('fetchNormalizedImage', () => {
 		expect(calls).toHaveLength(2);
 	});
 
+	it('resolves a site-relative seed path against the origin on the fallback path', async () => {
+		const calls = stubFetch((url) =>
+			url.includes('/.netlify/images')
+				? new Response('nope', { status: 404 })
+				: imageResponse('image/jpeg')
+		);
+
+		const image = await fetchNormalizedImage('/artefacts/scan one.jpg', ORIGIN);
+
+		expect(image?.type).toBe('jpg');
+		expect(calls[1]).toBe(`${ORIGIN}/artefacts/scan%20one.jpg`);
+	});
+
 	it('gives up on a format pdf-lib cannot embed rather than returning bad bytes', async () => {
 		stubFetch((url) =>
 			url.includes('/.netlify/images')

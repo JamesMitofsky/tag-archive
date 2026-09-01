@@ -1,16 +1,22 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { artefact } from '$lib/server/db/schema';
 import { idSchema } from '$lib/schemas';
 import { isImageUrl } from '$lib/fileType';
+import { ARCHIVE_CACHE_HEADERS } from '$lib/server/cache';
 import { fetchNormalizedImage } from '$lib/server/imageBytes';
 import { buildImagePdf } from '$lib/server/pdf';
 import type { RequestHandler } from './$types';
 
 // Every scan attached to one artefact, compiled into a single PDF — one image per page,
-// in the order they appear on the detail page. Read-only, so no cache purge; the
-// response is per-user and short-lived, so it is never cached either.
+// in the order they appear on the detail page.
+//
+// Public, like the rest of the archive: the scans themselves are already served to
+// anyone, and the public search pages offer this download from an opened card, so
+// there is nothing to gate. Building a PDF means re-fetching and re-encoding every
+// scan, so the result is cached at the edge under the `archive` tag and purged with
+// the dataset whenever a keeper writes.
 
 /** Filename-safe stem from the artefact title. */
 function slugify(title: string): string {
@@ -23,10 +29,7 @@ function slugify(title: string): string {
 	return slug || 'artefact';
 }
 
-export const GET: RequestHandler = async ({ params, locals, url }) => {
-	// Same gate as the detail page load: Cloud Keeper is behind sign-in.
-	if (!locals.user) throw redirect(302, '/keeper');
-
+export const GET: RequestHandler = async ({ params, url }) => {
 	const id = idSchema.safeParse(params.id);
 	if (!id.success) throw error(404, 'Artefact not found');
 
@@ -52,9 +55,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 	return new Response(bytes, {
 		headers: {
+			...ARCHIVE_CACHE_HEADERS,
 			'Content-Type': 'application/pdf',
-			'Content-Disposition': `attachment; filename="${slugify(item.title)}-${id.data}.pdf"`,
-			'Cache-Control': 'private, no-store'
+			'Content-Disposition': `attachment; filename="${slugify(item.title)}-${id.data}.pdf"`
 		}
 	});
 };

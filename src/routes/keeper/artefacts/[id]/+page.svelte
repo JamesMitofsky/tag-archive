@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { formatDate } from '$lib/formatDate';
 	import BackButton from '$lib/components/BackButton.svelte';
-	import FilePdfIcon from 'phosphor-svelte/lib/FilePdfIcon';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
+	import ArtefactPdfLink from '$lib/components/ArtefactPdfLink.svelte';
 	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
 	import { isImageUrl } from '$lib/fileType';
 	import { programAreaMeta } from '$lib/programAreas';
@@ -40,14 +40,12 @@
 			</div>
 			<div class="flex shrink-0 items-center gap-2">
 				{#if imageCount > 0}
-					<a
-						href="/keeper/artefacts/{item.id}/pdf"
-						aria-label="Download {item.artefact} as a PDF"
-						title="Download {imageCount === 1 ? 'image' : `all ${imageCount} images`} as one PDF"
+					<ArtefactPdfLink
+						artefactId={item.id}
+						artefactName={item.artefact}
+						{imageCount}
 						class={glassPill}
-					>
-						<FilePdfIcon size={18} />
-					</a>
+					/>
 				{/if}
 				{#if data.user.role === 'admin'}
 					<a
