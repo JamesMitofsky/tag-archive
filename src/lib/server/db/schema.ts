@@ -179,7 +179,13 @@ export const artefact = sqliteTable(
 		// no matching event, or reference a series without pinning to one date.
 		// A series is reachable transitively via the linked event's `seriesId`.
 		eventId: integer('event_id').references(() => event.id),
-		// ISO date (YYYY-MM-DD).
+		// ISO date at whatever precision is actually known: `YYYY-MM-DD` for an
+		// exact day, `YYYY-MM` when only the month is, `YYYY` when only the year
+		// is. Truncating the string rather than storing a separate precision flag
+		// keeps value and precision from ever disagreeing, and leaves
+		// lexicographic order equal to chronological order — so the
+		// `(date, id)` index below and every `ORDER BY date` still hold.
+		// See $lib/partialDate for the parsers, formatters, and the reasoning.
 		date: text('date').notNull(),
 		// TAG program area tags. Multi-value → JSON string array.
 		programArea: text('program_area', { mode: 'json' }).$type<string[]>().notNull().default([]),

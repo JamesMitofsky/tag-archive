@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDate } from '$lib/formatDate';
 	import { untrack } from 'svelte';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import KeeperList from '$lib/components/KeeperList.svelte';
@@ -103,18 +104,6 @@
 		capture: () => query,
 		restore: (value: string) => (query = value)
 	};
-
-	// Render dates like "July 4, 2023"; fall back to raw string if unparseable.
-	function formatDate(value: string): string {
-		const parsed = new Date(value);
-		if (Number.isNaN(parsed.getTime())) return value;
-		return parsed.toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-			timeZone: 'UTC'
-		});
-	}
 
 	// Frosted glass, borrowed from the keeper searchbar.
 	const glassInput =

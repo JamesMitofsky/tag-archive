@@ -178,6 +178,7 @@
 						name="date"
 						label="Date"
 						required
+						allowPartial
 						value={echoed?.date ?? data.artefact.date ?? ''}
 						onChange={(iso) => {
 							formDate = iso;
