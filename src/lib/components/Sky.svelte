@@ -45,8 +45,13 @@
 <!-- Watercolor paper backdrop, pinned behind everything. -->
 <div class="paper pointer-events-none fixed inset-0 -z-10" aria-hidden="true"></div>
 
-<!-- Cloud layer: above the paper, below page content. -->
-<div class="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+<!-- Cloud layer: above the paper, below page content. Fades in with the rest of
+     the chrome (.load-fade, layout.css). The fade lives on the layer, not the
+     individual clouds: one composited group instead of four, and it leaves each
+     cloud's own animation shorthand — the endless drift — untouched, so a cloud
+     that decodes late never restarts its drift mid-flight. The per-image
+     transition below still smooths that late decode. -->
+<div class="load-fade pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
 	{#each clouds as c, i (i)}
 		{@const isLoaded = loadedMap[i]}
 		<img
@@ -72,7 +77,9 @@
 		opacity: 0;
 		will-change: transform, opacity;
 		transform: translate3d(-45vw, 0, 0);
-		transition: opacity 100ms ease-in-out;
+		/* Same duration + curve as .load-fade, so a cloud that decodes after the layer
+		   fade has already finished still arrives at the pace of everything else. */
+		transition: opacity var(--load-fade-duration) var(--load-fade-ease);
 		animation: cloud-drift var(--dur, 180s) linear var(--delay, 0s) infinite;
 	}
 

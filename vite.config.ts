@@ -18,6 +18,14 @@ export default defineConfig({
 		// Passing options here would make SvelteKit ignore that file and warn.
 		sveltekit()
 	],
+	build: {
+		// Declare a browser floor for the CSS minifier. Without it, esbuild treats a
+		// vendor-prefixed property and its standard twin as one declaration and keeps
+		// only the last in source order — which silently strips the `-webkit-` half of
+		// Tailwind's `backdrop-blur-*` / `select-*` / `mask-*` output in production
+		// builds (dev is unminified, so it looks fine locally).
+		cssTarget: ['chrome110', 'firefox115', 'safari15', 'edge110']
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [
