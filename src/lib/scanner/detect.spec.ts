@@ -4,6 +4,7 @@ import {
 	cornerList,
 	fullFrameCorners,
 	isPlausibleQuad,
+	lerpCorners,
 	quadArea,
 	scaleCorners,
 	type CornerPoints
@@ -89,5 +90,14 @@ describe('scanner geometry', () => {
 
 		expect(isPlausibleQuad(broken, 100, 100)).toBe(false);
 		expect(isPlausibleQuad(fullFrameCorners(100, 100), 0, 0)).toBe(false);
+	});
+
+	it('interpolates every corner towards the target', () => {
+		const from = fullFrameCorners(100, 100);
+		const to = quad(100, 100, 20);
+
+		expect(lerpCorners(from, to, 0)).toEqual(from);
+		expect(lerpCorners(from, to, 1)).toEqual(to);
+		expect(lerpCorners(from, to, 0.5)).toEqual(quad(100, 100, 10));
 	});
 });

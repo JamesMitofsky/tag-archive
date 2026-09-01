@@ -150,3 +150,21 @@ export function isPlausibleQuad(
 	if (pts.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) return false;
 	return quadArea(corners) / frame >= minCoverage;
 }
+
+/**
+ * Move `from` a fraction `t` of the way towards `to` (0 = stay, 1 = arrive).
+ * The live overlay uses this to glide between detections instead of snapping,
+ * so a quad that shifts a few pixels per frame reads as tracking, not jitter.
+ */
+export function lerpCorners(from: CornerPoints, to: CornerPoints, t: number): CornerPoints {
+	const mix = (a: Point, b: Point): Point => ({
+		x: a.x + (b.x - a.x) * t,
+		y: a.y + (b.y - a.y) * t
+	});
+	return {
+		topLeft: mix(from.topLeft, to.topLeft),
+		topRight: mix(from.topRight, to.topRight),
+		bottomRight: mix(from.bottomRight, to.bottomRight),
+		bottomLeft: mix(from.bottomLeft, to.bottomLeft)
+	};
+}

@@ -1,11 +1,14 @@
 <script lang="ts">
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import CornersOutIcon from 'phosphor-svelte/lib/CornersOutIcon';
 	import { fullFrameCorners, type CornerPoints } from '$lib/scanner/detect';
 	import type { CornerEditor } from 'scanic';
 
 	// Wraps scanic's imperative corner editor. It already ships drag handles with
 	// a 44px hit area, a magnifier and keyboard nudging, so we mount it into a
-	// container and drive Apply/Cancel from our own buttons (`toolbar` off) to
-	// keep the chrome consistent with the rest of the form.
+	// container and drive Apply/Cancel from our own buttons (`toolbar` off). The
+	// editor sizes itself to the container, which fills the immersive view.
 	let {
 		image,
 		corners,
@@ -63,41 +66,48 @@
 	}
 </script>
 
-<div class="mt-3 rounded-md border border-gray-200 bg-white p-3">
-	{#if failed}
-		<p class="text-xs text-red-600" role="alert">
-			The crop editor could not be loaded. The page is stored as captured.
-		</p>
-	{:else}
-		<p class="mb-2 text-xs text-gray-600">
+<div class="flex h-full flex-col">
+	<header class="px-4 py-3 text-center text-sm text-white/80">
+		{#if failed}
+			<span role="alert" class="text-red-400">
+				The crop editor could not be loaded. The page is stored as captured.
+			</span>
+		{:else}
 			Drag the corners to match the page. Arrow keys nudge a focused corner.
-		</p>
-		<div bind:this={container} class="relative overflow-hidden rounded-sm bg-gray-100"></div>
-	{/if}
+		{/if}
+	</header>
 
-	<div class="mt-3 flex flex-wrap gap-2">
+	<div bind:this={container} class="relative min-h-0 flex-1 overflow-hidden"></div>
+
+	<footer class="grid grid-cols-3 items-center px-6 py-5">
 		<button
 			type="button"
-			onclick={apply}
-			disabled={failed}
-			class="rounded-sm bg-[#14120f] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#33302a] disabled:opacity-50"
+			onclick={onCancel}
+			aria-label="Cancel"
+			class="flex size-12 items-center justify-center justify-self-start rounded-full bg-white/10 transition hover:bg-white/20"
 		>
-			Apply crop
+			<XIcon size={22} />
 		</button>
+
 		<button
 			type="button"
 			onclick={useWhole}
 			disabled={failed}
-			class="rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+			aria-label="Use whole image"
+			title="Use whole image"
+			class="flex size-12 items-center justify-center justify-self-center rounded-full bg-white/10 transition hover:bg-white/20 disabled:opacity-40"
 		>
-			Use whole image
+			<CornersOutIcon size={22} />
 		</button>
+
 		<button
 			type="button"
-			onclick={onCancel}
-			class="rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+			onclick={apply}
+			disabled={failed}
+			aria-label="Apply crop"
+			class="flex size-14 items-center justify-center justify-self-end rounded-full bg-white text-black transition hover:bg-white/90 disabled:opacity-40"
 		>
-			Cancel
+			<CheckIcon size={24} weight="bold" />
 		</button>
-	</div>
+	</footer>
 </div>
