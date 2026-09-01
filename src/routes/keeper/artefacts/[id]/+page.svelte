@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDate } from '$lib/formatDate';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import FilePdfIcon from 'phosphor-svelte/lib/FilePdfIcon';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
@@ -22,18 +23,6 @@
 	// Shared look for the icon-only header actions, matching the keeper's frosted chrome.
 	const glassPill =
 		'inline-flex shrink-0 items-center rounded-full border border-white/40 bg-white/25 p-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900';
-
-	// Render dates like "July 4, 2023"; fall back to raw string if unparseable.
-	function formatDate(value: string): string {
-		const parsed = new Date(value);
-		if (Number.isNaN(parsed.getTime())) return value;
-		return parsed.toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-			timeZone: 'UTC'
-		});
-	}
 </script>
 
 <svelte:head>

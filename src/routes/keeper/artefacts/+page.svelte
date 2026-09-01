@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDate } from '$lib/formatDate';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import KeeperList from '$lib/components/KeeperList.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
@@ -32,18 +33,6 @@
 	// Frosted glass, borrowed from the keeper searchbar.
 	const glassInput =
 		'w-full rounded-lg border border-white/40 bg-white/25 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:ring-1 focus:ring-white/50 focus:outline-none';
-
-	// Render dates like "July 4, 2023"; fall back to raw string if unparseable.
-	function formatDate(value: string): string {
-		const parsed = new Date(value);
-		if (Number.isNaN(parsed.getTime())) return value;
-		return parsed.toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-			timeZone: 'UTC'
-		});
-	}
 </script>
 
 <svelte:head>

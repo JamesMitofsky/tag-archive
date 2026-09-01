@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDate } from '$lib/formatDate';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
@@ -17,18 +18,6 @@
 		const from = page.url.searchParams.get('from');
 		return from && from.startsWith('/keeper/') ? from : undefined;
 	});
-
-	// Render dates like "July 4, 2023"; fall back to raw string if unparseable.
-	function formatDate(value: string): string {
-		const parsed = new Date(value);
-		if (Number.isNaN(parsed.getTime())) return value;
-		return parsed.toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-			timeZone: 'UTC'
-		});
-	}
 </script>
 
 <svelte:head>

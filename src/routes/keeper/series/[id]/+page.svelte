@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDate } from '$lib/formatDate';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import { morphName } from '$lib/transitions.svelte';
 	import type { PageData } from './$types';
@@ -12,17 +13,6 @@
 	const hasHero = $derived(
 		Boolean(s.description || s.frequency || s.defaultDayOfWeek || s.defaultTime)
 	);
-
-	function formatDate(value: string): string {
-		const parsed = new Date(value);
-		if (Number.isNaN(parsed.getTime())) return value;
-		return parsed.toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-			timeZone: 'UTC'
-		});
-	}
 </script>
 
 <svelte:head>
