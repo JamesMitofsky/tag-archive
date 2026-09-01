@@ -2,6 +2,7 @@
 	import CameraIcon from 'phosphor-svelte/lib/CameraIcon';
 	import ImageSquareIcon from 'phosphor-svelte/lib/ImageSquareIcon';
 	import CameraStage from './CameraStage.svelte';
+	import ImmersiveView from './ImmersiveView.svelte';
 	import ScanFilmstrip from './ScanFilmstrip.svelte';
 	import CornerAdjuster from './CornerAdjuster.svelte';
 	import { detectCorners, dewarp, scaleCorners, type CornerPoints } from '$lib/scanner/detect';
@@ -295,37 +296,27 @@
 </script>
 
 <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50/60 p-4">
-	{#if cameraOn}
-		<CameraStage
-			pageCount={pages.length}
-			replacing={!!replacingId}
-			onCapture={onCaptured}
-			onDone={closeCamera}
-			onError={(message) => (error = message)}
-		/>
-	{:else}
-		<div class="flex flex-wrap gap-2">
-			{#if canUseCamera}
-				<button
-					type="button"
-					onclick={() => {
-						error = '';
-						cameraOn = true;
-					}}
-					class="inline-flex items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
-				>
-					<CameraIcon size={16} />
-					{pages.length > 0 ? 'Scan more pages' : 'Scan pages'}
-				</button>
-			{/if}
-			<label
-				class="inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+	<div class="flex flex-wrap gap-2">
+		{#if canUseCamera}
+			<button
+				type="button"
+				onclick={() => {
+					error = '';
+					cameraOn = true;
+				}}
+				class="inline-flex items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
 			>
-				<ImageSquareIcon size={16} /> Add from photos
-				<input type="file" accept="image/*" multiple onchange={onFiles} class="sr-only" />
-			</label>
-		</div>
-	{/if}
+				<CameraIcon size={16} />
+				{pages.length > 0 ? 'Scan more pages' : 'Scan pages'}
+			</button>
+		{/if}
+		<label
+			class="inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+		>
+			<ImageSquareIcon size={16} /> Add from photos
+			<input type="file" accept="image/*" multiple onchange={onFiles} class="sr-only" />
+		</label>
+	</div>
 
 	{#if error}
 		<p class="mt-2 text-xs text-red-600" role="alert">{error}</p>
@@ -345,15 +336,6 @@
 		</div>
 	{/if}
 
-	{#if adjusting}
-		<CornerAdjuster
-			image={adjusting.image}
-			corners={adjusting.corners}
-			onApply={applyAdjust}
-			onCancel={() => (adjusting = null)}
-		/>
-	{/if}
-
 	<ScanFilmstrip
 		{pages}
 		canRetake={canUseCamera}
@@ -363,3 +345,32 @@
 		onRetake={retakeById}
 	/>
 </div>
+
+<!-- Scanning and cropping take over the screen: the form is a lot to look at
+     around a live viewfinder, and a fixed viewport means nothing reflows as
+     pages land. -->
+<ImmersiveView
+	open={cameraOn}
+	title={replacingId ? 'Retake page' : 'Scan pages'}
+	onClose={closeCamera}
+>
+	<CameraStage
+		pageCount={pages.length}
+		latestPreview={pages.at(-1)?.previewUrl}
+		replacing={!!replacingId}
+		onCapture={onCaptured}
+		onDone={closeCamera}
+		onError={(message) => (error = message)}
+	/>
+</ImmersiveView>
+
+<ImmersiveView open={!!adjusting} title="Adjust crop" onClose={() => (adjusting = null)}>
+	{#if adjusting}
+		<CornerAdjuster
+			image={adjusting.image}
+			corners={adjusting.corners}
+			onApply={applyAdjust}
+			onCancel={() => (adjusting = null)}
+		/>
+	{/if}
+</ImmersiveView>
