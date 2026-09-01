@@ -199,8 +199,10 @@ DATABASE_URL=http://127.0.0.1:8081 pnpm db:studio
 
 Bare minimum — dev server already running on `:5173`:
 
+If not already done, run `ngrok config add-authtoken <token>` to connect your system to your free ngrok domain. Then put that domain in as a flag to host against:
+
 ```sh
-ngrok http 5173     # open the printed https:// URL on the phone
+ngrok http 5173 --url=nervous-balmy-crispy.ngrok-free.dev
 ```
 
 Use the **HTTPS** URL, not your Mac's LAN IP. The scanner calls
@@ -213,13 +215,14 @@ over plain `http://192.168.x.x:5173` the camera is silently unavailable and
 `Host` header.
 
 Login on the phone also needs `ORIGIN` in `.env` to match the tunnel URL
-(better-auth uses it as `baseURL`). Reserve a free static ngrok domain so the URL
-stops changing every run, then set it once:
+(better-auth uses it as `baseURL`):
 
 ```sh
-ngrok http 5173 --url=your-name.ngrok-free.dev
-# .env → ORIGIN="https://your-name.ngrok-free.dev"
+# .env → ORIGIN="https://nervous-balmy-crispy.ngrok-free.dev"
 ```
+
+The `--url=` domain is a free reserved dev domain, so it stays the same across
+runs and `ORIGIN` only has to be set once. It's tied to one ngrok account.
 
 The tunnel exposes the dev server and `local.db` to anyone with the URL. Ctrl-C
 when done.
