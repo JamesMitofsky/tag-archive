@@ -23,6 +23,24 @@ const auditColumns = () => ({
 });
 
 /**
+ * Surrogate primary key for every table that owns one: a plain SQLite
+ * `INTEGER PRIMARY KEY AUTOINCREMENT`.
+ *
+ * Without `AUTOINCREMENT` the column is a rowid alias, and SQLite assigns
+ * `max(rowid) + 1` — so deleting the highest row hands its number to the next
+ * insert. Ids are written on the physical artefacts these rows describe, so a
+ * reused id would point a real object at someone else's record. `AUTOINCREMENT`
+ * keeps a high-water mark in `sqlite_sequence` and never reissues a number.
+ *
+ * Cost is a second table read/write per insert and ids that skip after a
+ * delete — both irrelevant at this table size, and gaps are expected here
+ * anyway. Only applies to single-column integer keys: the join tables use
+ * composite keys and the auth tables text ids, neither of which SQLite allows
+ * this on.
+ */
+const autoIncrementId = () => integer('id').primaryKey({ autoIncrement: true });
+
+/**
  * Provenance flag every contributor-creatable entity carries. A contributor's
  * submission lands as a proposed addition — `proposed_addition` true — until a
  * keeper (admin) vets it; admin-authored rows are created already-vetted
@@ -42,7 +60,7 @@ const proposalColumns = () => ({
  * it groups are derived from `event.seriesId`, never stored as a count/flag.
  */
 export const series = sqliteTable('series', {
-	id: integer('id').primaryKey(),
+	id: autoIncrementId(),
 	name: text('name').notNull().unique(),
 	// Optional blurb describing the banner; null when the series has no description.
 	description: text('description'),
@@ -65,7 +83,7 @@ export const series = sqliteTable('series', {
 export const event = sqliteTable(
 	'event',
 	{
-		id: integer('id').primaryKey(),
+		id: autoIncrementId(),
 		// This event's own title, e.g. "Music in the Garden ft. Yaddiya". Often shared
 		// across a series, but may vary per event — series membership is `seriesId`,
 		// not an exact title match (curated via the export's `series` field at seed).
@@ -113,7 +131,7 @@ export const event = sqliteTable(
 export const person = sqliteTable(
 	'person',
 	{
-		id: integer('id').primaryKey(),
+		id: autoIncrementId(),
 		name: text('name').notNull().unique(),
 		...auditColumns()
 	},
@@ -154,7 +172,7 @@ export const eventHost = sqliteTable(
 export const artefact = sqliteTable(
 	'artefact',
 	{
-		id: integer('id').primaryKey(),
+		id: autoIncrementId(),
 		// Title of the archived object, e.g. "Symphonic Steep Program".
 		artefact: text('artefact').notNull(),
 		// The specific event this artefact came from; nullable — some artefacts have

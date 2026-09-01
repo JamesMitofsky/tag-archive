@@ -15,7 +15,7 @@
 		label,
 		placeholder = 'Search or add…',
 		options,
-		value: initial = ''
+		value = $bindable('')
 	}: {
 		name: string;
 		label?: string;
@@ -31,19 +31,16 @@
 
 	// The menu opens on focus and closes when focus leaves the whole field.
 	let open = $state(false);
-	// Live text in the search box — also the candidate custom value and the value the
-	// server reads. Seeded from any echoed value left by a failed submit.
-	// svelte-ignore state_referenced_locally
-	let search = $state(initial);
-
-	const query = $derived(search.trim());
+	// Live text in the search box — mirrored into the bindable `value` prop so the
+	// parent can gate on it, and into the hidden <input> so the server reads it.
+	const query = $derived(value.trim());
 	// Offer the typed text as a custom entry unless it already matches an option.
 	const showCustom = $derived(
 		query.length > 0 && !items.some((o) => o.value.toLowerCase() === query.toLowerCase())
 	);
 
-	function choose(value: string) {
-		search = value;
+	function choose(picked: string) {
+		value = picked;
 		open = false;
 	}
 
@@ -71,7 +68,7 @@
 				if (e.key === 'Escape') open = false;
 			}}
 		>
-			<Command.Input {placeholder} bind:value={search} />
+			<Command.Input {placeholder} bind:value />
 			{#if open}
 				<Command.List
 					class="absolute top-full right-0 left-0 z-50 mt-1 rounded-lg border bg-popover p-1 shadow-md"
@@ -100,4 +97,4 @@
 </div>
 
 <!-- Resolved value the server action reads. -->
-<input type="hidden" {name} value={search} />
+<input type="hidden" {name} {value} />
