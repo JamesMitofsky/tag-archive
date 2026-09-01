@@ -6,15 +6,38 @@ import type { PdfImage } from './pdf';
 // `image/webp`, and heic/gif are accepted too — but pdf-lib embeds JPEG and PNG only.
 // The Netlify Image CDN is the transcoder: the same `/.netlify/images` endpoint
 // OptimizedImage.svelte already uses, here pinned to `fm=jpg` so the answer is always
-// embeddable, and capped at 1600px so a 50-scan artefact can't blow the function's
-// memory or the response size.
+// embeddable.
+//
+// The parameters below are deliberately NOT the ones OptimizedImage uses. That component
+// optimises for the screen — it resizes down to the displayed width and lets the CDN
+// negotiate webp/avif, because bytes on the wire are what matter there. A PDF is the
+// opposite job: it is the copy someone keeps and prints, so it takes the scan at the
+// resolution it was stored at. Sending web-sized images into the PDF was costing roughly
+// a third of the archive's resolution (see MAX_WIDTH).
 //
 // `encodeURIComponent` on the `url` param for the same reason as OptimizedImage: the
 // seed archive's filenames contain spaces, which must arrive as %20 (a `+` is read
 // literally by the CDN and 404s).
 
-const MAX_WIDTH = 1600;
-const QUALITY = 75;
+/**
+ * Ceiling, not a target. Matches MAX_DIM in $lib/scanner/image, the longest edge a
+ * capture is stored at, and clears the 2550px seed scans — so nothing in the archive is
+ * downscaled today and an oversized future upload still can't run away with the
+ * function's memory. The CDN does not upscale (a 1167px scan asked for at 2560 comes
+ * back 1167px), so small scans pass through untouched.
+ *
+ * For scale: a 2550px scan fills A4's 7.6in printable width at ~335 dpi, past the 300
+ * dpi print standard. The previous web-shaped 1600 put the same page at ~210 dpi.
+ */
+const MAX_WIDTH = 2560;
+
+/**
+ * Matched to WEBP_QUALITY (0.85), the quality the master was stored at. Going higher is
+ * counterproductive: at q90 the JPEG comes back larger than the WebP it was decoded from,
+ * which is the encoder spending bytes to preserve that file's compression artefacts
+ * rather than any detail from the document.
+ */
+const QUALITY = 85;
 
 /** Content types pdf-lib can take as-is, mapped to the embed call to use. */
 const DIRECT_TYPES: Record<string, PdfImage['type']> = {

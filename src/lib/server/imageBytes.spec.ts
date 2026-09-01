@@ -24,7 +24,7 @@ function stubFetch(responder: (url: string) => Response | Promise<Response>) {
 }
 
 describe('fetchNormalizedImage', () => {
-	it('transcodes through the Netlify Image CDN, percent-encoding the source URL', async () => {
+	it('requests print resolution, not the web sizes OptimizedImage uses', async () => {
 		const calls = stubFetch(() => imageResponse('image/jpeg'));
 
 		const image = await fetchNormalizedImage(SCAN, ORIGIN);
@@ -32,7 +32,7 @@ describe('fetchNormalizedImage', () => {
 		expect(image).toEqual({ bytes: new Uint8Array(Buffer.from('bytes')), type: 'jpg' });
 		expect(calls).toHaveLength(1);
 		expect(calls[0]).toBe(
-			`${ORIGIN}/.netlify/images?url=${encodeURIComponent(SCAN)}&w=1600&q=75&fm=jpg`
+			`${ORIGIN}/.netlify/images?url=${encodeURIComponent(SCAN)}&w=2560&q=85&fm=jpg`
 		);
 	});
 
