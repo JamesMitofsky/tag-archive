@@ -108,7 +108,7 @@
 	}
 
 	.paper {
-		background-color: #94cae7;
+		background-color: var(--color-paper);
 		background-image:
 			/* pre-rendered static paper noise tile (baked low-opacity noise tile) */ url('/paper-noise.png');
 		background-repeat: repeat;
