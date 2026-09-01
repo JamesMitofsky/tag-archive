@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatDate } from '$lib/formatDate';
+	import ArtefactId from '$lib/components/ArtefactId.svelte';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import KeeperList from '$lib/components/KeeperList.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
@@ -16,7 +17,15 @@
 		const q = query.trim().toLowerCase();
 		if (!q) return data.artefacts;
 		return data.artefacts.filter((a) =>
-			[a.artefact, a.description, a.event, a.date, a.provenance.join(' '), a.programArea.join(' ')]
+			[
+				`#${a.id}`,
+				a.artefact,
+				a.description,
+				a.event,
+				a.date,
+				a.provenance.join(' '),
+				a.programArea.join(' ')
+			]
 				.filter(Boolean)
 				.some((field) => field!.toLowerCase().includes(q))
 		);
@@ -111,9 +120,9 @@
 											style:view-transition-name={morphVar('artefact', item.id, 'meta')}
 											class="mt-0.5 text-sm text-gray-500"
 										>
-											{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
-													·
-												{/if}{item.event}{/if}
+											<ArtefactId id={item.id} />
+											{#if item.date}· {formatDate(item.date)}{/if}{#if item.event}
+												· {item.event}{/if}
 										</p>
 									</div>
 									{#if item.proposedAddition}

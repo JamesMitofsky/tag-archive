@@ -122,7 +122,8 @@ export const actions: Actions = {
 
 		await purgeArchiveCache();
 
-		// Land back on the artefacts list so the new artefact shows.
-		throw redirect(303, '/keeper/artefacts');
+		// Land on the new artefact's own page, flagged as just created, so the
+		// keeper is shown the archive number to write on the physical item.
+		throw redirect(303, `/keeper/artefacts/${created.id}?created`);
 	}
 };
