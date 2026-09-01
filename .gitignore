@@ -33,3 +33,6 @@ storybook-static
 
 # throwaway worktree used by scripts/migrate-test.sh
 .migrate-base/
+
+# agent worktrees
+.claude/worktrees/

@@ -7,6 +7,7 @@
 	import { morph, morphNameForPair, reducedMotion } from '$lib/transitions.svelte';
 	import Sky from '$lib/components/Sky.svelte';
 	import Drawing from '$lib/components/Drawing.svelte';
+	import PublicNav from '$lib/components/PublicNav.svelte';
 
 	let { children } = $props();
 
@@ -43,28 +44,30 @@
      drift continuously across navigation and fill the slide gap behind pages. -->
 <Sky />
 
+<!-- Frosted strip behind the home mark and the hamburger. Mobile only: that is
+     the layout where the page scrolls, so cards pass underneath and the chrome
+     needs something to stay legible against. Sits below both marks (z-40) and
+     above the routed content, and ignores pointer events so the mark and the
+     menu button underneath it stay tappable. -->
+<div
+	aria-hidden="true"
+	style="--fade-delay: 120ms"
+	class="load-fade pointer-events-none fixed inset-x-0 top-0 z-30 h-16 bg-glass/60 backdrop-blur-md md:hidden"
+></div>
+
 <!-- Handwritten mark linking home -->
 <a
 	href="/"
 	aria-label="Home"
-	class="fixed top-3 left-3 z-40 transition-opacity duration-100 hover:opacity-70"
+	data-cloud-block
+	style="--fade-delay: 120ms"
+	class="load-fade fixed top-3 left-3 z-40 touch-manipulation p-2 transition-opacity duration-100 hover:opacity-70"
 >
-	<Drawing src="/drawing/text/tag-archive.webp" alt="Home" class="w-40 max-w-[28vw]" />
+	<Drawing src="/drawing/text/tag-archive.webp" alt="Home" class="w-44 max-w-[32vw]" />
 </a>
 
 {#if !page.url.pathname.startsWith('/keeper')}
-	<!-- Handwritten nav pinned to the top-right -->
-	<nav class="fixed top-3 right-6 z-40 flex items-center gap-6">
-		<a href="/" aria-label="Artefacts" class="transition-opacity duration-100 hover:opacity-70">
-			<Drawing src="/drawing/text/nav-artefacts.webp" alt="Artefacts" class="h-10 w-auto" />
-		</a>
-		<a href="/events" aria-label="Events" class="transition-opacity duration-100 hover:opacity-70">
-			<Drawing src="/drawing/text/nav-events.webp" alt="Events" class="h-10 w-auto" />
-		</a>
-		<a href="/keeper" aria-label="Keeper" class="transition-opacity duration-100 hover:opacity-70">
-			<Drawing src="/drawing/text/cloud-keeper-btn.webp" alt="Keeper" class="h-10 w-auto" />
-		</a>
-	</nav>
+	<PublicNav />
 {/if}
 
 <div class="route-wrap">

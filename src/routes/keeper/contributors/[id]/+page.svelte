@@ -112,7 +112,7 @@
 					<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">{person.name}</h1>
 				{/if}
 				{#if form?.error}
-					<p class="mt-1 px-2 text-sm text-red-600">{form.error}</p>
+					<p class="mt-1 px-2 text-sm text-red-600" role="alert">{form.error}</p>
 				{/if}
 			{:else}
 				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">{person.name}</h1>

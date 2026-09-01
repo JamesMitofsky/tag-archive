@@ -62,7 +62,7 @@
 		{/if}
 	</p>
 	{#if error}
-		<p class="mt-2 text-sm text-red-600">{error}</p>
+		<p class="mt-2 text-sm text-red-600" role="alert">{error}</p>
 	{/if}
 	<form
 		method="POST"
