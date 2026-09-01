@@ -59,6 +59,7 @@
 <a
 	href="/"
 	aria-label="Home"
+	data-cloud-block
 	style="--fade-delay: 120ms"
 	class="load-fade fixed top-3 left-3 z-40 touch-manipulation p-2 transition-opacity duration-100 hover:opacity-70"
 >

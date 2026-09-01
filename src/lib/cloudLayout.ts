@@ -6,11 +6,21 @@
  * part that must not silently regress on desktop, and the only part that is
  * cheaply testable (see `cloudLayout.spec.ts`).
  *
- * Everything is in PIXELS against a measured field box. The previous version
- * worked in `vmin` with a hardcoded `ASPECT = 1.9` x-stretch, which is a
- * landscape assumption: on a portrait phone `vmin` is the WIDTH, so the stretch
- * pushed cards sideways off the screen. Here the cloud is an ellipse the shape
- * of its field, so portrait fields produce portrait clouds for free.
+ * Everything is in PIXELS against a measured field box, with the origin at the
+ * field's centre.
+ *
+ * The surround layout is a SUBTRACTIVE one: a card may stand anywhere on screen
+ * except where it would be cropped by the window or would cover a piece of fixed
+ * chrome (the searchbar, the nav, the home mark). Those no-go zones arrive as
+ * measured rectangles, so the layout does not have to know what any of them are,
+ * and adding another one later is a `data-cloud-block` attribute rather than a
+ * new constant here.
+ *
+ * It replaces a radial ring (a golden-angle spiral in a superellipse annulus).
+ * A ring is a shape the cards must fit into, and a rectangular window is not
+ * that shape: the corners went unused however boxy the ring's exponent was, and
+ * on a narrow window the ring's band collapsed to nothing. Subtracting zones
+ * from the whole window uses every part of it that is genuinely free.
  */
 
 /** A4 (210:297) — every card is a sheet of paper. */
@@ -24,36 +34,50 @@ const CARD_MIN = 112;
 const CARD_W_FRAC = 0.34;
 /** Card height ceiling as a share of field height. Binds on landscape phones. */
 const CARD_H_FRAC = 0.62;
-/** Minimum clearance between a card's box and the field edge. */
-const GUTTER = 8;
 /**
- * How much of a half-card may hang off the field edge. Calibrated to reproduce
- * the old layout's outer reach at 1440x900 (650px vs 684px in x). Applied only
- * when the field IS the viewport — a field that stops below the searchbar must
- * not bleed back up into it, and a phone should not clip cards at all.
+ * Clearance between a card and the things it must not touch: the window edge,
+ * and each no-go zone. Deliberately tiny — these are boundaries to respect, not
+ * margins to design with, and anything larger reads as an empty frame around the
+ * collage rather than as paper filling the sky.
  */
-const BLEED = 0.35;
-/** Clearance carved around the searchbar. X is generous: it is what the old
- *  `ASPECT = 1.9` was really expressing — a wide, bar-shaped hole. */
-const HOLE_PAD_X = 104;
-const HOLE_PAD_Y = 16;
+const EDGE_PAD = 2;
+const ZONE_PAD = 6;
 /**
- * Total card area as a multiple of placeable area — the density dial.
+ * Ambient drift, and the slack the placement has to reserve for it.
+ *
+ * A card is laid out at its resting position and then animated ±DRIFT_REM and
+ * ±ROT_DEG by the `float` keyframes in CardCloud. Placement therefore cannot
+ * budget for the card's static box — it must budget for the box the card sweeps
+ * out, or a card resting flush against the edge drifts over it. These are the
+ * source of truth: `driftStyle` below emits them, the CSS just interpolates.
+ */
+const DRIFT_REM = 0.7;
+const ROT_DEG = 2;
+/** `float` translates in rem, but the field is measured in px. */
+const REM_PX = 16;
+/**
+ * Total card area as a multiple of the free area — the density dial.
+ *
+ * Above 1 by design: the free area counts where a card's CENTRE may stand, which
+ * shrinks much faster than the window does once cards are large, and the collage
+ * is meant to overlap anyway.
  *
  * When the bar is surrounded, the pile-up IS the design: the archive reads as a
  * collage of overlapping paper, and a hovering pointer can pull any buried card
- * forward. 1.15 is calibrated so 1440x900 yields exactly 24, the count the old
- * hardcoded constant produced.
- *
- * Only the surround layout needs this: the stacked layout tiles into a grid, so
- * its density is set by the column count, not by an area budget.
+ * forward. Only the surround layout needs this: the stacked layout tiles into a
+ * grid, so its density is set by the column count, not by an area budget.
  */
-const OCCUPANCY_SURROUND = 1.15;
-const CAP_MIN = 3;
-const CAP_MAX = 24;
-/** Organic jitter as a fraction of each axis' reach (was a flat ±4vmin). */
-const JITTER_FRAC = 0.03;
-
+const OCCUPANCY_SURROUND = 2.8;
+/**
+ * Spacing of the lattice of candidate positions. Finer than this buys nothing
+ * visible — cards are an order of magnitude bigger — and the search below is
+ * linear in the candidate count.
+ */
+const SLOT_STEP = 16;
+/** Card-count floor and ceiling. Exported so the tests assert against the dial
+ *  rather than a copy of its value, which drifts every time it is tuned. */
+export const CAP_MIN = 3;
+export const CAP_MAX = 26;
 /**
  * Stacked (phone) layout: a two-column grid that scrolls, rather than a cloud
  * squeezed into one screenful. The cards keep their drift and fly-in, but they
@@ -66,8 +90,6 @@ const JITTER_FRAC = 0.03;
 const GRID_COLS = 2;
 const GRID_PAD = 16;
 const GRID_GAP = 16;
-
-const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -82,9 +104,21 @@ export interface FieldInput {
 	 * plain disc and `bar*` is ignored.
 	 */
 	fullViewport: boolean;
-	/** Searchbar block size, used to carve the hole. */
-	barW: number;
-	barH: number;
+	/**
+	 * Fixed chrome no card may sit under, in VIEWPORT coordinates (what
+	 * `getBoundingClientRect` returns): the searchbar, the nav, the home mark.
+	 * Measured rather than declared, so the layout never has to be told what the
+	 * chrome is or where the design moved it to.
+	 */
+	blocks?: Rect[];
+}
+
+/** A no-go rectangle, in viewport coordinates. */
+export interface Rect {
+	left: number;
+	top: number;
+	width: number;
+	height: number;
 }
 
 export interface CloudLayout {
@@ -99,12 +133,10 @@ export interface CloudLayout {
 	cardH: number;
 	/** How many cards fit at desktop density. */
 	cap: number;
-	/** Half-extent of the placement ellipse on each axis. */
+	/** How far a card's CENTRE may sit from the field centre on each axis before
+	 *  its drifting box would cross the window edge. */
 	availX: number;
 	availY: number;
-	/** Half-extent of the hole, 0 when there isn't one. */
-	holeA: number;
-	holeB: number;
 }
 
 export interface Placed<T> {
@@ -148,17 +180,39 @@ function hash01(x: number): number {
 
 /** Per-card ambient drift (translate ±rem, rotate ±deg, timing) as CSS vars. */
 function driftStyle(rnd: () => number): string {
-	const ddx = (rnd() * 1.4 - 0.7).toFixed(2);
-	const ddy = (rnd() * 1.4 - 0.7).toFixed(2);
-	const rot = (rnd() * 4 - 2).toFixed(2);
+	const ddx = (rnd() * 2 * DRIFT_REM - DRIFT_REM).toFixed(2);
+	const ddy = (rnd() * 2 * DRIFT_REM - DRIFT_REM).toFixed(2);
+	const rot = (rnd() * 2 * ROT_DEG - ROT_DEG).toFixed(2);
 	const dur = (6 + rnd() * 5).toFixed(2);
 	const delay = (rnd() * 3).toFixed(2);
 	return `--ddx:${ddx}rem;--ddy:${ddy}rem;--rot:${rot}deg;--dur:${dur}s;--delay:${delay}s`;
 }
 
+/**
+ * Half-size of the box a drifting card actually sweeps out: its own box rotated
+ * by ROT_DEG (a tilted rectangle is wider AND taller than an upright one), plus
+ * the drift translation, plus the (deliberately tiny) edge pad.
+ *
+ * This is what keeps cards fully on screen. Letting a card hang off the edge
+ * costs more than it looks: a page cropped by the window stops reading as a
+ * sheet of paper floating in front of the sky and starts reading as a panel
+ * pinned to the frame, which is the one thing this layout is trying not to be.
+ */
+export function cardMargin(cardW: number, cardH: number): { x: number; y: number } {
+	const rad = (ROT_DEG * Math.PI) / 180;
+	const cos = Math.cos(rad);
+	const sin = Math.sin(rad);
+	const sweptW = cardW * cos + cardH * sin;
+	const sweptH = cardH * cos + cardW * sin;
+	return {
+		x: sweptW / 2 + DRIFT_REM * REM_PX + EDGE_PAD,
+		y: sweptH / 2 + DRIFT_REM * REM_PX + EDGE_PAD
+	};
+}
+
 /** Card size and how many of them the field can hold. */
 export function measureCloud(f: FieldInput): CloudLayout {
-	const { fieldW, fieldH, fullViewport, barW, barH } = f;
+	const { fieldW, fieldH, fullViewport } = f;
 
 	// Stacked: tile into scrolling columns. The card width is whatever makes two
 	// of them exactly fill the row, so the grid's CSS and this maths agree by
@@ -175,9 +229,7 @@ export function measureCloud(f: FieldInput): CloudLayout {
 			cardH: gridCardW * A4,
 			cap: Number.POSITIVE_INFINITY,
 			availX: 0,
-			availY: 0,
-			holeA: 0,
-			holeB: 0
+			availY: 0
 		};
 	}
 
@@ -188,35 +240,77 @@ export function measureCloud(f: FieldInput): CloudLayout {
 	);
 	const cardH = cardW * A4;
 
-	// Bleeding off the edge is a desktop flourish (the collage runs past the
-	// window). A field bounded by the searchbar must stay strictly inside it.
-	const bleed = fullViewport ? BLEED : 0;
-	const availX = Math.max(1, fieldW / 2 - (cardW / 2) * (1 - bleed) - GUTTER);
-	const availY = Math.max(1, fieldH / 2 - (cardH / 2) * (1 - bleed) - GUTTER);
+	// Reach of a card's CENTRE, so that its swept box still lands inside the field.
+	const margin = cardMargin(cardW, cardH);
+	const availX = Math.max(1, fieldW / 2 - margin.x);
+	const availY = Math.max(1, fieldH / 2 - margin.y);
 
-	const holeA = fullViewport ? barW / 2 + cardW / 2 + HOLE_PAD_X : 0;
-	const holeB = fullViewport ? barH / 2 + cardH / 2 + HOLE_PAD_Y : 0;
-
-	// Area the cards' BOXES can cover: the placement ellipse grown by a half-card
-	// on each axis, less the hole shrunk by the same.
-	const outer = Math.PI * (availX + cardW / 2) * (availY + cardH / 2);
-	const inner = Math.PI * Math.max(0, holeA - cardW / 2) * Math.max(0, holeB - cardH / 2);
+	// How many cards the free part of the window can carry. Free area is measured
+	// the same way the placement measures it — by counting lattice slots a card
+	// can legally stand on — so the count and the placement can never disagree.
+	const slots = freeSlots(f, cardW, cardH, availX, availY);
+	const freeArea = slots.length * SLOT_STEP * SLOT_STEP;
 	const cap = clamp(
 		CAP_MIN,
-		Math.round((OCCUPANCY_SURROUND * (outer - inner)) / (cardW * cardH)),
+		Math.round((OCCUPANCY_SURROUND * freeArea) / (cardW * cardH)),
 		CAP_MAX
 	);
 
-	return { mode: 'surround', cols: 1, cardW, cardH, cap, availX, availY, holeA, holeB };
+	return { mode: 'surround', cols: 1, cardW, cardH, cap, availX, availY };
 }
 
 /**
- * Spread items evenly over the field with a phyllotaxis (golden-angle) spiral,
- * inside a bar-shaped hole when there is one.
+ * Every lattice position a card may legally stand on: fully inside the window,
+ * and clear of every no-go zone. Returned as centre offsets from the field's
+ * centre.
+ *
+ * Zones are tested against the box the card SWEEPS (drift and tilt included),
+ * not its resting box, so a card that clears the nav at rest cannot drift up
+ * into it a second later.
+ */
+function freeSlots(f: FieldInput, cardW: number, cardH: number, availX: number, availY: number) {
+	const margin = cardMargin(cardW, cardH);
+	// Zone tests use the swept half-size without the edge pad, which is an
+	// edge-of-window allowance and has nothing to say about the chrome.
+	const halfX = margin.x - EDGE_PAD + ZONE_PAD;
+	const halfY = margin.y - EDGE_PAD + ZONE_PAD;
+
+	// Zones in field coordinates (centre-origin), pre-inflated by the card's half
+	// size: a card centre inside the inflated rectangle is a card overlapping it.
+	const forbidden = (f.blocks ?? []).map((b) => ({
+		x0: b.left - f.fieldW / 2 - halfX,
+		x1: b.left + b.width - f.fieldW / 2 + halfX,
+		y0: b.top - f.fieldH / 2 - halfY,
+		y1: b.top + b.height - f.fieldH / 2 + halfY
+	}));
+
+	const out: { x: number; y: number }[] = [];
+	const nx = Math.max(1, Math.floor((2 * availX) / SLOT_STEP));
+	const ny = Math.max(1, Math.floor((2 * availY) / SLOT_STEP));
+	for (let i = 0; i <= nx; i++) {
+		const x = -availX + (i * 2 * availX) / nx;
+		for (let j = 0; j <= ny; j++) {
+			const y = -availY + (j * 2 * availY) / ny;
+			if (forbidden.some((r) => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1)) continue;
+			out.push({ x, y });
+		}
+	}
+	return out;
+}
+
+/**
+ * Spread items over whatever the window leaves free, corner-first.
+ *
+ * Slots are chosen by farthest-point sampling: take the free position furthest
+ * from the field's centre (a corner, always), then repeatedly take the one
+ * furthest from everything chosen so far. That fills the extremities before the
+ * middle, which is what makes the collage look like it is holding up the edges
+ * of the window rather than huddling around the searchbar, and it needs no
+ * notion of a ring — the free region can be any shape the chrome leaves behind.
  *
  * Position comes from each item's RANK among the current matches (ranked by id,
  * so it is deterministic). When the match set changes, survivors glide to their
- * new even slot rather than snapping — even spacing without jarring jumps.
+ * new slot rather than snapping.
  */
 export function placeCloud<T extends { id: number }>(
 	items: T[],
@@ -224,7 +318,7 @@ export function placeCloud<T extends { id: number }>(
 	layout: CloudLayout
 ): Placed<T>[] {
 	const n = items.length;
-	const { availX, availY, holeA, holeB } = layout;
+	const { availX, availY } = layout;
 
 	// Grid: CSS owns the position, so this only supplies the motion — each card
 	// flies in from the side its column faces, and drifts in place afterwards.
@@ -256,11 +350,6 @@ export function placeCloud<T extends { id: number }>(
 		});
 	}
 
-	// The hole in normalised field space, so it can be interpolated per-direction.
-	const hx = availX > 0 ? holeA / availX : 0;
-	const hy = availY > 0 ? holeB / availY : 0;
-	const hasHole = hx > 0 && hy > 0;
-
 	// Stable ranks: order indices by item id.
 	const rankOf: number[] = [];
 	items
@@ -268,25 +357,14 @@ export function placeCloud<T extends { id: number }>(
 		.sort((x, y) => x.id - y.id)
 		.forEach((e, rank) => (rankOf[e.idx] = rank));
 
+	const slots = pickSlots(freeSlots(f, layout.cardW, layout.cardH, availX, availY), n);
+
 	return items.map((item, idx) => {
 		const rnd = mulberry32(item.id * 2654435761 + 1);
 		const k = rankOf[idx];
-		const theta = k * GOLDEN_ANGLE;
-
-		// Normalised radius of the hole's rim in THIS direction. The old code used
-		// one scalar inner radius times a global x-stretch, which on a portrait
-		// tablet flung cards off the sides instead of stacking them above and
-		// below the bar.
-		const rh = hasHole
-			? Math.min(0.95, 1 / Math.hypot(Math.cos(theta) / hx, Math.sin(theta) / hy))
-			: 0;
-
-		// Equal-area fill of the annulus between the rim and the edge.
-		const rNorm = n > 1 ? (k + 0.5) / n : 0.5;
-		const t = Math.sqrt(rh * rh + rNorm * (1 - rh * rh));
-
-		const dx = availX * (t * Math.cos(theta) + (rnd() - 0.5) * 2 * JITTER_FRAC);
-		const dy = availY * (t * Math.sin(theta) + (rnd() - 0.5) * 2 * JITTER_FRAC);
+		const slot = slots[k] ?? { x: 0, y: 0 };
+		const dx = slot.x;
+		const dy = slot.y;
 
 		// Fly in from, and out to, whichever edge the card faces — scaled to the
 		// field, so a phone doesn't fling a card four screen-widths away.
@@ -297,4 +375,48 @@ export function placeCloud<T extends { id: number }>(
 
 		return { item, dx, dy, offX, offY, enterStyle, style: driftStyle(rnd) };
 	});
+}
+
+/**
+ * Farthest-point sampling: `n` slots spread as widely as the free region allows.
+ *
+ * The first pick is the slot furthest from the centre rather than an arbitrary
+ * one, so the layout starts in a corner and stays deterministic; each later pick
+ * maximises its distance to everything already taken. Ties resolve to the first
+ * candidate in lattice order, which is why the result never depends on any
+ * random seed — the same window and the same chrome give the same cloud.
+ */
+function pickSlots(slots: { x: number; y: number }[], n: number): { x: number; y: number }[] {
+	if (slots.length === 0 || n <= 0) return [];
+
+	// Seed: the slot furthest from the centre — the deepest free corner.
+	let best = 0;
+	for (let j = 1; j < slots.length; j++) {
+		const a = slots[j];
+		const b = slots[best];
+		if (a.x * a.x + a.y * a.y > b.x * b.x + b.y * b.y) best = j;
+	}
+
+	const picked: { x: number; y: number }[] = [];
+	/** Squared distance from each slot to the nearest one already picked. */
+	const near = new Array<number>(slots.length).fill(Number.POSITIVE_INFINITY);
+
+	while (picked.length < n) {
+		const chosen = slots[best];
+		picked.push(chosen);
+		near[best] = -1; // never pick the same slot twice
+		for (let j = 0; j < slots.length; j++) {
+			if (near[j] < 0) continue;
+			const dx = slots[j].x - chosen.x;
+			const dy = slots[j].y - chosen.y;
+			near[j] = Math.min(near[j], dx * dx + dy * dy);
+		}
+		best = 0;
+		for (let j = 1; j < slots.length; j++) if (near[j] > near[best]) best = j;
+		// Fewer free positions than cards (a tiny window): stop rather than pile the
+		// remainder on one slot. The caller's `cap` is derived from the same slot
+		// count, so this is a backstop, not a normal path.
+		if (near[best] < 0) break;
+	}
+	return picked;
 }

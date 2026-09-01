@@ -18,6 +18,7 @@
 
 <!-- Handwritten nav pinned to the top-right; collapses to a menu on small screens. -->
 <nav
+	data-cloud-block
 	class="load-fade fixed top-3 right-6 z-40 hidden items-center gap-6 md:flex"
 	style="--fade-delay: 120ms"
 >

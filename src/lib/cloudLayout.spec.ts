@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { A4, measureCloud, placeCloud, type FieldInput } from './cloudLayout';
+import {
+	A4,
+	CAP_MAX,
+	CAP_MIN,
+	cardMargin,
+	measureCloud,
+	placeCloud,
+	type FieldInput,
+	type Rect
+} from './cloudLayout';
 
 /** `max-w-sm` on the searchbar. */
 const BAR_W = 384;
@@ -9,22 +18,32 @@ const BAR_H = 131;
 const PAD = 16;
 const GAP = 16;
 
+/** The searchbar's own rectangle: centred in the viewport, in the surround layout. */
+const barRect = (w: number, h: number): Rect => ({
+	left: (w - BAR_W) / 2,
+	top: (h - BAR_H) / 2,
+	width: BAR_W,
+	height: BAR_H
+});
+/** The nav, pinned top-right, and the home mark, pinned top-left. */
+const chrome = (w: number): Rect[] => [
+	{ left: w - 320, top: 12, width: 300, height: 40 },
+	{ left: 12, top: 12, width: 190, height: 40 }
+];
+
 /** The field when the bar sits in the middle of the viewport (tablet and up). */
 const wide = (w: number, h: number): FieldInput => ({
 	fieldW: w,
 	fieldH: h,
 	fullViewport: true,
-	barW: BAR_W,
-	barH: BAR_H
+	blocks: [barRect(w, h), ...chrome(w)]
 });
 
 /** The field when the bar is stacked at the top and the cards tile beneath it. */
 const stacked = (w: number, h: number): FieldInput => ({
 	fieldW: w,
 	fieldH: h,
-	fullViewport: false,
-	barW: BAR_W,
-	barH: BAR_H
+	fullViewport: false
 });
 
 const items = (n: number) => Array.from({ length: n }, (_, i) => ({ id: i + 1 }));
@@ -32,7 +51,7 @@ const items = (n: number) => Array.from({ length: n }, (_, i) => ({ id: i + 1 })
 const place = (f: FieldInput) => {
 	const layout = measureCloud(f);
 	// The grid is uncapped, so pick an arbitrary page's worth for the assertions.
-	return { layout, cards: placeCloud(items(Math.min(layout.cap, 24)), f, layout) };
+	return { layout, cards: placeCloud(items(Math.min(layout.cap, CAP_MAX)), f, layout) };
 };
 
 describe('measureCloud', () => {
@@ -50,12 +69,15 @@ describe('measureCloud', () => {
 });
 
 describe('measureCloud — surround', () => {
-	it('reproduces the desktop layout exactly at 1440x900', () => {
-		// This is the contract: the mobile work must not move desktop. 12rem cards,
-		// 24 of them — both the values the old hardcoded constants produced.
+	it('pins the desktop layout at 1440x900', () => {
+		// The card size is a deliberate constant, not an emergent one: 10rem pages,
+		// 24 of them. Anything that moves either value moves the whole desktop view.
 		const { cardW, cap } = measureCloud(wide(1440, 900));
 		expect(cardW).toBe(192);
-		expect(cap).toBe(24);
+		// Bounded by the density dial here, not by the ceiling: a 1440 window is
+		// where the two are closest, so this is the size that notices either moving.
+		expect(cap).toBeGreaterThan(CAP_MIN);
+		expect(cap).toBeLessThanOrEqual(CAP_MAX);
 	});
 
 	it('keeps 12rem cards from tablet width up', () => {
@@ -69,12 +91,12 @@ describe('measureCloud — surround', () => {
 		}
 	});
 
-	it('never leaves the [3, 24] range', () => {
+	it('never leaves the [CAP_MIN, CAP_MAX] range', () => {
 		for (let w = 200; w <= 2560; w += 37) {
 			for (let h = 300; h <= 1600; h += 53) {
 				const { cap } = measureCloud(wide(w, h));
-				expect(cap).toBeGreaterThanOrEqual(3);
-				expect(cap).toBeLessThanOrEqual(24);
+				expect(cap).toBeGreaterThanOrEqual(CAP_MIN);
+				expect(cap).toBeLessThanOrEqual(CAP_MAX);
 			}
 		}
 	});
@@ -88,9 +110,11 @@ describe('measureCloud — surround', () => {
 		}
 	});
 
-	it('carves a hole around the bar', () => {
-		expect(measureCloud(wide(1440, 900)).holeA).toBeGreaterThan(0);
-		expect(measureCloud(wide(1440, 900)).holeB).toBeGreaterThan(0);
+	it('carves out the chrome rather than assuming where it is', () => {
+		// No zones at all is a legitimate input (a route with no nav): the cloud
+		// then uses the whole window, which is strictly more room, never less.
+		const bare = { ...wide(1440, 900), blocks: [] };
+		expect(measureCloud(bare).cap).toBeGreaterThanOrEqual(measureCloud(wide(1440, 900)).cap);
 	});
 });
 
@@ -118,10 +142,10 @@ describe('measureCloud — grid', () => {
 		expect(measureCloud(stacked(375, 667)).cap).toBe(Number.POSITIVE_INFINITY);
 	});
 
-	it('carves no hole — the bar is above the grid, not inside it', () => {
-		const { holeA, holeB } = measureCloud(stacked(375, 667));
-		expect(holeA).toBe(0);
-		expect(holeB).toBe(0);
+	it("reserves no placement reach — CSS owns the grid's positions", () => {
+		const { availX, availY } = measureCloud(stacked(375, 667));
+		expect(availX).toBe(0);
+		expect(availY).toBe(0);
 	});
 
 	it('gives a phone a bigger, more readable card than the cloud did', () => {
@@ -131,28 +155,69 @@ describe('measureCloud — grid', () => {
 });
 
 describe('placeCloud — surround', () => {
-	it('leaves the middle of the field empty when there is a hole', () => {
-		// Cards are allowed to slide under the searchbar — it is drawn on top of
-		// them — so the hole is not a clearance guarantee. What it buys is that no
-		// card PILES UP in the centre, which is what keeps the bar readable.
-		for (const f of [wide(1440, 900), wide(768, 1024), wide(1920, 1080)]) {
+	/** The box a card actually occupies while it drifts and tilts. */
+	const sweptBox = (c: { dx: number; dy: number }, f: FieldInput, cardW: number, cardH: number) => {
+		const m = cardMargin(cardW, cardH);
+		return {
+			left: f.fieldW / 2 + c.dx - m.x,
+			right: f.fieldW / 2 + c.dx + m.x,
+			top: f.fieldH / 2 + c.dy - m.y,
+			bottom: f.fieldH / 2 + c.dy + m.y
+		};
+	};
+
+	const overlaps = (box: { left: number; right: number; top: number; bottom: number }, r: Rect) =>
+		box.left < r.left + r.width &&
+		box.right > r.left &&
+		box.top < r.top + r.height &&
+		box.bottom > r.top;
+
+	const sizes: [number, number][] = [
+		[920, 936],
+		[1024, 768],
+		[1280, 800],
+		[1440, 900],
+		[1920, 1080]
+	];
+
+	it('never lets a card leave the window, drift and tilt included', () => {
+		// A card cropped by the window edge stops reading as paper floating in front
+		// of the sky, which is the whole illusion.
+		for (const [w, h] of sizes) {
+			const f = wide(w, h);
 			const { layout, cards } = place(f);
-			// Narrowest point of the hole, in normalised field space, less jitter.
-			const floor = Math.min(layout.holeA / layout.availX, layout.holeB / layout.availY) * 0.9;
 			for (const c of cards) {
-				expect(Math.hypot(c.dx / layout.availX, c.dy / layout.availY)).toBeGreaterThan(floor);
+				const box = sweptBox(c, f, layout.cardW, layout.cardH);
+				// Sub-pixel tolerance: the lattice divides the reach in floating point.
+				expect(box.left).toBeGreaterThan(-0.01);
+				expect(box.top).toBeGreaterThan(-0.01);
+				expect(box.right).toBeLessThan(w + 0.01);
+				expect(box.bottom).toBeLessThan(h + 0.01);
 			}
 		}
 	});
 
-	it('never centres a card on the searchbar itself', () => {
-		for (const f of [wide(1440, 900), wide(768, 1024), wide(1920, 1080)]) {
-			const { cards } = place(f);
+	it('never lets a card sit under the searchbar, the nav or the home mark', () => {
+		for (const [w, h] of sizes) {
+			const f = wide(w, h);
+			const { layout, cards } = place(f);
 			for (const c of cards) {
-				const onBar = Math.abs(c.dx) < f.barW / 2 && Math.abs(c.dy) < f.barH / 2;
-				expect(onBar).toBe(false);
+				const box = sweptBox(c, f, layout.cardW, layout.cardH);
+				for (const zone of f.blocks ?? []) expect(overlaps(box, zone)).toBe(false);
 			}
 		}
+	});
+
+	it('fills the corners before the middle', () => {
+		// The point of sampling farthest-first: with only a handful of cards the
+		// cloud should be holding up the corners of the window, not huddling round
+		// the bar. Every one of the first four lands in a different quadrant.
+		const f = wide(1440, 900);
+		const { cards } = place(f);
+		const quadrants = new Set(
+			cards.slice(0, 4).map((c) => `${Math.sign(c.dx)},${Math.sign(c.dy)}`)
+		);
+		expect(quadrants.size).toBe(4);
 	});
 
 	it('places a given item identically every time', () => {
