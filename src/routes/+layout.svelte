@@ -44,10 +44,22 @@
      drift continuously across navigation and fill the slide gap behind pages. -->
 <Sky />
 
+<!-- Frosted strip behind the home mark and the hamburger. Mobile only: that is
+     the layout where the page scrolls, so cards pass underneath and the chrome
+     needs something to stay legible against. Sits below both marks (z-40) and
+     above the routed content, and ignores pointer events so the mark and the
+     menu button underneath it stay tappable. -->
+<div
+	aria-hidden="true"
+	style="--fade-delay: 120ms"
+	class="load-fade pointer-events-none fixed inset-x-0 top-0 z-30 h-chrome bg-glass/60 backdrop-blur-md md:hidden"
+></div>
+
 <!-- Handwritten mark linking home -->
 <a
 	href="/"
 	aria-label="Home"
+	data-cloud-block
 	style="--fade-delay: 120ms"
 	class="load-fade fixed top-3 left-3 z-40 touch-manipulation p-2 transition-opacity duration-100 hover:opacity-70"
 >

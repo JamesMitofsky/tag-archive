@@ -18,6 +18,15 @@ export default defineConfig({
 		// Passing options here would make SvelteKit ignore that file and warn.
 		sveltekit()
 	],
+	server: {
+		// Bind every interface (not just ::1) so a phone on the same Wi-Fi can reach
+		// the dev server at http://<mac-lan-ip>:5173, and so a tunnel (ngrok) can
+		// forward to it over IPv4.
+		host: true,
+		// Vite rejects requests whose Host header it does not recognise (DNS-rebinding
+		// guard). Tunnel domains are random per session, so allow the wildcards.
+		allowedHosts: ['.ngrok-free.dev', '.ngrok-free.app', '.ngrok.dev', '.ngrok.app']
+	},
 	build: {
 		// Declare a browser floor for the CSS minifier. Without it, esbuild treats a
 		// vendor-prefixed property and its standard twin as one declaration and keeps
