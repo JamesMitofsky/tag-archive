@@ -1,5 +1,11 @@
 {
 	"files.associations": {
 		"*.css": "tailwindcss"
-	}
+	},
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"[svelte]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"prettier.requireConfig": true
 }
