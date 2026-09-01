@@ -78,7 +78,7 @@ function logoUrl(): string {
 	return `${origin}/email/temperance-alley-archive.png`;
 }
 
-/** Delivers a one-time sign-in code. OTP sign-in is the only OTP flow here. */
+/** Delivers a one-time sign-in code. Only used when AUTH_OTP is on (see auth.ts). */
 export async function sendOtpEmail(email: string, otp: string): Promise<void> {
 	const { default: OtpEmail } = await import('./emails/OtpEmail.svelte');
 	await sendEmail({
@@ -94,9 +94,9 @@ export async function sendOtpEmail(email: string, otp: string): Promise<void> {
 /**
  * Notifies someone that an admin created a Cloud Keeper account for them. The
  * `signInUrl` is a magic-link that signs them straight in (valid 7 days); once
- * it lapses the link lands them on /keeper to request a one-time code instead.
- * This app is passwordless — there's no password to set, they just follow the
- * link. Called from the magicLink plugin's sendMagicLink callback.
+ * it lapses the link lands them on /keeper to sign in with their email. This
+ * app is passwordless — there's no password to set, they just follow the link.
+ * Called from the magicLink plugin's sendMagicLink callback.
  */
 export async function sendAccountCreatedEmail(email: string, signInUrl: string): Promise<void> {
 	const { default: AccountCreatedEmail } = await import('./emails/AccountCreatedEmail.svelte');

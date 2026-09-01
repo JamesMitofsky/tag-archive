@@ -56,7 +56,7 @@
 			</h1>
 
 			{#if form && 'created' in form && form.created}
-				<!-- Success: the account exists; they sign in with their own email code. -->
+				<!-- Success: the account exists; they sign in with their own email. -->
 				<div class="mt-8 rounded-sm border border-green-200 bg-green-50 p-4">
 					<p class="flex items-center gap-2 font-medium text-green-800">
 						<CheckCircleIcon size={20} weight="fill" />
@@ -64,7 +64,7 @@
 					</p>
 					<p class="mt-2 text-sm text-green-800">
 						<span class="font-medium">{form.created.name}</span> ({form.created.email}) can now sign
-						in with an email code as
+						in with their email as
 						<span class="font-medium"
 							>{roleMeta[form.created.role]?.label ?? form.created.role}</span
 						>.
@@ -86,8 +86,8 @@
 				</div>
 			{:else}
 				<p class="mt-2 text-sm text-gray-600">
-					Create an account and set its role. The person signs in with a one-time email code — no
-					password needed.
+					Create an account and set its role. The person signs in with their email — no password
+					needed.
 				</p>
 
 				<form

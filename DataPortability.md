@@ -100,14 +100,14 @@ Everything is configured through **environment variables** — no vendor SDK is 
 
 ---
 
-## 5. Resend — Transactional email (login OTP)
+## 5. Resend — Transactional email (account-created notice, optional login OTP)
 
-**What it does.** Delivers one-time login codes for Better Auth's email-OTP flow.
+**What it does.** Delivers the account-created notice and, only when `AUTH_OTP=true`, one-time login codes for Better Auth's email-OTP flow. By default sign-in is email-only (no verification), so Resend is not on the login path.
 
 **Where the coupling lives.**
 
-- Isolated behind `src/lib/server/email` (`sendOtpEmail`), called from `src/lib/server/auth.ts`.
-- Config: `RESEND_API_KEY`, `RESEND_FROM`. If `RESEND_API_KEY` is unset, OTP codes are **logged to the server console** instead — so local dev needs no email vendor at all.
+- Isolated behind `src/lib/server/email` (`sendOtpEmail`, `sendAccountCreatedEmail`), called from `src/lib/server/auth.ts`.
+- Config: `RESEND_API_KEY`, `RESEND_FROM`. If `RESEND_API_KEY` is unset, emails are **logged to the server console** instead — so local dev needs no email vendor at all.
 
 **Getting off safely.** Rewrite the one `send` function in `src/lib/server/email` to call the new provider (Postmark, SES, SMTP, etc.), swap the env vars. Nothing else references the provider. Then **re-verify your sending domain** (SPF/DKIM/DMARC) with the new provider or deliverability silently degrades.
 
@@ -117,7 +117,7 @@ Everything is configured through **environment variables** — no vendor SDK is 
 
 ## 6. Better Auth — Authentication
 
-**What it does.** Handles sessions, the admin/contributor roles, and email-OTP login. It is a **self-hosted library**, not a SaaS — there is no auth vendor to leave.
+**What it does.** Handles sessions, the admin/contributor roles, and login (email-only by default via `src/lib/server/auth-plugins/email-only.ts`; email-OTP when `AUTH_OTP=true`). It is a **self-hosted library**, not a SaaS — there is no auth vendor to leave.
 
 **Where the data lives.** In our own database, via `drizzleAdapter(db, { provider: 'sqlite' })`. User, session, and account tables are part of the same Turso/SQLite DB covered in §3, so they travel with the database dump. The auth schema is generated to `src/lib/server/db/auth.schema.ts` (regenerate with `pnpm auth:schema`).
 
@@ -141,6 +141,6 @@ Ordered so the site never goes dark:
 5. **Host:** swap the SvelteKit adapter, re-enter every env var (use `.env.example` as the checklist), carry `BETTER_AUTH_SECRET` verbatim.
 6. **DNS:** point records at the new host (keep or move Netlify DNS — independent of hosting).
 7. **Registrar:** transfer the domain from Namecheap only when unrelated to an outage; allow ~5 days.
-8. **Verify:** login (OTP delivers), image loads (R2 URLs resolve), existing sessions behave, admin role intact.
+8. **Verify:** login (email sign-in works; OTP delivers if `AUTH_OTP` is on), image loads (R2 URLs resolve), existing sessions behave, admin role intact.
 
 **The one rule that prevents most portability pain:** never let a secret or a data blob live _only_ at a vendor. The DB is a file, the bucket is copyable, and every credential is enumerated in `.env.example`. Keep current backups of all three and no single vendor can strand this project.

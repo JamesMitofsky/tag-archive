@@ -1,8 +1,9 @@
 /**
  * Resets the LOCAL dev DB to a clean, ready-to-use state: the full archive
  * (artefacts, events, series, people) from src/lib/data/seed-data.json via
- * `seedArchive`, plus an admin and a contributor test account (accounts sign in
- * via the email-OTP flow — the code prints to the dev server console locally).
+ * `seedArchive`, plus an admin and a contributor test account (sign in by
+ * entering the account email on /keeper; with AUTH_OTP=true the code prints to
+ * the dev server console instead).
  *
  * Local-only by design: refuses remote (libsql:// / https://) URLs so a
  * misconfigured env can never wipe production. Prod is populated with the same
@@ -29,7 +30,7 @@ const db = drizzle(client, { schema: { user, session, account, verification } })
 const summary = await seedArchive(db);
 
 // Auth reset is local-only: wipe the auth tables and reinstate two known test
-// accounts. Prod never does this (real accounts come from the OTP flow).
+// accounts. Prod never does this (real accounts come from the admin create-user tool).
 await db.delete(session);
 await db.delete(account);
 await db.delete(verification);

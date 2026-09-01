@@ -3,7 +3,7 @@
 	// OtpEmail's inline, table-based, email-safe styling (clients strip <style>
 	// blocks and don't grok Tailwind/oklch, so the theme is hand-translated to
 	// hex/table layout). This app is passwordless — there's nothing to accept; the
-	// recipient signs in whenever they like via an emailed one-time code.
+	// recipient signs in whenever they like with their email on /keeper.
 	//
 	// `logoUrl` is an absolute URL to the handwritten wordmark PNG (built from
 	// env.ORIGIN at the call site). Email clients can't resolve relative paths, so
