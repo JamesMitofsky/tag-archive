@@ -3,6 +3,7 @@
 	import BackButton from '$lib/components/BackButton.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
+	import ArtefactPdfLink from '$lib/components/ArtefactPdfLink.svelte';
 	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
 	import { isImageUrl } from '$lib/fileType';
 	import { programAreaMeta } from '$lib/programAreas';
@@ -15,6 +16,13 @@
 
 	// Images embed; anything else falls back to a plain link.
 	const isImage = isImageUrl;
+
+	// Only images end up in the compiled PDF, so hide the download when there are none.
+	const imageCount = $derived(item.fileUrls.filter(isImage).length);
+
+	// Shared look for the icon-only header actions, matching the keeper's frosted chrome.
+	const glassPill =
+		'inline-flex shrink-0 items-center rounded-full border border-white/40 bg-white/25 p-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900';
 </script>
 
 <svelte:head>
@@ -30,16 +38,26 @@
 				</h1>
 				<BackButton class="mt-2" />
 			</div>
-			{#if data.user.role === 'admin'}
-				<a
-					href="/keeper/artefacts/{item.id}/edit"
-					aria-label="Edit {item.artefact}"
-					title="Edit artefact"
-					class="inline-flex shrink-0 items-center rounded-full border border-white/40 bg-white/25 p-2 text-sm text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
-				>
-					<PencilSimpleIcon size={18} />
-				</a>
-			{/if}
+			<div class="flex shrink-0 items-center gap-2">
+				{#if imageCount > 0}
+					<ArtefactPdfLink
+						artefactId={item.id}
+						artefactName={item.artefact}
+						{imageCount}
+						class={glassPill}
+					/>
+				{/if}
+				{#if data.user.role === 'admin'}
+					<a
+						href="/keeper/artefacts/{item.id}/edit"
+						aria-label="Edit {item.artefact}"
+						title="Edit artefact"
+						class={glassPill}
+					>
+						<PencilSimpleIcon size={18} />
+					</a>
+				{/if}
+			</div>
 		</header>
 
 		<!-- The artefact as its own sheet of paper, matching the create form. -->
