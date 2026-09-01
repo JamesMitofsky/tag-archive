@@ -1,6 +1,9 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { formatDate } from '$lib/formatDate';
+	import ArtefactId from '$lib/components/ArtefactId.svelte';
 	import BackButton from '$lib/components/BackButton.svelte';
+	import CopyButton from '$lib/components/CopyButton.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
@@ -12,6 +15,10 @@
 	let { data }: { data: PageData } = $props();
 
 	const item = $derived(data.artefact);
+
+	// The create form redirects here with `?created`: the keeper has the physical
+	// item in hand and needs its archive number to write on it.
+	const justCreated = $derived(page.url.searchParams.has('created'));
 
 	// Images embed; anything else falls back to a plain link.
 	const isImage = isImageUrl;
@@ -47,13 +54,28 @@
 			style="view-transition-name:{morphName('artefact', item.id)}"
 			class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8"
 		>
+			{#if justCreated}
+				<!-- A label to copy onto the item: dashed like a tag, number oversized so it
+				     reads from arm's length while writing. -->
+				<div role="status" class="mb-6 rounded-sm border border-dashed border-gray-400 p-4">
+					<p class="text-sm font-medium">Added to the archive.</p>
+					<p class="mt-0.5 text-sm text-gray-600">
+						Write this number on the item so the two can be matched up again.
+					</p>
+					<div class="mt-3 flex items-center gap-3">
+						<ArtefactId id={item.id} class="text-4xl font-semibold text-[#14120f]" />
+						<CopyButton text={String(item.id)} label="Copy archive number" />
+					</div>
+				</div>
+			{/if}
+
 			<p
 				style="view-transition-name:{morphName('artefact', item.id)}-meta"
 				class="text-sm text-gray-500"
 			>
-				{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
-						·
-					{/if}{item.event}{/if}
+				<ArtefactId id={item.id} />
+				{#if item.date}· {formatDate(item.date)}{/if}{#if item.event}
+					· {item.event}{/if}
 			</p>
 
 			{#if item.programArea.length > 0}
