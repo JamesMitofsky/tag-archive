@@ -183,9 +183,10 @@
 	const FIELD_GAP = 28;
 
 	/**
-	 * Clearance the stacked bar leaves below the frosted top strip (h-16), on top
-	 * of the `p-4` that <main> already applies — so 48 would sit the bar flush
-	 * against the strip's edge, and the extra 20 is the gap.
+	 * Clearance the stacked bar leaves below the frosted top strip
+	 * (`--spacing-chrome`, 4rem), on top of the `p-4` that <main> already applies
+	 * — so 48 would sit the bar flush against the strip's edge, and the extra 20
+	 * is the gap.
 	 */
 	const STACKED_BAR_TOP = 68;
 
