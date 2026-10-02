@@ -1,20 +1,10 @@
-import {
-	and,
-	desc,
-	eq,
-	exists,
-	getTableColumns,
-	inArray,
-	like,
-	notInArray,
-	or,
-	sql
-} from 'drizzle-orm';
+import { and, desc, eq, exists, getTableColumns, inArray, like, or, sql } from 'drizzle-orm';
 import { client, db } from './index';
 import { purgeArchiveCache } from '../cache';
 import { stampInsert, stampUpdate } from './audit';
 import { artefact, artefactProvenance, event, eventHost, person, series } from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
+import type { EventItem } from '$lib/events';
 
 /**
  * Fold one or more people into a single kept entry: every artefact/event link on
@@ -181,6 +171,81 @@ export async function searchEvents({
 	// Hosts need the slice's ids, so this stays a follow-up round-trip.
 	const rows = await attachHosts(slice);
 	return { rows, total };
+}
+
+/** The public archive blob: everything the public pages search, client-side. */
+export type PublicDataset = {
+	artefacts: ArtefactWithEvent[];
+	events: EventItem[];
+	people: string[];
+};
+
+/**
+ * Load the public archive blob — vetted rows only. Anything still carrying
+ * `proposedAddition` is a submission nobody has reviewed yet (anonymous
+ * contributions included), so it must not reach the public pages:
+ *
+ *  - artefacts and events: vetted rows only;
+ *  - an artefact's event title: only when that event is itself vetted, so a
+ *    vetted artefact can't leak the title of a pending event;
+ *  - people: only names linked to at least one vetted artefact or event. A
+ *    submission creates its provenance people immediately (find-or-create by
+ *    name), so without this an unreviewed name would surface in the people
+ *    list — and in the provenance autocomplete — before anyone vetted it.
+ */
+export async function loadPublicDataset(): Promise<PublicDataset> {
+	const vettedEvent = and(eq(artefact.eventId, event.id), eq(event.proposedAddition, false));
+	const [artefactRows, eventRows, personRows] = await Promise.all([
+		db
+			.select({ ...getTableColumns(artefact), event: event.title })
+			.from(artefact)
+			.leftJoin(event, vettedEvent)
+			.where(eq(artefact.proposedAddition, false)),
+		db.select(getTableColumns(event)).from(event).where(eq(event.proposedAddition, false)),
+		db
+			.select({ name: person.name })
+			.from(person)
+			.where(
+				or(
+					exists(
+						db
+							.select({ one: sql`1` })
+							.from(artefactProvenance)
+							.innerJoin(artefact, eq(artefact.id, artefactProvenance.artefactId))
+							.where(
+								and(
+									eq(artefactProvenance.personId, person.id),
+									eq(artefact.proposedAddition, false)
+								)
+							)
+					),
+					exists(
+						db
+							.select({ one: sql`1` })
+							.from(eventHost)
+							.innerJoin(event, eq(event.id, eventHost.eventId))
+							.where(and(eq(eventHost.personId, person.id), eq(event.proposedAddition, false)))
+					)
+				)
+			)
+	]);
+
+	const [artefacts, eventsWithHosts] = await Promise.all([
+		attachProvenance(artefactRows),
+		attachHosts(eventRows)
+	]);
+	const events: EventItem[] = eventsWithHosts.map((e) => ({
+		id: e.id,
+		title: e.title,
+		date: e.date,
+		time: e.time,
+		location: e.location,
+		description: e.description,
+		hosts: e.hosts,
+		url: e.url
+	}));
+
+	return { artefacts, events, people: personRows.map((p) => p.name) };
 }
 
 /**
