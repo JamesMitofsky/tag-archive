@@ -91,6 +91,8 @@ describe('DateField.svelte', () => {
 		expect(submittedValue()).toBe('2019-07');
 	});
 
+	// The undated tests poll rather than read once: Svelte flushes DOM updates
+	// asynchronously after a click, so a synchronous read can race the update.
 	it('offers "No date" only when undated artefacts are allowed', async () => {
 		render(DateField, { name: 'date', label: 'Date', allowPartial: true });
 		await page.getByRole('button', { name: 'Pick a date' }).click();
@@ -104,8 +106,8 @@ describe('DateField.svelte', () => {
 		await page.getByRole('button', { name: 'Pick a date' }).click();
 		await page.getByRole('button', { name: 'No date', exact: true }).click();
 
-		expect(submittedValue()).toBe(UNDATED);
-		expect(triggerLabel()).toBe('No date');
+		await expect.poll(submittedValue).toBe(UNDATED);
+		await expect.poll(triggerLabel).toBe('No date');
 	});
 
 	it('still submits nothing while untouched, so a forgotten date is caught', async () => {
@@ -124,10 +126,10 @@ describe('DateField.svelte', () => {
 
 		await page.getByRole('button', { name: 'July 2019' }).click();
 		await page.getByRole('button', { name: 'No date', exact: true }).click();
-		expect(submittedValue()).toBe(UNDATED);
+		await expect.poll(submittedValue).toBe(UNDATED);
 
 		await page.getByRole('button', { name: 'Month', exact: true }).click();
-		expect(submittedValue()).toBe('2019-07');
+		await expect.poll(submittedValue).toBe('2019-07');
 	});
 
 	it('reopens an undated artefact on "No date"', async () => {
@@ -139,7 +141,7 @@ describe('DateField.svelte', () => {
 			value: UNDATED
 		});
 
-		expect(triggerLabel()).toBe('No date');
-		expect(submittedValue()).toBe(UNDATED);
+		await expect.poll(triggerLabel).toBe('No date');
+		await expect.poll(submittedValue).toBe(UNDATED);
 	});
 });

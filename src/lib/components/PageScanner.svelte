@@ -15,13 +15,31 @@
 		onChange,
 		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		pending = $bindable(false),
-		initial = []
+		initial = [],
+		prepareUpload
 	}: {
 		onChange?: (urls: string[]) => void;
 		pending?: boolean;
 		/** Pre-existing scan URLs to seed the list with (edit flow). */
 		initial?: string[];
+		/**
+		 * Awaited before each upload — how an anonymous contributor's draft session
+		 * is obtained, or renewed (`renew`) after the server reports it expired.
+		 */
+		prepareUpload?: (options?: { renew?: boolean }) => Promise<void>;
 	} = $props();
+
+	const SCANS_ENDPOINT = '/api/scans';
+
+	/** The server's message for a failed upload, rather than a raw JSON body. */
+	async function failureMessage(res: Response): Promise<string> {
+		const text = await res.text();
+		try {
+			return (JSON.parse(text) as { message?: string }).message || text;
+		} catch {
+			return text || `Upload failed (${res.status})`;
+		}
+	}
 
 	// Multiple pages per artefact; array position is the page order. Seeded from any
 	// `initial` URLs (edit flow), where the public URL doubles as its own preview.
@@ -82,7 +100,7 @@
 	async function discardUpload(url: string | undefined) {
 		if (!url || initial.includes(url)) return;
 		try {
-			await fetch('/keeper/scans', {
+			await fetch(SCANS_ENDPOINT, {
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ url })
@@ -216,10 +234,19 @@
 	/** Push one image to R2 and hand its URL back to the form. */
 	async function processUpload(id: string, file: Blob, fileName: string, previewUrl: string) {
 		try {
-			const body = new FormData();
-			body.append('file', file, fileName);
-			const res = await fetch('/keeper/scans', { method: 'POST', body });
-			if (!res.ok) throw new Error(await res.text());
+			const send = () => {
+				const body = new FormData();
+				body.append('file', file, fileName);
+				return fetch(SCANS_ENDPOINT, { method: 'POST', body });
+			};
+			await prepareUpload?.();
+			let res = await send();
+			// An anonymous session that lapsed mid-form: renew it once, then retry.
+			if (res.status === 401 && prepareUpload) {
+				await prepareUpload({ renew: true });
+				res = await send();
+			}
+			if (!res.ok) throw new Error(await failureMessage(res));
 
 			const result = (await res.json()) as { url: string; fileName: string };
 			updateItem(id, {

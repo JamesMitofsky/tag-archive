@@ -8,7 +8,9 @@
  *
  * On INSERT both `createdBy` and `updatedBy` are set to the creator, so
  * `updatedBy` is never null for a user-created row (an unedited row reads as
- * "last touched by whoever made it").
+ * "last touched by whoever made it"). An anonymous submission on /contribute
+ * has no user: it stamps null, and is told apart from a seed/system row by its
+ * `proposedAddition` flag (seeds never set it).
  */
-export const stampInsert = (userId: string) => ({ createdBy: userId, updatedBy: userId });
+export const stampInsert = (userId: string | null) => ({ createdBy: userId, updatedBy: userId });
 export const stampUpdate = (userId: string) => ({ updatedBy: userId });

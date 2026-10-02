@@ -31,7 +31,16 @@ export function parseArtefactForm(fd: FormData): ArtefactData {
 	};
 }
 
-export function createArtefactSuite() {
+export type ArtefactSuiteOptions = {
+	/**
+	 * Whether the physical storage location must be given. Keepers record it;
+	 * a public contributor often can't know which binder an item ends up in, so
+	 * on /contribute it's optional and a keeper fills it in during review.
+	 */
+	requireLocation?: boolean;
+};
+
+export function createArtefactSuite({ requireLocation = true }: ArtefactSuiteOptions = {}) {
 	return defineSuite<ArtefactData>((data) => {
 		const title = data.artefact ?? '';
 		check('artefact', 'Title is required', title.length > 0);
@@ -50,7 +59,11 @@ export function createArtefactSuite() {
 		check('date', 'Pick a valid date', date === null || date === '' || isPartialDate(date));
 
 		maxLen('description', data.description ?? '', 2000, 'description');
-		check('location', 'Location is required', (data.location ?? '').trim().length > 0);
+		check(
+			'location',
+			'Location is required',
+			!requireLocation || (data.location ?? '').trim().length > 0
+		);
 		maxLen('location', data.location ?? '', 200, 'location');
 
 		const fileUrls = data.fileUrls ?? [];

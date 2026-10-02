@@ -88,12 +88,30 @@ Two sources feed an artefact's `fileUrl`:
 (served by SvelteKit at `/artefacts/...`). Each `fileUrl` in `data/artefacts.json`
 was rewritten to its local path, e.g. `/artefacts/TAG-001.jpg`.
 
-**Scanned uploads (new).** The `/keeper/add` form has a page scanner: use the
-device camera to photograph pages, compile them client-side into one PDF
-(`src/lib/pdf.ts`), and upload it. The upload endpoint (`POST /scans`,
-`src/routes/scans/+server.ts`) is signed-in only and streams the PDF to an
-S3-compatible bucket via `src/lib/server/scans.ts`; the returned public URL is
-stored as the artefact's `fileUrl`.
+**Scanned uploads (new).** The contribution form at `/contribute` (the cloud
+keeper button) has a page scanner: photograph pages with the device camera, crop
+them client-side, and upload each as WebP to `POST /api/scans`
+(`src/routes/api/scans/+server.ts`), which streams it to an S3-compatible bucket
+via `src/lib/server/scans.ts`. The stored type is sniffed from the bytes, never
+taken from the client.
+
+Anyone can contribute; only admins sign in (at `/keeper`, deliberately unlinked).
+An admin's artefact lands vetted. Anyone else's — including anonymous visitors —
+lands as a proposed addition, hidden from the public site until an admin approves
+it in the review queue. Anonymous writes are guarded by:
+
+- **Cloudflare Turnstile**, once per visitor, exchanged at `POST /api/drafts` for a
+  signed draft-session cookie (`src/lib/server/drafts.ts`). Uploads land in that
+  draft's own `submissions/<draft>/` space; only it can delete from there, and a
+  submission can only attach images from there. Set `PUBLIC_TURNSTILE_SITE_KEY` and
+  `TURNSTILE_SECRET_KEY` in production — without the secret, anonymous writes are
+  refused.
+- **Rate limits** backed by the `rate_limit` table (`src/lib/server/rateLimit.ts`).
+- **A daily sweep** (`netlify/functions/sweep-submissions.mts` →
+  `/api/cron/sweep-submissions`) that deletes abandoned uploads and stale counters.
+
+After submitting, a contributor may optionally leave a name or email for the
+keepers (`submission_contact`, never published).
 
 ### Scan storage (R2 in prod, RustFS in dev)
 

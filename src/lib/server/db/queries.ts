@@ -1,8 +1,17 @@
 import { and, desc, eq, exists, getTableColumns, inArray, like, or, sql } from 'drizzle-orm';
 import { client, db } from './index';
 import { purgeArchiveCache } from '../cache';
+import { deleteUnreferencedImages } from '../uploads';
 import { stampInsert, stampUpdate } from './audit';
-import { artefact, artefactProvenance, event, eventHost, person, series } from './schema';
+import {
+	artefact,
+	artefactProvenance,
+	event,
+	eventHost,
+	person,
+	series,
+	submissionContact
+} from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
 import type { EventItem } from '$lib/events';
 
@@ -253,7 +262,7 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
  * so the same person always maps to one row (canonical, searchable across the
  * provenance and host roles alike).
  */
-export async function resolvePersonIds(names: string[], userId: string): Promise<number[]> {
+export async function resolvePersonIds(names: string[], userId: string | null): Promise<number[]> {
 	const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
 	if (unique.length === 0) return [];
 
@@ -305,12 +314,28 @@ export async function countPendingReview(): Promise<{
 	return { artefacts: a.n, events: e.n, series: s.n };
 }
 
-/** Proposed artefacts with their event title + provenance names, newest first. */
-export async function listProposedArtefacts(): Promise<ArtefactWithEvent[]> {
+/**
+ * A proposed artefact as the review queue reads it: anything a public
+ * submitter chose to leave so a keeper can reach them (both null when they
+ * left nothing, or for a signed-in contributor's submission).
+ */
+export type ProposedArtefact = ArtefactWithEvent & {
+	contactName: string | null;
+	contactEmail: string | null;
+};
+
+/** Proposed artefacts with their event title, provenance names and submitter contact, newest first. */
+export async function listProposedArtefacts(): Promise<ProposedArtefact[]> {
 	const rows = await db
-		.select({ ...getTableColumns(artefact), event: event.title })
+		.select({
+			...getTableColumns(artefact),
+			event: event.title,
+			contactName: submissionContact.name,
+			contactEmail: submissionContact.email
+		})
 		.from(artefact)
 		.leftJoin(event, eq(artefact.eventId, event.id))
+		.leftJoin(submissionContact, eq(submissionContact.artefactId, artefact.id))
 		.where(eq(artefact.proposedAddition, true))
 		.orderBy(desc(artefact.date), desc(artefact.id));
 	return attachProvenance(rows);
@@ -374,11 +399,40 @@ export async function rejectProposed(kind: ReviewKind, id: number, userId: strin
 			.where(eq(event.seriesId, id));
 		await db.delete(series).where(eq(series.id, id));
 	} else {
-		// Provenance links cascade on the artefact delete.
+		// Note what the artefact brings with it before the row goes: its images,
+		// and its provenance people (the links cascade on delete; people don't).
+		const [row] = await db
+			.select({ fileUrls: artefact.fileUrls })
+			.from(artefact)
+			.where(eq(artefact.id, id));
+		const links = await db
+			.select({ personId: artefactProvenance.personId })
+			.from(artefactProvenance)
+			.where(eq(artefactProvenance.artefactId, id));
+
 		await db.delete(artefact).where(eq(artefact.id, id));
+
+		// A rejected submission shouldn't leave behind the names it introduced or
+		// the images it uploaded — but only what nothing else still uses.
+		await deleteOrphanPeople(links.map((l) => l.personId));
+		await deleteUnreferencedImages(row?.fileUrls ?? []);
 	}
 	// A discarded row leaves the public blob — refresh it.
 	await purgeArchiveCache();
+}
+
+/** Delete those of `ids` that no artefact or event links to any more. */
+export async function deleteOrphanPeople(ids: number[]): Promise<void> {
+	if (ids.length === 0) return;
+	await db
+		.delete(person)
+		.where(
+			and(
+				inArray(person.id, ids),
+				sql`not exists (select 1 from ${artefactProvenance} where ${artefactProvenance.personId} = ${person.id})`,
+				sql`not exists (select 1 from ${eventHost} where ${eventHost.personId} = ${person.id})`
+			)
+		);
 }
 
 /**

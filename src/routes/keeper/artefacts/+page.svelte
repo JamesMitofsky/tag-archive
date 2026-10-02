@@ -47,7 +47,7 @@
 				<BackButton class="mt-2" />
 			</div>
 			<a
-				href="/keeper/artefacts/add"
+				href="/contribute"
 				aria-label="Add artefact"
 				title="Add artefact"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
