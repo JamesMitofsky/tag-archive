@@ -37,17 +37,17 @@ More detail (individual services, Drizzle Studio, prod storage) is below.
 One table, `artefact` (`src/lib/server/db/schema.ts`), mirroring the source
 export:
 
-| Column        | Notes                                   |
-| ------------- | --------------------------------------- |
-| `id`          | Integer PK (from source `ID`)           |
-| `artefact`    | Title                                   |
-| `event`       | Event it came from; nullable            |
-| `date`        | ISO `YYYY-MM-DD`                        |
-| `provenance`  | Contributors — JSON `string[]`          |
-| `programArea` | TAG program tags — JSON `string[]`      |
-| `description` | Nullable                                |
-| `fileUrl`     | Public URL of the attached scan image   |
-| `location`    | Physical storage, e.g. `Binder` / `Bin` |
+| Column        | Notes                                                     |
+| ------------- | --------------------------------------------------------- |
+| `id`          | Integer PK (from source `ID`)                             |
+| `artefact`    | Title                                                     |
+| `event`       | Event it came from; nullable                              |
+| `date`        | ISO `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`; NULL when undated |
+| `provenance`  | Contributors — JSON `string[]`                            |
+| `programArea` | TAG program tags — JSON `string[]`                        |
+| `description` | Nullable                                                  |
+| `fileUrl`     | Public URL of the attached scan image                     |
+| `location`    | Physical storage, e.g. `Binder` / `Bin`                   |
 
 Multi-value columns (`provenance`, `programArea`) are normalized to JSON arrays.
 

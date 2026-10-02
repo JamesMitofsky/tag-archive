@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatDate } from '$lib/formatDate';
+	import { formatArtefactDate } from '$lib/formatDate';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import KeeperList from '$lib/components/KeeperList.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
@@ -111,9 +111,9 @@
 											style:view-transition-name={morphVar('artefact', item.id, 'meta')}
 											class="mt-0.5 text-sm text-gray-500"
 										>
-											{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
-													·
-												{/if}{item.event}{/if}
+											{formatArtefactDate(item.date)}{#if item.event}
+												·
+												{item.event}{/if}
 										</p>
 									</div>
 									{#if item.proposedAddition}

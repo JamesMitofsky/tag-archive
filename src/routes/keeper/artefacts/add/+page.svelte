@@ -175,6 +175,7 @@
 						label="Date"
 						required
 						allowPartial
+						allowUndated
 						value={echoed?.date ?? ''}
 						onChange={(iso) => {
 							formDate = iso;

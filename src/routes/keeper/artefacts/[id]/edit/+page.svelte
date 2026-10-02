@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateFieldValue } from '$lib/partialDate';
 	import { enhance } from '$app/forms';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
@@ -49,7 +50,7 @@
 
 	// Live form date, tracked so the event list can prioritise events near it.
 	// svelte-ignore state_referenced_locally
-	let formDate = $state(seed ? seed.date : (data.artefact.date ?? ''));
+	let formDate = $state(seed ? seed.date : dateFieldValue(data.artefact.date));
 
 	// Program-area picker state (multi-select — an artefact carries several).
 	// svelte-ignore state_referenced_locally
@@ -179,7 +180,8 @@
 						label="Date"
 						required
 						allowPartial
-						value={echoed?.date ?? data.artefact.date ?? ''}
+						allowUndated
+						value={echoed?.date ?? dateFieldValue(data.artefact.date)}
 						onChange={(iso) => {
 							formDate = iso;
 							validator.touch('date');

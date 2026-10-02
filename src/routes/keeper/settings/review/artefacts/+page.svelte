@@ -1,7 +1,7 @@
 <script lang="ts">
 	import BackButton from '$lib/components/BackButton.svelte';
 	import ReviewActions from '$lib/components/ReviewActions.svelte';
-	import { formatDate } from '$lib/formatDate';
+	import { formatArtefactDate } from '$lib/formatDate';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -42,9 +42,9 @@
 								</a>
 							</h3>
 							<p class="mt-0.5 text-sm text-gray-500">
-								{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
-										·
-									{/if}{item.event}{/if}
+								{formatArtefactDate(item.date)}{#if item.event}
+									·
+									{item.event}{/if}
 							</p>
 							{#if item.description}
 								<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">

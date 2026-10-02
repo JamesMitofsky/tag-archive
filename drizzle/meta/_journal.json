@@ -43,6 +43,13 @@
       "when": 1786030418679,
       "tag": "0005_wild_siren",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790956701768,
+      "tag": "0006_undated_artefacts",
+      "breakpoints": true
     }
   ]
 }

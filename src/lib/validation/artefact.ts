@@ -1,3 +1,4 @@
+import { readDateField } from '$lib/partialDate';
 import { PROGRAM_AREAS } from '$lib/programAreas';
 import { check, defineSuite, isHttpUrl, isPartialDate, maxLen, splitList, str } from './helpers';
 
@@ -5,7 +6,8 @@ import { check, defineSuite, isHttpUrl, isPartialDate, maxLen, splitList, str } 
 export type ArtefactData = {
 	artefact: string;
 	event: string;
-	date: string;
+	/** A partial date, null when deliberately undated, '' when not chosen yet. */
+	date: string | null;
 	description: string;
 	location: string;
 	fileUrls: string[];
@@ -20,7 +22,7 @@ export function parseArtefactForm(fd: FormData): ArtefactData {
 	return {
 		artefact: str(fd.get('artefact')),
 		event: str(fd.get('event')),
-		date: str(fd.get('date')),
+		date: readDateField(str(fd.get('date'))),
 		description: str(fd.get('description')),
 		location: str(fd.get('location')),
 		fileUrls: fd.getAll('fileUrls').map(String).filter(Boolean),
@@ -39,8 +41,13 @@ export function createArtefactSuite() {
 
 		// An artefact's date may be vaguer than a single day: a program known only
 		// to be from July 2019, or from 2019. `YYYY`, `YYYY-MM` and `YYYY-MM-DD`
-		// are all accepted, each carrying its own precision.
-		check('date', 'Pick a valid date', isPartialDate(data.date ?? ''));
+		// are all accepted, each carrying its own precision. It may also be
+		// deliberately absent (null) — but only as an explicit choice: an empty
+		// field means nothing was picked, and is rejected. Both rules always run
+		// (vest needs a stable test order); each passes when it doesn't apply.
+		const date = data.date;
+		check('date', 'Pick a date, or choose “No date”', date !== '');
+		check('date', 'Pick a valid date', date === null || date === '' || isPartialDate(date));
 
 		maxLen('description', data.description ?? '', 2000, 'description');
 		check('location', 'Location is required', (data.location ?? '').trim().length > 0);

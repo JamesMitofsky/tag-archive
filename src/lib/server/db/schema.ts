@@ -185,8 +185,10 @@ export const artefact = sqliteTable(
 		// keeps value and precision from ever disagreeing, and leaves
 		// lexicographic order equal to chronological order — so the
 		// `(date, id)` index below and every `ORDER BY date` still hold.
+		// NULL when the artefact is deliberately undated: SQLite sorts NULL
+		// lowest, so `ORDER BY date DESC` lists undated artefacts last.
 		// See $lib/partialDate for the parsers, formatters, and the reasoning.
-		date: text('date').notNull(),
+		date: text('date'),
 		// TAG program area tags. Multi-value → JSON string array.
 		programArea: text('program_area', { mode: 'json' }).$type<string[]>().notNull().default([]),
 		description: text('description'),
