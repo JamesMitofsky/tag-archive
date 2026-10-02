@@ -24,6 +24,41 @@ html {
 	touch-action: manipulation;
 }
 
+/* The sky's colour ($lib/sky): gradient stops top to bottom, and the cloud
+   layer's opacity. Painted onto <html> as inline custom properties — first by
+   the inline head script, then live as the sun moves. These defaults are the
+   midday sky, for the moment before that script runs (or without JS).
+   Registered so the occasional catch-up (a tab coming back after hours away)
+   can transition them; routine steps are too small to see and don't. */
+@property --sky-0 {
+	syntax: '<color>';
+	inherits: true;
+	initial-value: #94cae7;
+}
+@property --sky-1 {
+	syntax: '<color>';
+	inherits: true;
+	initial-value: #a7d5ef;
+}
+@property --sky-2 {
+	syntax: '<color>';
+	inherits: true;
+	initial-value: #bbddf1;
+}
+@property --sky-clouds {
+	syntax: '<number>';
+	inherits: true;
+	initial-value: 1;
+}
+
+:root.sky-catch-up {
+	transition:
+		--sky-0 1.2s var(--ease-in-out-sine),
+		--sky-1 1.2s var(--ease-in-out-sine),
+		--sky-2 1.2s var(--ease-in-out-sine),
+		--sky-clouds 1.2s var(--ease-in-out-sine);
+}
+
 /* Images are decorative here — never part of a text selection and not draggable. */
 img {
 	user-select: none;
@@ -103,17 +138,17 @@ img {
 	--font-sans: 'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, serif;
 	--font-friendly: 'Chalkboard SE', 'Comic Neue', sans-serif;
 
-	/* The watercolour-paper sky. Single source of truth: Sky paints it, `html`
-	   above repeats it so the browser has it for the areas the page never reaches
-	   (iOS safe areas / notch, overscroll rubber-banding), and the `theme-color`
-	   meta in app.html mirrors the same hex for the iOS status bar and Android
-	   chrome. Change it here and in app.html together. */
-	--color-paper: #94cae7;
+	/* The watercolour-paper sky's top colour, which follows the sun (--sky-0,
+	   above). Sky paints the full gradient; `html` repeats this so the browser has
+	   it for the areas the page never reaches (iOS safe areas / notch, overscroll
+	   rubber-banding), and the sky engine keeps the `theme-color` meta in app.html
+	   in step for the iOS status bar and Android chrome. */
+	--color-paper: var(--sky-0);
 
 	/* Tint for the frosted surfaces (mobile top strip, mobile menu panel). Keyed
-	   to the paper sky so the glass reads as the background itself thickening,
-	   rather than as a foreign panel laid over it. */
-	--color-glass: #94c9e6;
+	   to the sky so the glass reads as the background itself thickening, rather
+	   than as a foreign panel laid over it — at dusk as much as at noon. */
+	--color-glass: var(--sky-0);
 
 	/* Height of the fixed frosted strip that carries the home mark and the menu
 	   button on mobile. Single source of truth: the strip sizes itself with
