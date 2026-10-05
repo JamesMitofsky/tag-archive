@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateFieldValue } from '$lib/partialDate';
 	import { enhance } from '$app/forms';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
@@ -49,7 +50,7 @@
 
 	// Live form date, tracked so the event list can prioritise events near it.
 	// svelte-ignore state_referenced_locally
-	let formDate = $state(seed ? seed.date : (data.artefact.date ?? ''));
+	let formDate = $state(seed ? seed.date : dateFieldValue(data.artefact.date));
 
 	// Program-area picker state (multi-select — an artefact carries several).
 	// svelte-ignore state_referenced_locally
@@ -153,6 +154,8 @@
 				{/each}
 
 				<PageScanner
+					label="Images"
+					required
 					bind:pending={scanPending}
 					initial={data.artefact.fileUrls}
 					onChange={(urls) => {
@@ -179,7 +182,8 @@
 						label="Date"
 						required
 						allowPartial
-						value={echoed?.date ?? data.artefact.date ?? ''}
+						allowUndated
+						value={echoed?.date ?? dateFieldValue(data.artefact.date)}
 						onChange={(iso) => {
 							formDate = iso;
 							validator.touch('date');
@@ -191,7 +195,7 @@
 
 				<fieldset>
 					<legend class="block text-sm font-medium text-gray-700">Program areas</legend>
-					<!-- Unconventional multiselect: each area is a near-square landscape card that
+					<!-- Unconventional multiselect: each area is a compact card that
 					     toggles a hidden checkbox. Card carries the area's colour identity; a primary
 					     ring + check badge signals selection. -->
 					<div class="mt-1.5 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -200,7 +204,7 @@
 							{@const Icon = meta.icon}
 							{@const selected = selectedAreas.includes(area)}
 							<label
-								class="relative flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg p-2 text-center text-white transition select-none {meta.accent} {selected
+								class="relative flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg px-2 py-3 text-center text-white transition select-none {meta.accent} {selected
 									? 'shadow-md ring-2 ring-white/80'
 									: 'opacity-75 hover:opacity-40'}"
 							>
@@ -252,7 +256,7 @@
 				<div>
 					<ComboField
 						name="location"
-						label="Location"
+						label="Archival storage location"
 						placeholder="Search or add a location"
 						options={LOCATION_OPTIONS}
 						value={echoed?.location ?? data.artefact.location ?? ''}

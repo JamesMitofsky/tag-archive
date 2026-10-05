@@ -2,6 +2,7 @@ import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import DateField from './DateField.svelte';
+import { UNDATED } from '$lib/partialDate';
 
 /** The hidden input is what a native POST actually submits. */
 function submittedValue(name = 'date'): string {
@@ -88,5 +89,59 @@ describe('DateField.svelte', () => {
 
 		await expect.element(page.getByRole('button', { name: 'July 2019' })).toBeVisible();
 		expect(submittedValue()).toBe('2019-07');
+	});
+
+	// The undated tests poll rather than read once: Svelte flushes DOM updates
+	// asynchronously after a click, so a synchronous read can race the update.
+	it('offers "No date" only when undated artefacts are allowed', async () => {
+		render(DateField, { name: 'date', label: 'Date', allowPartial: true });
+		await page.getByRole('button', { name: 'Pick a date' }).click();
+		await expect.element(page.getByRole('button', { name: 'Year', exact: true })).toBeVisible();
+		expect(page.getByRole('button', { name: 'No date', exact: true }).elements()).toHaveLength(0);
+	});
+
+	it('submits the undated token when "No date" is chosen', async () => {
+		render(DateField, { name: 'date', label: 'Date', allowPartial: true, allowUndated: true });
+
+		await page.getByRole('button', { name: 'Pick a date' }).click();
+		await page.getByRole('button', { name: 'No date', exact: true }).click();
+
+		await expect.poll(submittedValue).toBe(UNDATED);
+		await expect.poll(triggerLabel).toBe('No date');
+	});
+
+	it('still submits nothing while untouched, so a forgotten date is caught', async () => {
+		render(DateField, { name: 'date', label: 'Date', allowPartial: true, allowUndated: true });
+		expect(submittedValue()).toBe('');
+	});
+
+	it('restores the earlier pick when leaving "No date"', async () => {
+		render(DateField, {
+			name: 'date',
+			label: 'Date',
+			allowPartial: true,
+			allowUndated: true,
+			value: '2019-07'
+		});
+
+		await page.getByRole('button', { name: 'July 2019' }).click();
+		await page.getByRole('button', { name: 'No date', exact: true }).click();
+		await expect.poll(submittedValue).toBe(UNDATED);
+
+		await page.getByRole('button', { name: 'Month', exact: true }).click();
+		await expect.poll(submittedValue).toBe('2019-07');
+	});
+
+	it('reopens an undated artefact on "No date"', async () => {
+		render(DateField, {
+			name: 'date',
+			label: 'Date',
+			allowPartial: true,
+			allowUndated: true,
+			value: UNDATED
+		});
+
+		await expect.poll(triggerLabel).toBe('No date');
+		await expect.poll(submittedValue).toBe(UNDATED);
 	});
 });

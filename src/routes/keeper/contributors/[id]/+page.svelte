@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatDate } from '$lib/formatDate';
+	import { formatArtefactDate, formatDate } from '$lib/formatDate';
 	import { enhance } from '$app/forms';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import { programAreaMeta } from '$lib/programAreas';
@@ -221,9 +221,9 @@
 									</a>
 								</h3>
 								<p class="mt-0.5 text-sm text-gray-500">
-									{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
-											·
-										{/if}<span class="inline-flex items-center gap-1">
+									{formatArtefactDate(item.date)}{#if item.event}
+										·
+										<span class="inline-flex items-center gap-1">
 											<CalendarBlankIcon size={13} />
 											{item.event}
 										</span>{/if}

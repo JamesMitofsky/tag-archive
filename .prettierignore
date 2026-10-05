@@ -11,3 +11,4 @@ bun.lockb
 
 # Agent worktrees: full checkouts of this repo, formatted (or not) on their own branch
 .claude/worktrees/
+scripts/sky/horizon.ts

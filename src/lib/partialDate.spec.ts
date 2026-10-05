@@ -7,7 +7,10 @@ import {
 	isFullDate,
 	isPartialDate,
 	parsePartialDate,
-	startOfPartialDate
+	readDateField,
+	dateFieldValue,
+	startOfPartialDate,
+	UNDATED
 } from './partialDate';
 
 describe('parsePartialDate', () => {
@@ -129,5 +132,25 @@ describe('sort order', () => {
 			'2020',
 			'2020-01-01'
 		]);
+	});
+});
+
+describe('undated round-trip', () => {
+	it('reads the undated token as null and leaves real values alone', () => {
+		expect(readDateField(UNDATED)).toBeNull();
+		expect(readDateField(` ${UNDATED} `)).toBeNull();
+		expect(readDateField('2019-07')).toBe('2019-07');
+		expect(readDateField('')).toBe('');
+	});
+
+	it('writes a stored null back as the token, so an edit form reopens on "No date"', () => {
+		expect(dateFieldValue(null)).toBe(UNDATED);
+		expect(dateFieldValue('2019')).toBe('2019');
+		expect(readDateField(dateFieldValue(null))).toBeNull();
+	});
+
+	it('never mistakes the token for a date', () => {
+		expect(parsePartialDate(UNDATED)).toBeNull();
+		expect(isPartialDate(UNDATED)).toBe(false);
 	});
 });

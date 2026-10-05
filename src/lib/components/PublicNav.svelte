@@ -6,7 +6,13 @@
 	const links = [
 		{ href: '/', label: 'Artefacts', src: '/drawing/text/nav-artefacts.webp' },
 		{ href: '/events', label: 'Events', src: '/drawing/text/nav-events.webp' },
-		{ href: '/keeper', label: 'Keeper', src: '/drawing/text/cloud-keeper-btn.webp' }
+		// The cloud keeper mark opens the contribution form. Sign-in lives at
+		// /keeper, deliberately unlinked: only admins sign in, and they know the URL.
+		{
+			href: '/contribute',
+			label: 'Cloud Keeper — add to the archive',
+			src: '/drawing/text/cloud-keeper-btn.webp'
+		}
 	];
 
 	let open = $state(false);

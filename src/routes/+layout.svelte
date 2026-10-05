@@ -1,5 +1,8 @@
 <script lang="ts">
 	import './layout.css';
+	// The latin subset is what nearly every page renders in; preloading it starts
+	// the download alongside the CSS instead of after it, shortening the swap.
+	import nunitoLatin from '@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2?url';
 	import { flushSync } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
@@ -39,6 +42,10 @@
 		});
 	});
 </script>
+
+<svelte:head>
+	<link rel="preload" href={nunitoLatin} as="font" type="font/woff2" crossorigin="anonymous" />
+</svelte:head>
 
 <!-- Persistent sky: mounted once here, outside the keyed transition, so clouds
      drift continuously across navigation and fill the slide gap behind pages. -->

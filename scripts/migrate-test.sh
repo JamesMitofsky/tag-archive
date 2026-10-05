@@ -56,4 +56,20 @@ pnpm exec tsx "$WORKTREE/src/lib/server/db/seed.ts"
 # The migrator skips already-recorded baseline migrations (identical hashes) and
 # runs only the new ones — against tables that now hold rows.
 echo "[migrate-test] applying pending migrations against populated tables"
+BEFORE="$(node scripts/row-counts.mjs)"
 pnpm db:migrate
+AFTER="$(node scripts/row-counts.mjs)"
+
+# A migration can apply cleanly and still lose data (a table rebuild whose
+# DROP TABLE cascades into a child table). Every table that existed before must
+# still hold exactly as many rows; tables a migration adds are fine.
+echo "[migrate-test] checking row counts survived"
+LOST="$(LC_ALL=C join -t $'\t' <(echo "$BEFORE") <(echo "$AFTER") | awk -F'\t' '$2 != $3 { print "  " $1 ": " $2 " -> " $3 }')"
+MISSING="$(LC_ALL=C join -t $'\t' -v 1 <(echo "$BEFORE") <(echo "$AFTER") | awk -F'\t' '{ print "  " $1 ": dropped" }')"
+if [ -n "$LOST$MISSING" ]; then
+	echo "[migrate-test] FAIL: pending migrations changed existing data:"
+	[ -n "$LOST" ] && echo "$LOST"
+	[ -n "$MISSING" ] && echo "$MISSING"
+	exit 1
+fi
+echo "[migrate-test] OK: $(echo "$BEFORE" | wc -l | tr -d ' ') tables, row counts unchanged"
