@@ -297,11 +297,7 @@
 			{/if}
 		</Popover.Content>
 	</Popover.Root>
-	{#if offerUndated}
-		<p class="text-xs text-gray-500">
-			Not sure of the exact day? Record just the month or the year — or choose “No date”.
-		</p>
-	{:else if allowPartial}
+	{#if allowPartial && !offerUndated}
 		<p class="text-xs text-gray-500">
 			Not sure of the exact day? Record just the month, or just the year.
 		</p>

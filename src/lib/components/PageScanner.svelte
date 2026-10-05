@@ -16,7 +16,9 @@
 		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		pending = $bindable(false),
 		initial = [],
-		prepareUpload
+		prepareUpload,
+		label,
+		required = false
 	}: {
 		onChange?: (urls: string[]) => void;
 		pending?: boolean;
@@ -27,7 +29,13 @@
 		 * is obtained, or renewed (`renew`) after the server reports it expired.
 		 */
 		prepareUpload?: (options?: { renew?: boolean }) => Promise<void>;
+		/** Section label shown above the scanner, styled like the other form fields'. */
+		label?: string;
+		/** Mark the section required (the asterisk only; validation is the form's). */
+		required?: boolean;
 	} = $props();
+
+	const labelId = $props.id();
 
 	const SCANS_ENDPOINT = '/api/scans';
 
@@ -321,72 +329,82 @@
 	});
 </script>
 
-<div class="rounded-lg border border-dashed border-gray-300 bg-gray-50/60 p-4">
-	{#if cameraOn}
-		<CameraStage
-			pageCount={pages.length}
-			replacing={!!replacingId}
-			onCapture={onCaptured}
-			onDone={closeCamera}
-			onError={(message) => (error = message)}
-		/>
-	{:else}
-		<div class="flex flex-wrap gap-2">
-			{#if canUseCamera}
-				<button
-					type="button"
-					onclick={() => {
-						error = '';
-						cameraOn = true;
-					}}
-					class="inline-flex items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
-				>
-					<CameraIcon size={16} />
-					{pages.length > 0 ? 'Scan more pages' : 'Scan pages'}
-				</button>
+<div role="group" aria-labelledby={label ? labelId : undefined}>
+	{#if label}
+		<span id={labelId} class="block text-sm font-medium text-gray-700">
+			{label}
+			{#if required}
+				<span class="text-red-600" title="Required" aria-label="required">*</span>
 			{/if}
-			<label
-				class="inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+		</span>
+	{/if}
+	<div class="rounded-lg border border-gray-300 bg-gray-50/60 p-4 {label ? 'mt-1.5' : ''}">
+		{#if cameraOn}
+			<CameraStage
+				pageCount={pages.length}
+				replacing={!!replacingId}
+				onCapture={onCaptured}
+				onDone={closeCamera}
+				onError={(message) => (error = message)}
+			/>
+		{:else}
+			<div class="flex flex-wrap gap-2">
+				{#if canUseCamera}
+					<button
+						type="button"
+						onclick={() => {
+							error = '';
+							cameraOn = true;
+						}}
+						class="inline-flex items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+					>
+						<CameraIcon size={16} />
+						{pages.length > 0 ? 'Scan more pages' : 'Scan pages'}
+					</button>
+				{/if}
+				<label
+					class="inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+				>
+					<ImageSquareIcon size={16} /> Add from photos
+					<input type="file" accept="image/*" multiple onchange={onFiles} class="sr-only" />
+				</label>
+			</div>
+		{/if}
+
+		{#if error}
+			<p class="mt-2 text-xs text-red-600" role="alert">{error}</p>
+		{/if}
+
+		{#if pages.some((p) => p.status === 'error')}
+			<div
+				class="mt-3 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-700"
+				role="alert"
 			>
-				<ImageSquareIcon size={16} /> Add from photos
-				<input type="file" accept="image/*" multiple onchange={onFiles} class="sr-only" />
-			</label>
-		</div>
-	{/if}
+				<p class="font-medium">One or more image uploads failed:</p>
+				<ul class="mt-1 list-inside list-disc space-y-0.5">
+					{#each pages.filter((p) => p.status === 'error') as errItem (errItem.id)}
+						<li>{errItem.fileName}: {errItem.error || 'Upload error'}</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 
-	{#if error}
-		<p class="mt-2 text-xs text-red-600" role="alert">{error}</p>
-	{/if}
+		{#if adjusting}
+			<CornerAdjuster
+				image={adjusting.image}
+				corners={adjusting.corners}
+				onApply={applyAdjust}
+				onCancel={() => (adjusting = null)}
+			/>
+		{/if}
 
-	{#if pages.some((p) => p.status === 'error')}
-		<div
-			class="mt-3 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-700"
-			role="alert"
-		>
-			<p class="font-medium">One or more image uploads failed:</p>
-			<ul class="mt-1 list-inside list-disc space-y-0.5">
-				{#each pages.filter((p) => p.status === 'error') as errItem (errItem.id)}
-					<li>{errItem.fileName}: {errItem.error || 'Upload error'}</li>
-				{/each}
-			</ul>
-		</div>
-	{/if}
-
-	{#if adjusting}
-		<CornerAdjuster
-			image={adjusting.image}
-			corners={adjusting.corners}
-			onApply={applyAdjust}
-			onCancel={() => (adjusting = null)}
+		<ScanFilmstrip
+			{pages}
+			canRetake={canUseCamera}
+			onMove={moveById}
+			onRemove={removeById}
+			onAdjust={adjustById}
+			onRetake={retakeById}
 		/>
-	{/if}
-
-	<ScanFilmstrip
-		{pages}
-		canRetake={canUseCamera}
-		onMove={moveById}
-		onRemove={removeById}
-		onAdjust={adjustById}
-		onRetake={retakeById}
-	/>
+	</div>
 </div>

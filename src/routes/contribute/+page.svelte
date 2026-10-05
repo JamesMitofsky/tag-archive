@@ -52,7 +52,11 @@
 		}
 	}
 	onMount(() => {
-		ensureSession().catch(() => {});
+		// A silent warm-up: a failure here must not greet the visitor with an error
+		// before they've done anything (e.g. the human-check script blocked, or
+		// submissions unconfigured). Uploading or submitting retries through
+		// `ensureSession`, which reports any failure in response to that action.
+		draftSession?.ensure().catch(() => {});
 		return () => draftSession?.destroy();
 	});
 
@@ -288,12 +292,6 @@
 				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
 					{data.signedIn ? 'New artefact' : 'Add to the archive'}
 				</h1>
-				{#if !data.signedIn}
-					<p class="mt-2 text-gray-700">
-						Share something from the garden — a program, a flyer, a photo. A keeper looks over each
-						addition before it joins the archive.
-					</p>
-				{/if}
 				<!-- Turnstile's bot check renders here only if it needs an interaction;
 			     usually it stays invisible. -->
 				<div bind:this={turnstileEl} class="mt-4 empty:hidden"></div>
@@ -373,6 +371,8 @@
 					{/each}
 
 					<PageScanner
+						label="Images"
+						required
 						bind:pending={scanPending}
 						prepareUpload={draftSession ? ensureSession : undefined}
 						onChange={(urls) => {
@@ -395,7 +395,7 @@
 
 					<fieldset>
 						<legend class="block text-sm font-medium text-gray-700">Program areas</legend>
-						<!-- Unconventional multiselect: each area is a near-square landscape card that
+						<!-- Unconventional multiselect: each area is a compact card that
 					     toggles a hidden checkbox. Card carries the area's colour identity; a primary
 					     ring + check badge signals selection. -->
 						<div class="mt-1.5 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -404,7 +404,7 @@
 								{@const Icon = meta.icon}
 								{@const selected = selectedAreas.includes(area)}
 								<label
-									class="relative flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg p-2 text-center text-white transition select-none {meta.accent} {selected
+									class="relative flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg px-2 py-3 text-center text-white transition select-none {meta.accent} {selected
 										? 'shadow-md ring-2 ring-white/80'
 										: 'opacity-75 hover:opacity-40'}"
 								>
@@ -457,16 +457,13 @@
 					<div>
 						<ComboField
 							name="location"
-							label={data.requireLocation ? 'Location *' : 'Location'}
+							label={data.requireLocation
+								? 'Archival storage location *'
+								: 'Archival storage location'}
 							placeholder="Search or add a location"
 							options={locationOptions}
 							bind:value={location}
 						/>
-						{#if !data.requireLocation}
-							<p class="mt-1 text-xs text-gray-500">
-								Where the physical item is kept, if you know. A keeper can fill this in.
-							</p>
-						{/if}
 						<FieldError message={validator.error('location')} />
 					</div>
 

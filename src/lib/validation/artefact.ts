@@ -61,7 +61,7 @@ export function createArtefactSuite({ requireLocation = true }: ArtefactSuiteOpt
 		maxLen('description', data.description ?? '', 2000, 'description');
 		check(
 			'location',
-			'Location is required',
+			'Archival storage location is required',
 			!requireLocation || (data.location ?? '').trim().length > 0
 		);
 		maxLen('location', data.location ?? '', 200, 'location');
