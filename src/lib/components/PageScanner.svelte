@@ -338,7 +338,7 @@
 			{/if}
 		</span>
 	{/if}
-	<div class="rounded-lg border border-gray-300 bg-gray-50/60 p-4 {label ? 'mt-1.5' : ''}">
+	<div class="rounded-lg border border-gray-300 bg-white/25 p-4 {label ? 'mt-1.5' : ''}">
 		{#if cameraOn}
 			<CameraStage
 				pageCount={pages.length}

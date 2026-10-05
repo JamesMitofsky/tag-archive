@@ -190,8 +190,9 @@
 <main class="relative min-h-dvh overflow-x-hidden px-4 pt-chrome pb-8 sm:pb-12 md:pt-24">
 	<UnsavedChangesGuard form={formEl} enabled={!submitted} />
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
-		<!-- The create form is a fresh sheet of paper, like the artefact pages. -->
-		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
+		<!-- The form floats on the sky as a frosted glass panel, in the same glass
+		     as the searchbar and the keeper sign-in. -->
+		<section class="rounded-2xl border border-white/40 bg-white/30 p-6 shadow-lg backdrop-blur-md">
 			{#if submitted}
 				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">Thank you</h1>
 				<p class="mt-2 text-gray-700">

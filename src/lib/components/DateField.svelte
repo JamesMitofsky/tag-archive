@@ -143,13 +143,15 @@
 	<Popover.Root>
 		<Popover.Trigger>
 			{#snippet child({ props })}
+				<!-- Trigger props first: they carry a `class` key, which would otherwise
+				     overwrite this button's own classes. -->
 				<Button
+					{...props}
 					variant="outline"
 					class={cn(
-						'w-full justify-start text-start font-normal',
+						'w-full justify-start bg-transparent text-start font-normal',
 						!picked && !undated && 'text-muted-foreground'
 					)}
-					{...props}
 				>
 					<CalendarBlankIcon class="me-2 size-4" />
 					{undated ? 'No date' : picked ? formatPartialDate(iso) : 'Pick a date'}
