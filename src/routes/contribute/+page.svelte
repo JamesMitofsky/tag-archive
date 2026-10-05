@@ -185,7 +185,7 @@
 	>
 </svelte:head>
 
-<!-- Clears the fixed mobile chrome strip (`pt-chrome`) and, from md up, the
+<!-- Clears the mobile header band (`pt-chrome`) and, from md up, the
      handwritten nav pinned top-right. -->
 <main class="relative min-h-dvh overflow-x-hidden px-4 pt-chrome pb-8 sm:pb-12 md:pt-24">
 	<UnsavedChangesGuard form={formEl} enabled={!submitted} />

@@ -39,11 +39,14 @@
 	{/each}
 </nav>
 
+<!-- Mobile only, so `absolute` (document-anchored) rather than `fixed`: the
+     button scrolls away with the page alongside the home mark, and the panel,
+     portalled to <body>, opens under the button wherever the page is scrolled. -->
 <DialogPrimitive.Root bind:open>
 	<DialogPrimitive.Trigger
 		aria-label="Menu"
 		style="--fade-delay: 120ms"
-		class="load-fade fixed top-4 right-5 z-40 touch-manipulation p-2 transition-opacity duration-100 data-[state=open]:opacity-40 md:hidden"
+		class="load-fade absolute top-4 right-5 z-40 touch-manipulation p-2 transition-opacity duration-100 data-[state=open]:opacity-40 md:hidden"
 	>
 		<Drawing src="/drawing/icons/hamburger.svg" alt="" class="w-9" />
 	</DialogPrimitive.Trigger>
@@ -53,7 +56,7 @@
 		     to catch the tap that dismisses it. -->
 		<DialogPrimitive.Overlay class="fixed inset-0 z-50 touch-manipulation md:hidden" />
 		<DialogPrimitive.Content
-			class="fixed top-14 right-5 z-50 flex touch-manipulation flex-col items-end gap-5 rounded-2xl bg-glass/60 px-5 py-4 shadow-lg ring-1 ring-white/40 backdrop-blur-md duration-100 outline-none data-closed:animate-out data-closed:fade-out-0 data-open:animate-in data-open:fade-in-0 md:hidden"
+			class="absolute top-14 right-5 z-50 flex touch-manipulation flex-col items-end gap-5 rounded-2xl bg-glass/60 px-5 py-4 shadow-lg ring-1 ring-white/40 backdrop-blur-md duration-100 outline-none data-closed:animate-out data-closed:fade-out-0 data-open:animate-in data-open:fade-in-0 md:hidden"
 		>
 			<DialogPrimitive.Title class="sr-only">Menu</DialogPrimitive.Title>
 			{#each links as link (link.href)}
