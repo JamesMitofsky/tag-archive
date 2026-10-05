@@ -40,7 +40,10 @@
 	}
 
 	$effect(() => {
-		if (!form) return;
+		// Captured: by the time cleanup runs, the bound `form` prop may already be
+		// null (the form unmounted, e.g. swapped for a thank-you message).
+		const el = form;
+		if (!el) return;
 		// Baseline the current values (including any echoed after a failed submit).
 		if (snapshot === null) snapshot = serialize();
 		// A submit re-baselines: a successful one redirects away without a false
@@ -48,8 +51,8 @@
 		const onSubmit = () => {
 			snapshot = serialize();
 		};
-		form.addEventListener('submit', onSubmit);
-		return () => form.removeEventListener('submit', onSubmit);
+		el.addEventListener('submit', onSubmit);
+		return () => el.removeEventListener('submit', onSubmit);
 	});
 
 	// Client-side (SPA) navigation: cancel, then re-issue once the user confirms.

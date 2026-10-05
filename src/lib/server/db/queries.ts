@@ -1,20 +1,19 @@
-import {
-	and,
-	desc,
-	eq,
-	exists,
-	getTableColumns,
-	inArray,
-	like,
-	notInArray,
-	or,
-	sql
-} from 'drizzle-orm';
+import { and, desc, eq, exists, getTableColumns, inArray, like, or, sql } from 'drizzle-orm';
 import { client, db } from './index';
 import { purgeArchiveCache } from '../cache';
+import { deleteUnreferencedImages } from '../uploads';
 import { stampInsert, stampUpdate } from './audit';
-import { artefact, artefactProvenance, event, eventHost, person, series } from './schema';
+import {
+	artefact,
+	artefactProvenance,
+	event,
+	eventHost,
+	person,
+	series,
+	submissionContact
+} from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
+import type { EventItem } from '$lib/events';
 
 /**
  * Fold one or more people into a single kept entry: every artefact/event link on
@@ -183,12 +182,87 @@ export async function searchEvents({
 	return { rows, total };
 }
 
+/** The public archive blob: everything the public pages search, client-side. */
+export type PublicDataset = {
+	artefacts: ArtefactWithEvent[];
+	events: EventItem[];
+	people: string[];
+};
+
+/**
+ * Load the public archive blob — vetted rows only. Anything still carrying
+ * `proposedAddition` is a submission nobody has reviewed yet (anonymous
+ * contributions included), so it must not reach the public pages:
+ *
+ *  - artefacts and events: vetted rows only;
+ *  - an artefact's event title: only when that event is itself vetted, so a
+ *    vetted artefact can't leak the title of a pending event;
+ *  - people: only names linked to at least one vetted artefact or event. A
+ *    submission creates its provenance people immediately (find-or-create by
+ *    name), so without this an unreviewed name would surface in the people
+ *    list — and in the provenance autocomplete — before anyone vetted it.
+ */
+export async function loadPublicDataset(): Promise<PublicDataset> {
+	const vettedEvent = and(eq(artefact.eventId, event.id), eq(event.proposedAddition, false));
+	const [artefactRows, eventRows, personRows] = await Promise.all([
+		db
+			.select({ ...getTableColumns(artefact), event: event.title })
+			.from(artefact)
+			.leftJoin(event, vettedEvent)
+			.where(eq(artefact.proposedAddition, false)),
+		db.select(getTableColumns(event)).from(event).where(eq(event.proposedAddition, false)),
+		db
+			.select({ name: person.name })
+			.from(person)
+			.where(
+				or(
+					exists(
+						db
+							.select({ one: sql`1` })
+							.from(artefactProvenance)
+							.innerJoin(artefact, eq(artefact.id, artefactProvenance.artefactId))
+							.where(
+								and(
+									eq(artefactProvenance.personId, person.id),
+									eq(artefact.proposedAddition, false)
+								)
+							)
+					),
+					exists(
+						db
+							.select({ one: sql`1` })
+							.from(eventHost)
+							.innerJoin(event, eq(event.id, eventHost.eventId))
+							.where(and(eq(eventHost.personId, person.id), eq(event.proposedAddition, false)))
+					)
+				)
+			)
+	]);
+
+	const [artefacts, eventsWithHosts] = await Promise.all([
+		attachProvenance(artefactRows),
+		attachHosts(eventRows)
+	]);
+	const events: EventItem[] = eventsWithHosts.map((e) => ({
+		id: e.id,
+		title: e.title,
+		date: e.date,
+		time: e.time,
+		location: e.location,
+		description: e.description,
+		hosts: e.hosts,
+		url: e.url
+	}));
+
+	return { artefacts, events, people: personRows.map((p) => p.name) };
+}
+
 /**
  * Find-or-create each person by name, returning their ids. Dedupes names first
  * so the same person always maps to one row (canonical, searchable across the
  * provenance and host roles alike).
  */
-export async function resolvePersonIds(names: string[], userId: string): Promise<number[]> {
+export async function resolvePersonIds(names: string[], userId: string | null): Promise<number[]> {
 	const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
 	if (unique.length === 0) return [];
 
@@ -240,12 +314,28 @@ export async function countPendingReview(): Promise<{
 	return { artefacts: a.n, events: e.n, series: s.n };
 }
 
-/** Proposed artefacts with their event title + provenance names, newest first. */
-export async function listProposedArtefacts(): Promise<ArtefactWithEvent[]> {
+/**
+ * A proposed artefact as the review queue reads it: anything a public
+ * submitter chose to leave so a keeper can reach them (both null when they
+ * left nothing, or for a signed-in contributor's submission).
+ */
+export type ProposedArtefact = ArtefactWithEvent & {
+	contactName: string | null;
+	contactEmail: string | null;
+};
+
+/** Proposed artefacts with their event title, provenance names and submitter contact, newest first. */
+export async function listProposedArtefacts(): Promise<ProposedArtefact[]> {
 	const rows = await db
-		.select({ ...getTableColumns(artefact), event: event.title })
+		.select({
+			...getTableColumns(artefact),
+			event: event.title,
+			contactName: submissionContact.name,
+			contactEmail: submissionContact.email
+		})
 		.from(artefact)
 		.leftJoin(event, eq(artefact.eventId, event.id))
+		.leftJoin(submissionContact, eq(submissionContact.artefactId, artefact.id))
 		.where(eq(artefact.proposedAddition, true))
 		.orderBy(desc(artefact.date), desc(artefact.id));
 	return attachProvenance(rows);
@@ -309,11 +399,40 @@ export async function rejectProposed(kind: ReviewKind, id: number, userId: strin
 			.where(eq(event.seriesId, id));
 		await db.delete(series).where(eq(series.id, id));
 	} else {
-		// Provenance links cascade on the artefact delete.
+		// Note what the artefact brings with it before the row goes: its images,
+		// and its provenance people (the links cascade on delete; people don't).
+		const [row] = await db
+			.select({ fileUrls: artefact.fileUrls })
+			.from(artefact)
+			.where(eq(artefact.id, id));
+		const links = await db
+			.select({ personId: artefactProvenance.personId })
+			.from(artefactProvenance)
+			.where(eq(artefactProvenance.artefactId, id));
+
 		await db.delete(artefact).where(eq(artefact.id, id));
+
+		// A rejected submission shouldn't leave behind the names it introduced or
+		// the images it uploaded — but only what nothing else still uses.
+		await deleteOrphanPeople(links.map((l) => l.personId));
+		await deleteUnreferencedImages(row?.fileUrls ?? []);
 	}
 	// A discarded row leaves the public blob — refresh it.
 	await purgeArchiveCache();
+}
+
+/** Delete those of `ids` that no artefact or event links to any more. */
+export async function deleteOrphanPeople(ids: number[]): Promise<void> {
+	if (ids.length === 0) return;
+	await db
+		.delete(person)
+		.where(
+			and(
+				inArray(person.id, ids),
+				sql`not exists (select 1 from ${artefactProvenance} where ${artefactProvenance.personId} = ${person.id})`,
+				sql`not exists (select 1 from ${eventHost} where ${eventHost.personId} = ${person.id})`
+			)
+		);
 }
 
 /**

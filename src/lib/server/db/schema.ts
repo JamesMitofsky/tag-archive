@@ -185,8 +185,10 @@ export const artefact = sqliteTable(
 		// keeps value and precision from ever disagreeing, and leaves
 		// lexicographic order equal to chronological order — so the
 		// `(date, id)` index below and every `ORDER BY date` still hold.
+		// NULL when the artefact is deliberately undated: SQLite sorts NULL
+		// lowest, so `ORDER BY date DESC` lists undated artefacts last.
 		// See $lib/partialDate for the parsers, formatters, and the reasoning.
-		date: text('date').notNull(),
+		date: text('date'),
 		// TAG program area tags. Multi-value → JSON string array.
 		programArea: text('program_area', { mode: 'json' }).$type<string[]>().notNull().default([]),
 		description: text('description'),
@@ -230,6 +232,33 @@ export const artefactProvenance = sqliteTable(
 		index('artefact_prov_person_id_idx').on(t.personId)
 	]
 );
+
+/**
+ * How a public submitter can be reached about an artefact they contributed —
+ * offered after submitting, never required. Kept out of the `artefact` table on
+ * purpose: the public dataset publishes artefact rows whole, and contact
+ * details must never ride along. One row per artefact; deleted with it.
+ */
+export const submissionContact = sqliteTable('submission_contact', {
+	artefactId: integer('artefact_id')
+		.primaryKey()
+		.references(() => artefact.id, { onDelete: 'cascade' }),
+	name: text('name'),
+	email: text('email'),
+	...auditColumns()
+});
+
+/**
+ * Fixed-window request counters for anonymous writes (see
+ * $lib/server/rateLimit). `key` is `<bucket>:<hashed subject>` — the subject is
+ * an IP address or draft id, hashed so no raw address is stored. Each key holds
+ * only its current window; the daily sweep deletes stale rows.
+ */
+export const rateLimit = sqliteTable('rate_limit', {
+	key: text('key').primaryKey(),
+	windowStart: integer('window_start').notNull(),
+	count: integer('count').notNull()
+});
 
 // Relations power `db.query` relational loads.
 export const seriesRelations = relations(series, ({ many }) => ({
@@ -276,6 +305,7 @@ export type NewArtefact = typeof artefact.$inferInsert;
  * unlinked) and provenance re-expanded to a plain name array from the join table.
  */
 export type ArtefactWithEvent = Artefact & { event: string | null; provenance: string[] };
+export type SubmissionContact = typeof submissionContact.$inferSelect;
 /**
  * Event as the keeper list reads it: series name flattened in (null for a
  * one-off) and hosts re-expanded to a plain name array from the join table.

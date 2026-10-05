@@ -11,3 +11,9 @@ export function formatDate(value: string): string {
 export function formatDateShort(value: string): string {
 	return formatPartialDate(value, { short: true });
 }
+
+// An artefact's date for keeper views, where a missing date should read as a
+// deliberate choice rather than a gap. Public views omit it instead.
+export function formatArtefactDate(value: string | null): string {
+	return value ? formatPartialDate(value) : 'Undated';
+}

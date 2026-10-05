@@ -11,6 +11,7 @@ interface RouteDefinition {
 const STATIC_ROUTES: Record<string, RouteDefinition> = {
 	'/': { title: 'Home', parent: '/' },
 	'/events': { title: 'Events', parent: '/' },
+	'/contribute': { title: 'Contribute', parent: '/' },
 	'/keeper': { title: 'Cloud Keeper', parent: '/' },
 	'/keeper/artefacts': { title: 'Artefacts', parent: '/keeper' },
 	'/keeper/artefacts/add': { title: 'Artefacts', parent: '/keeper/artefacts' },

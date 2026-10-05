@@ -5,6 +5,7 @@ import { createSeriesSuite, parseSeriesForm } from './series';
 import { createRenameSuite, parseRenameForm } from './contributor';
 import { createEmailSuite, createOtpSuite, parseEmailForm } from './auth';
 import { summary } from './helpers';
+import { UNDATED } from '$lib/partialDate';
 
 /** Build a FormData from a plain record; array values become repeated fields. */
 function fd(entries: Record<string, string | string[]>): FormData {
@@ -25,10 +26,23 @@ describe('artefact suite', () => {
 		expect(r.getErrors('artefact')).toContain('Title is required');
 	});
 
-	it('requires a date', () => {
+	it('requires a date to be chosen — an empty field is not "undated"', () => {
 		const r = run(parseArtefactForm(fd({ artefact: 'Steep Program', date: '' })));
 		expect(r.isValid()).toBe(false);
-		expect(r.getErrors('date')).toContain('Pick a valid date');
+		expect(r.getErrors('date')).toEqual(['Pick a date, or choose “No date”']);
+	});
+
+	it('accepts a deliberately undated artefact, stored as null', () => {
+		const data = parseArtefactForm(
+			fd({
+				artefact: 'Steep Program',
+				date: UNDATED,
+				location: 'Binder',
+				fileUrls: ['https://cdn.example/x.jpg']
+			})
+		);
+		expect(data.date).toBeNull();
+		expect(run(data).isValid()).toBe(true);
 	});
 
 	it('requires at least one image', () => {
@@ -43,6 +57,7 @@ describe('artefact suite', () => {
 				fd({
 					artefact: 'Steep Program',
 					date: '2021-07-01',
+					location: 'Binder',
 					fileUrls: ['https://cdn.example/x.jpg']
 				})
 			)
@@ -54,7 +69,12 @@ describe('artefact suite', () => {
 		for (const date of ['2021-07', '2021']) {
 			const r = run(
 				parseArtefactForm(
-					fd({ artefact: 'Steep Program', date, fileUrls: ['https://cdn.example/x.jpg'] })
+					fd({
+						artefact: 'Steep Program',
+						date,
+						location: 'Binder',
+						fileUrls: ['https://cdn.example/x.jpg']
+					})
 				)
 			);
 			expect(r.isValid()).toBe(true);
@@ -91,6 +111,7 @@ describe('artefact suite', () => {
 				fd({
 					artefact: 'Ok',
 					date: '2021-07-01',
+					location: 'Binder',
 					programArea: ['DIY'],
 					fileUrls: ['https://cdn.example/x.jpg']
 				})

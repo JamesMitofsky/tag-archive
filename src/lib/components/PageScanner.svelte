@@ -16,13 +16,39 @@
 		onChange,
 		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		pending = $bindable(false),
-		initial = []
+		initial = [],
+		prepareUpload,
+		label,
+		required = false
 	}: {
 		onChange?: (urls: string[]) => void;
 		pending?: boolean;
 		/** Pre-existing scan URLs to seed the list with (edit flow). */
 		initial?: string[];
+		/**
+		 * Awaited before each upload — how an anonymous contributor's draft session
+		 * is obtained, or renewed (`renew`) after the server reports it expired.
+		 */
+		prepareUpload?: (options?: { renew?: boolean }) => Promise<void>;
+		/** Section label shown above the scanner, styled like the other form fields'. */
+		label?: string;
+		/** Mark the section required (the asterisk only; validation is the form's). */
+		required?: boolean;
 	} = $props();
+
+	const labelId = $props.id();
+
+	const SCANS_ENDPOINT = '/api/scans';
+
+	/** The server's message for a failed upload, rather than a raw JSON body. */
+	async function failureMessage(res: Response): Promise<string> {
+		const text = await res.text();
+		try {
+			return (JSON.parse(text) as { message?: string }).message || text;
+		} catch {
+			return text || `Upload failed (${res.status})`;
+		}
+	}
 
 	// Multiple pages per artefact; array position is the page order. Seeded from any
 	// `initial` URLs (edit flow), where the public URL doubles as its own preview.
@@ -83,7 +109,7 @@
 	async function discardUpload(url: string | undefined) {
 		if (!url || initial.includes(url)) return;
 		try {
-			await fetch('/keeper/scans', {
+			await fetch(SCANS_ENDPOINT, {
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ url })
@@ -217,10 +243,19 @@
 	/** Push one image to R2 and hand its URL back to the form. */
 	async function processUpload(id: string, file: Blob, fileName: string, previewUrl: string) {
 		try {
-			const body = new FormData();
-			body.append('file', file, fileName);
-			const res = await fetch('/keeper/scans', { method: 'POST', body });
-			if (!res.ok) throw new Error(await res.text());
+			const send = () => {
+				const body = new FormData();
+				body.append('file', file, fileName);
+				return fetch(SCANS_ENDPOINT, { method: 'POST', body });
+			};
+			await prepareUpload?.();
+			let res = await send();
+			// An anonymous session that lapsed mid-form: renew it once, then retry.
+			if (res.status === 401 && prepareUpload) {
+				await prepareUpload({ renew: true });
+				res = await send();
+			}
+			if (!res.ok) throw new Error(await failureMessage(res));
 
 			const result = (await res.json()) as { url: string; fileName: string };
 			updateItem(id, {
@@ -295,55 +330,65 @@
 	});
 </script>
 
-<div class="rounded-lg border border-dashed border-gray-300 bg-gray-50/60 p-4">
-	<div class="flex flex-wrap gap-2">
-		{#if canUseCamera}
-			<button
-				type="button"
-				onclick={() => {
-					error = '';
-					cameraOn = true;
-				}}
-				class="inline-flex items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+<div role="group" aria-labelledby={label ? labelId : undefined}>
+	{#if label}
+		<span id={labelId} class="block text-sm font-medium text-gray-700">
+			{label}
+			{#if required}
+				<span class="text-red-600" title="Required" aria-label="required">*</span>
+			{/if}
+		</span>
+	{/if}
+	<div class="rounded-lg border border-gray-300 bg-white/25 p-4 {label ? 'mt-1.5' : ''}">
+		<div class="flex flex-wrap gap-2">
+			{#if canUseCamera}
+				<button
+					type="button"
+					onclick={() => {
+						error = '';
+						cameraOn = true;
+					}}
+					class="inline-flex items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+				>
+					<CameraIcon size={16} />
+					{pages.length > 0 ? 'Scan more pages' : 'Scan pages'}
+				</button>
+			{/if}
+			<label
+				class="inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
 			>
-				<CameraIcon size={16} />
-				{pages.length > 0 ? 'Scan more pages' : 'Scan pages'}
-			</button>
-		{/if}
-		<label
-			class="inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
-		>
-			<ImageSquareIcon size={16} /> Add from photos
-			<input type="file" accept="image/*" multiple onchange={onFiles} class="sr-only" />
-		</label>
-	</div>
-
-	{#if error}
-		<p class="mt-2 text-xs text-red-600" role="alert">{error}</p>
-	{/if}
-
-	{#if pages.some((p) => p.status === 'error')}
-		<div
-			class="mt-3 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-700"
-			role="alert"
-		>
-			<p class="font-medium">One or more image uploads failed:</p>
-			<ul class="mt-1 list-inside list-disc space-y-0.5">
-				{#each pages.filter((p) => p.status === 'error') as errItem (errItem.id)}
-					<li>{errItem.fileName}: {errItem.error || 'Upload error'}</li>
-				{/each}
-			</ul>
+				<ImageSquareIcon size={16} /> Add from photos
+				<input type="file" accept="image/*" multiple onchange={onFiles} class="sr-only" />
+			</label>
 		</div>
-	{/if}
 
-	<ScanFilmstrip
-		{pages}
-		canRetake={canUseCamera}
-		onMove={moveById}
-		onRemove={removeById}
-		onAdjust={adjustById}
-		onRetake={retakeById}
-	/>
+		{#if error}
+			<p class="mt-2 text-xs text-red-600" role="alert">{error}</p>
+		{/if}
+
+		{#if pages.some((p) => p.status === 'error')}
+			<div
+				class="mt-3 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-700"
+				role="alert"
+			>
+				<p class="font-medium">One or more image uploads failed:</p>
+				<ul class="mt-1 list-inside list-disc space-y-0.5">
+					{#each pages.filter((p) => p.status === 'error') as errItem (errItem.id)}
+						<li>{errItem.fileName}: {errItem.error || 'Upload error'}</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+
+		<ScanFilmstrip
+			{pages}
+			canRetake={canUseCamera}
+			onMove={moveById}
+			onRemove={removeById}
+			onAdjust={adjustById}
+			onRetake={retakeById}
+		/>
+	</div>
 </div>
 
 <!-- Scanning and cropping take over the screen: the form is a lot to look at

@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+/* Nunito, self-hosted: one variable woff2 per script covers every weight, and
+   each file's unicode-range means a visitor only downloads the subsets their
+   text uses (latin, ~39 KB). The latin file is also preloaded in +layout.svelte. */
+@import '@fontsource-variable/nunito/wght.css';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
@@ -22,6 +26,41 @@ html {
 	   KEEPS pinch-to-zoom and panning — only the double-tap gesture goes. Inert on
 	   a device with no touch input. */
 	touch-action: manipulation;
+}
+
+/* The sky's colour ($lib/sky): gradient stops top to bottom, and the cloud
+   layer's opacity. Painted onto <html> as inline custom properties — first by
+   the inline head script, then live as the sun moves. These defaults are the
+   midday sky, for the moment before that script runs (or without JS).
+   Registered so the occasional catch-up (a tab coming back after hours away)
+   can transition them; routine steps are too small to see and don't. */
+@property --sky-0 {
+	syntax: '<color>';
+	inherits: true;
+	initial-value: #94cae7;
+}
+@property --sky-1 {
+	syntax: '<color>';
+	inherits: true;
+	initial-value: #a7d5ef;
+}
+@property --sky-2 {
+	syntax: '<color>';
+	inherits: true;
+	initial-value: #bbddf1;
+}
+@property --sky-clouds {
+	syntax: '<number>';
+	inherits: true;
+	initial-value: 1;
+}
+
+:root.sky-catch-up {
+	transition:
+		--sky-0 1.2s var(--ease-in-out-sine),
+		--sky-1 1.2s var(--ease-in-out-sine),
+		--sky-2 1.2s var(--ease-in-out-sine),
+		--sky-clouds 1.2s var(--ease-in-out-sine);
 }
 
 /* Images are decorative here — never part of a text selection and not draggable. */
@@ -97,29 +136,42 @@ img {
 	--ring: oklch(0.82 0.07 228.67);
 }
 
-/* Serif is the document default (was Skeleton's --typo-base--font-family).
-   Setting --font-sans routes Tailwind's default document font through it. */
+/* Arial (or a metric twin) resized to Nunito's proportions, so text set in the
+   fallback while the web font loads takes the same space and the swap doesn't
+   shift the layout. Overrides measured from the Nunito latin file: average
+   advance width (English letter frequency) against Arial's, and its hhea
+   ascent 1011 / descent 353 / gap 0 per 1000 units, divided by size-adjust. */
+@font-face {
+	font-family: 'Nunito Fallback';
+	src: local('Arial'), local('ArialMT'), local('Arimo'), local('Liberation Sans');
+	size-adjust: 98%;
+	ascent-override: 103.16%;
+	descent-override: 36.02%;
+	line-gap-override: 0%;
+}
+
+/* Nunito is the document default: a rounded, friendly sans. Setting --font-sans
+   routes Tailwind's default document font through it. */
 @theme {
-	--font-sans: 'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, serif;
+	--font-sans: 'Nunito Variable', 'Nunito Fallback', ui-sans-serif, system-ui, sans-serif;
 	--font-friendly: 'Chalkboard SE', 'Comic Neue', sans-serif;
 
-	/* The watercolour-paper sky. Single source of truth: Sky paints it, `html`
-	   above repeats it so the browser has it for the areas the page never reaches
-	   (iOS safe areas / notch, overscroll rubber-banding), and the `theme-color`
-	   meta in app.html mirrors the same hex for the iOS status bar and Android
-	   chrome. Change it here and in app.html together. */
-	--color-paper: #94cae7;
+	/* The watercolour-paper sky's top colour, which follows the sun (--sky-0,
+	   above). Sky paints the full gradient; `html` repeats this so the browser has
+	   it for the areas the page never reaches (iOS safe areas / notch, overscroll
+	   rubber-banding), and the sky engine keeps the `theme-color` meta in app.html
+	   in step for the iOS status bar and Android chrome. */
+	--color-paper: var(--sky-0);
 
-	/* Tint for the frosted surfaces (mobile top strip, mobile menu panel). Keyed
-	   to the paper sky so the glass reads as the background itself thickening,
-	   rather than as a foreign panel laid over it. */
-	--color-glass: #94c9e6;
+	/* Tint for the frosted mobile menu panel. Keyed to the sky so the glass
+	   reads as the background itself thickening, rather than as a foreign panel
+	   laid over it — at dusk as much as at noon. */
+	--color-glass: var(--sky-0);
 
-	/* Height of the fixed frosted strip that carries the home mark and the menu
-	   button on mobile. Single source of truth: the strip sizes itself with
-	   `h-chrome` and every page that scrolls underneath clears it with
-	   `pt-chrome`, so the two can never drift apart and clip a control that
-	   happens to sit at the top of the page. */
+	/* Height of the top band that carries the home mark and the menu button on
+	   mobile. The marks are document-anchored there, so they scroll away with
+	   the page; every page clears the band with `pt-chrome`, so a control at the
+	   top of a page can never sit under them. */
 	--spacing-chrome: 4rem;
 }
 

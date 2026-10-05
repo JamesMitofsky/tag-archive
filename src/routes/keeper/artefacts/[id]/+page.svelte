@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatDate } from '$lib/formatDate';
+	import { formatArtefactDate } from '$lib/formatDate';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
@@ -51,9 +51,9 @@
 				style="view-transition-name:{morphName('artefact', item.id)}-meta"
 				class="text-sm text-gray-500"
 			>
-				{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
-						·
-					{/if}{item.event}{/if}
+				{formatArtefactDate(item.date)}{#if item.event}
+					·
+					{item.event}{/if}
 			</p>
 
 			{#if item.programArea.length > 0}
