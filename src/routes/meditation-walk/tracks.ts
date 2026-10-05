@@ -39,12 +39,7 @@ export const tracks: Track[] = [
 		file: '18 - RETURN INTEGRATION.mp3',
 		kind: 'chapter'
 	},
-	{
-		number: 19,
-		title: 'Chakra Sounds, complete',
-		file: '19 - chakra sounds complete.mp3',
-		kind: 'interlude'
-	},
+	{ number: 19, title: 'Chakra Sounds', file: '19 - chakra sounds.mp3', kind: 'interlude' },
 	{ number: 20, title: 'Conclusion', file: '20 - CONCLUSION.mp3', kind: 'chapter' },
 	{ number: 21, title: 'Gate Gong', file: '21 - gate gong.mp3', kind: 'interlude' }
 ];
