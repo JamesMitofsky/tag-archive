@@ -4,7 +4,7 @@
  * `file` is the exact filename dropped into `static/audio/meditation-walk/`
  * (spaces and all — `trackUrl` encodes it). Spoken sections are `chapter`s;
  * the instrument-only sound-bath pieces between them are `interlude`s, which the
- * player sets in a lighter hand with a chimes mark, so the spoken structure stays
+ * player sets in a lighter hand with a bird mark, so the spoken structure stays
  * legible at a glance.
  */
 export interface Track {

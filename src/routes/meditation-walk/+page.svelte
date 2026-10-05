@@ -15,6 +15,7 @@
 	import SkipForwardIcon from 'phosphor-svelte/lib/SkipForwardIcon';
 	import ClockCounterClockwiseIcon from 'phosphor-svelte/lib/ClockCounterClockwiseIcon';
 	import ClockClockwiseIcon from 'phosphor-svelte/lib/ClockClockwiseIcon';
+	import BirdIcon from 'phosphor-svelte/lib/BirdIcon';
 	import { tracks, trackUrl } from './tracks';
 
 	const SKIP_SECONDS = 15;
@@ -304,25 +305,14 @@
 	onerror={() => (loadError = true)}
 ></audio>
 
-<!-- Wind chimes: a hanging bar with four tubes of different lengths. Marks the
-     sound-bath chapters. Drawn here because neither icon set has chimes — their
-     bells read as notifications. Labelled for screen readers, since the italic
-     that also marks these chapters carries no meaning when read aloud. -->
-{#snippet chimes(className: string)}
-	<svg
-		viewBox="0 0 16 16"
-		fill="none"
-		stroke="currentColor"
-		stroke-linecap="round"
-		role="img"
-		aria-label="Sound bath"
-		class={className}
-	>
-		<title>Sound bath</title>
-		<path d="M2 2.5h12" stroke-width="1.5" />
-		<path d="M3.5 2.5v4M6.5 2.5v3.5M9.5 2.5v4.5M12.5 2.5v4" stroke-width="0.75" />
-		<path d="M3.5 6.5v5M6.5 6v8M9.5 7v4M12.5 6.5v6" stroke-width="1.75" />
-	</svg>
+<!-- Marks the sound-bath chapters. Callers place it: the chapter list hangs it
+     left of the title, the player sets it inline in the chapter line. Labelled
+     for screen readers, since the italic that also marks these chapters carries
+     no meaning when read aloud. -->
+{#snippet bird(size: number, className: string)}
+	<span role="img" aria-label="Sound bath" title="Sound bath" class={className}>
+		<BirdIcon {size} weight="fill" aria-hidden="true" />
+	</span>
 {/snippet}
 
 <main
@@ -337,19 +327,22 @@
 		class="z-10 rounded-2xl bg-glass/95 px-6 pt-6 pb-5 text-gray-900 shadow-lg ring-1 ring-white/50 backdrop-blur-md [@media(min-height:600px)]:sticky [@media(min-height:600px)]:top-chrome md:[@media(min-height:600px)]:top-6"
 	>
 		<p class="font-friendly text-sm text-gray-600">{PAGE_TITLE}</p>
-		<p class="mt-4 text-xs tracking-wide text-gray-600 uppercase tabular-nums">
+		<!-- The bird rides the chapter line here rather than hanging left of the
+		     title as it does in the list: the card's padding is too narrow to hang
+		     it without jamming it against the edge, and inline before the title it
+		     would knock the title out of line with this label. -->
+		<p
+			class="mt-4 flex items-center gap-1.5 text-xs tracking-wide text-gray-600 uppercase tabular-nums"
+		>
 			Chapter {track.number} of {tracks.length}
+			{#if track.kind === 'interlude'}
+				{@render bird(14, 'text-gray-600')}
+			{/if}
 		</p>
 		<h1
-			class="mt-1 flex items-center gap-2 text-2xl leading-tight font-medium {track.kind ===
-			'interlude'
-				? 'italic'
-				: ''}"
+			class="mt-1 text-2xl leading-tight font-medium {track.kind === 'interlude' ? 'italic' : ''}"
 		>
 			{track.title}
-			{#if track.kind === 'interlude'}
-				{@render chimes('size-5 text-gray-600')}
-			{/if}
 		</h1>
 
 		{#if loadError}
@@ -451,7 +444,7 @@
 							? 'bg-white/40'
 							: ''}"
 					>
-						<span class="w-6 shrink-0 text-xs text-gray-500 tabular-nums">
+						<span class="w-7 shrink-0 text-xs text-gray-500 tabular-nums">
 							{#if current && !paused}
 								<!-- Live equalizer: bars bounce only while audio is actually
 								     playing, since this branch renders only when not paused. -->
@@ -463,20 +456,26 @@
 								{t.number}
 							{/if}
 						</span>
-						<!-- Title and chimes mark share the flexible column, so the mark
-						     sits right after the words rather than out by the duration,
-						     and a long title truncates before it pushes the mark away. -->
-						<span class="flex min-w-0 flex-1 items-center gap-1.5">
+						<!-- The bird hangs out of this column into the gap and the
+						     number column's empty right side (numbers are at most two
+						     digits, left-aligned in a w-7 sized to leave it room), so
+						     every title starts at the same x with or without one.
+						     Positioning lives on the outer span and truncation on the
+						     inner one: `truncate` clips overflow, and the bird IS overflow. -->
+						<span class="relative min-w-0 flex-1">
+							{#if t.kind === 'interlude'}
+								{@render bird(
+									14,
+									'absolute top-1/2 right-full mr-1.5 -translate-y-1/2 text-gray-500'
+								)}
+							{/if}
 							<span
-								class="min-w-0 truncate {t.kind === 'interlude'
+								class="block truncate {t.kind === 'interlude'
 									? 'text-gray-600 italic'
 									: ''} {current ? 'font-medium' : ''}"
 							>
 								{t.title}
 							</span>
-							{#if t.kind === 'interlude'}
-								{@render chimes('size-4 shrink-0 text-gray-500')}
-							{/if}
 						</span>
 						<span class="shrink-0 text-xs text-gray-500 tabular-nums">
 							{durations[i] != null ? formatTime(durations[i]) : ''}
