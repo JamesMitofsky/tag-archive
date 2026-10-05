@@ -304,6 +304,27 @@
 	onerror={() => (loadError = true)}
 ></audio>
 
+<!-- Wind chimes: a hanging bar with four tubes of different lengths. Marks the
+     sound-bath chapters. Drawn here because neither icon set has chimes — their
+     bells read as notifications. Labelled for screen readers, since the italic
+     that also marks these chapters carries no meaning when read aloud. -->
+{#snippet chimes(className: string)}
+	<svg
+		viewBox="0 0 16 16"
+		fill="none"
+		stroke="currentColor"
+		stroke-linecap="round"
+		role="img"
+		aria-label="Sound bath"
+		class={className}
+	>
+		<title>Sound bath</title>
+		<path d="M2 2.5h12" stroke-width="1.5" />
+		<path d="M3.5 2.5v4M6.5 2.5v3.5M9.5 2.5v4.5M12.5 2.5v4" stroke-width="0.75" />
+		<path d="M3.5 6.5v5M6.5 6v8M9.5 7v4M12.5 6.5v6" stroke-width="1.75" />
+	</svg>
+{/snippet}
+
 <main
 	class="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 pt-chrome pb-16 md:pt-24"
 >
@@ -320,9 +341,15 @@
 			Chapter {track.number} of {tracks.length}
 		</p>
 		<h1
-			class="mt-1 text-2xl leading-tight font-medium {track.kind === 'interlude' ? 'italic' : ''}"
+			class="mt-1 flex items-center gap-2 text-2xl leading-tight font-medium {track.kind ===
+			'interlude'
+				? 'italic'
+				: ''}"
 		>
 			{track.title}
+			{#if track.kind === 'interlude'}
+				{@render chimes('size-5 text-gray-600')}
+			{/if}
 		</h1>
 
 		{#if loadError}
@@ -436,12 +463,20 @@
 								{t.number}
 							{/if}
 						</span>
-						<span
-							class="min-w-0 flex-1 truncate {t.kind === 'interlude'
-								? 'text-gray-600 italic'
-								: ''} {current ? 'font-medium' : ''}"
-						>
-							{t.title}
+						<!-- Title and chimes mark share the flexible column, so the mark
+						     sits right after the words rather than out by the duration,
+						     and a long title truncates before it pushes the mark away. -->
+						<span class="flex min-w-0 flex-1 items-center gap-1.5">
+							<span
+								class="min-w-0 truncate {t.kind === 'interlude'
+									? 'text-gray-600 italic'
+									: ''} {current ? 'font-medium' : ''}"
+							>
+								{t.title}
+							</span>
+							{#if t.kind === 'interlude'}
+								{@render chimes('size-4 shrink-0 text-gray-500')}
+							{/if}
 						</span>
 						<span class="shrink-0 text-xs text-gray-500 tabular-nums">
 							{durations[i] != null ? formatTime(durations[i]) : ''}

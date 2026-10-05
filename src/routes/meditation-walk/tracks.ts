@@ -1,10 +1,11 @@
 /**
- * The chapters of the garden meditation, in playback order.
+ * The chapters of the meditation walk, in playback order.
  *
  * `file` is the exact filename dropped into `static/audio/meditation-walk/`
  * (spaces and all — `trackUrl` encodes it). Spoken sections are `chapter`s;
- * the instrument-only pieces between them are `interlude`s, which the player
- * sets in a lighter hand so the spoken structure stays legible at a glance.
+ * the instrument-only sound-bath pieces between them are `interlude`s, which the
+ * player sets in a lighter hand with a chimes mark, so the spoken structure stays
+ * legible at a glance.
  */
 export interface Track {
 	number: number;
