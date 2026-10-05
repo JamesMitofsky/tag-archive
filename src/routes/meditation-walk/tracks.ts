@@ -1,7 +1,7 @@
 /**
  * The chapters of the garden meditation, in playback order.
  *
- * `file` is the exact filename dropped into `static/audio/garden-meditation/`
+ * `file` is the exact filename dropped into `static/audio/meditation-walk/`
  * (spaces and all — `trackUrl` encodes it). Spoken sections are `chapter`s;
  * the instrument-only pieces between them are `interlude`s, which the player
  * sets in a lighter hand so the spoken structure stays legible at a glance.
@@ -13,7 +13,7 @@ export interface Track {
 	kind: 'chapter' | 'interlude';
 }
 
-export const AUDIO_BASE = '/audio/garden-meditation';
+export const AUDIO_BASE = '/audio/meditation-walk';
 
 export const tracks: Track[] = [
 	{ number: 1, title: 'Introduction', file: '01 - INTRODUCTION.mp3', kind: 'chapter' },

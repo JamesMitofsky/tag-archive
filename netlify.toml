@@ -7,10 +7,10 @@
 [images]
   remote_images = ["https://pub-2aae3e1d40a245af80fe282a8fe00be7\\.r2\\.dev/.*"]
 
-# The garden meditation's audio is served straight off the CDN, so it never
+# The meditation walk audio is served straight off the CDN, so it never
 # passes through the route's load (which sets the same header on the page HTML).
 # Keeps the MP3s out of search results even if a direct link leaks somewhere.
 [[headers]]
-  for = "/audio/garden-meditation/*"
+  for = "/audio/meditation-walk/*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow, noarchive"

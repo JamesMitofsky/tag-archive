@@ -15,11 +15,10 @@
 	import SkipForwardIcon from 'phosphor-svelte/lib/SkipForwardIcon';
 	import ClockCounterClockwiseIcon from 'phosphor-svelte/lib/ClockCounterClockwiseIcon';
 	import ClockClockwiseIcon from 'phosphor-svelte/lib/ClockClockwiseIcon';
-	import EqualizerIcon from 'phosphor-svelte/lib/EqualizerIcon';
 	import { tracks, trackUrl } from './tracks';
 
 	const SKIP_SECONDS = 15;
-	const STORAGE_KEY = 'garden-meditation:position';
+	const STORAGE_KEY = 'meditation-walk:position';
 	const PAGE_TITLE = 'Garden Meditation';
 
 	let audio: HTMLAudioElement;
@@ -427,7 +426,11 @@
 					>
 						<span class="w-6 shrink-0 text-xs text-gray-500 tabular-nums">
 							{#if current && !paused}
-								<span aria-hidden="true"><EqualizerIcon size={14} weight="bold" /></span>
+								<!-- Live equalizer: bars bounce only while audio is actually
+								     playing, since this branch renders only when not paused. -->
+								<span aria-hidden="true" class="eq">
+									<span></span><span></span><span></span><span></span>
+								</span>
 								<span class="sr-only">Now playing:</span>
 							{:else}
 								{t.number}
@@ -473,6 +476,69 @@
 	}
 	.control:disabled {
 		opacity: 0.35;
+	}
+
+	/* Now-playing equalizer. Bars animate `transform` rather than `height` so the
+	   bounce stays on the compositor and costs no layout per frame. Each bar gets
+	   its own period and phase; with a shared rhythm they would visibly march in
+	   lockstep and read as a loading spinner rather than sound. */
+	.eq {
+		display: inline-flex;
+		align-items: flex-end;
+		gap: 2px;
+		height: 12px;
+		vertical-align: middle;
+	}
+	.eq span {
+		width: 2px;
+		height: 100%;
+		border-radius: 1px;
+		background: var(--ink-soft);
+		transform-origin: bottom;
+		animation: eq-bounce 900ms var(--ease-in-out-sine) infinite alternate;
+	}
+	.eq span:nth-child(1) {
+		animation-duration: 820ms;
+		animation-delay: -400ms;
+	}
+	.eq span:nth-child(2) {
+		animation-duration: 1040ms;
+		animation-delay: -150ms;
+	}
+	.eq span:nth-child(3) {
+		animation-duration: 700ms;
+		animation-delay: -560ms;
+	}
+	.eq span:nth-child(4) {
+		animation-duration: 960ms;
+		animation-delay: -820ms;
+	}
+	@keyframes eq-bounce {
+		from {
+			transform: scaleY(0.2);
+		}
+		to {
+			transform: scaleY(1);
+		}
+	}
+	/* Reduced motion: hold a still, uneven skyline so the row still reads as
+	   "playing" without anything moving. */
+	@media (prefers-reduced-motion: reduce) {
+		.eq span {
+			animation: none;
+		}
+		.eq span:nth-child(1) {
+			transform: scaleY(0.5);
+		}
+		.eq span:nth-child(2) {
+			transform: scaleY(0.9);
+		}
+		.eq span:nth-child(3) {
+			transform: scaleY(0.35);
+		}
+		.eq span:nth-child(4) {
+			transform: scaleY(0.7);
+		}
 	}
 
 	/* Thin track with a filled portion up to the thumb. The fill rides a custom
