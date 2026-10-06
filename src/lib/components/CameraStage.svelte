@@ -1,5 +1,4 @@
 <script lang="ts">
-	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import {
@@ -353,14 +352,10 @@
 		<button
 			type="button"
 			onclick={onDone}
-			aria-label={replacing ? 'Cancel' : 'Done'}
+			aria-label={replacing ? 'Cancel' : 'Close camera'}
 			class="flex size-12 items-center justify-center justify-self-end rounded-full bg-white/10 transition hover:bg-white/20"
 		>
-			{#if replacing}
-				<XIcon size={22} />
-			{:else}
-				<CheckIcon size={22} weight="bold" />
-			{/if}
+			<XIcon size={22} />
 		</button>
 	</footer>
 </div>

@@ -1,5 +1,7 @@
 import { browser } from '$app/environment';
 import type { CornerPoints, Point, Scanner } from 'scanic';
+import { downscale } from './image';
+import { refineCorners, toLuma } from './refine';
 
 export type { CornerPoints, Point };
 
@@ -70,6 +72,37 @@ export async function dewarp(
 		return output instanceof HTMLCanvasElement ? output : null;
 	} catch {
 		return null;
+	}
+}
+
+/**
+ * Long edge of the copy refinement runs on. Close to the resolution its tuning
+ * was measured at (the edge detector's widths are in pixels), and small
+ * enough that reading the pixels back is cheap even from a 2560px photo.
+ */
+const REFINE_MAX = 960;
+
+/**
+ * Tighten a detection against the photo it is about to crop (see refine.ts):
+ * scanic's corners can sit several pixels off, and differently each frame.
+ * Runs once per photo, after capture, never in the live preview. Hands back
+ * `corners` unchanged whenever the page edges can't be measured confidently.
+ */
+export function refineDetection(source: HTMLCanvasElement, corners: CornerPoints): CornerPoints {
+	if (!browser) return corners;
+
+	try {
+		const work = downscale(source, source.width, source.height, REFINE_MAX);
+		const ctx = work?.getContext('2d');
+		if (!work || !ctx) return corners;
+
+		const sx = work.width / source.width;
+		const sy = work.height / source.height;
+		const luma = toLuma(ctx.getImageData(0, 0, work.width, work.height));
+		const refined = refineCorners(luma, scaleCorners(corners, sx, sy));
+		return refined ? scaleCorners(refined, 1 / sx, 1 / sy) : corners;
+	} catch {
+		return corners;
 	}
 }
 

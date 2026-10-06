@@ -5,7 +5,13 @@
 	import ImmersiveView from './ImmersiveView.svelte';
 	import ScanFilmstrip from './ScanFilmstrip.svelte';
 	import CornerAdjuster from './CornerAdjuster.svelte';
-	import { detectCorners, dewarp, scaleCorners, type CornerPoints } from '$lib/scanner/detect';
+	import {
+		detectCorners,
+		dewarp,
+		refineDetection,
+		scaleCorners,
+		type CornerPoints
+	} from '$lib/scanner/detect';
 	import { MAX_DIM, canvasToWebP, downscale, fileToCanvas } from '$lib/scanner/image';
 	import type { ScanPage } from '$lib/scanner/types';
 
@@ -167,8 +173,13 @@
 				// Work from a 2560-capped copy so the retained original, the crop and
 				// the upload all share one pixel space.
 				const source = downscale(frame, frame.width, frame.height, MAX_DIM) ?? frame;
+				// The live quad is only a guide: snap it to the page edges in the
+				// still photo before cropping.
 				const corners = cornersFull
-					? scaleCorners(cornersFull, source.width / frame.width, source.height / frame.height)
+					? refineDetection(
+							source,
+							scaleCorners(cornersFull, source.width / frame.width, source.height / frame.height)
+						)
 					: null;
 				await finalizePage(id, source, corners, fileName);
 			} catch (e) {
@@ -228,7 +239,8 @@
 					}
 					// Same detection as the camera path; the crop stays editable from
 					// the filmstrip, so an over-eager quad is one tap from undone.
-					const corners = await detectCorners(source);
+					const detected = await detectCorners(source);
+					const corners = detected ? refineDetection(source, detected) : null;
 					await finalizePage(id, source, corners, fileName);
 				} catch (e) {
 					updateItem(id, {
