@@ -283,21 +283,79 @@ describe('PageScanner.svelte', () => {
 			expect(server.fetch).not.toHaveBeenCalled();
 		});
 
-		it('moves on with Enter on a corner without ever focusing Discard', async () => {
+		it('moves on with Enter on a corner, never via Discard, and not twice at once', async () => {
 			fakeCamera();
+			const server = fakeServer();
 			render(PageScanner, {});
 			await shootAndCrop(2);
+			const focused: string[] = [];
+			const dialog = page.getByRole('dialog').element();
+			dialog.addEventListener('focusin', (event) =>
+				focused.push((event.target as Element).getAttribute('aria-label') ?? '')
+			);
+
+			document.querySelector<HTMLElement>('.scanic-handle')!.focus();
+			await userEvent.keyboard('{Enter}');
+			// Photo 2's corner takes focus as soon as it loads; a quick second
+			// Enter there must not confirm a photo that has only just appeared.
+			await vi.waitFor(() =>
+				expect(document.activeElement?.classList.contains('scanic-handle')).toBe(true)
+			);
+			await userEvent.keyboard('{Enter}');
+
+			await expect.element(page.getByText('Photo 2 of 2')).toBeInTheDocument();
+			expect(server.fetch).not.toHaveBeenCalled();
+			expect(focused.some((label) => label.startsWith('Discard'))).toBe(false);
+
+			// Once it has settled, Enter there finishes as usual.
+			await new Promise((resolve) => setTimeout(resolve, 450));
+			await userEvent.keyboard('{Enter}');
+			await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+			await vi.waitFor(() => expect(server.uploads).toHaveLength(2));
+		});
+
+		it('ignores a held Enter on a corner', async () => {
+			fakeCamera();
+			const server = fakeServer();
+			render(PageScanner, {});
+			await shootAndCrop(3);
 
 			const corner = document.querySelector<HTMLElement>('.scanic-handle')!;
 			corner.focus();
 			await userEvent.keyboard('{Enter}');
-			// A second Enter straight away must not land on "Discard photo 2".
-			await userEvent.keyboard('{Enter}');
-
-			await expect.element(page.getByText('Photo 2 of 2')).toBeInTheDocument();
+			await expect.element(page.getByText('Photo 2 of 3')).toBeInTheDocument();
+			// Key repeat, arriving once photo 2's corner has focus and settled.
 			await vi.waitFor(() =>
 				expect(document.activeElement?.classList.contains('scanic-handle')).toBe(true)
 			);
+			await new Promise((resolve) => setTimeout(resolve, 450));
+			for (let i = 0; i < 5; i++) {
+				document.activeElement!.dispatchEvent(
+					new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true })
+				);
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			await expect.element(page.getByText('Photo 2 of 3')).toBeInTheDocument();
+			expect(server.fetch).not.toHaveBeenCalled();
+		});
+
+		it('takes a double tap on Next as one step, not a finish', async () => {
+			fakeCamera();
+			const server = fakeServer();
+			render(PageScanner, {});
+			await shootAndCrop(2);
+
+			const next = page.getByRole('button', { name: 'Next photo' }).element() as HTMLElement;
+			next.click();
+			await new Promise((resolve) => setTimeout(resolve, 150));
+			// The same button, now Done for the last photo.
+			next.click();
+
+			await expect.element(page.getByText('Photo 2 of 2')).toBeInTheDocument();
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			expect(page.getByRole('dialog').query()).not.toBeNull();
+			expect(server.fetch).not.toHaveBeenCalled();
 		});
 
 		it('never drops photos on Escape: it moves on to cropping, then finishes', async () => {
@@ -332,11 +390,13 @@ describe('PageScanner.svelte', () => {
 			let finishUpload!: () => void;
 			const uploadHeld = new Promise<void>((resolve) => (finishUpload = resolve));
 			const deleted: string[] = [];
+			let uploadStarted = false;
 			vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
 				if (init?.method === 'DELETE') {
 					deleted.push((JSON.parse(String(init.body)) as { url: string }).url);
 					return new Response(null, { status: 204 });
 				}
+				uploadStarted = true;
 				await uploadHeld;
 				return new Response(
 					JSON.stringify({ url: 'https://example.com/late.webp', fileName: 'late.webp' }),
@@ -347,7 +407,8 @@ describe('PageScanner.svelte', () => {
 			render(PageScanner, { onChange });
 			await shootAndCrop(1);
 			await page.getByRole('button', { name: 'Add 1 page' }).click();
-			await expect.element(page.getByText('Uploading...')).toBeInTheDocument();
+			// Removed while the upload itself is in flight, not before it starts.
+			await vi.waitFor(() => expect(uploadStarted).toBe(true));
 
 			await page.getByRole('button', { name: 'Remove page 1' }).click();
 			finishUpload();
@@ -397,6 +458,59 @@ describe('PageScanner.svelte', () => {
 			await expect
 				.element(page.getByRole('img', { name: 'Page 2' }))
 				.toHaveAttribute('src', URLS[1]);
+		});
+
+		it('offers no re-crop of the old photo while a retake replaces it', async () => {
+			fakeCamera();
+			let finishUpload: () => void = () => {};
+			const server = fakeServer();
+			render(PageScanner, {});
+			await shootAndCrop(1);
+			await page.getByRole('button', { name: 'Add 1 page' }).click();
+			await expect
+				.element(page.getByRole('button', { name: 'Adjust crop of page 1' }))
+				.toBeInTheDocument();
+
+			// Hold the retake's upload so the page stays mid-replacement.
+			const held = new Promise<void>((resolve) => (finishUpload = resolve));
+			const respond = server.fetch.getMockImplementation()!;
+			server.fetch.mockImplementation(async (input, init) => {
+				if (init?.method !== 'DELETE') await held;
+				return respond(input, init);
+			});
+			const shutter = await openCamera('Retake page 1');
+			await shutter.click();
+			await page.getByRole('button', { name: 'Replace page 1' }).click();
+
+			await expect.element(page.getByText('Uploading...')).toBeInTheDocument();
+			expect(page.getByRole('button', { name: 'Adjust crop of page 1' }).query()).toBeNull();
+
+			finishUpload();
+			await expect
+				.element(page.getByRole('button', { name: 'Adjust crop of page 1' }))
+				.toBeInTheDocument();
+		});
+
+		it('never opens the crop editor over the camera', async () => {
+			fakeCamera();
+			fakeServer();
+			const onChange = vi.fn();
+			render(PageScanner, { onChange });
+			await shootAndCrop(1);
+			await page.getByRole('button', { name: 'Add 1 page' }).click();
+			await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+
+			// Adjust, then Retake before the photo has been decoded for the editor.
+			const adjust = page.getByRole('button', { name: 'Adjust crop of page 1' }).element();
+			const retake = page.getByRole('button', { name: 'Retake page 1' }).element();
+			(adjust as HTMLElement).click();
+			(retake as HTMLElement).click();
+
+			const shutter = page.getByRole('button', { name: 'Retake page', exact: true });
+			await expect.element(shutter).toBeInTheDocument();
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			expect(page.getByRole('button', { name: 'Apply crop' }).query()).toBeNull();
+			expect(document.querySelectorAll('[role="dialog"]').length).toBe(1);
 		});
 
 		it('re-crops a finished page from the page list', async () => {

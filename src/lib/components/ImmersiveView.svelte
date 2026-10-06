@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog as DialogPrimitive } from 'bits-ui';
-	import { tick, untrack, type Snippet } from 'svelte';
-	import { pushState } from '$app/navigation';
+	import { untrack, type Snippet } from 'svelte';
+	import { afterNavigate, onNavigate, pushState } from '$app/navigation';
 	import { page } from '$app/state';
 
 	// A full-viewport, dark, single-task surface: the camera, the crop editor,
@@ -20,11 +20,18 @@
 	// it would leave the whole form, taking whatever the view held with it.
 	let {
 		open,
+		steps = 1,
 		title,
 		onClose,
 		children
 	}: {
 		open: boolean;
+		/**
+		 * How many presses of back the view answers while open, each with one
+		 * `onClose`: 2 lets the first press move the surface back a step and the
+		 * second close it. Raise it only in answer to a tap (see `settle`).
+		 */
+		steps?: number;
 		/** Announced to assistive tech; not rendered visibly. */
 		title: string;
 		/** Escape, back, or anything else the primitive treats as dismissal. */
@@ -32,49 +39,93 @@
 		children: Snippet;
 	} = $props();
 
-	// While open, the view sits on a shallow history entry of its own (same URL,
-	// see SvelteKit's shallow routing), so back pops that entry instead of
-	// leaving the page. A pop never reaches beforeNavigate, so it can't trip an
-	// unsaved-changes guard either.
-	const entry = $props.id();
-	/** True while the current history entry is the one this view pushed. */
-	let ownsEntry = false;
+	// While open, the view stacks `steps` shallow history entries of its own
+	// (same URL, see SvelteKit's shallow routing), so back pops one of those
+	// instead of leaving the page. A pop never reaches beforeNavigate, so it
+	// can't trip an unsaved-changes guard either.
+	const id = $props.id();
+	/**
+	 * This open's mark on its entries. Fresh per open, so an entry left behind
+	 * by an earlier open (reached with forward, or kept across a reload) is
+	 * never taken for one of this open's.
+	 */
+	let token: string | null = null;
+	/** How many entries this view has stacked; it stands on the top one. */
+	let owned = 0;
+	/** A real navigation is unmounting the view: the entries are history now. */
+	let leaving = false;
 
-	function pushEntry() {
-		if (ownsEntry) return;
-		try {
-			pushState('', { ...page.state, immersive: entry });
-			ownsEntry = true;
-		} catch {
-			// No router, as when the component is rendered on its own: back just
-			// isn't intercepted.
+	/** How many of this open's entries are at or below the one `state` belongs to. */
+	function depthOf(state: App.PageState) {
+		return token !== null && state.immersive === token ? (state.immersiveStep ?? 0) + 1 : 0;
+	}
+
+	/** Stack or unwind entries until the view owns `target` of them. */
+	function settle(target: number) {
+		if (target > owned) {
+			// Only ever in answer to a tap. Chrome's back skips entries a page adds
+			// without one (its history manipulation intervention), so an entry
+			// pushed after a back gesture would send the next back out of the app.
+			if (navigator.userActivation && !navigator.userActivation.isActive) return;
+			try {
+				if (owned === 0) token = `${id}:${crypto.randomUUID()}`;
+				while (owned < target) {
+					pushState('', { ...page.state, immersive: token!, immersiveStep: owned });
+					owned += 1;
+				}
+			} catch {
+				// No router, as when the component is rendered on its own: back just
+				// isn't intercepted.
+				if (owned === 0) token = null;
+			}
+		} else if (target < owned) {
+			// Unwound before it lands, so the popstate this causes finds nothing to do.
+			const extra = owned - target;
+			owned = target;
+			history.go(-extra);
 		}
 	}
 
 	$effect(() => {
-		if (open) untrack(pushEntry);
-		else if (ownsEntry) {
-			// Closed from inside: drop the entry so back means back again.
-			ownsEntry = false;
-			history.back();
-		}
+		const target = open ? steps : 0;
+		untrack(() => settle(target));
 	});
 
-	$effect(() => {
-		const current = page.state.immersive;
-		untrack(() => {
-			if (!ownsEntry || current === entry) return;
-			// Back popped the entry: the entry is gone, so treat it as Escape.
-			ownsEntry = false;
-			onClose();
-			// The surface moved on rather than closing (camera to crop step):
-			// stand ready for the next back.
-			void tick().then(() => {
-				if (open) pushEntry();
-			});
-		});
+	// Runs after SvelteKit's own popstate handler, which has already set
+	// `page.state` to the entry now current. Watching `page.state` itself would
+	// not do: a form submit's `invalidateAll` resets it without anyone pressing
+	// back.
+	function onPopState() {
+		const at = depthOf(page.state);
+		if (at === owned) return;
+		if (at > owned) {
+			// Forward onto entries this open had already unwound: unwind again.
+			owned = at;
+			settle(open ? steps : 0);
+			return;
+		}
+		// Back, by the user: the entries above `at` are gone already.
+		const pressed = owned - at;
+		owned = at;
+		for (let i = 0; i < pressed && open; i++) onClose();
+	}
+
+	onNavigate(() => {
+		leaving = true;
+	});
+	afterNavigate(() => {
+		leaving = false;
+	});
+
+	// Unmounted while open without a navigation (a form swapped for its
+	// thank-you message): take the entries along, or the next back would seem
+	// to do nothing.
+	$effect(() => () => {
+		if (owned > 0 && !leaving) history.go(-owned);
 	});
 </script>
+
+<svelte:window onpopstate={onPopState} />
 
 <DialogPrimitive.Root {open} onOpenChange={(next) => !next && onClose()}>
 	<DialogPrimitive.Portal>
