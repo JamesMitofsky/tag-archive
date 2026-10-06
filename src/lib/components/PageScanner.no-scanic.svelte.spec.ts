@@ -30,8 +30,14 @@ it('still captures, crops and uploads when scanic is unavailable', async () => {
 	const canvas = document.createElement('canvas');
 	canvas.width = 640;
 	canvas.height = 480;
-	canvas.getContext('2d')!.fillRect(0, 0, 640, 480);
-	vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(canvas.captureStream(30));
+	const ctx = canvas.getContext('2d')!;
+	// A fresh stream per call, painted after it is made: a canvas stream only
+	// emits a frame when the canvas is drawn.
+	vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockImplementation(async () => {
+		const stream = canvas.captureStream(30);
+		ctx.fillRect(0, 0, 640, 480);
+		return stream;
+	});
 	const uploads = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
 		new Response(JSON.stringify({ url: 'https://example.com/new.webp', fileName: 'new.webp' }), {
 			headers: { 'Content-Type': 'application/json' }

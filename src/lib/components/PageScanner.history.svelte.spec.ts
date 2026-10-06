@@ -22,11 +22,17 @@ function fakeCamera() {
 	canvas.width = 640;
 	canvas.height = 480;
 	const ctx = canvas.getContext('2d')!;
-	ctx.fillStyle = '#222';
-	ctx.fillRect(0, 0, 640, 480);
-	ctx.fillStyle = '#fff';
-	ctx.fillRect(80, 60, 480, 360);
-	vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(canvas.captureStream(30));
+	// A fresh stream per call, as a real camera gives (closing the camera stops
+	// the last one), painted after it is made: a canvas stream only emits a
+	// frame when the canvas is drawn.
+	return vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockImplementation(async () => {
+		const stream = canvas.captureStream(30);
+		ctx.fillStyle = '#222';
+		ctx.fillRect(0, 0, 640, 480);
+		ctx.fillStyle = '#fff';
+		ctx.fillRect(80, 60, 480, 360);
+		return stream;
+	});
 }
 
 function fakeServer() {
