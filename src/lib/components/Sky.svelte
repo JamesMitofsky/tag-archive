@@ -109,22 +109,26 @@
 <!-- Watercolor paper backdrop, pinned behind everything.
 
      Both sky layers sit at a NEGATIVE z-index, and that is load-bearing on iOS
-     26 Safari. Safari looks for fixed elements at the top and bottom edges of
-     the screen; a viewport-sized one counts as page chrome — Safari then paints
-     an opaque bar in its colour over the status bar and the toolbar, hiding
-     whatever scrolls beneath — unless its z-index is negative, which is how
-     WebKit tells a backdrop from a header (`LocalFrameView::fixedContainerEdges`,
-     the `NegativeZIndex` case). At z-0 the cloud layer alone was enough to get
-     both bars. -->
+     26 Safari. Safari probes the middle of the top and bottom screen edges for a
+     fixed or sticky element; when it finds a large one it treats it as page
+     chrome and paints an opaque bar in its colour over the status bar and
+     behind the toolbar, hiding whatever scrolls beneath
+     (`LocalFrameView::fixedContainerEdges`). The probe walks the page in paint
+     order and stops at the first hit, and in-flow page content is hit before
+     any negative-z layer, so below zero the sky is never reached. Later WebKit
+     also exempts a viewport-sized fixed element with a negative z-index outright
+     (the `NegativeZIndex` case). At z-0 the cloud layer alone produced both
+     bars. Any new viewport-sized fixed element at z ≥ 0 or z-index: auto
+     brings them back. -->
 <div class="paper pointer-events-none fixed inset-0 -z-10" aria-hidden="true"></div>
 
 <!-- Cloud layer: above the paper, below page content (negative z: see the
-     paper, above). Fades in with the rest of
-     the chrome (.load-fade, layout.css). The fade lives on the layer, not the
-     individual clouds: one composited group instead of four, and it leaves each
-     cloud's own animation shorthand — the endless drift — untouched, so a cloud
-     that decodes late never restarts its drift mid-flight. The per-image
-     transition below still smooths that late decode. -->
+     paper, above). Fades in with the rest of the chrome (.load-fade,
+     layout.css). The fade lives on the layer, not the individual clouds: one
+     composited group instead of four, and it leaves each cloud's own animation
+     shorthand — the endless drift — untouched, so a cloud that decodes late
+     never restarts its drift mid-flight. The per-image transition below still
+     smooths that late decode. -->
 <div
 	class="cloud-layer load-fade pointer-events-none fixed inset-0 -z-5 overflow-hidden"
 	aria-hidden="true"
