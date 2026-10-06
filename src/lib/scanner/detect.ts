@@ -137,22 +137,20 @@ export function fullFrameCorners(width: number, height: number): CornerPoints {
 }
 
 /**
- * Where `object-contain` actually paints a natW×natH source inside a boxW×boxH
- * element. The overlay must use this rather than the element box: if any
- * ancestor constrains the stage's height, the video letterboxes and a quad
- * mapped to the raw box is drawn visibly offset.
+ * True when `corners` is the whole width×height frame, give or take `tolerance`
+ * pixels per corner. Cropping to it would only resample the photo, so callers
+ * skip the dewarp and keep the image as it is.
  */
-export function containFit(
-	natW: number,
-	natH: number,
-	boxW: number,
-	boxH: number
-): { scale: number; offsetX: number; offsetY: number; drawW: number; drawH: number } {
-	if (natW <= 0 || natH <= 0) return { scale: 0, offsetX: 0, offsetY: 0, drawW: 0, drawH: 0 };
-	const scale = Math.min(boxW / natW, boxH / natH);
-	const drawW = natW * scale;
-	const drawH = natH * scale;
-	return { scale, offsetX: (boxW - drawW) / 2, offsetY: (boxH - drawH) / 2, drawW, drawH };
+export function isFullFrame(
+	corners: CornerPoints,
+	width: number,
+	height: number,
+	tolerance = 1
+): boolean {
+	const frame = cornerList(fullFrameCorners(width, height));
+	return cornerList(corners).every(
+		(p, i) => Math.abs(p.x - frame[i].x) <= tolerance && Math.abs(p.y - frame[i].y) <= tolerance
+	);
 }
 
 /** Shoelace area of the quad, in square pixels. */
@@ -182,22 +180,4 @@ export function isPlausibleQuad(
 	const pts = cornerList(corners);
 	if (pts.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) return false;
 	return quadArea(corners) / frame >= minCoverage;
-}
-
-/**
- * Move `from` a fraction `t` of the way towards `to` (0 = stay, 1 = arrive).
- * The live overlay uses this to glide between detections instead of snapping,
- * so a quad that shifts a few pixels per frame reads as tracking, not jitter.
- */
-export function lerpCorners(from: CornerPoints, to: CornerPoints, t: number): CornerPoints {
-	const mix = (a: Point, b: Point): Point => ({
-		x: a.x + (b.x - a.x) * t,
-		y: a.y + (b.y - a.y) * t
-	});
-	return {
-		topLeft: mix(from.topLeft, to.topLeft),
-		topRight: mix(from.topRight, to.topRight),
-		bottomRight: mix(from.bottomRight, to.bottomRight),
-		bottomLeft: mix(from.bottomLeft, to.bottomLeft)
-	};
 }

@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-	containFit,
 	cornerList,
 	fullFrameCorners,
+	isFullFrame,
 	isPlausibleQuad,
-	lerpCorners,
 	quadArea,
 	scaleCorners,
 	type CornerPoints
@@ -59,29 +58,15 @@ describe('scanner geometry', () => {
 		expect(isPlausibleQuad(quad(1000, 100, 10), 1000, 100)).toBe(true);
 	});
 
-	it('centres the object-contain letterbox on both axes', () => {
-		// Source wider than the box: bars top and bottom.
-		expect(containFit(1000, 500, 400, 400)).toMatchObject({
-			scale: 0.4,
-			offsetX: 0,
-			offsetY: 100,
-			drawW: 400,
-			drawH: 200
-		});
+	it('recognises the whole frame, within a pixel', () => {
+		expect(isFullFrame(fullFrameCorners(640, 480), 640, 480)).toBe(true);
+		// What a corner editor hands back after a drag to the very edge.
+		const nudged = fullFrameCorners(640, 480);
+		nudged.bottomRight = { x: 639.4, y: 479.6 };
+		expect(isFullFrame(nudged, 640, 480)).toBe(true);
 
-		// Source taller than the box: bars left and right.
-		expect(containFit(500, 1000, 400, 400)).toMatchObject({
-			scale: 0.4,
-			offsetX: 100,
-			offsetY: 0
-		});
-
-		// Matching aspect ratio: fills exactly, no offset.
-		expect(containFit(1600, 1200, 800, 600)).toMatchObject({ offsetX: 0, offsetY: 0, scale: 0.5 });
-	});
-
-	it('degrades to a zero fit when the video has no intrinsic size yet', () => {
-		expect(containFit(0, 0, 400, 400).scale).toBe(0);
+		expect(isFullFrame(quad(640, 480, 2), 640, 480)).toBe(false);
+		expect(isFullFrame(fullFrameCorners(640, 480), 1280, 960)).toBe(false);
 	});
 
 	it('rejects non-finite and zero-area frames', () => {
@@ -90,14 +75,5 @@ describe('scanner geometry', () => {
 
 		expect(isPlausibleQuad(broken, 100, 100)).toBe(false);
 		expect(isPlausibleQuad(fullFrameCorners(100, 100), 0, 0)).toBe(false);
-	});
-
-	it('interpolates every corner towards the target', () => {
-		const from = fullFrameCorners(100, 100);
-		const to = quad(100, 100, 20);
-
-		expect(lerpCorners(from, to, 0)).toEqual(from);
-		expect(lerpCorners(from, to, 1)).toEqual(to);
-		expect(lerpCorners(from, to, 0.5)).toEqual(quad(100, 100, 10));
 	});
 });

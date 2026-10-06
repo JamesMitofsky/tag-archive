@@ -2,13 +2,10 @@
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CornersOutIcon from 'phosphor-svelte/lib/CornersOutIcon';
-	import { fullFrameCorners, type CornerPoints } from '$lib/scanner/detect';
-	import type { CornerEditor } from 'scanic';
+	import CornerEditorSurface from './CornerEditorSurface.svelte';
+	import type { CornerPoints } from '$lib/scanner/detect';
 
-	// Wraps scanic's imperative corner editor. It already ships drag handles with
-	// a 44px hit area, a magnifier and keyboard nudging, so we mount it into a
-	// container and drive Apply/Cancel from our own buttons (`toolbar` off). The
-	// editor sizes itself to the container, which fills the immersive view.
+	// Re-crop one page: the corner editor plus Cancel / Use whole image / Apply.
 	let {
 		image,
 		corners,
@@ -23,46 +20,12 @@
 		onCancel: () => void;
 	} = $props();
 
-	let container = $state<HTMLDivElement>();
-	let editor: CornerEditor | null = null;
+	let surface = $state<CornerEditorSurface>();
 	let failed = $state(false);
 
-	$effect(() => {
-		const host = container;
-		if (!host) return;
-
-		let disposed = false;
-		void (async () => {
-			try {
-				const { createCornerEditor } = await import('scanic');
-				if (disposed) return;
-				editor = createCornerEditor({
-					container: host,
-					image,
-					corners: corners ?? fullFrameCorners(image.width, image.height),
-					toolbar: { enabled: false },
-					nudges: { enabled: true },
-					theme: { accent: '#22c55e' }
-				});
-			} catch {
-				failed = true;
-			}
-		})();
-
-		return () => {
-			disposed = true;
-			editor?.destroy();
-			editor = null;
-		};
-	});
-
 	function apply() {
-		if (!editor) return;
-		onApply(editor.getCorners());
-	}
-
-	function useWhole() {
-		editor?.setCorners(fullFrameCorners(image.width, image.height));
+		const current = surface?.getCorners();
+		if (current) onApply(current);
 	}
 </script>
 
@@ -77,7 +40,9 @@
 		{/if}
 	</header>
 
-	<div bind:this={container} class="relative min-h-0 flex-1 overflow-hidden"></div>
+	<div class="min-h-0 flex-1">
+		<CornerEditorSurface bind:this={surface} bind:failed {image} {corners} onConfirm={onApply} />
+	</div>
 
 	<footer class="grid grid-cols-3 items-center px-6 py-5">
 		<button
@@ -91,7 +56,7 @@
 
 		<button
 			type="button"
-			onclick={useWhole}
+			onclick={() => surface?.useWhole()}
 			disabled={failed}
 			aria-label="Use whole image"
 			title="Use whole image"
