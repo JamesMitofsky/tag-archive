@@ -87,8 +87,8 @@
 	}
 	.route {
 		grid-area: 1 / 1;
-		/* Stacking context above the fixed cloud layer (z-0) so page content
-		   paints over the clouds; Sky's paper stays behind at -z-10. */
+		/* Stacking context above Sky's fixed layers (clouds at -z-5, paper at
+		   -z-10) so page content always paints over the clouds. */
 		position: relative;
 		z-index: 1;
 	}

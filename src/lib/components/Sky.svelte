@@ -106,17 +106,27 @@
 	{@html skyHeadScript}
 </svelte:head>
 
-<!-- Watercolor paper backdrop, pinned behind everything. -->
+<!-- Watercolor paper backdrop, pinned behind everything.
+
+     Both sky layers sit at a NEGATIVE z-index, and that is load-bearing on iOS
+     26 Safari. Safari looks for fixed elements at the top and bottom edges of
+     the screen; a viewport-sized one counts as page chrome — Safari then paints
+     an opaque bar in its colour over the status bar and the toolbar, hiding
+     whatever scrolls beneath — unless its z-index is negative, which is how
+     WebKit tells a backdrop from a header (`LocalFrameView::fixedContainerEdges`,
+     the `NegativeZIndex` case). At z-0 the cloud layer alone was enough to get
+     both bars. -->
 <div class="paper pointer-events-none fixed inset-0 -z-10" aria-hidden="true"></div>
 
-<!-- Cloud layer: above the paper, below page content. Fades in with the rest of
+<!-- Cloud layer: above the paper, below page content (negative z: see the
+     paper, above). Fades in with the rest of
      the chrome (.load-fade, layout.css). The fade lives on the layer, not the
      individual clouds: one composited group instead of four, and it leaves each
      cloud's own animation shorthand — the endless drift — untouched, so a cloud
      that decodes late never restarts its drift mid-flight. The per-image
      transition below still smooths that late decode. -->
 <div
-	class="cloud-layer load-fade pointer-events-none fixed inset-0 z-0 overflow-hidden"
+	class="cloud-layer load-fade pointer-events-none fixed inset-0 -z-5 overflow-hidden"
 	aria-hidden="true"
 >
 	{#each clouds as c, i (i)}
