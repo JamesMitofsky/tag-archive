@@ -41,7 +41,7 @@
 	</header>
 
 	<div class="min-h-0 flex-1">
-		<CornerEditorSurface bind:this={surface} bind:failed {image} {corners} onConfirm={onApply} />
+		<CornerEditorSurface bind:this={surface} bind:failed {image} {corners} />
 	</div>
 
 	<footer class="grid grid-cols-3 items-center px-6 py-5">

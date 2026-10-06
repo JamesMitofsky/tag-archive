@@ -2,6 +2,7 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
+	import { MAX_DIM, fitWithin } from '$lib/scanner/image';
 
 	// Live camera stage. Fills whatever box it is given (the immersive view hands
 	// it the viewport); the video letterboxes inside on black so the frame never
@@ -15,9 +16,9 @@
 		onError,
 		shotCount = 0,
 		latestPreview,
-		replacing = false
+		replacingPage
 	}: {
-		/** A full-resolution frame, exactly as shot. */
+		/** The frame as shot, capped at MAX_DIM on its longest edge. */
 		onCapture: (frame: HTMLCanvasElement) => void;
 		/** The exit button: closes the camera, or moves on once something was shot. */
 		onDone: () => void;
@@ -26,8 +27,8 @@
 		shotCount?: number;
 		/** Thumbnail of the most recent photo, shown in the tray as capture feedback. */
 		latestPreview?: string;
-		/** Retake mode: the next shot replaces an existing page. */
-		replacing?: boolean;
+		/** Retake mode: the 1-based page the next shot replaces. */
+		replacingPage?: number;
 	} = $props();
 
 	let video = $state<HTMLVideoElement>();
@@ -38,8 +39,13 @@
 	let stream: MediaStream | null = null;
 	let stopped = false;
 
+	const replacing = $derived(replacingPage !== undefined);
 	/** With nothing shot, leaving is quitting; after that it is finishing. */
 	const finishing = $derived(shotCount > 0);
+	const photos = $derived(`${shotCount} ${shotCount === 1 ? 'photo' : 'photos'}`);
+	const exitLabel = $derived(
+		finishing ? `Done, crop ${photos}` : replacing ? 'Cancel retake' : 'Close camera'
+	);
 
 	async function start() {
 		try {
@@ -79,15 +85,18 @@
 	function capture() {
 		if (!video?.videoWidth) return;
 
-		const full = document.createElement('canvas');
-		full.width = video.videoWidth;
-		full.height = video.videoHeight;
-		const ctx = full.getContext('2d');
+		// Drawn straight at the size everything downstream works at: a run of
+		// shots waiting their turn then holds no more pixels than it will use.
+		const { width, height } = fitWithin(video.videoWidth, video.videoHeight, MAX_DIM);
+		const frame = document.createElement('canvas');
+		frame.width = width;
+		frame.height = height;
+		const ctx = frame.getContext('2d');
 		if (!ctx) return;
-		ctx.drawImage(video, 0, 0);
+		ctx.drawImage(video, 0, 0, width, height);
 
 		shutterCount += 1;
-		onCapture(full);
+		onCapture(frame);
 	}
 
 	$effect(() => {
@@ -101,13 +110,14 @@
 	<header class="px-4 py-3 text-sm">
 		<!-- Announced: for a non-sighted user the thumbnail is not feedback. -->
 		<span aria-live="polite" class="text-white/80">
+			<!-- Photos, not pages: they aren't pages until they're cropped and kept,
+			     and the form's own pages are numbered separately. -->
 			{#if replacing}
-				Retaking a page
+				Retaking page {replacingPage}
 			{:else if shotCount === 0}
-				No pages yet
+				No photos yet
 			{:else}
-				{shotCount}
-				{shotCount === 1 ? 'page' : 'pages'}
+				{photos}
 			{/if}
 		</span>
 	</header>
@@ -156,12 +166,15 @@
 			{/if}
 		</div>
 
+		<!-- aria-disabled, not disabled, while the video starts: a disabled
+		     shutter can't take focus, and focus would land on the exit button,
+		     where Space finishes the run instead of taking a photo. -->
 		<button
 			type="button"
 			onclick={capture}
-			disabled={!ready}
+			aria-disabled={!ready}
 			aria-label={replacing ? 'Retake page' : 'Capture page'}
-			class="group size-18 justify-self-center rounded-full border-4 border-white p-1 transition disabled:opacity-40"
+			class="group size-18 justify-self-center rounded-full border-4 border-white p-1 transition aria-disabled:opacity-40"
 		>
 			<span class="block h-full w-full rounded-full bg-white transition group-active:scale-90"
 			></span>
@@ -172,7 +185,8 @@
 		<button
 			type="button"
 			onclick={onDone}
-			aria-label={finishing ? 'Done' : replacing ? 'Cancel retake' : 'Close camera'}
+			aria-label={exitLabel}
+			title={exitLabel}
 			class="flex size-12 items-center justify-center justify-self-end rounded-full transition {finishing
 				? 'bg-white text-black hover:bg-white/90'
 				: 'bg-white/10 hover:bg-white/20'}"

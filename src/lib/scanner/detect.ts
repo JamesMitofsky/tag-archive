@@ -28,7 +28,10 @@ export function getScanner(): Promise<Scanner | null> {
 			await scanner.initialize();
 			return scanner;
 		} catch {
-			// No overlay, no cropping — capture falls back to the raw frame.
+			// No cropping — pages keep the photo as shot. Forget the failure so a
+			// later call can try again: a dropped connection mid-import shouldn't
+			// turn detection off for the rest of the visit.
+			scannerPromise = null;
 			return null;
 		}
 	})();

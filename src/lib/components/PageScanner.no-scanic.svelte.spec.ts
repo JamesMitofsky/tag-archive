@@ -42,13 +42,15 @@ it('still captures, crops and uploads when scanic is unavailable', async () => {
 	render(PageScanner, { onChange });
 	await page.getByRole('button', { name: 'Scan pages' }).click();
 	const shutter = page.getByRole('button', { name: 'Capture page' });
-	await expect.element(shutter).toBeEnabled();
+	await expect.element(shutter).not.toHaveAttribute('aria-disabled', 'true');
 	await shutter.click();
-	await page.getByRole('button', { name: 'Done' }).click();
+	await page.getByRole('button', { name: 'Done, crop 1 photo' }).click();
 
 	// Detection and the crop editor only ever improve a page, never block one.
-	await expect.element(page.getByText(/crop editor could not be loaded/)).toBeInTheDocument();
-	await page.getByRole('button', { name: 'Done' }).click();
+	await expect
+		.element(page.getByText(/crop editor could not be loaded, so the page will be kept as shot/))
+		.toBeInTheDocument();
+	await page.getByRole('button', { name: 'Add 1 page' }).click();
 
 	await expect.element(page.getByRole('img', { name: 'Page 1' })).toBeInTheDocument();
 	await vi.waitFor(() =>

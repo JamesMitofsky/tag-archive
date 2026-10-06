@@ -12,6 +12,7 @@
 		corners,
 		onChange,
 		onConfirm,
+		focusHandle = false,
 		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		failed = $bindable(false)
 	}: {
@@ -23,6 +24,8 @@
 		onChange?: (corners: CornerPoints) => void;
 		/** Enter on a focused corner handle. */
 		onConfirm?: (corners: CornerPoints) => void;
+		/** Focus the first corner handle once the editor is up. */
+		focusHandle?: boolean;
 		/** True once the editor has failed to load; the image is then not shown. */
 		failed?: boolean;
 	} = $props();
@@ -49,6 +52,7 @@
 					onChange: (next) => onChange?.(next),
 					onConfirm: (next) => onConfirm?.(next)
 				});
+				if (focusHandle) host.querySelector<HTMLElement>('.scanic-handle')?.focus();
 			} catch {
 				failed = true;
 			}

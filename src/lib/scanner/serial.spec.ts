@@ -40,6 +40,36 @@ describe('createSerialQueue', () => {
 		).resolves.toEqual([1, 'two']);
 	});
 
+	it('starts waiting interactive work before waiting background work', async () => {
+		const queue = createSerialQueue();
+		const log: string[] = [];
+		const first = deferred();
+
+		const running = queue.run(async () => {
+			await first.promise;
+			log.push('running');
+		}, 'background');
+		const later = [
+			queue.run(async () => void log.push('background 1'), 'background'),
+			queue.run(async () => void log.push('background 2'), 'background'),
+			queue.run(async () => void log.push('interactive'))
+		];
+
+		first.resolve();
+		await Promise.all([running, ...later]);
+		// The task already running finishes first; nothing is pre-empted.
+		expect(log).toEqual(['running', 'interactive', 'background 1', 'background 2']);
+	});
+
+	it('runs a task that throws synchronously as a rejection, not a stall', async () => {
+		const queue = createSerialQueue();
+		const thrown = queue.run(() => {
+			throw new Error('sync');
+		});
+		await expect(thrown).rejects.toThrow('sync');
+		await expect(queue.run(async () => 'after')).resolves.toBe('after');
+	});
+
 	it('keeps going after a task fails, and rejects only that task', async () => {
 		const queue = createSerialQueue();
 		const failed = queue.run(async () => {
