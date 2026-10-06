@@ -200,6 +200,20 @@ describe('PageScanner.svelte', () => {
 			expect(server.fetch).not.toHaveBeenCalled();
 		});
 
+		it('asks the camera for a sharp stream, in terms no camera can refuse', async () => {
+			const getUserMedia = fakeCamera();
+			render(PageScanner, {});
+			await openCamera();
+
+			// Asked for no size, browsers open the camera at 640×480.
+			const video = getUserMedia.mock.lastCall?.[0]?.video as MediaTrackConstraints;
+			expect(video.width).toEqual({ ideal: 2560 });
+			expect(video.height).toEqual({ ideal: 1920 });
+			// `ideal` only: an exact or min value throws OverconstrainedError on a
+			// camera that can't reach it, and the scanner would never open.
+			for (const value of Object.values(video)) expect(Object.keys(value)).toEqual(['ideal']);
+		});
+
 		it('crops every photo after the run, and uploads only once cropping is done', async () => {
 			fakeCamera();
 			const server = fakeServer();
