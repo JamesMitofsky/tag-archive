@@ -106,17 +106,28 @@
 	{@html skyHeadScript}
 </svelte:head>
 
-<!-- Watercolor paper backdrop, pinned behind everything. -->
-<div class="paper pointer-events-none fixed inset-0 -z-10" aria-hidden="true"></div>
+<!-- Watercolor paper backdrop, pinned behind everything.
+     Sized to the LARGE viewport (100lvh, the screen with every browser toolbar
+     retracted), not `inset-0`. On iOS Safari a fixed element's `bottom: 0`
+     tracks the toolbar, so an `inset-0` backdrop ends above the URL bar and the
+     strip beneath it falls through to the root canvas — one flat colour
+     (--sky-0), which at dawn and dusk is a hard band of blue under the warm
+     horizon, its height following the URL bar as it grows and shrinks. Pinned
+     to the top and always as tall as the whole screen, the backdrop covers that
+     strip in every toolbar state (any excess just sits behind the toolbar), and
+     the gradient no longer rescales while the toolbar animates. -->
+<div class="paper pointer-events-none fixed inset-x-0 top-0 -z-10 h-lvh" aria-hidden="true"></div>
 
 <!-- Cloud layer: above the paper, below page content. Fades in with the rest of
      the chrome (.load-fade, layout.css). The fade lives on the layer, not the
      individual clouds: one composited group instead of four, and it leaves each
      cloud's own animation shorthand — the endless drift — untouched, so a cloud
      that decodes late never restarts its drift mid-flight. The per-image
-     transition below still smooths that late decode. -->
+     transition below still smooths that late decode. Sized like the paper
+     (100lvh), so its overflow clip doesn't slice the low cloud at the same
+     toolbar-dependent edge. -->
 <div
-	class="cloud-layer load-fade pointer-events-none fixed inset-0 z-0 overflow-hidden"
+	class="cloud-layer load-fade pointer-events-none fixed inset-x-0 top-0 z-0 h-lvh overflow-hidden"
 	aria-hidden="true"
 >
 	{#each clouds as c, i (i)}
