@@ -15,7 +15,10 @@ declare global {
 
 		// interface Error {}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			/** Set while an ImmersiveView is open: its id. Back pops it to close the view. */
+			immersive?: string;
+		}
 		// interface Platform {}
 	}
 }
