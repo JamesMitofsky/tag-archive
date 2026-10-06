@@ -17,7 +17,14 @@ html {
 	   leaves the browser's own canvas — the iOS safe areas around the notch and
 	   the overscroll area past the top of the page — painting the default white.
 	   Repeating the colour on the root element hands it to that canvas too, which
-	   is what the UA propagates when `body` has no background of its own. */
+	   is what the UA propagates when `body` has no background of its own.
+	   On iOS 26 Safari this colour is also all that shows outside the
+	   document's bounds: the status-bar inset at the top of the page, the strip
+	   behind the toolbar at the very end, and rubber-band overscroll. Fixed
+	   content (the paper) is clipped to the area between Safari's bars, so it
+	   never covers those. Inside the document, SkyUnderlay covers the canvas;
+	   on iPhone the colour turns to the horizon for the last screen of scroll
+	   (below). */
 	background-color: var(--color-paper);
 
 	/* Kill the 300ms double-tap-zoom delay across the whole site. `touch-action`
@@ -26,6 +33,36 @@ html {
 	   KEEPS pinch-to-zoom and panning — only the double-tap gesture goes. Inert on
 	   a device with no touch input. */
 	touch-action: manipulation;
+}
+
+/* iPhone Safari 26: at the end of a page the strip behind the floating toolbar
+   lies past the document, where only the canvas colour is drawn, so there it
+   must be the horizon, while the top of the page needs the zenith. A
+   scroll-driven animation switches it once, a screen before the end (halfway,
+   on a page that scrolls less than two screens). At that point the toolbar
+   strip is still inside the document, covered by SkyUnderlay, so the switch is
+   never seen, and it costs one repaint, not one per frame. iPhone sizes only:
+   iPad Safari has no bottom bar. The @supports test includes the exact range
+   value: if WebKit rejected it, the range would fall back to `normal` and turn
+   the canvas warm from the very top. Longhands only, because the `animation`
+   shorthand resets animation-timeline and animation-range. */
+@supports (-webkit-touch-callout: none) and (animation-timeline: scroll()) and
+	(animation-range-start: max(50%, 100% - 100svh)) {
+	@media (max-width: 500px), (max-height: 500px) {
+		html {
+			animation-name: sky-canvas-horizon;
+			animation-fill-mode: forwards;
+			animation-timeline: scroll(root block);
+			animation-range-start: max(50%, 100% - 100svh);
+		}
+	}
+}
+
+@keyframes sky-canvas-horizon {
+	from,
+	to {
+		background-color: var(--sky-2);
+	}
 }
 
 /* The sky's colour ($lib/sky): gradient stops top to bottom, and the cloud

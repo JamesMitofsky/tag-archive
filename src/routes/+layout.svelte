@@ -9,6 +9,7 @@
 	import { onNavigate } from '$app/navigation';
 	import { morph, morphNameForPair, reducedMotion } from '$lib/transitions.svelte';
 	import Sky from '$lib/components/Sky.svelte';
+	import SkyUnderlay from '$lib/components/SkyUnderlay.svelte';
 	import Drawing from '$lib/components/Drawing.svelte';
 	import PublicNav from '$lib/components/PublicNav.svelte';
 
@@ -70,6 +71,7 @@
 {/if}
 
 <div class="route-wrap">
+	<SkyUnderlay />
 	{#key page.url.pathname}
 		<div
 			class="route"
@@ -84,11 +86,15 @@
 <style>
 	.route-wrap {
 		display: grid;
+		/* Containing block for SkyUnderlay, so it spans the whole page. No
+		   z-index: it must not become a stacking context, or the underlay could
+		   no longer sit beneath Sky's paper. */
+		position: relative;
 	}
 	.route {
 		grid-area: 1 / 1;
-		/* Stacking context above the fixed cloud layer (z-0) so page content
-		   paints over the clouds; Sky's paper stays behind at -z-10. */
+		/* Stacking context above Sky's fixed layers (clouds at -z-5, paper at
+		   -z-10) so page content always paints over the clouds. */
 		position: relative;
 		z-index: 1;
 	}
