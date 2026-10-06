@@ -13,12 +13,30 @@
 html {
 	scrollbar-gutter: stable both-edges;
 
-	/* Sky's `.paper` is fixed to the viewport, so it leaves the browser's own
-	   canvas — the iOS safe areas around the notch and the overscroll area past
-	   the top of the page — painting the default white.
+	/* Sky's `.paper` is `fixed inset-0`, so it stops at the viewport edge and
+	   leaves the browser's own canvas — the iOS safe areas around the notch and
+	   the overscroll area past the top of the page — painting the default white.
 	   Repeating the colour on the root element hands it to that canvas too, which
 	   is what the UA propagates when `body` has no background of its own. */
 	background-color: var(--color-paper);
+
+	/* …but that colour is the zenith, and on iOS 26 Safari the paper also stops
+	   short at the bottom: fixed content never renders beneath the floating
+	   toolbar, so the strip under it shows this canvas instead. At dawn and dusk
+	   that strip was a band of zenith blue under a warm horizon, as tall as the
+	   toolbar. Painting the document area in the horizon colour (plus the
+	   paper's grain) makes the strip read as the paper running on.
+	   This has to live on the canvas. Making the paper itself taller (100lvh)
+	   gets it sampled by Safari's fixed-edge tinting, which then paints opaque
+	   colour bars over the status bar and toolbar.
+	   The two jobs don't collide. iOS shows only the background *colour*
+	   outside the document's bounds (the status-bar inset at the top of the
+	   page, rubber-band overscroll), so those keep the zenith, while the image
+	   covers everything inside them. `min-height` stretches the root box, and
+	   with it the image, to the viewport on pages shorter than the screen. */
+	min-height: 100%;
+	background-image: url('/paper-noise.png'), linear-gradient(var(--sky-2), var(--sky-2));
+	background-repeat: repeat, no-repeat;
 
 	/* Kill the 300ms double-tap-zoom delay across the whole site. `touch-action`
 	   combines down the ancestor chain, so declaring it here covers every element
