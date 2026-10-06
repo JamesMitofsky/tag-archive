@@ -318,13 +318,10 @@
 <main
 	class="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 pt-chrome pb-16 md:pt-24"
 >
-	<!-- Now playing. Pinned under the chrome while the chapter list scrolls, so the
-	     controls never leave the screen — but only on viewports tall enough to
-	     spare the room; on a landscape phone it would bury the list. Denser glass
-	     than the list card, because list rows pass underneath it. -->
+	<!-- Now playing. Scrolls with the page rather than pinning under the chrome. -->
 	<section
 		aria-label="Player"
-		class="z-10 rounded-2xl bg-glass/95 px-6 pt-6 pb-5 text-gray-900 shadow-lg ring-1 ring-white/50 backdrop-blur-md [@media(min-height:600px)]:sticky [@media(min-height:600px)]:top-chrome md:[@media(min-height:600px)]:top-6"
+		class="relative rounded-2xl bg-glass/95 px-6 pt-6 pb-5 text-gray-900 shadow-lg ring-1 ring-white/50 backdrop-blur-md"
 	>
 		<p class="font-friendly text-sm text-gray-600">{PAGE_TITLE}</p>
 		<!-- The bird rides the chapter line here rather than hanging left of the
