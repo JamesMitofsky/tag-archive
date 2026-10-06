@@ -95,9 +95,13 @@
 		return index < 0 ? undefined : index + 1;
 	});
 	/** Open crop editor, if any. */
-	let adjusting = $state<{ id: string; image: HTMLCanvasElement; corners?: CornerPoints } | null>(
-		null
-	);
+	let adjusting = $state<{
+		id: string;
+		image: HTMLCanvasElement;
+		corners?: CornerPoints;
+		/** The original the editor was opened on. */
+		source: Blob;
+	} | null>(null);
 
 	// Live camera is the primary path; the file input is the fallback
 	// for browsers or permission states where getUserMedia isn't available.
@@ -328,7 +332,11 @@
 				fileName: shot.fileName,
 				previewUrl: shot.thumbUrl,
 				status: 'uploading',
-				error: undefined
+				error: undefined,
+				// The old photo is being replaced: Adjust crop stays away until the
+				// new one's original lands, rather than re-cropping the old one.
+				sourceBlob: undefined,
+				corners: undefined
 			});
 			emit();
 			void commitShot(claim, shot);
@@ -502,20 +510,24 @@
 
 	// --- Crop adjustment ----------------------------------------------------
 
-	/** Bumped per Adjust tap, so only the latest tap's decode opens the editor. */
+	/**
+	 * Bumped per Adjust tap, and when the camera opens, so a decode still running
+	 * from an earlier tap never opens the editor over whatever came after it.
+	 */
 	let adjustRequest = 0;
 
 	async function adjustById(id: string) {
 		const page = pages.find((p) => p.id === id);
-		if (!page?.sourceBlob) return;
+		const source = page?.sourceBlob;
+		if (!source) return;
 		const request = ++adjustRequest;
-		const image = await fileToCanvas(page.sourceBlob);
+		const image = await fileToCanvas(source);
 		if (request !== adjustRequest) return releaseCanvas(image);
 		if (!image) {
 			error = 'Could not reopen that page for cropping.';
 			return;
 		}
-		adjusting = { id, image, corners: page.corners };
+		adjusting = { id, image, corners: page.corners, source };
 	}
 
 	function cancelAdjust() {
@@ -531,14 +543,19 @@
 		if (!open) return;
 
 		const page = pages.find((p) => p.id === open.id);
-		if (!page) return void setTimeout(() => releaseCanvas(open.image));
+		// Gone, or its photo replaced while the editor was open: these corners
+		// were drawn on a photo the page no longer holds.
+		if (!page || page.sourceBlob !== open.source) {
+			setTimeout(() => releaseCanvas(open.image));
+			return;
+		}
 		const claim = claimPage(open.id);
 		updateItem(open.id, { status: 'uploading', error: undefined });
 		emit();
 
 		void (async () => {
 			try {
-				await finalizePage(claim, open.image, corners, page.fileName, page.sourceBlob);
+				await finalizePage(claim, open.image, corners, page.fileName, open.source);
 			} catch (e) {
 				claim.update({
 					status: 'error',
@@ -551,6 +568,7 @@
 	}
 
 	function openCamera(replacing: string | null = null) {
+		adjustRequest += 1;
 		replacingId = replacing;
 		error = '';
 		stage = 'camera';
@@ -635,8 +653,12 @@
      around a live viewfinder, and a fixed viewport means nothing reflows as
      pages land. One view for both steps, so moving between them is a swap of
      content, not a close and reopen. -->
+<!-- Back moves a camera holding photos on to cropping, then finishes: two
+     presses. The second entry is stacked by the shutter tap that takes the
+     first photo (or by Back to camera), never in answer to a back. -->
 <ImmersiveView
 	open={stage !== 'closed'}
+	steps={stage === 'camera' && shots.length > 0 ? 2 : 1}
 	title={stage === 'review' ? 'Crop pages' : replacingId ? 'Retake page' : 'Scan pages'}
 	onClose={exit}
 >

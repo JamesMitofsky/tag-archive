@@ -79,7 +79,11 @@
 	const loading = $derived(!view && !loadFailed);
 	/** Just opened from the camera: Next/Done hold off a moment. */
 	let arriving = $state(true);
-	/** Just moved to another photo: Discard holds off a moment. */
+	/**
+	 * Just moved to another photo: Discard, Done on the last photo, and Enter
+	 * on a corner hold off a moment, so the second half of a double tap or a
+	 * quick second Enter doesn't act on a photo that has only just appeared.
+	 */
 	let settling = $state(true);
 	/** Set by Enter on a corner, so the next photo's corners take focus and Enter can chain. */
 	let focusHandle = $state(false);
@@ -131,6 +135,9 @@
 		heading?.focus();
 	});
 
+	const onCorner = (event: Event) =>
+		event.target instanceof Element && !!event.target.closest('.scanic-handle');
+
 	// Escape on a corner handle lets go of the corner, as it does in scanic's
 	// own editor, instead of reaching the view, where it would finish the run.
 	// A native listener: it has to stop the event before bits-ui's listener on
@@ -138,11 +145,27 @@
 	$effect(() => {
 		if (!root) return;
 		return on(root, 'keydown', (event) => {
-			if (event.key !== 'Escape') return;
-			if (!(event.target instanceof Element) || !event.target.closest('.scanic-handle')) return;
+			if (event.key !== 'Escape' || !onCorner(event)) return;
 			event.stopPropagation();
 			heading?.focus();
 		});
+	});
+
+	// A held Enter repeats, and Enter on a corner moves on to the next photo,
+	// whose corner then takes focus: one held key would confirm every photo in
+	// turn. Repeats are dropped before scanic's own listener on the corner.
+	$effect(() => {
+		if (!root) return;
+		return on(
+			root,
+			'keydown',
+			(event) => {
+				if (event.key !== 'Enter' || !event.repeat || !onCorner(event)) return;
+				event.preventDefault();
+				event.stopPropagation();
+			},
+			{ capture: true }
+		);
 	});
 
 	const title = $derived(
@@ -187,8 +210,11 @@
 		else index = position - 1;
 	}
 
+	/** Next/Done is held: the photo hasn't loaded, or a tap may be meant for what was there before. */
+	const holding = $derived(arriving || loading || (isLast && settling));
+
 	function advance(fromHandle = false) {
-		if (arriving || loading) return;
+		if (holding || (fromHandle && settling)) return;
 		holdFocus();
 		focusHandle = fromHandle;
 		if (isLast) onFinish();
@@ -322,7 +348,7 @@
 		<button
 			type="button"
 			onclick={() => advance()}
-			aria-disabled={arriving || loading}
+			aria-disabled={holding}
 			aria-label={isLast ? finishLabel : 'Next photo'}
 			title={isLast ? finishLabel : 'Next photo'}
 			class="flex size-14 items-center justify-center justify-self-end rounded-full bg-white text-black transition hover:bg-white/90 aria-disabled:opacity-40"
