@@ -2,78 +2,19 @@ import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import PageScanner from './PageScanner.svelte';
+import {
+	fakeCamera,
+	fakeServer,
+	openCamera,
+	pickedPhoto,
+	shootAndCrop,
+	widthOf
+} from '$lib/testing/scanner';
+
+// Chromium encodes WebP. The WebKit (iPhone) path, which can't, is covered in
+// PageScanner.webkit.svelte.spec.ts.
 
 const URLS = ['https://example.com/scan1.jpg', 'https://example.com/scan2.jpg'];
-
-/** A real MediaStream with no permission prompt and no camera hardware. */
-function fakeCamera() {
-	const canvas = document.createElement('canvas');
-	canvas.width = 640;
-	canvas.height = 480;
-	const ctx = canvas.getContext('2d')!;
-	// A fresh stream per call, as a real camera gives (closing the camera stops
-	// the last one), painted after it is made: a canvas stream only emits a
-	// frame when the canvas is drawn.
-	return vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockImplementation(async () => {
-		const stream = canvas.captureStream(30);
-		ctx.fillStyle = '#222';
-		ctx.fillRect(0, 0, 640, 480);
-		ctx.fillStyle = '#fff';
-		ctx.fillRect(80, 60, 480, 360);
-		return stream;
-	});
-}
-
-/**
- * The scans endpoint: every upload succeeds with its own URL, and the
- * uploaded images and deleted URLs are kept for the test to inspect.
- */
-function fakeServer() {
-	const uploads: Blob[] = [];
-	const deleted: string[] = [];
-	const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
-		if (init?.method === 'DELETE') {
-			deleted.push((JSON.parse(String(init.body)) as { url: string }).url);
-			return new Response(null, { status: 204 });
-		}
-		uploads.push((init?.body as FormData).get('file') as Blob);
-		const n = uploads.length;
-		return new Response(
-			JSON.stringify({ url: `https://example.com/new-${n}.webp`, fileName: `new-${n}.webp` }),
-			{ headers: { 'Content-Type': 'application/json' } }
-		);
-	});
-	return { fetch, uploads, deleted };
-}
-
-async function widthOf(blob: Blob) {
-	const bitmap = await createImageBitmap(blob);
-	const { width } = bitmap;
-	bitmap.close();
-	return width;
-}
-
-/** Open the camera and wait until the shutter works. */
-async function openCamera(name = 'Scan pages') {
-	await page.getByRole('button', { name }).click();
-	const shutter = page.getByRole('button', { name: /^(Capture|Retake) page$/ });
-	await expect.element(shutter).not.toHaveAttribute('aria-disabled', 'true');
-	return shutter;
-}
-
-/** Shoot `count` photos, then move on to cropping them. */
-async function shootAndCrop(count: number) {
-	const shutter = await openCamera();
-	for (let i = 0; i < count; i++) await shutter.click();
-	await page.getByRole('button', { name: /^Done, crop/ }).click();
-	await expect.element(page.getByText(`Photo 1 of ${count}`)).toBeInTheDocument();
-	// The photo has loaded once its corners can be reset, and the step is past
-	// the moment it ignores taps carried over from the camera.
-	await expect.element(page.getByRole('button', { name: 'Use whole image' })).toBeEnabled();
-	await expect
-		.element(page.getByRole('button', { name: /^(Next photo|Add \d|Replace page)/ }))
-		.not.toHaveAttribute('aria-disabled', 'true');
-}
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -131,6 +72,16 @@ describe('PageScanner.svelte', () => {
 		await page.getByRole('button', { name: 'Remove page 2' }).click();
 
 		expect(onChange).toHaveBeenLastCalledWith([three[0], three[2]]);
+	});
+
+	it('uploads a picked photo as WebP, named to match', async () => {
+		const server = fakeServer();
+		render(PageScanner, {});
+		await page.getByLabelText('Add from photos').upload(await pickedPhoto('IMG_0042.PNG'));
+
+		await vi.waitFor(() => expect(server.uploads).toHaveLength(1));
+		expect(server.uploads[0].type).toBe('image/webp');
+		expect(server.uploads[0].name).toBe('IMG_0042.webp');
 	});
 
 	it('offers no crop editor for pages that have no local original', async () => {
