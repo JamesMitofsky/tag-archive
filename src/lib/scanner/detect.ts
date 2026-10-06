@@ -1,5 +1,7 @@
 import { browser } from '$app/environment';
 import type { CornerPoints, Point, Scanner } from 'scanic';
+import { downscale } from './image';
+import { refineCorners, toLuma } from './refine';
 
 export type { CornerPoints, Point };
 
@@ -26,7 +28,10 @@ export function getScanner(): Promise<Scanner | null> {
 			await scanner.initialize();
 			return scanner;
 		} catch {
-			// No overlay, no cropping — capture falls back to the raw frame.
+			// No cropping — pages keep the photo as shot. Forget the failure so a
+			// later call can try again: a dropped connection mid-import shouldn't
+			// turn detection off for the rest of the visit.
+			scannerPromise = null;
 			return null;
 		}
 	})();
@@ -73,6 +78,37 @@ export async function dewarp(
 	}
 }
 
+/**
+ * Long edge of the copy refinement runs on. Close to the resolution its tuning
+ * was measured at (the edge detector's widths are in pixels), and small
+ * enough that reading the pixels back is cheap even from a 2560px photo.
+ */
+const REFINE_MAX = 960;
+
+/**
+ * Tighten a detection against the photo it is about to crop (see refine.ts):
+ * scanic's corners can sit several pixels off, and differently each frame.
+ * Runs once per photo, after capture, never in the live preview. Hands back
+ * `corners` unchanged whenever the page edges can't be measured confidently.
+ */
+export function refineDetection(source: HTMLCanvasElement, corners: CornerPoints): CornerPoints {
+	if (!browser) return corners;
+
+	try {
+		const work = downscale(source, source.width, source.height, REFINE_MAX);
+		const ctx = work?.getContext('2d');
+		if (!work || !ctx) return corners;
+
+		const sx = work.width / source.width;
+		const sy = work.height / source.height;
+		const luma = toLuma(ctx.getImageData(0, 0, work.width, work.height));
+		const refined = refineCorners(luma, scaleCorners(corners, sx, sy));
+		return refined ? scaleCorners(refined, 1 / sx, 1 / sy) : corners;
+	} catch {
+		return corners;
+	}
+}
+
 // --- Pure geometry ---------------------------------------------------------
 // No scanic import: these are unit-testable in the node test project.
 
@@ -104,22 +140,20 @@ export function fullFrameCorners(width: number, height: number): CornerPoints {
 }
 
 /**
- * Where `object-contain` actually paints a natW×natH source inside a boxW×boxH
- * element. The overlay must use this rather than the element box: if any
- * ancestor constrains the stage's height, the video letterboxes and a quad
- * mapped to the raw box is drawn visibly offset.
+ * True when `corners` is the whole width×height frame, give or take `tolerance`
+ * pixels per corner. Cropping to it would only resample the photo, so callers
+ * skip the dewarp and keep the image as it is.
  */
-export function containFit(
-	natW: number,
-	natH: number,
-	boxW: number,
-	boxH: number
-): { scale: number; offsetX: number; offsetY: number; drawW: number; drawH: number } {
-	if (natW <= 0 || natH <= 0) return { scale: 0, offsetX: 0, offsetY: 0, drawW: 0, drawH: 0 };
-	const scale = Math.min(boxW / natW, boxH / natH);
-	const drawW = natW * scale;
-	const drawH = natH * scale;
-	return { scale, offsetX: (boxW - drawW) / 2, offsetY: (boxH - drawH) / 2, drawW, drawH };
+export function isFullFrame(
+	corners: CornerPoints,
+	width: number,
+	height: number,
+	tolerance = 1
+): boolean {
+	const frame = cornerList(fullFrameCorners(width, height));
+	return cornerList(corners).every(
+		(p, i) => Math.abs(p.x - frame[i].x) <= tolerance && Math.abs(p.y - frame[i].y) <= tolerance
+	);
 }
 
 /** Shoelace area of the quad, in square pixels. */

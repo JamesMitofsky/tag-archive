@@ -1,73 +1,72 @@
 <script lang="ts">
-	import CameraIcon from 'phosphor-svelte/lib/CameraIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
-	import {
-		containFit,
-		cornerList,
-		detectCorners,
-		scaleCorners,
-		type CornerPoints
-	} from '$lib/scanner/detect';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
+	import { MAX_DIM, fitWithin } from '$lib/scanner/image';
 
-	// Live camera stage. Detects the document quad on a downscaled copy of each
-	// frame and draws it over the video; the shutter stays manual. The camera is
+	// Live camera stage. Fills whatever box it is given (the immersive view hands
+	// it the viewport); the video letterboxes inside on black so the frame never
+	// changes size once the stream starts. It only takes pictures: finding the
+	// page and cropping to it happen afterwards, on the still photos, so nothing
+	// on screen moves with the user's hands while they shoot. The camera is
 	// deliberately NOT torn down after a capture — that is the multi-page loop.
 	let {
 		onCapture,
 		onDone,
 		onError,
-		pageCount = 0,
-		replacing = false
+		shotCount = 0,
+		latestPreview,
+		replacingPage
 	}: {
-		/** Full-resolution frame plus the quad that was on screen (image-space px). */
-		onCapture: (frame: HTMLCanvasElement, corners: CornerPoints | null) => void;
+		/** The frame as shot, capped at MAX_DIM on its longest edge. */
+		onCapture: (frame: HTMLCanvasElement) => void;
+		/** The exit button: closes the camera, or moves on once something was shot. */
 		onDone: () => void;
 		onError: (message: string) => void;
-		/** Pages captured so far, shown in the header. */
-		pageCount?: number;
-		/** Retake mode: one shot replaces an existing page, then the stage closes. */
-		replacing?: boolean;
+		/** Photos taken since the camera opened. */
+		shotCount?: number;
+		/** Thumbnail of the most recent photo, shown in the tray as capture feedback. */
+		latestPreview?: string;
+		/** Retake mode: the 1-based page the next shot replaces. */
+		replacingPage?: number;
 	} = $props();
 
-	/** Longest edge of the frame we run detection on. Small enough to stay smooth on a phone. */
-	const DETECT_MAX = 480;
-	/** Minimum gap between detection runs, so a slow device drops detections, not frames. */
-	const DETECT_INTERVAL_MS = 120;
-	/** How long a quad stays on screen after a frame fails to find one (anti-flicker). */
-	const QUAD_HOLD_MS = 500;
-
 	let video = $state<HTMLVideoElement>();
-	let overlay = $state<HTMLCanvasElement>();
-	let aspect = $state('4 / 3');
 	let ready = $state(false);
+	/** Bumped per capture to replay the shutter flash. */
+	let shutterCount = $state(0);
 
 	let stream: MediaStream | null = null;
-	let frame = 0;
-	let inFlight = false;
-	let lastRun = 0;
 	let stopped = false;
 
-	// Detection-space state: corners are in `detect` canvas pixels.
-	let detect: HTMLCanvasElement | null = null;
-	let detectW = 0;
-	let detectH = 0;
-	let liveCorners: CornerPoints | null = null;
-	let liveAt = 0;
-
-	/** True while a quad is being drawn — the only cue the user gets that cropping will happen. */
-	let locked = $state(false);
+	const replacing = $derived(replacingPage !== undefined);
+	/** With nothing shot, leaving is quitting; after that it is finishing. */
+	const finishing = $derived(shotCount > 0);
+	const photos = $derived(`${shotCount} ${shotCount === 1 ? 'photo' : 'photos'}`);
+	const exitLabel = $derived(
+		finishing ? `Done, crop ${photos}` : replacing ? 'Cancel retake' : 'Close camera'
+	);
 
 	async function start() {
 		try {
-			stream = await navigator.mediaDevices.getUserMedia({
+			const acquired = await navigator.mediaDevices.getUserMedia({
 				video: { facingMode: { ideal: 'environment' } },
 				audio: false
 			});
+			// Closed while the permission prompt was up: `stop()` has already run
+			// and never saw this stream, so release it here or the camera stays on.
+			if (stopped) {
+				acquired.getTracks().forEach((track) => track.stop());
+				return;
+			}
+			stream = acquired;
 			await Promise.resolve();
 			if (stopped || !video) return;
 			video.srcObject = stream;
 			await video.play();
 		} catch {
+			// Unmounting mid-start aborts `play()`; that is not a camera failure.
+			if (stopped) return;
 			onError('Camera unavailable. Use “Add from photos” instead.');
 			onDone();
 		}
@@ -75,118 +74,29 @@
 
 	function stop() {
 		stopped = true;
-		cancelAnimationFrame(frame);
 		stream?.getTracks().forEach((track) => track.stop());
 		stream = null;
 	}
 
 	function onMeta() {
-		if (!video?.videoWidth) return;
-		aspect = `${video.videoWidth} / ${video.videoHeight}`;
-		const scale = DETECT_MAX / Math.max(video.videoWidth, video.videoHeight);
-		detectW = Math.max(1, Math.round(video.videoWidth * Math.min(1, scale)));
-		detectH = Math.max(1, Math.round(video.videoHeight * Math.min(1, scale)));
-		detect = document.createElement('canvas');
-		detect.width = detectW;
-		detect.height = detectH;
-		ready = true;
-		frame = requestAnimationFrame(tick);
-	}
-
-	async function tick(now: number) {
-		if (stopped) return;
-		frame = requestAnimationFrame(tick);
-
-		if (!inFlight && now - lastRun >= DETECT_INTERVAL_MS && detect && video?.videoWidth) {
-			inFlight = true;
-			lastRun = now;
-			const ctx = detect.getContext('2d');
-			if (ctx) {
-				ctx.drawImage(video, 0, 0, detectW, detectH);
-				const found = await detectCorners(detect);
-				if (found) {
-					liveCorners = found;
-					liveAt = now;
-				} else if (now - liveAt > QUAD_HOLD_MS) {
-					liveCorners = null;
-				}
-			}
-			inFlight = false;
-		}
-
-		draw(now);
-	}
-
-	function draw(now: number) {
-		if (!overlay || !video) return;
-
-		// Measure the video, never the overlay's own parent: the overlay's backing
-		// store is set from this measurement, so reading a box the overlay can
-		// contribute to would be a feedback loop that grows the stage every frame.
-		const box = video.getBoundingClientRect();
-		const dpr = window.devicePixelRatio || 1;
-		const width = Math.max(1, Math.round(box.width * dpr));
-		const height = Math.max(1, Math.round(box.height * dpr));
-		if (overlay.width !== width || overlay.height !== height) {
-			overlay.width = width;
-			overlay.height = height;
-		}
-
-		const ctx = overlay.getContext('2d');
-		if (!ctx) return;
-		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-		ctx.clearRect(0, 0, box.width, box.height);
-
-		const fresh = liveCorners && now - liveAt <= QUAD_HOLD_MS;
-		locked = !!fresh;
-		if (!fresh || !liveCorners || !detectW || !detectH || !video.videoWidth) return;
-
-		// Map detection pixels → where object-contain actually paints the video.
-		// The wrapper's aspect-ratio normally makes the offsets zero, but computing
-		// them keeps the quad aligned if an ancestor clamps the stage's height.
-		const fit = containFit(video.videoWidth, video.videoHeight, box.width, box.height);
-		const k = (fit.scale * video.videoWidth) / detectW;
-		const pts = cornerList(scaleCorners(liveCorners, k, k)).map((p) => ({
-			x: p.x + fit.offsetX,
-			y: p.y + fit.offsetY
-		}));
-
-		ctx.beginPath();
-		ctx.moveTo(pts[0].x, pts[0].y);
-		for (const p of pts.slice(1)) ctx.lineTo(p.x, p.y);
-		ctx.closePath();
-		ctx.lineWidth = 3;
-		ctx.strokeStyle = '#22c55e';
-		ctx.stroke();
-
-		for (const p of pts) {
-			ctx.beginPath();
-			ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
-			ctx.fillStyle = '#22c55e';
-			ctx.fill();
-		}
+		if (video?.videoWidth) ready = true;
 	}
 
 	function capture() {
 		if (!video?.videoWidth) return;
 
-		const full = document.createElement('canvas');
-		full.width = video.videoWidth;
-		full.height = video.videoHeight;
-		const ctx = full.getContext('2d');
+		// Drawn straight at the size everything downstream works at: a run of
+		// shots waiting their turn then holds no more pixels than it will use.
+		const { width, height } = fitWithin(video.videoWidth, video.videoHeight, MAX_DIM);
+		const frame = document.createElement('canvas');
+		frame.width = width;
+		frame.height = height;
+		const ctx = frame.getContext('2d');
 		if (!ctx) return;
-		ctx.drawImage(video, 0, 0);
+		ctx.drawImage(video, 0, 0, width, height);
 
-		// Reuse the quad that was on screen rather than re-detecting at full
-		// resolution, so the crop is exactly what the user was looking at.
-		const fresh = liveCorners && performance.now() - liveAt <= QUAD_HOLD_MS;
-		const corners =
-			fresh && liveCorners && detectW && detectH
-				? scaleCorners(liveCorners, full.width / detectW, full.height / detectH)
-				: null;
-
-		onCapture(full, corners);
-		if (replacing) onDone();
+		shutterCount += 1;
+		onCapture(frame);
 	}
 
 	$effect(() => {
@@ -196,56 +106,100 @@
 	});
 </script>
 
-<div class="mt-3 space-y-2">
-	<div class="flex items-center justify-between text-xs text-gray-600">
+<div class="flex h-full flex-col">
+	<header class="px-4 py-3 text-sm">
 		<!-- Announced: for a non-sighted user the thumbnail is not feedback. -->
-		<span aria-live="polite">
+		<span aria-live="polite" class="text-white/80">
+			<!-- Photos, not pages: they aren't pages until they're cropped and kept,
+			     and the form's own pages are numbered separately. -->
 			{#if replacing}
-				Retaking a page
-			{:else if pageCount === 0}
-				No pages captured yet
+				Retaking page {replacingPage}
+			{:else if shotCount === 0}
+				No photos yet
 			{:else}
-				{pageCount}
-				{pageCount === 1 ? 'page' : 'pages'} captured
+				{photos}
 			{/if}
 		</span>
-		<span>{locked ? 'Edges detected' : 'Looking for edges…'}</span>
-	</div>
+	</header>
 
-	<div class="relative overflow-hidden rounded-md bg-black" style="aspect-ratio: {aspect}">
+	<div class="relative min-h-0 flex-1">
 		<video
 			bind:this={video}
 			onloadedmetadata={onMeta}
 			playsinline
-			class="block h-full w-full object-contain"
+			muted
+			class="absolute inset-0 h-full w-full object-contain"
 		></video>
-		<canvas
-			bind:this={overlay}
-			aria-hidden="true"
-			class="pointer-events-none absolute inset-0 h-full w-full"
-		></canvas>
+
+		{#if !ready}
+			<div class="absolute inset-0 flex items-center justify-center text-white/60">
+				<CircleNotchIcon size={28} class="animate-spin" />
+			</div>
+		{/if}
+
+		<!-- Shutter flash: a fresh element per capture so the animation replays. -->
+		{#key shutterCount}
+			{#if shutterCount > 0}
+				<div
+					aria-hidden="true"
+					class="pointer-events-none absolute inset-0 animate-out bg-white duration-300 fill-mode-forwards fade-out"
+				></div>
+			{/if}
+		{/key}
 	</div>
 
-	<div class="flex flex-wrap gap-2">
+	<footer class="grid grid-cols-3 items-center px-6 py-5">
+		<div class="justify-self-start">
+			{#if !replacing && latestPreview}
+				{#key latestPreview}
+					<div
+						class="relative size-14 animate-in overflow-hidden rounded-md ring-2 ring-white/80 duration-300 zoom-in-75 fade-in"
+					>
+						<img src={latestPreview} alt="" class="h-full w-full object-cover" />
+						<span
+							class="absolute right-0.5 bottom-0.5 rounded-sm bg-black/70 px-1 text-[10px] font-medium tabular-nums"
+						>
+							{shotCount}
+						</span>
+					</div>
+				{/key}
+			{/if}
+		</div>
+
+		<!-- aria-disabled, not disabled, while the video starts: a disabled
+		     shutter can't take focus, and focus would land on the exit button,
+		     where Space finishes the run instead of taking a photo. -->
 		<button
 			type="button"
 			onclick={capture}
-			disabled={!ready}
-			class="inline-flex items-center gap-1.5 rounded-sm bg-[#14120f] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#33302a] disabled:opacity-50"
+			aria-disabled={!ready}
+			aria-label={replacing ? 'Retake page' : 'Capture page'}
+			class="group size-18 justify-self-center rounded-full border-4 border-white p-1 transition aria-disabled:opacity-40"
 		>
-			<CameraIcon size={16} />
-			{replacing ? 'Retake page' : 'Capture page'}
+			<span class="block h-full w-full rounded-full bg-white transition group-active:scale-90"
+			></span>
 		</button>
+
+		<!-- One button whose meaning follows the shot count, so focus stays put
+		     when it turns from "quit" into "done". -->
 		<button
 			type="button"
 			onclick={onDone}
-			class="inline-flex items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+			aria-label={exitLabel}
+			title={exitLabel}
+			class="flex size-12 items-center justify-center justify-self-end rounded-full transition {finishing
+				? 'bg-white text-black hover:bg-white/90'
+				: 'bg-white/10 hover:bg-white/20'}"
 		>
-			{#if replacing}
-				Cancel
-			{:else}
-				<CheckIcon size={16} /> Done
-			{/if}
+			{#key finishing}
+				<span class="animate-in duration-200 zoom-in-50 fade-in">
+					{#if finishing}
+						<CheckIcon size={22} weight="bold" />
+					{:else}
+						<XIcon size={22} />
+					{/if}
+				</span>
+			{/key}
 		</button>
-	</div>
+	</footer>
 </div>

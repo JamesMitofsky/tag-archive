@@ -32,24 +32,53 @@ export function downscale(
 	return canvas;
 }
 
+function capped(canvas: HTMLCanvasElement, maxDim: number): HTMLCanvasElement | null {
+	return canvas.width > maxDim || canvas.height > maxDim
+		? downscale(canvas, canvas.width, canvas.height, maxDim)
+		: canvas;
+}
+
+function toBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
+	return new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
+}
+
 /** Encode a canvas as WebP, capping its longest edge first. */
 export async function canvasToWebP(
 	canvas: HTMLCanvasElement,
 	maxDim = MAX_DIM,
 	quality = WEBP_QUALITY
 ): Promise<{ blob: Blob; previewUrl: string } | null> {
-	const sized =
-		canvas.width > maxDim || canvas.height > maxDim
-			? downscale(canvas, canvas.width, canvas.height, maxDim)
-			: canvas;
+	const sized = capped(canvas, maxDim);
 	if (!sized) return null;
 
-	const blob = await new Promise<Blob | null>((resolve) =>
-		sized.toBlob(resolve, 'image/webp', quality)
-	);
+	const blob = await toBlob(sized, quality);
 	if (!blob) return null;
 
 	return { blob, previewUrl: sized.toDataURL('image/webp', quality) };
+}
+
+/**
+ * `canvasToWebP` without the data URL, for images that are kept but never shown
+ * as-is (the un-cropped original). Saves a second, synchronous encode.
+ */
+export async function encodeWebP(
+	canvas: HTMLCanvasElement,
+	maxDim = MAX_DIM,
+	quality = WEBP_QUALITY
+): Promise<Blob | null> {
+	const sized = capped(canvas, maxDim);
+	return sized ? toBlob(sized, quality) : null;
+}
+
+/**
+ * Free a canvas's pixels now rather than whenever it is collected. iOS Safari
+ * caps total canvas memory and counts a canvas until it is garbage collected,
+ * so a run of full-size photos can exhaust it unless each is released.
+ */
+export function releaseCanvas(canvas: HTMLCanvasElement | null | undefined) {
+	if (!canvas) return;
+	canvas.width = 0;
+	canvas.height = 0;
 }
 
 /** Decode a File/Blob into a canvas, capped at `maxDim`. `null` if it can't be decoded. */
