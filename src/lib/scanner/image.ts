@@ -1,7 +1,54 @@
-/** Canvas/WebP plumbing shared by the camera path, the file-input path and the crop editor. */
+/** Canvas/encoding plumbing shared by the camera path, the file-input path and the crop editor. */
 
 export const MAX_DIM = 2560;
-export const WEBP_QUALITY = 0.85;
+export const ENCODE_QUALITY = 0.85;
+
+export type EncodedType = 'image/webp' | 'image/jpeg';
+
+let encodedType: EncodedType | undefined;
+
+/**
+ * The format every image the scanner produces is encoded in: WebP where the
+ * browser can encode it, JPEG where it can't. Safari (through at least 26)
+ * can't, and `toBlob` doesn't fail when asked: it silently hands back a PNG,
+ * 4–10 MB for one 2560px photo, which is past what an upload can carry
+ * (Netlify's function body limit is 6 MB, ~4.5 MB once binary is base64'd).
+ * The same photo as JPEG is 1–2 MB and encodes several times faster.
+ */
+export function encodedImageType(): EncodedType {
+	if (!encodedType) {
+		const probe = document.createElement('canvas');
+		probe.width = 1;
+		probe.height = 1;
+		encodedType = probe.toDataURL('image/webp').startsWith('data:image/webp')
+			? 'image/webp'
+			: 'image/jpeg';
+		releaseCanvas(probe);
+	}
+	return encodedType;
+}
+
+/** Extension for each type a canvas can hand back, PNG included for the WebKit case. */
+const EXTENSIONS: Record<string, string> = {
+	'image/webp': 'webp',
+	'image/jpeg': 'jpg',
+	'image/png': 'png'
+};
+
+/** File extension for `encodedImageType()`, for naming what is uploaded. */
+export function encodedExtension(): string {
+	return EXTENSIONS[encodedImageType()];
+}
+
+/**
+ * `name` with its extension (if any) swapped for the one matching `type`, so an
+ * upload's name always agrees with the bytes it carries. Types without a known
+ * extension leave the name as it is.
+ */
+export function withExtension(name: string, type: string): string {
+	const extension = EXTENSIONS[type];
+	return extension ? `${name.replace(/\.[^/.]+$/, '')}.${extension}` : name;
+}
 
 /** Longest-edge-capped dimensions, preserving aspect ratio. */
 export function fitWithin(
@@ -39,35 +86,28 @@ function capped(canvas: HTMLCanvasElement, maxDim: number): HTMLCanvasElement | 
 }
 
 function toBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
-	return new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
-}
-
-/** Encode a canvas as WebP, capping its longest edge first. */
-export async function canvasToWebP(
-	canvas: HTMLCanvasElement,
-	maxDim = MAX_DIM,
-	quality = WEBP_QUALITY
-): Promise<{ blob: Blob; previewUrl: string } | null> {
-	const sized = capped(canvas, maxDim);
-	if (!sized) return null;
-
-	const blob = await toBlob(sized, quality);
-	if (!blob) return null;
-
-	return { blob, previewUrl: sized.toDataURL('image/webp', quality) };
+	return new Promise((resolve) => canvas.toBlob(resolve, encodedImageType(), quality));
 }
 
 /**
- * `canvasToWebP` without the data URL, for images that are kept but never shown
- * as-is (the un-cropped original). Saves a second, synchronous encode.
+ * Encode a canvas (see `encodedImageType`), capping its longest edge first.
+ * Read the result's `type` rather than assuming one. To show the result, make
+ * an object URL of the blob rather than encoding a second copy.
  */
-export async function encodeWebP(
+export async function encodeImage(
 	canvas: HTMLCanvasElement,
 	maxDim = MAX_DIM,
-	quality = WEBP_QUALITY
+	quality = ENCODE_QUALITY
 ): Promise<Blob | null> {
 	const sized = capped(canvas, maxDim);
-	return sized ? toBlob(sized, quality) : null;
+	if (!sized) return null;
+
+	try {
+		return await toBlob(sized, quality);
+	} finally {
+		// A downscaled copy is ours to free; the caller's canvas is not.
+		if (sized !== canvas) releaseCanvas(sized);
+	}
 }
 
 /**

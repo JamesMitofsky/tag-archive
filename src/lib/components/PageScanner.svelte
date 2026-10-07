@@ -15,11 +15,12 @@
 		type CornerPoints
 	} from '$lib/scanner/detect';
 	import {
-		canvasToWebP,
 		downscale,
-		encodeWebP,
+		encodedExtension,
+		encodeImage,
 		fileToCanvas,
-		releaseCanvas
+		releaseCanvas,
+		withExtension
 	} from '$lib/scanner/image';
 	import { createSerialQueue } from '$lib/scanner/serial';
 	import type { ScanPage } from '$lib/scanner/types';
@@ -212,7 +213,7 @@
 	let shots = $state<Shot[]>([]);
 	// The two maps below are deliberately not reactive: one is written on every
 	// corner drag, and nothing on screen reads either of them.
-	/** Per shot: its original (2560-capped WebP) and the page found in it. Resolves null if discarded first. */
+	/** Per shot: its original (2560-capped, encoded) and the page found in it. Resolves null if discarded first. */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read imperatively, never rendered
 	const prepared = new Map<string, Promise<Prepared | null>>();
 	/** Per shot: the corners as the user left them in the review. */
@@ -233,8 +234,12 @@
 		const thumbUrl = (thumb ?? frame).toDataURL('image/jpeg', 0.7);
 		releaseCanvas(thumb);
 
-		shots = [...shots, { id, fileName: `scan-${stamp()}.webp`, thumbUrl }];
-		const task = heavy.run(() => prepareShot(id, frame));
+		shots = [...shots, { id, fileName: `scan-${stamp()}.${encodedExtension()}`, thumbUrl }];
+		const original = keepOriginal(frame);
+		// Rethrown by the task below; this only stops it counting as unhandled first.
+		original.catch(() => {});
+		// Queued now, so photos are prepared in the order they were shot.
+		const task = heavy.run(async () => prepareShot(id, await original));
 		// Failures surface where the photo is used (the review, the upload).
 		task.catch(() => {});
 		prepared.set(id, task);
@@ -243,19 +248,35 @@
 	}
 
 	/**
-	 * Find the page in a still photo and keep a compact original. Runs behind the
-	 * camera while the user carries on shooting; nothing of it is shown until
-	 * the review.
+	 * Encode the frame at once and let its pixels go. Photos then wait their
+	 * turn as compressed originals (1–2 MB) rather than as canvases (20 MB at
+	 * 1920×2560), so however far a burst of shots gets ahead of detection, it
+	 * never holds more than one frame's worth of canvas: iOS Safari caps the
+	 * total, and a canvas past the cap draws nothing.
 	 */
-	async function prepareShot(id: string, frame: HTMLCanvasElement): Promise<Prepared | null> {
+	async function keepOriginal(frame: HTMLCanvasElement): Promise<Blob> {
 		try {
-			// Discarded in the review before its turn came round.
-			if (!prepared.has(id)) return null;
+			const blob = await encodeImage(frame);
+			if (!blob) throw new Error('Failed to encode image');
+			return blob;
+		} finally {
+			releaseCanvas(frame);
+		}
+	}
+
+	/**
+	 * Find the page in a still photo. Runs behind the camera while the user
+	 * carries on shooting; nothing of it is shown until the review.
+	 */
+	async function prepareShot(id: string, original: Blob): Promise<Prepared | null> {
+		// Discarded in the review before its turn came round.
+		if (!prepared.has(id)) return null;
+		const frame = await fileToCanvas(original);
+		if (!frame) throw new Error('Could not reopen the photo');
+		try {
 			const found = await detectCorners(frame);
 			const detected = found ? refineDetection(frame, found) : null;
-			const blob = await encodeWebP(frame);
-			if (!blob) throw new Error('Failed to encode image');
-			return { blob, detected };
+			return { blob: original, detected };
 		} finally {
 			releaseCanvas(frame);
 		}
@@ -391,7 +412,7 @@
 		const crop = corners && !isFullFrame(corners, source.width, source.height) ? corners : null;
 		const cropped = crop ? await dewarp(source, crop) : null;
 		try {
-			const encoded = await canvasToWebP(cropped ?? source);
+			const encoded = await encodeImage(cropped ?? source);
 			if (!encoded) throw new Error('Failed to encode image');
 			return { encoded, corners: crop };
 		} finally {
@@ -399,20 +420,29 @@
 		}
 	}
 
-	/** Show the cropped page, keep its original for re-cropping, upload it. */
+	/**
+	 * Show the cropped page, keep its original for re-cropping, upload it. `name`'s
+	 * extension, if any, is replaced by the one for the format actually encoded.
+	 */
 	async function commitPage(
 		claim: Claim,
 		{ encoded, corners }: Awaited<ReturnType<typeof cropAndEncode>>,
 		original: Blob | undefined,
-		fileName: string
+		name: string
 	) {
 		if (!claim.holds()) return;
+		// Named for the bytes actually sent, whatever the name said before.
+		const fileName = withExtension(name, encoded.type);
+		// The encoded page itself, not a second encode of it: superseded or removed,
+		// the page's preview URL is released like any other.
+		const previewUrl = trackObjectUrl(encoded);
 		claim.update({
-			previewUrl: encoded.previewUrl,
+			fileName,
+			previewUrl,
 			sourceBlob: original,
 			corners: corners ?? undefined
 		});
-		await processUpload(claim, encoded.blob, fileName, encoded.previewUrl);
+		await processUpload(claim, encoded, fileName, previewUrl);
 	}
 
 	/** Crop (when we have a quad), encode, keep the original, upload. */
@@ -426,11 +456,11 @@
 	) {
 		const rendered = await cropAndEncode(source, corners);
 		// The un-cropped original rides along as a blob so the crop stays editable.
-		const kept = original ?? (await encodeWebP(source)) ?? undefined;
+		const kept = original ?? (await encodeImage(source)) ?? undefined;
 		await commitPage(claim, rendered, kept, fileName);
 	}
 
-	/** Optimistically render picked photo(s) and upload the cropped WebP. */
+	/** Optimistically render picked photo(s), then crop, encode and upload each. */
 	function onFiles(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
 		const files = input.files ? Array.from(input.files) : [];
@@ -439,7 +469,7 @@
 
 		for (const file of files) {
 			const id = crypto.randomUUID();
-			const fileName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
+			const fileName = `${file.name.replace(/\.[^/.]+$/, '')}.${encodedExtension()}`;
 
 			// Optimistic rendering right away, in selection order.
 			pages = [...pages, { id, fileName, previewUrl: trackObjectUrl(file), status: 'uploading' }];
