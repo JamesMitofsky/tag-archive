@@ -1,0 +1,99 @@
+name: Deploy Command
+
+# Comment `/deploy` on a pull request to publish its head commit as a Netlify
+# preview at https://deploy-preview-<PR>--tag-archive.netlify.app.
+#
+# Netlify only builds previews by itself for PRs into `main`; this covers the
+# rest (PRs into `develop`). The build must run here, on Linux: a build from a
+# Mac bundles the darwin libsql binary and the functions 502 on Netlify.
+#
+# GitHub only runs `issue_comment` workflows from the copy of this file on the
+# default branch (`main`), so changes here take effect once merged there.
+#
+# Needs the NETLIFY_AUTH_TOKEN repo secret (a Netlify personal access token).
+on:
+  issue_comment:
+    types: [created]
+
+# A newer `/deploy` on the same PR supersedes one still building.
+concurrency:
+  group: deploy-command-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  deploy:
+    # Only on PRs, only for an exact `/deploy`, and only from people with write
+    # access: the build runs the PR's code with the Netlify token in scope.
+    if: >-
+      github.event.issue.pull_request &&
+      github.event.comment.body == '/deploy' &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.issue.number }}
+      NETLIFY_SITE_ID: 49681c5b-d862-42aa-994c-d57dd8f24e69
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+    steps:
+      - name: Acknowledge the command
+        run: >-
+          gh api --method POST
+          "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions"
+          -f content=rocket
+
+      # Pin the commit now, so what gets deployed is what the PR held when the
+      # command was given. Fork PRs are refused: their code is not ours to run
+      # with secrets.
+      - name: Resolve the PR head
+        id: pr
+        run: |
+          pr=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER")
+          if [ "$(jq -r .head.repo.full_name <<<"$pr")" != "${{ github.repository }}" ]; then
+            echo "::error::PR #$PR_NUMBER comes from a fork; /deploy only runs on branches in this repo."
+            exit 1
+          fi
+          echo "sha=$(jq -r .head.sha <<<"$pr")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `--context deploy-preview` pulls the site's deploy-preview env vars from
+      # Netlify, the same ones its own PR previews build with.
+      - name: Build and deploy
+        run: >-
+          pnpm dlx netlify-cli@26.2.0 deploy
+          --build
+          --context deploy-preview
+          --alias "deploy-preview-$PR_NUMBER"
+          --message "PR #$PR_NUMBER via /deploy (${{ steps.pr.outputs.sha }})"
+
+      - name: Report the result
+        if: always()
+        env:
+          OUTCOME: ${{ job.status }}
+          SHA: ${{ steps.pr.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$OUTCOME" = success ]; then
+            body="Preview for \`${SHA:0:7}\` is live: https://deploy-preview-$PR_NUMBER--tag-archive.netlify.app"
+          else
+            body="\`/deploy\` failed ($OUTCOME). Logs: $RUN_URL"
+          fi
+          gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" --body "$body"
