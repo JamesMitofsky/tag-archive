@@ -13,8 +13,8 @@
 	// pre-spread them across the viewport so the sky looks full at load instead
 	// of empty until the first cloud wanders in. Sits behind all page content.
 	//
-	// The colour lives in CSS custom properties on <html> (each stop's glow, the
-	// sun's place, --sky-clouds and --sky-stars; see paintSky). The inline head
+	// The colour lives in CSS custom properties on <html> (the glow's colours,
+	// the sun's place, --sky-clouds and --sky-stars; see paintSky). The inline head
 	// script paints the first frame before render; from here on the sky follows
 	// the sun live, repainting only as often as the screen perceptibly changes
 	// ($lib/sky/schedule). Hidden tabs don't repaint at all; returning to one
@@ -89,26 +89,14 @@
 		return { ...c, w, dur: driftDuration(w) };
 	});
 
-	// Each gradient stop as a glow round the sun's place (paintSky), out to the
-	// screen's farthest corner, so the glow's last colour lands there.
-	const glows = SKY_PALETTE.positions.map(
-		(_, k) =>
-			`radial-gradient(ellipse var(--sky-reach) var(--sky-reach) at var(--sky-x) var(--sky-y), ${Array.from(
-				{ length: SKY_PALETTE.glow.stops },
-				(_, i) => `var(--sky-${k}-${i}) ${((i / (SKY_PALETTE.glow.stops - 1)) * 100).toFixed(2)}%`
-			).join(', ')})`
-	);
-
-	// Stacked zenith first, each stop's glow faded in down the screen from the
-	// stop above's position to its own, so between two stops the sky blends
-	// from one to the other exactly as a top-to-bottom gradient through them
-	// would. Prefixed first: Chrome before 120 knows only `-webkit-mask-image`.
-	const fadeIn = (k: number) => {
-		if (k === 0) return '';
-		const [from, to] = [SKY_PALETTE.positions[k - 1], SKY_PALETTE.positions[k]];
-		const mask = `linear-gradient(to bottom, transparent ${from * 100}%, #000 ${to * 100}%)`;
-		return `-webkit-mask-image: ${mask}; mask-image: ${mask}`;
-	};
+	// The whole sky is one glow round the sun's place (paintSky), out to the
+	// screen's farthest corner, so its last colour lands there. Painted from the
+	// registered properties rather than the colours themselves, so a catch-up
+	// eases its colours and its centre along the sun's way.
+	const glow = `radial-gradient(ellipse var(--sky-reach) var(--sky-reach) at var(--sky-x) var(--sky-y), ${Array.from(
+		{ length: SKY_PALETTE.glow.stops },
+		(_, i) => `var(--sky-glow-${i}) ${((i / (SKY_PALETTE.glow.stops - 1)) * 100).toFixed(2)}%`
+	).join(', ')})`;
 
 	// As many stars as the sky's area holds ($lib/sky/stars), measured on the
 	// client: none on the server, which can't know the screen, and they fade in
@@ -153,9 +141,7 @@
      bars. Any new viewport-sized fixed element at z ≥ 0 or z-index: auto
      brings them back. -->
 <div class="paper pointer-events-none fixed inset-0 -z-10" aria-hidden="true">
-	{#each glows as glow, k (k)}
-		<div class="layer" style="background-image: {glow}; {fadeIn(k)}"></div>
-	{/each}
+	<div class="layer" style:background-image={glow}></div>
 	<div class="layer grain"></div>
 </div>
 
@@ -286,13 +272,13 @@
 		inset: 0;
 	}
 
-	/* The midday sky until the glows are painted, and wherever they are not. */
+	/* The sky behind the middle of the screen, under the glow. */
 	.paper {
 		background-color: var(--sky-1);
 	}
 
 	/* pre-rendered static paper noise tile (baked low-opacity noise tile), over
-	   every glow */
+	   the glow */
 	.grain {
 		background-image: url('/paper-noise.png');
 	}

@@ -65,8 +65,8 @@ html {
 	}
 }
 
-/* The sky's colour ($lib/sky) lives in custom properties on <html>: each
-   gradient stop's glow round the sun, the sky down the middle of the screen
+/* The sky's colour ($lib/sky) lives in custom properties on <html>: the
+   glow round the sun that paints it, the sky down the middle of the screen
    (--sky-0 at the top … --sky-2 at the bottom), and the clouds' and stars'
    share of their light. Painted first by the inline head script, then live as
    the sun moves. They are registered, with the midday sky as their defaults

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DC, colourAt, frameDistance, skyFrame } from './engine';
+import { DC, colourAt, frameDistance, skyFrame, type Lab } from './engine';
 import { SKY_PALETTE } from './palette';
 
 const frameAt = (iso: string) => skyFrame(Date.parse(iso), SKY_PALETTE, DC.lat, DC.lon);
@@ -90,31 +90,54 @@ describe('sky colour', () => {
 		expect(night.clouds).toBeLessThan(1);
 	});
 
-	it('glows round a low sun, and is one plain gradient by day and by night', () => {
-		// Each glow runs from the sun's place out to the farthest corner.
+	const deltaE = (p: Lab, q: Lab) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+
+	it('glows round a low sun, and is one plain colour by day and by night', () => {
+		// The glow runs from the sun's place out to the farthest corner.
 		const spread = (iso: string) => {
 			const { glow } = frameAt(iso);
-			return Math.max(...glow.map((colours) => Math.abs(colours[0][0] - colours.at(-1)![0])));
+			return deltaE(glow[0], glow.at(-1)!);
 		};
-		expect(spread('2026-06-21T20:30:00-04:00')).toBeGreaterThan(0.02); // dusk
+		expect(spread('2026-06-21T20:30:00-04:00')).toBeGreaterThan(0.05); // dusk
 		expect(spread('2026-06-21T13:00:00-04:00')).toBe(0); // noon
 		expect(spread('2026-06-22T01:00:00-04:00')).toBe(0); // night
 	});
 
-	it('is lightest on the sun’s side, from golden hour through dusk', () => {
-		// Golden hour too: warmth peaks round sunset, so a glow that shifted hue
-		// with elevation would be warmest across from a sun still well up.
+	it('is one glow centred on the sun: alike at equal distances, not banded down the screen', () => {
 		for (const iso of [
 			'2026-06-21T19:30:00-04:00', // golden hour
 			'2026-06-21T20:37:00-04:00', // sunset
 			'2026-06-21T21:00:00-04:00' // civil twilight
 		]) {
 			const frame = frameAt(iso);
-			expect(frame.sun.x).toBeLessThan(0.5); // setting in the west, on the left
-			const [sunward] = colourAt(frame, frame.sun.x, 1);
-			const [away] = colourAt(frame, 1 - frame.sun.x, 1);
-			expect(sunward).toBeGreaterThan(away);
+			const { x, y } = frame.sun;
+			// Round: the same colour all the way round a circle about the sun.
+			const ring = [20, 45, 70].map((deg) =>
+				colourAt(
+					frame,
+					x + 0.4 * Math.cos((deg * Math.PI) / 180),
+					y - 0.4 * Math.sin((deg * Math.PI) / 180)
+				)
+			);
+			for (const colour of ring) expect(deltaE(colour, ring[0])).toBeLessThan(1e-9);
+			// Travelling with the sun: along the bottom of the screen the sky
+			// differs between the sun's side and the far side.
+			expect(deltaE(colourAt(frame, x, 1), colourAt(frame, 1 - x, 1))).toBeGreaterThan(0.03);
 		}
+	});
+
+	it('paints near the sun the sky with the sun higher, and far from it lower', () => {
+		const frame = frameAt('2026-06-21T20:37:00-04:00');
+		const { spread } = SKY_PALETTE.glow;
+		// The palette's colour with the sun at `elevation`, between keyframes.
+		const skyWithSunAt = (elevation: number): Lab => {
+			const { elevations, colours } = SKY_PALETTE;
+			const i = elevations.findLastIndex((e) => e <= elevation);
+			const t = (elevation - elevations[i]) / (elevations[i + 1] - elevations[i]);
+			return colours[i].map((c, k) => c + (colours[i + 1][k] - c) * t) as Lab;
+		};
+		expect(deltaE(frame.glow[0], skyWithSunAt(frame.elevation + spread))).toBeLessThan(1e-9);
+		expect(deltaE(frame.glow.at(-1)!, skyWithSunAt(frame.elevation - spread))).toBeLessThan(1e-9);
 	});
 
 	it('changes continuously — no jumps between keyframes', () => {

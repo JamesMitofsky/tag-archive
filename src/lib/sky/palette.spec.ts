@@ -6,9 +6,9 @@ import { SKY_PALETTE } from './palette';
 const INK = luminance(hexToLab('#14120f'));
 
 describe('the generated sky palette', () => {
-	it('keeps every keyframe stop legible against the ink (WCAG AA, 4.5:1)', () => {
-		for (const stops of SKY_PALETTE.stops) {
-			for (const lab of stops) expect(contrast(luminance(lab), INK)).toBeGreaterThanOrEqual(4.5);
+	it('keeps every keyframe legible against the ink (WCAG AA, 4.5:1)', () => {
+		for (const lab of SKY_PALETTE.colours) {
+			expect(contrast(luminance(lab), INK)).toBeGreaterThanOrEqual(4.5);
 		}
 	});
 
@@ -18,9 +18,9 @@ describe('the generated sky palette', () => {
 		let worst = Infinity;
 		const start = Date.parse('2026-01-01T00:00:00Z');
 		for (let t = start; t < start + 365 * 86400000; t += 10 * 60000) {
-			// Every colour the glows are drawn through; the screen between them
+			// Every colour the glow is drawn through; the screen between them
 			// blends from one to the next.
-			for (const hex of skyFrame(t, SKY_PALETTE, DC.lat, DC.lon).glowHex.flat()) {
+			for (const hex of skyFrame(t, SKY_PALETTE, DC.lat, DC.lon).glowHex) {
 				worst = Math.min(worst, contrast(luminance(hexToLab(hex)), INK));
 			}
 		}
@@ -28,14 +28,11 @@ describe('the generated sky palette', () => {
 	});
 
 	it('is well-formed', () => {
-		const { elevations, stops, clouds, stars, positions, glow } = SKY_PALETTE;
+		const { elevations, colours, clouds, stars, glow } = SKY_PALETTE;
 		expect(elevations).toEqual([...elevations].sort((a, b) => a - b));
-		expect(stops).toHaveLength(elevations.length);
+		expect(colours).toHaveLength(elevations.length);
 		expect(clouds).toHaveLength(elevations.length);
 		expect(stars).toHaveLength(elevations.length);
-		for (const keyframe of stops) expect(keyframe).toHaveLength(positions.length);
-		expect(positions[0]).toBe(0);
-		expect(positions.at(-1)).toBe(1);
 		expect(glow.stops).toBeGreaterThanOrEqual(2);
 		expect(elevations[0]).toBeLessThanOrEqual(-90);
 		expect(elevations.at(-1)).toBeGreaterThanOrEqual(90);
