@@ -50,7 +50,7 @@ describe('skyHeadScript', () => {
 		expect(properties.get('--sky-2')).toBe(expected.hex[2]);
 		expect(Number(properties.get('--sky-clouds'))).toBeCloseTo(expected.clouds);
 		expect(themeColor).toBe(expected.hex[0]);
-		expect(properties.get('--sky-2-0')).toBe(expected.glowHex[2][0]);
+		expect(properties.get('--sky-glow-0')).toBe(expected.glowHex[0]);
 		expect(properties.get('--sky-x')).toBe(`${(expected.sun.x * 100).toFixed(2)}%`);
 	});
 
@@ -83,7 +83,7 @@ describe('skyHeadStyle', () => {
 	it('defaults to the midday sky', () => {
 		const defaults = new Map(SKY_PROPERTIES.map((p) => [p.name, p.initial]));
 		expect(defaults.get('--sky-0')).toBe('#94cae7');
-		expect(defaults.get('--sky-1-8')).toBe(defaults.get('--sky-1'));
+		expect(defaults.get('--sky-glow-8')).toBe(defaults.get('--sky-1'));
 		expect(defaults.get('--sky-stars')).toBe('0');
 	});
 });
