@@ -2,6 +2,7 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
+	import { dev } from '$app/environment';
 	import { MAX_DIM, fitWithin } from '$lib/scanner/image';
 
 	// Live camera stage. Fills whatever box it is given (the immersive view hands
@@ -31,8 +32,26 @@
 		replacingPage?: number;
 	} = $props();
 
+	/**
+	 * Every value is `ideal`, so a camera that can't match one opens at its
+	 * nearest mode rather than failing. Asked for nothing, browsers open at
+	 * 640×480, a third of a megapixel: too soft to read a page. 2560×1920 is
+	 * MAX_DIM at a phone sensor's own 4:3. WebKit and Chromium both match it
+	 * against the sensor's landscape modes and rotate the frames afterwards, so
+	 * a phone held upright gets 1920×2560, not a landscape crop of the view.
+	 * 30 fps keeps the preview smooth where a sensor's largest modes run slower.
+	 */
+	const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
+		facingMode: { ideal: 'environment' },
+		width: { ideal: MAX_DIM },
+		height: { ideal: (MAX_DIM * 3) / 4 },
+		frameRate: { ideal: 30 }
+	};
+
 	let video = $state<HTMLVideoElement>();
 	let ready = $state(false);
+	/** Dev builds only: what the camera actually delivered, to check on real phones. */
+	let delivered = $state('');
 	/** Bumped per capture to replay the shutter flash. */
 	let shutterCount = $state(0);
 
@@ -50,7 +69,7 @@
 	async function start() {
 		try {
 			const acquired = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: { ideal: 'environment' } },
+				video: VIDEO_CONSTRAINTS,
 				audio: false
 			});
 			// Closed while the permission prompt was up: `stop()` has already run
@@ -80,13 +99,24 @@
 
 	function onMeta() {
 		if (video?.videoWidth) ready = true;
+		reportDelivered();
+	}
+
+	/** Rerun on `resize` too: turning the phone swaps the frame's width and height. */
+	function reportDelivered() {
+		if (!dev) return;
+		const track = stream?.getVideoTracks()[0];
+		if (!track) return;
+		const settings = track.getSettings();
+		delivered = `${settings.width}×${settings.height} @ ${Math.round(settings.frameRate ?? 0)} fps`;
+		console.info('[camera] settings', settings, 'capabilities', track.getCapabilities?.());
 	}
 
 	function capture() {
 		if (!video?.videoWidth) return;
 
-		// Drawn straight at the size everything downstream works at: a run of
-		// shots waiting their turn then holds no more pixels than it will use.
+		// Drawn straight at the size everything downstream works at, so the one
+		// canvas a shot ever holds is no bigger than it needs to be.
 		const { width, height } = fitWithin(video.videoWidth, video.videoHeight, MAX_DIM);
 		const frame = document.createElement('canvas');
 		frame.width = width;
@@ -107,7 +137,7 @@
 </script>
 
 <div class="flex h-full flex-col">
-	<header class="px-4 py-3 text-sm">
+	<header class="flex items-baseline justify-between gap-3 px-4 py-3 text-sm">
 		<!-- Announced: for a non-sighted user the thumbnail is not feedback. -->
 		<span aria-live="polite" class="text-white/80">
 			<!-- Photos, not pages: they aren't pages until they're cropped and kept,
@@ -120,12 +150,16 @@
 				{photos}
 			{/if}
 		</span>
+		{#if dev && delivered}
+			<span class="text-xs text-white/50 tabular-nums">{delivered}</span>
+		{/if}
 	</header>
 
 	<div class="relative min-h-0 flex-1">
 		<video
 			bind:this={video}
 			onloadedmetadata={onMeta}
+			onresize={reportDelivered}
 			playsinline
 			muted
 			class="absolute inset-0 h-full w-full object-contain"
