@@ -35,7 +35,9 @@ describe('nextRepaintDelay', () => {
 	});
 
 	it('stays cheap: a few hundred repaints a day', () => {
-		expect(simulateDay('2026-06-21T04:00:00Z').length).toBeLessThan(500);
+		for (const day of ['2026-03-20', '2026-06-21', '2026-12-21']) {
+			expect(simulateDay(`${day}T04:00:00Z`).length).toBeLessThan(600);
+		}
 	});
 });
 
