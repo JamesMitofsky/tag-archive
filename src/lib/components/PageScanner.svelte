@@ -18,9 +18,9 @@
 		downscale,
 		encodedExtension,
 		encodeImage,
-		encodeImageWithPreview,
 		fileToCanvas,
-		releaseCanvas
+		releaseCanvas,
+		withExtension
 	} from '$lib/scanner/image';
 	import { createSerialQueue } from '$lib/scanner/serial';
 	import type { ScanPage } from '$lib/scanner/types';
@@ -412,7 +412,7 @@
 		const crop = corners && !isFullFrame(corners, source.width, source.height) ? corners : null;
 		const cropped = crop ? await dewarp(source, crop) : null;
 		try {
-			const encoded = await encodeImageWithPreview(cropped ?? source);
+			const encoded = await encodeImage(cropped ?? source);
 			if (!encoded) throw new Error('Failed to encode image');
 			return { encoded, corners: crop };
 		} finally {
@@ -420,20 +420,29 @@
 		}
 	}
 
-	/** Show the cropped page, keep its original for re-cropping, upload it. */
+	/**
+	 * Show the cropped page, keep its original for re-cropping, upload it. `name`'s
+	 * extension, if any, is replaced by the one for the format actually encoded.
+	 */
 	async function commitPage(
 		claim: Claim,
 		{ encoded, corners }: Awaited<ReturnType<typeof cropAndEncode>>,
 		original: Blob | undefined,
-		fileName: string
+		name: string
 	) {
 		if (!claim.holds()) return;
+		// Named for the bytes actually sent, whatever the name said before.
+		const fileName = withExtension(name, encoded.type);
+		// The encoded page itself, not a second encode of it: superseded or removed,
+		// the page's preview URL is released like any other.
+		const previewUrl = trackObjectUrl(encoded);
 		claim.update({
-			previewUrl: encoded.previewUrl,
+			fileName,
+			previewUrl,
 			sourceBlob: original,
 			corners: corners ?? undefined
 		});
-		await processUpload(claim, encoded.blob, fileName, encoded.previewUrl);
+		await processUpload(claim, encoded, fileName, previewUrl);
 	}
 
 	/** Crop (when we have a quad), encode, keep the original, upload. */
@@ -451,7 +460,7 @@
 		await commitPage(claim, rendered, kept, fileName);
 	}
 
-	/** Optimistically render picked photo(s) and upload the cropped WebP. */
+	/** Optimistically render picked photo(s), then crop, encode and upload each. */
 	function onFiles(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
 		const files = input.files ? Array.from(input.files) : [];

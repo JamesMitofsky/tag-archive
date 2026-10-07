@@ -28,9 +28,26 @@ export function encodedImageType(): EncodedType {
 	return encodedType;
 }
 
+/** Extension for each type a canvas can hand back, PNG included for the WebKit case. */
+const EXTENSIONS: Record<string, string> = {
+	'image/webp': 'webp',
+	'image/jpeg': 'jpg',
+	'image/png': 'png'
+};
+
 /** File extension for `encodedImageType()`, for naming what is uploaded. */
 export function encodedExtension(): string {
-	return encodedImageType() === 'image/webp' ? 'webp' : 'jpg';
+	return EXTENSIONS[encodedImageType()];
+}
+
+/**
+ * `name` with its extension (if any) swapped for the one matching `type`, so an
+ * upload's name always agrees with the bytes it carries. Types without a known
+ * extension leave the name as it is.
+ */
+export function withExtension(name: string, type: string): string {
+	const extension = EXTENSIONS[type];
+	return extension ? `${name.replace(/\.[^/.]+$/, '')}.${extension}` : name;
 }
 
 /** Longest-edge-capped dimensions, preserving aspect ratio. */
@@ -72,28 +89,10 @@ function toBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null
 	return new Promise((resolve) => canvas.toBlob(resolve, encodedImageType(), quality));
 }
 
-/** Encode a canvas (see `encodedImageType`), capping its longest edge first. */
-export async function encodeImageWithPreview(
-	canvas: HTMLCanvasElement,
-	maxDim = MAX_DIM,
-	quality = ENCODE_QUALITY
-): Promise<{ blob: Blob; previewUrl: string } | null> {
-	const sized = capped(canvas, maxDim);
-	if (!sized) return null;
-
-	try {
-		const blob = await toBlob(sized, quality);
-		if (!blob) return null;
-		return { blob, previewUrl: sized.toDataURL(encodedImageType(), quality) };
-	} finally {
-		// A downscaled copy is ours to free; the caller's canvas is not.
-		if (sized !== canvas) releaseCanvas(sized);
-	}
-}
-
 /**
- * `encodeImageWithPreview` without the data URL, for images that are kept but
- * never shown as-is (the un-cropped original). Saves a second, synchronous encode.
+ * Encode a canvas (see `encodedImageType`), capping its longest edge first.
+ * Read the result's `type` rather than assuming one. To show the result, make
+ * an object URL of the blob rather than encoding a second copy.
  */
 export async function encodeImage(
 	canvas: HTMLCanvasElement,
@@ -106,6 +105,7 @@ export async function encodeImage(
 	try {
 		return await toBlob(sized, quality);
 	} finally {
+		// A downscaled copy is ours to free; the caller's canvas is not.
 		if (sized !== canvas) releaseCanvas(sized);
 	}
 }
