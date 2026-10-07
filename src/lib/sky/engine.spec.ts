@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DC, frameDistance, skyFrame } from './engine';
+import { DC, colourAt, frameDistance, skyFrame } from './engine';
 import { SKY_PALETTE } from './palette';
 
 const frameAt = (iso: string) => skyFrame(Date.parse(iso), SKY_PALETTE, DC.lat, DC.lon);
@@ -50,6 +50,32 @@ describe('solar elevation over DC', () => {
 	});
 });
 
+describe('the sun’s place on the screen', () => {
+	const sunAt = (iso: string) => frameAt(iso).sun;
+
+	it('rises in the bottom-right, arcs up through the middle, and sets in the bottom-left', () => {
+		const rise = sunAt('2026-03-20T07:10:00-04:00');
+		const noon = sunAt('2026-03-20T13:15:00-04:00');
+		const set = sunAt('2026-03-20T19:20:00-04:00');
+		expect(rise.x).toBeGreaterThan(0.9);
+		expect(rise.y).toBeCloseTo(1, 1);
+		expect(noon.x).toBeCloseTo(0.5, 1);
+		expect(noon.y).toBeCloseTo(1 - (90 - DC.lat) / 90, 1);
+		expect(set.x).toBeLessThan(0.1);
+		expect(set.y).toBeCloseTo(1, 1);
+	});
+
+	it('sinks below the frame after sunset', () => {
+		expect(sunAt('2026-03-20T20:00:00-04:00').y).toBeGreaterThan(1);
+	});
+
+	it('reaches from the sun to the screen’s farthest corner', () => {
+		const { x, y, reach } = sunAt('2026-03-20T09:00:00-04:00');
+		const corners = [0, 1].flatMap((cx) => [0, 1].map((cy) => Math.hypot(cx - x, cy - y)));
+		expect(reach).toBeCloseTo(Math.max(...corners), 6);
+	});
+});
+
 describe('sky colour', () => {
 	it('is the site’s brand blue at midday', () => {
 		expect(frameAt('2026-06-21T13:00:00-04:00').hex[0]).toBe('#94cae7');
@@ -62,6 +88,33 @@ describe('sky colour', () => {
 		expect(r).toBeGreaterThan(b); // warm, not blue
 		expect(night.hex).toEqual(frameAt('2026-12-22T01:00:00-05:00').hex);
 		expect(night.clouds).toBeLessThan(1);
+	});
+
+	it('glows round a low sun, and is one plain gradient by day and by night', () => {
+		// Each glow runs from the sun's place out to the farthest corner.
+		const spread = (iso: string) => {
+			const { glow } = frameAt(iso);
+			return Math.max(...glow.map((colours) => Math.abs(colours[0][0] - colours.at(-1)![0])));
+		};
+		expect(spread('2026-06-21T20:30:00-04:00')).toBeGreaterThan(0.02); // dusk
+		expect(spread('2026-06-21T13:00:00-04:00')).toBe(0); // noon
+		expect(spread('2026-06-22T01:00:00-04:00')).toBe(0); // night
+	});
+
+	it('is lightest on the sun’s side, from golden hour through dusk', () => {
+		// Golden hour too: warmth peaks round sunset, so a glow that shifted hue
+		// with elevation would be warmest across from a sun still well up.
+		for (const iso of [
+			'2026-06-21T19:30:00-04:00', // golden hour
+			'2026-06-21T20:37:00-04:00', // sunset
+			'2026-06-21T21:00:00-04:00' // civil twilight
+		]) {
+			const frame = frameAt(iso);
+			expect(frame.sun.x).toBeLessThan(0.5); // setting in the west, on the left
+			const [sunward] = colourAt(frame, frame.sun.x, 1);
+			const [away] = colourAt(frame, 1 - frame.sun.x, 1);
+			expect(sunward).toBeGreaterThan(away);
+		}
 	});
 
 	it('changes continuously — no jumps between keyframes', () => {

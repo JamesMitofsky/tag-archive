@@ -13,7 +13,9 @@ import { frameDistance, type SkyFrame } from './engine';
  * MAX_STEP_DE is about a third of a just-noticeable OKLab difference (~0.02),
  * so each step is invisible on its own and needs no CSS transition — a
  * transition would repaint the full-screen sky every frame, which is the real
- * cost being avoided. Measured on the generated palette: ~365 repaints a day,
+ * cost being avoided. "The colour" is the whole screen's (`frameDistance`):
+ * the glow following the sun counts as much as the gradient itself, and the
+ * stars coming out are weighed in too. Measured on the generated palette: 500–570 repaints a day,
  * and the colour never moves faster than ΔE 0.0021 per 15 s, so even the
  * shortest step stays under the threshold.
  */

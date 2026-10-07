@@ -65,40 +65,14 @@ html {
 	}
 }
 
-/* The sky's colour ($lib/sky): gradient stops top to bottom, and the cloud
-   layer's opacity. Painted onto <html> as inline custom properties — first by
-   the inline head script, then live as the sun moves. These defaults are the
-   midday sky, for the moment before that script runs (or without JS).
-   Registered so the occasional catch-up (a tab coming back after hours away)
-   can transition them; routine steps are too small to see and don't. */
-@property --sky-0 {
-	syntax: '<color>';
-	inherits: true;
-	initial-value: #94cae7;
-}
-@property --sky-1 {
-	syntax: '<color>';
-	inherits: true;
-	initial-value: #a7d5ef;
-}
-@property --sky-2 {
-	syntax: '<color>';
-	inherits: true;
-	initial-value: #bbddf1;
-}
-@property --sky-clouds {
-	syntax: '<number>';
-	inherits: true;
-	initial-value: 1;
-}
-
-:root.sky-catch-up {
-	transition:
-		--sky-0 1.2s var(--ease-in-out-sine),
-		--sky-1 1.2s var(--ease-in-out-sine),
-		--sky-2 1.2s var(--ease-in-out-sine),
-		--sky-clouds 1.2s var(--ease-in-out-sine);
-}
+/* The sky's colour ($lib/sky) lives in custom properties on <html>: each
+   gradient stop's glow round the sun, the sky down the middle of the screen
+   (--sky-0 at the top … --sky-2 at the bottom), and the clouds' and stars'
+   share of their light. Painted first by the inline head script, then live as
+   the sun moves. They are registered, with the midday sky as their defaults
+   and the catch-up transition over them, by the generated head style
+   (`skyHeadStyle`, $lib/sky/headScript), so the property list and the palette
+   can never drift apart. */
 
 /* Images are decorative here — never part of a text selection and not draggable. */
 img {
