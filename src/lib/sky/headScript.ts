@@ -22,8 +22,8 @@ const body = [
 
 export const skyHeadScript = `<script>(function(){try{${body}}catch(e){}})()</` + 'script>';
 
-/** The midday sky: the palette's highest keyframe, where every stop holds. */
-const midday = SKY_PALETTE.stops.at(-1)!.map(labToHex);
+/** The midday sky: the palette's highest keyframe, where the sky holds. */
+const midday = labToHex(SKY_PALETTE.colours.at(-1)!);
 
 /** Every custom property `paintSky` writes, registered with its type and the
     midday sky as its default. Registration is what lets the occasional
@@ -32,14 +32,12 @@ const midday = SKY_PALETTE.stops.at(-1)!.map(labToHex);
     routine steps are too small to see and don't. The defaults are what shows
     before the head script runs, or without JS. */
 export const SKY_PROPERTIES: { name: string; syntax: string; initial: string }[] = [
-	...midday.map((hex, k) => ({ name: `--sky-${k}`, syntax: '<color>', initial: hex })),
-	...midday.flatMap((hex, k) =>
-		Array.from({ length: SKY_PALETTE.glow.stops }, (_, i) => ({
-			name: `--sky-${k}-${i}`,
-			syntax: '<color>',
-			initial: hex
-		}))
-	),
+	...[0, 1, 2].map((k) => ({ name: `--sky-${k}`, syntax: '<color>', initial: midday })),
+	...Array.from({ length: SKY_PALETTE.glow.stops }, (_, i) => ({
+		name: `--sky-glow-${i}`,
+		syntax: '<color>',
+		initial: midday
+	})),
 	{ name: '--sky-x', syntax: '<length-percentage>', initial: '50%' },
 	{ name: '--sky-y', syntax: '<length-percentage>', initial: '0%' },
 	{ name: '--sky-reach', syntax: '<length-percentage>', initial: '111.8%' },

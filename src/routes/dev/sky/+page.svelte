@@ -73,7 +73,7 @@
 				href={preview(column.at)}
 				title="{time(column.at)} · {column.frame.elevation.toFixed(1)}°"
 				class="flex-1"
-				style="background: linear-gradient({column.frame.hex[0]}, {column.frame.hex[1]} 60%, {column
+				style="background: linear-gradient({column.frame.hex[0]}, {column.frame.hex[1]}, {column
 					.frame.hex[2]})"
 			></a>
 		{/each}

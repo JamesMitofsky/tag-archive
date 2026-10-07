@@ -3,30 +3,36 @@
  *
  *   pnpm exec tsx scripts/sky/generate-palette.ts
  *
+ * Each keyframe is one colour: the sky as it looks with the sun at that
+ * elevation. The engine paints the screen as a glow round the sun's place,
+ * each point in the colour of a keyframe a few degrees of sun either side
+ * (src/lib/sky/engine.ts), so the screen's structure comes from the glow, not
+ * from a gradient baked into the palette.
+ *
  * Hue comes from physics, lightness from design, legibility from a floor:
  *
  * 1. HUE. Horizon's single-scattering atmosphere model (./horizon.ts) renders
  *    the sky at each keyframe elevation, auto-exposed so even a sun below the
- *    horizon yields readable hues. That is where the golden hour's orange
- *    horizon and civil twilight's rose glow come from.
- * 2. BRAND. Blues are rotated and desaturated so the midday zenith lands on the
+ *    horizon yields readable hues, and the colour is read off it low in the
+ *    sky (PHYSICAL_AT). That is where the golden hour's warmth (held from the
+ *    sun's crossing, GOLDEN) and civil twilight's rose glow come from.
+ * 2. BRAND. Blues are rotated and desaturated so the midday sky lands on the
  *    site's watercolour-paper blue (BRAND); warm hues are left alone. With the
- *    sun high, the whole gradient is held to that blue (DAYLIGHT) — physics
- *    would put a beige band at the horizon all day, which isn't this site —
- *    and the warmth comes through only as the sun gets low.
+ *    sun high, the sky is held to that blue (DAYLIGHT) — physics would tint it
+ *    beige all day, which isn't this site — and the warmth comes through only
+ *    as the sun gets low.
  * 3. BLUE HOUR. Single scattering has no answer once the sun is ~9° down (and
- *    exaggerates the pink before that — real twilight zeniths are blue), so each
- *    stop blends toward an indigo night as the sun sinks: the zenith first, the
- *    horizon glow last.
- * 4. LIGHTNESS follows designed curves per stop rather than physics, which
- *    would go black.
- * 5. FLOOR. Every stop keeps at least MIN_CONTRAST against the ink the
+ *    exaggerates the pink before that — real twilight skies are blue), so the
+ *    colour blends toward an indigo night as the sun sinks (NIGHTFALL).
+ * 4. LIGHTNESS follows a designed curve rather than physics, which would go
+ *    black.
+ * 5. FLOOR. Every keyframe keeps at least MIN_CONTRAST against the ink the
  *    handwriting and text are drawn in, raising lightness where needed — so
  *    night is a dusky blue, never dark enough to swallow the drawings.
  *
  * Alongside the colours: cloud cover and starlight by elevation, and the
- * glow's shape (GLOW), which the engine uses to centre each stop's colour on
- * the sun's place on the screen.
+ * glow's shape (GLOW), which the engine uses to centre the sky on the sun's
+ * place on the screen.
  *
  * Re-run after changing any constant here; the output is committed so palette
  * changes show up as reviewable diffs, and the runtime never ray-marches.
@@ -45,7 +51,7 @@ import {
 } from '../../src/lib/sky/color';
 import type { Lab } from '../../src/lib/sky/engine';
 
-/** The site's daytime sky, which the midday zenith must match. */
+/** The site's daytime sky, which the midday sky must match. */
 const BRAND = '#94cae7';
 /** The ink of the handwritten drawings and body text. */
 const INK = '#14120f';
@@ -58,8 +64,16 @@ const NIGHT = { hue: 272, chroma: 0.06 };
 const ELEVATIONS = [
 	-90, -18, -12, -10, -8, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4.5, 6, 8, 10, 14, 20, 30, 90
 ];
-/** Gradient stops, top to bottom of the screen (zenith-ward → horizon). */
-const POSITIONS = [0, 0.6, 1];
+/** Where the physical model's sky is read, from its zenith (0) to its horizon
+    (1): low enough to carry the warmth a low sun lends the sky, high enough
+    not to be the saturated orange band right at the horizon. */
+const PHYSICAL_AT = 0.8;
+/** The elevation whose physical colour the golden hour keeps. Read there, the
+    sky turns a neutral white within a few degrees of the sun rising, long
+    before the brand blue takes over (DAYLIGHT), and the golden hour would be
+    grey. Held at the crossing's warmth instead, it stays golden until the
+    blue comes in, as Horizon Time's does. */
+const GOLDEN = 0;
 
 /** Piecewise-linear curve through [elevation, value] points. */
 type Curve = [number, number][];
@@ -75,55 +89,24 @@ const at = (curve: Curve, e: number): number => {
 
 const brand = toLch(hexToLab(BRAND));
 
-/** Designed OKLab lightness per stop. Dawn and dusk dim the zenith first. */
-const LIGHTNESS: Curve[] = [
-	[
-		[-6, 0.6],
-		[-3, 0.62],
-		[0, 0.68],
-		[3, 0.74],
-		[8, 0.79],
-		[20, brand[0]]
-	],
-	[
-		[-8, 0.62],
-		[-3, 0.68],
-		[0, 0.74],
-		[3, 0.79],
-		[8, 0.83],
-		[20, 0.85]
-	],
-	[
-		[-10, 0.64],
-		[-4, 0.68],
-		[0, 0.75],
-		[3, 0.8],
-		[8, 0.85],
-		[20, 0.88]
-	]
+/** Designed OKLab lightness, rising with the sun to the brand blue's. */
+const LIGHTNESS: Curve = [
+	[-9, 0.63],
+	[-4, 0.68],
+	[-1, 0.8],
+	[4, 0.86],
+	[12, brand[0]]
 ];
-/** How far each stop has gone over to night (0 → 1) as the sun sinks. */
-const NIGHTFALL: Curve[] = [
-	[
-		[-6, 1],
-		[0, 0]
-	],
-	[
-		[-8, 1],
-		[-2, 0]
-	],
-	[
-		[-10, 1],
-		[-4, 0]
-	]
+/** How far the sky has gone over to night (0 → 1) as the sun sinks. */
+const NIGHTFALL: Curve = [
+	[-9, 1],
+	[-3, 0]
 ];
-/** How much each stop is held to the brand blue (1 → 0) as the sun gets low. */
+/** How much the sky is held to the brand blue (1 → 0) as the sun gets low. */
 const DAYLIGHT: Curve = [
 	[4, 0],
 	[15, 1]
 ];
-/** Brand-blue chroma per stop when held to it: paler toward the horizon. */
-const DAYLIGHT_CHROMA = [brand[1], 0.06, 0.045];
 /** Cloud-layer opacity: full by day, faint at night. */
 const CLOUDS: Curve = [
 	[-10, 0.5],
@@ -139,14 +122,15 @@ const STARS: Curve = [
 	[-4, 0]
 ];
 /** How the colour spreads round the sun's place on the screen (see
-    src/lib/sky/engine.ts): each stop is drawn as a glow of `stops` colours out
-    from the sun, as light as the sky would be with the sun up to `spread`
-    degrees higher (at the sun) or lower (in the farthest corner), the turn
-    between the two sharpened by `sharpness`. */
+    src/lib/sky/engine.ts): a glow of `stops` colours out from the sun, the sky
+    as it would be with the sun up to `spread` degrees higher (at the sun) or
+    lower (in the farthest corner), the turn between the two sharpened by
+    `sharpness`. Horizon Time's values. */
 const GLOW = { stops: 17, spread: 4, sharpness: 1.5 };
 
-/** Horizon's stops at elevation `e`, auto-exposed so the brightest reaches L 0.75. */
-function physicalStops(e: number): Lab[] {
+/** Horizon's sky at elevation `e`, read at PHYSICAL_AT, auto-exposed so the
+    brightest part of it reaches L 0.75. */
+function physicalSky(e: number): Lab {
 	const rad = (e * Math.PI) / 180;
 	const brightest = (exposure: number) =>
 		Math.max(...renderStops(rad, exposure).map((s) => rgbToLab(s.rgb as Rgb)[0]));
@@ -158,19 +142,16 @@ function physicalStops(e: number): Lab[] {
 		else hi = mid;
 	}
 	const stops = renderStops(rad, lo);
-	return POSITIONS.map((p) => {
-		const x = p * (stops.length - 1);
-		const i = Math.min(stops.length - 2, Math.floor(x));
-		const t = x - i;
-		const rgb = stops[i].rgb.map((c, k) => c + (stops[i + 1].rgb[k] - c) * t) as Rgb;
-		return rgbToLab(rgb);
-	});
+	const x = PHYSICAL_AT * (stops.length - 1);
+	const i = Math.min(stops.length - 2, Math.floor(x));
+	const t = x - i;
+	return rgbToLab(stops[i].rgb.map((c, k) => c + (stops[i + 1].rgb[k] - c) * t) as Rgb);
 }
 
 // Rotate blues onto the brand hue and soften them to its chroma, leaving warm
-// hues untouched: `blueness` is 1 at the physical midday zenith's hue and falls
+// hues untouched: `blueness` is 1 at the physical midday sky's hue and falls
 // to 0 a quarter-turn away.
-const daylight = toLch(physicalStops(40)[0]);
+const daylight = toLch(physicalSky(40));
 const blueness = (hue: number) => Math.max(0, Math.cos(((hue - daylight[2]) * Math.PI) / 180)) ** 2;
 const toBrand = ([, C, h]: [number, number, number]): [number, number] => {
 	const w = blueness(h);
@@ -190,32 +171,32 @@ function floored(lab: Lab): Lab {
 
 const round = (n: number, places = 4) => Number(n.toFixed(places));
 
-const stops: Lab[][] = ELEVATIONS.map((e) => {
-	// Single scattering returns nothing useful below ~−9°: borrow −8°'s hues
-	// there (they are fully blended into night by then anyway).
-	const physical = physicalStops(Math.max(e, -8));
-	return physical.map((lab, k) => {
-		const [C, h] = toBrand(toLch(lab));
-		const physicalDay = fromLch(0, C, h);
-		const held = fromLch(0, DAYLIGHT_CHROMA[k], brand[2]);
-		const d = at(DAYLIGHT, e);
-		const day = [
-			0,
-			physicalDay[1] + (held[1] - physicalDay[1]) * d,
-			physicalDay[2] + (held[2] - physicalDay[2]) * d
-		];
-		const night = fromLch(0, NIGHT.chroma, NIGHT.hue);
-		const w = at(NIGHTFALL[k], e);
-		const L = at(LIGHTNESS[k], e);
-		const blended: Lab = [L, day[1] + (night[1] - day[1]) * w, day[2] + (night[2] - day[2]) * w];
-		return floored(blended).map((v) => round(v)) as Lab;
-	});
+const colours: Lab[] = ELEVATIONS.map((e) => {
+	// Single scattering returns nothing useful below ~−9°: borrow −8°'s hue
+	// there (it is fully blended into night by then anyway). Above GOLDEN, the
+	// crossing's warmth holds.
+	const [C, h] = toBrand(toLch(physicalSky(Math.min(Math.max(e, -8), GOLDEN))));
+	const physicalDay = fromLch(0, C, h);
+	const held = fromLch(0, brand[1], brand[2]);
+	const d = at(DAYLIGHT, e);
+	const day = [
+		0,
+		physicalDay[1] + (held[1] - physicalDay[1]) * d,
+		physicalDay[2] + (held[2] - physicalDay[2]) * d
+	];
+	const night = fromLch(0, NIGHT.chroma, NIGHT.hue);
+	const w = at(NIGHTFALL, e);
+	const blended: Lab = [
+		at(LIGHTNESS, e),
+		day[1] + (night[1] - day[1]) * w,
+		day[2] + (night[2] - day[2]) * w
+	];
+	return floored(blended).map((v) => round(v)) as Lab;
 });
 
 const palette = {
 	elevations: ELEVATIONS,
-	positions: POSITIONS,
-	stops,
+	colours,
 	clouds: ELEVATIONS.map((e) => round(at(CLOUDS, e), 3)),
 	stars: ELEVATIONS.map((e) => round(at(STARS, e), 3)),
 	glow: GLOW
