@@ -7,7 +7,7 @@
 		page.status === 404
 			? 'this page has drifted off...'
 			: page.status === 401
-				? 'The archive has closed for now — tap the tag in the garden to step back in.'
+				? 'The archive has closed for now — visit the Cube to open it again.'
 				: 'Something seems to have gone wrong... sorry about that!'
 	);
 </script>

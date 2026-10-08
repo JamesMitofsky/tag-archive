@@ -40,7 +40,7 @@ export async function gateRequest(
 		});
 	}
 	return Response.json(
-		{ message: 'Tap the tag in the garden to open the archive', code: 'locked' },
+		{ message: 'Visit the Cube to open the archive', code: 'locked' },
 		{ status: 401, headers }
 	);
 }

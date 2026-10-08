@@ -25,12 +25,8 @@
 
 <main class="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
 	<div class="relative z-10 max-w-md px-8 py-10 text-center text-gray-900">
-		<h1 class="font-friendly text-5xl font-medium tracking-tight text-gray-800">
-			The archive lives in the garden
+		<h1 class="font-friendly text-4xl font-medium tracking-tight text-gray-800">
+			Visit the Cube to open the archive
 		</h1>
-		<p class="mt-6 font-friendly text-base text-gray-700">
-			Find the tag at the Temperance Alley Garden and hold your phone to it. Each tap opens the
-			archive for three hours.
-		</p>
 	</div>
 </main>

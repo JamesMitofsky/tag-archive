@@ -188,7 +188,7 @@ on a Mac with an ACR1252U):
    offset**; SDM meta-read → the meta key's slot; SDM file-read → the file key's
    slot; read counter on.
 5. Set the NDEF file's **write access to key 0** (read stays free).
-6. Tap it with a phone: you should land on `/` with a "welcome in" note, and the
+6. Tap it with a phone: you should land on `/` with an "Archive opened" note, and the
    URL should change with every tap.
 
 Taps register their tag automatically (only a holder of the keys can produce a

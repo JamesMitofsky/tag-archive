@@ -267,8 +267,8 @@
 				</h1>
 				{#if !data.canContribute}
 					<p class="mt-4 font-friendly text-sm text-gray-700" role="status">
-						Your time to add things has run out. Tap the tag in the garden again to keep going —
-						anything you fill in here will wait for you.
+						Your time to add things has run out. Visit the Cube again to keep going — anything you
+						fill in here will wait for you.
 					</p>
 				{/if}
 				<form

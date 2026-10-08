@@ -60,7 +60,7 @@ export const actions: Actions = {
 				return fail(401, {
 					locked: true,
 					artefactError:
-						'Your time to add things has run out. Tap the tag in the garden again, then press “Add artefact” — your entry is kept.'
+						'Your time to add things has run out. Visit the Cube again, then press “Add artefact” — your entry is kept.'
 				});
 			}
 			if (!(await consume('submit-ip', getClientAddress(), LIMITS.submitPerIp))) {

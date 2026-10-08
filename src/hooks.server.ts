@@ -54,7 +54,7 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 	if (decision === 'redirect' || event.isDataRequest || isEnhancedAction) {
 		throw redirect(303, LOCKED_PATH);
 	}
-	throw error(401, 'Tap the tag in the garden to open the archive');
+	throw error(401, 'Visit the Cube to open the archive');
 };
 
 // The keeper sign-in gate (see $lib/server/keeperGuard): anonymous requests into

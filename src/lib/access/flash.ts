@@ -9,7 +9,7 @@ export const TAP_FLASH_COOKIE = 'tag_tap';
 export type TapFlash = 'ok' | 'used' | 'invalid' | 'revoked' | 'busy';
 
 export const TAP_MESSAGES: Record<TapFlash, string> = {
-	ok: 'Welcome in — the archive is open to you for the next three hours.',
+	ok: 'Archive opened',
 	used: 'That tap has already been used. Tap the tag again to come in.',
 	invalid: 'That tap couldn’t be read. Hold your phone to the tag and try again.',
 	revoked: 'That tag is no longer in use.',
