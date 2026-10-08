@@ -10,10 +10,10 @@ export type TapFlash = 'ok' | 'used' | 'invalid' | 'revoked' | 'busy';
 
 export const TAP_MESSAGES: Record<TapFlash, string> = {
 	ok: 'Archive opened',
-	used: 'That tap has already been used. Tap the tag again to come in.',
-	invalid: 'That tap couldn’t be read. Hold your phone to the tag and try again.',
-	revoked: 'That tag is no longer in use.',
-	busy: 'Lots of taps just now — wait a moment and try again.'
+	used: 'That way in has already been used. Return to the Cube to re-open the Archive.',
+	invalid: 'The Cube couldn’t hear you. Hold your phone to it and try again.',
+	revoked: 'That way into the Archive has closed.',
+	busy: 'The Cube is busy just now — wait a moment and try again.'
 };
 
 /** Read the flash cookie and clear it, so it shows exactly once. */
