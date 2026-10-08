@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
@@ -18,7 +17,6 @@
 	import FieldError from '$lib/components/FieldError.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import { createContactSuite, parseContactForm } from '$lib/validation/contact';
-	import { createDraftSession } from '$lib/draftSession';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -28,37 +26,11 @@
 	// go straight to it; anyone else's waits for a keeper's review, and they get a
 	// thank-you — with an optional side path to leave contact details.
 	//
-	// Anonymous visitors need a draft session (one invisible bot check) before
-	// they can upload or submit; it is started on arrival so the first scan
-	// doesn't wait on it, and renewed if it lapses while the form is open.
-	let turnstileEl = $state<HTMLDivElement>();
-	let sessionError = $state('');
-	// svelte-ignore state_referenced_locally
-	const draftSession = data.signedIn
-		? null
-		: createDraftSession({
-				siteKey: data.turnstileSiteKey,
-				expiresAt: data.draftExpiresAt,
-				container: () => turnstileEl
-			});
-	async function ensureSession(options?: { renew?: boolean }) {
-		if (!draftSession) return;
-		try {
-			await draftSession.ensure(options);
-			sessionError = '';
-		} catch (e) {
-			sessionError = e instanceof Error ? e.message : 'Could not start your upload session.';
-			throw e;
-		}
-	}
-	onMount(() => {
-		// A silent warm-up: a failure here must not greet the visitor with an error
-		// before they've done anything (e.g. the human-check script blocked, or
-		// submissions unconfigured). Uploading or submitting retries through
-		// `ensureSession`, which reports any failure in response to that action.
-		draftSession?.ensure().catch(() => {});
-		return () => draftSession?.destroy();
-	});
+	// Anonymous visitors may upload and submit for a few hours after tapping the
+	// garden's NFC tag (the draft session, see $lib/server/drafts). Once that
+	// lapses, the server refuses with a "tap the tag again" message — shown in
+	// place, so nothing typed or scanned is lost, and a fresh tap resumes the
+	// same draft.
 
 	// After an anonymous submit: the new artefact's id and the token that lets
 	// this visitor (and only them) attach contact details to it.
@@ -293,11 +265,11 @@
 				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
 					{data.signedIn ? 'New artefact' : 'Add to the archive'}
 				</h1>
-				<!-- Turnstile's bot check renders here only if it needs an interaction;
-			     usually it stays invisible. -->
-				<div bind:this={turnstileEl} class="mt-4 empty:hidden"></div>
-				{#if sessionError}
-					<p class="mt-4 font-friendly text-sm text-red-600" role="alert">{sessionError}</p>
+				{#if !data.canContribute}
+					<p class="mt-4 font-friendly text-sm text-gray-700" role="status">
+						The Archive has drifted shut. Return to the Cube to re-open the Archive — anything you
+						fill in here will wait for you.
+					</p>
 				{/if}
 				<form
 					class="mt-6 space-y-5"
@@ -306,28 +278,16 @@
 					bind:this={formEl}
 					oninput={revalidate}
 					onfocusout={markTouched}
-					use:enhance={async ({ formData, cancel }) => {
+					use:enhance={({ formData, cancel }) => {
 						validator.revealAll();
 						if (!validator.run(parseArtefactForm(formData))) {
 							cancel();
 							return;
 						}
 						submitting = true;
-						try {
-							await ensureSession();
-						} catch {
-							submitting = false;
-							cancel();
-							return;
-						}
-						return async ({ result, update }) => {
+						return async ({ update }) => {
 							await update();
 							submitting = false;
-							// The session lapsed between the check above and the server: renew
-							// it now so pressing the button again simply works.
-							if (result.type === 'failure' && result.data?.draftExpired) {
-								await ensureSession({ renew: true }).catch(() => {});
-							}
 						};
 					}}
 				>
@@ -375,7 +335,6 @@
 						label="Images"
 						required
 						bind:pending={scanPending}
-						prepareUpload={draftSession ? ensureSession : undefined}
 						onChange={(urls) => {
 							fileUrls = urls;
 							revalidate();

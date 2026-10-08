@@ -57,6 +57,13 @@
       "when": 1790957297625,
       "tag": "0007_public_submissions",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791473319517,
+      "tag": "0008_nfc_tags",
+      "breakpoints": true
     }
   ]
 }
