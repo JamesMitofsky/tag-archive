@@ -10,7 +10,7 @@ export type TapFlash = 'ok' | 'used' | 'invalid' | 'revoked' | 'busy';
 
 export const TAP_MESSAGES: Record<TapFlash, string> = {
 	ok: 'Archive opened',
-	used: 'That way in has already been used. Return to the Cube to re-open the Archive.',
+	used: 'That way in has already been used. Visit the Cube to open the Archive.',
 	invalid: 'The Cube couldn’t hear you. Hold your phone to it and try again.',
 	revoked: 'That way into the Archive has closed.',
 	busy: 'The Cube is busy just now — wait a moment and try again.'

@@ -19,7 +19,7 @@ const MAX_BYTES = 25 * 1024 * 1024; // 25 MB — generous cap for a scanned imag
 
 /** 401 the client recognises as "tap the tag again to keep going". */
 const locked = () =>
-	json({ message: 'Return to the Cube to re-open the Archive.', code: 'locked' }, { status: 401 });
+	json({ message: 'Visit the Cube to open the Archive.', code: 'locked' }, { status: 401 });
 
 export const POST: RequestHandler = async ({ request, locals, cookies, getClientAddress }) => {
 	let prefix = '';

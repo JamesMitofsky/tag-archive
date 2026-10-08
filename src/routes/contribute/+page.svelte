@@ -267,8 +267,8 @@
 				</h1>
 				{#if !data.canContribute}
 					<p class="mt-4 font-friendly text-sm text-gray-700" role="status">
-						The Archive has drifted shut. Return to the Cube to re-open the Archive — anything you
-						fill in here will wait for you.
+						The Archive has drifted shut. Visit the Cube to open the Archive — anything you fill in
+						here will wait for you.
 					</p>
 				{/if}
 				<form

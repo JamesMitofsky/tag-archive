@@ -40,7 +40,7 @@ export async function gateRequest(
 		});
 	}
 	return Response.json(
-		{ message: 'Return to the Cube to re-open the Archive', code: 'locked' },
+		{ message: 'Visit the Cube to open the Archive', code: 'locked' },
 		{ status: 401, headers }
 	);
 }
