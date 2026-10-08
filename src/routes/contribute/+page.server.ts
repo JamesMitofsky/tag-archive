@@ -1,6 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
-import { env } from '$env/dynamic/public';
 import { createArtefact, knownLocations } from '$lib/server/artefacts';
 import { db } from '$lib/server/db';
 import { stampInsert } from '$lib/server/db/audit';
@@ -37,15 +36,13 @@ const contactToken = (id: number) => sign('contact', String(id));
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
 	const signedIn = !!locals.user;
-	const draft = signedIn ? null : freshDraft(cookies);
 	return {
 		signedIn,
 		// Keepers record where the physical item is kept; the public may not know.
 		requireLocation: signedIn,
-		// Anonymous visitors need a draft session (one bot check) to upload and
-		// submit. Its expiry lets the page renew it before it lapses mid-form.
-		draftExpiresAt: draft?.expiresAt ?? null,
-		turnstileSiteKey: signedIn ? null : env.PUBLIC_TURNSTILE_SITE_KEY || null,
+		// Anonymous visitors upload and submit through the draft session a recent
+		// tap of the garden tag started (see $lib/server/drafts).
+		canContribute: signedIn || !!freshDraft(cookies),
 		locations: await knownLocations()
 	};
 };
@@ -56,13 +53,14 @@ export const actions: Actions = {
 		const data = parseArtefactForm(form);
 		const signedIn = !!locals.user;
 
-		// Anonymous: a fresh draft session (passed bot check) and a rate limit.
+		// Anonymous: a fresh draft session (a recent tap) and a rate limit.
 		const draft = signedIn ? null : freshDraft(cookies);
 		if (!signedIn) {
 			if (!draft) {
 				return fail(401, {
-					draftExpired: true,
-					artefactError: 'Your session expired. Press “Add artefact” again.'
+					locked: true,
+					artefactError:
+						'The Archive has drifted shut. Return to the Cube to re-open the Archive, then press “Add artefact” — your entry is kept.'
 				});
 			}
 			if (!(await consume('submit-ip', getClientAddress(), LIMITS.submitPerIp))) {

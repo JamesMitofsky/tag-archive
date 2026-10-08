@@ -1,24 +1,27 @@
 import { randomBytes } from 'node:crypto';
 import type { Cookies } from '@sveltejs/kit';
 import { dev } from '$app/environment';
+import { PASS_TTL_MS } from '$lib/access/pass';
 import { sign, verify } from './signing';
 
 /**
  * Draft sessions: how an anonymous visitor on /contribute is allowed to write.
  *
- * Passing the bot check (Turnstile) once issues a signed cookie naming a random
- * draft id. That id is the visitor's private upload space: their images are
- * stored under `submissions/<id>/`, only that cookie may delete from it, and a
- * submission may only attach images from it. Nothing is stored server-side —
- * the signature is the whole proof.
+ * Tapping the garden's NFC tag (src/routes/t) issues a signed cookie naming a
+ * random draft id, alongside the access pass that opens the site. That id is
+ * the visitor's private upload space: their images are stored under
+ * `submissions/<id>/`, only that cookie may delete from it, and a submission
+ * may only attach images from it. Nothing is stored server-side — the
+ * signature is the whole proof.
  *
- * A draft is fresh for DRAFT_TTL_MS. Past that, uploads and submits need a new
- * bot check; renewing keeps the same id (the old signature still proves
- * ownership), so images already uploaded stay attachable.
+ * A draft is fresh for DRAFT_TTL_MS, the same window as the access pass. Past
+ * that, uploads and submits need another tap; renewing keeps the same id (the
+ * old signature still proves ownership), so images already uploaded stay
+ * attachable.
  */
 
 export const DRAFT_COOKIE = 'tag_draft';
-export const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+export const DRAFT_TTL_MS = PASS_TTL_MS;
 /** How long the browser keeps the cookie — longer than freshness, so renewal can reuse the id. */
 const COOKIE_MAX_AGE_S = 30 * 24 * 60 * 60;
 

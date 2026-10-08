@@ -12,6 +12,8 @@
 	import SkyUnderlay from '$lib/components/SkyUnderlay.svelte';
 	import Drawing from '$lib/components/Drawing.svelte';
 	import PublicNav from '$lib/components/PublicNav.svelte';
+	import TapToast from '$lib/components/TapToast.svelte';
+	import { LOCKED_PATH } from '$lib/access/gate';
 
 	let { children } = $props();
 
@@ -66,9 +68,12 @@
 	<Drawing src="/drawing/text/tag-archive.webp" alt="Home" class="w-44 max-w-[32vw]" />
 </a>
 
-{#if !page.url.pathname.startsWith('/keeper')}
+<!-- No nav on the locked page: every link would lead straight back to it. -->
+{#if !page.url.pathname.startsWith('/keeper') && page.url.pathname !== LOCKED_PATH}
 	<PublicNav />
 {/if}
+
+<TapToast />
 
 <div class="route-wrap">
 	<SkyUnderlay />
