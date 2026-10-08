@@ -11,6 +11,8 @@ declare global {
 		interface Locals {
 			user?: AuthSession['user'];
 			session?: AuthSession['session'];
+			/** The visitor's access pass, when they hold one (see $lib/access/pass). */
+			pass?: import('$lib/access/pass').Pass;
 		}
 
 		// interface Error {}

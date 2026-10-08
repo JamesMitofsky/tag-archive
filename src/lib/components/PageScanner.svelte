@@ -33,7 +33,6 @@
 		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		pending = $bindable(false),
 		initial = [],
-		prepareUpload,
 		label,
 		required = false
 	}: {
@@ -41,11 +40,6 @@
 		pending?: boolean;
 		/** Pre-existing scan URLs to seed the list with (edit flow). */
 		initial?: string[];
-		/**
-		 * Awaited before each upload — how an anonymous contributor's draft session
-		 * is obtained, or renewed (`renew`) after the server reports it expired.
-		 */
-		prepareUpload?: (options?: { renew?: boolean }) => Promise<void>;
 		/** Section label shown above the scanner, styled like the other form fields'. */
 		label?: string;
 		/** Mark the section required (the asterisk only; validation is the form's). */
@@ -501,18 +495,11 @@
 	/** Push one image to R2 and hand its URL back to the form. */
 	async function processUpload(claim: Claim, file: Blob, fileName: string, previewUrl: string) {
 		try {
-			const send = () => {
-				const body = new FormData();
-				body.append('file', file, fileName);
-				return fetch(SCANS_ENDPOINT, { method: 'POST', body });
-			};
-			await prepareUpload?.();
-			let res = await send();
-			// An anonymous session that lapsed mid-form: renew it once, then retry.
-			if (res.status === 401 && prepareUpload) {
-				await prepareUpload({ renew: true });
-				res = await send();
-			}
+			const body = new FormData();
+			body.append('file', file, fileName);
+			const res = await fetch(SCANS_ENDPOINT, { method: 'POST', body });
+			// An anonymous contributor whose tap has lapsed gets the server's "tap the
+			// tag again" message here, on the page that failed.
 			if (!res.ok) throw new Error(await failureMessage(res));
 
 			const result = (await res.json()) as { url: string; fileName: string };

@@ -12,15 +12,15 @@ import type { RequestHandler } from './$types';
 // which itself has no per-request access control. Two kinds of uploader:
 //
 //  - a signed-in keeper: uploads land at the bucket root, as before;
-//  - an anonymous visitor on /contribute: needs a fresh draft session (one
-//    passed bot check, see $lib/server/drafts) and is rate-limited; uploads
+//  - an anonymous visitor on /contribute: needs a fresh draft session (a
+//    recent tap of the garden tag, see $lib/server/drafts) and is rate-limited; uploads
 //    land in that draft's private `submissions/<draft>/` space.
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB — generous cap for a scanned image.
 
-/** 401 the client recognises as "renew the bot check and retry". */
-const draftExpired = () =>
+/** 401 the client recognises as "tap the tag again to keep going". */
+const locked = () =>
 	json(
-		{ message: 'Your upload session expired. Trying again…', code: 'draft-expired' },
+		{ message: 'Tap the tag in the garden again to keep going.', code: 'locked' },
 		{ status: 401 }
 	);
 
@@ -28,7 +28,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies, getClient
 	let prefix = '';
 	if (!locals.user) {
 		const draft = freshDraft(cookies);
-		if (!draft) return draftExpired();
+		if (!draft) return locked();
 		const ip = getClientAddress();
 		const allowed =
 			(await consume('upload-ip', ip, LIMITS.uploadPerIp)) &&
@@ -62,7 +62,7 @@ export const DELETE: RequestHandler = async ({ request, locals, cookies }) => {
 	if (!key) throw error(400, 'Not an uploaded image');
 
 	// A visitor may only discard their own draft's uploads. Any validly signed
-	// draft counts, fresh or not: ownership doesn't lapse with the bot check.
+	// draft counts, fresh or not: ownership doesn't lapse with the tap.
 	if (!locals.user) {
 		const draft = readDraft(cookies);
 		if (!draft || !key.startsWith(submissionPrefix(draft.id))) {

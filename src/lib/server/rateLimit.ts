@@ -19,14 +19,14 @@ export type Limit = { limit: number; windowMs: number };
 const HOUR = 60 * 60 * 1000;
 
 /**
- * The policy for every anonymous write, in one place. Turnstile and the
+ * The policy for every anonymous write, in one place. The NFC tap and the
  * per-draft cap are the real gates; the per-IP limits are backstops, set loose
  * on purpose — volunteers at a garden event share one Wi-Fi network, and so one
  * address, so a tight per-IP limit would lock out a busy afternoon.
  */
 export const LIMITS = {
-	/** Bot checks passed → draft sessions issued, per IP (one per visitor per day). */
-	draftPerIp: { limit: 120, windowMs: HOUR },
+	/** Tag taps (each opens the site and starts a draft), per IP. */
+	tapPerIp: { limit: 300, windowMs: HOUR },
 	/** Image uploads per IP — a long multi-page scan is a few dozen, per person. */
 	uploadPerIp: { limit: 1500, windowMs: HOUR },
 	/** Image uploads per draft session, per day — the cap on any one visitor. */

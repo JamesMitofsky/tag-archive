@@ -87,6 +87,8 @@ describe('createArtefact (anonymous)', () => {
 	it('refuses without a draft session', async () => {
 		const result = await run('createArtefact', minimal(['https://bucket.test/x.webp']));
 		expect(isActionFailure(result) && result.status).toBe(401);
+		// Marked as a lapsed tap, not a validation failure.
+		expect(isActionFailure(result) && result.data).toMatchObject({ locked: true });
 	});
 
 	it("refuses images outside the visitor's own draft space", async () => {

@@ -260,6 +260,23 @@ export const rateLimit = sqliteTable('rate_limit', {
 	count: integer('count').notNull()
 });
 
+/**
+ * The NFC tags (NTAG 424 DNA) whose taps open the site (see
+ * $lib/server/nfc/taps). `uid` is the tag's 7-byte hardware id as uppercase
+ * hex. `last_counter` is the highest tap counter accepted so far: a tap must
+ * beat it, so a copied tap URL can never be replayed. A tag registers itself on
+ * its first genuine tap — only a holder of the SDM keys can produce one — and a
+ * lost tag is disabled by setting `revoked_at`.
+ */
+export const nfcTag = sqliteTable('nfc_tag', {
+	uid: text('uid').primaryKey(),
+	lastCounter: integer('last_counter').notNull(),
+	label: text('label'),
+	revokedAt: integer('revoked_at', { mode: 'timestamp_ms' }),
+	firstSeenAt: integer('first_seen_at', { mode: 'timestamp_ms' }).notNull(),
+	lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }).notNull()
+});
+
 // Relations power `db.query` relational loads.
 export const seriesRelations = relations(series, ({ many }) => ({
 	events: many(event)
