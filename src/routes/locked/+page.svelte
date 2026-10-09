@@ -26,7 +26,7 @@
 <main class="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
 	<div class="relative z-10 max-w-md px-8 py-10 text-center text-gray-900">
 		<h1 class="font-friendly text-4xl font-medium tracking-tight text-gray-800">
-			Return to the Cube to re-open the Archive
+			Visit the Cube to open the Archive
 		</h1>
 	</div>
 </main>

@@ -13,7 +13,7 @@
 	import Drawing from '$lib/components/Drawing.svelte';
 	import PublicNav from '$lib/components/PublicNav.svelte';
 	import TapToast from '$lib/components/TapToast.svelte';
-	import { LOCKED_PATH } from '$lib/access/gate';
+	import { LOCKED_PATH } from '$lib/access/paths';
 
 	let { children } = $props();
 

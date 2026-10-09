@@ -20,6 +20,7 @@ export async function gateRequest(
 	const isDataRequest = url.pathname.endsWith('/__data.json');
 	const decision = accessDecision({
 		pathname: url.pathname,
+		search: url.search,
 		method: request.method,
 		accept: request.headers.get('accept'),
 		isDataRequest,
@@ -40,7 +41,7 @@ export async function gateRequest(
 		});
 	}
 	return Response.json(
-		{ message: 'Return to the Cube to re-open the Archive', code: 'locked' },
+		{ message: 'Visit the Cube to open the Archive', code: 'locked' },
 		{ status: 401, headers }
 	);
 }

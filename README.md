@@ -154,11 +154,17 @@ The pass is checked twice, from one rule (`src/lib/access/gate.ts`):
   under `vite dev`, which doesn't run edge functions.
 
 Without a pass, a page view lands on `/locked`; anything else gets a 401. Always
-open: `/t`, `/locked`, keeper sign-in (`/keeper`, `/api/auth/*`), the cron
-endpoint, and the app bundles and decor the locked page is drawn with.
+open: `/t`, `/locked`, the sign-in endpoints (`/api/auth/*`), the cron endpoint,
+and the app bundles and decor the locked page is drawn with.
 
-**Keepers bypass the tag.** Signing in at `/keeper` issues the same pass and keeps
-it topped up on every signed-in request.
+**Keepers bypass the tag.** The sign-in page is locked like everything else,
+except through its door: `/keeper?listeningwith=thevoiceofthegarden`, the link
+keepers bookmark (`src/lib/access/keeperDoor.server.ts`; server-only, so the
+phrase never ships in the browser bundle). Signing in there issues the same pass
+and keeps it topped up on every signed-in request. The signed-in area
+(`/keeper/*`) stays open at the gate so a keeper whose pass has lapsed still
+reaches SvelteKit, where their session renews it; anyone without a session is
+sent back to `/keeper`.
 
 **Keys.** `NFC_SDM_META_KEY` and `NFC_SDM_FILE_KEY` (32 hex characters each) are
 the AES-128 keys written onto the tag. They are their own env vars, not derived
