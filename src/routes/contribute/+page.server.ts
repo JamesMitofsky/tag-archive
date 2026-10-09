@@ -60,7 +60,7 @@ export const actions: Actions = {
 				return fail(401, {
 					locked: true,
 					artefactError:
-						'The Archive has drifted shut. Return to the Cube to re-open the Archive, then press “Add artefact” — your entry is kept.'
+						'The Archive has drifted shut. Visit the Cube to open the Archive, then press “Add artefact” — your entry is kept.'
 				});
 			}
 			if (!(await consume('submit-ip', getClientAddress(), LIMITS.submitPerIp))) {
