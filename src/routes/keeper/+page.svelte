@@ -2,6 +2,7 @@
 	import { tick } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import { confetti } from '@neoconfetti/svelte';
 	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
@@ -16,6 +17,17 @@
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// A form action URL that keeps this page's query string. Visitors without an
+	// access pass reach this page only through its door, a query parameter (see
+	// $lib/access/gate), and a bare `?/sendOtp` would drop it, so the post would
+	// be locked out. Earlier action names left in the URL by a no-JS post are
+	// dropped rather than carried along.
+	function actionUrl(name: string): string {
+		const kept = [...page.url.searchParams].filter(([key]) => !key.startsWith('/'));
+		const query = new URLSearchParams(kept).toString();
+		return `?/${name}${query ? `&${query}` : ''}`;
+	}
 
 	// Signed-out flow: which step the last action left us on.
 	const authStep = $derived(form && 'step' in form && form.step === 'otp' ? 'otp' : 'email');
@@ -181,7 +193,7 @@
 										{#if authStep === 'email'}
 											<form
 												method="POST"
-												action="?/sendOtp"
+												action={actionUrl('sendOtp')}
 												bind:this={emailFormEl}
 												oninput={revalidateEmail}
 												onfocusout={markEmailTouched}
@@ -233,7 +245,7 @@
 											</p>
 											<form
 												method="POST"
-												action="?/verifyOtp"
+												action={actionUrl('verifyOtp')}
 												bind:this={otpForm}
 												use:enhance={() => {
 													otpPending = true;

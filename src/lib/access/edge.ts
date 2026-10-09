@@ -20,6 +20,7 @@ export async function gateRequest(
 	const isDataRequest = url.pathname.endsWith('/__data.json');
 	const decision = accessDecision({
 		pathname: url.pathname,
+		search: url.search,
 		method: request.method,
 		accept: request.headers.get('accept'),
 		isDataRequest,

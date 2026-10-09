@@ -42,6 +42,7 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 	const isEnhancedAction = event.request.headers.get('x-sveltekit-action') === 'true';
 	const decision = accessDecision({
 		pathname: event.url.pathname,
+		search: event.url.search,
 		method: event.request.method,
 		accept: event.request.headers.get('accept'),
 		isDataRequest: event.isDataRequest,
