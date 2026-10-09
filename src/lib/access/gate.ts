@@ -11,21 +11,25 @@
  *    production, and the only gate under `vite dev`, where edge functions
  *    don't run.
  *
- * Imports nothing, so the edge bundle can load it by relative path.
+ * Imports nothing but its siblings, by relative path, so the edge bundle can
+ * load it. Server and edge only: the browser gets LOCKED_PATH from ./paths.
  */
+
+import { opensKeeperDoor } from './keeperDoor.server.ts';
+import { LOCKED_PATH } from './paths.ts';
+
+export { LOCKED_PATH };
 
 export type GateDecision = 'open' | 'redirect' | 'refuse';
 
-/** Where a locked page view is sent. */
-export const LOCKED_PATH = '/locked';
+/** The keeper sign-in page: open only through its door (./keeperDoor.server). */
+const KEEPER_GATE = '/keeper';
 
 /** Paths that are always open, exactly. */
 const OPEN_EXACT = new Set([
 	// The tap itself, and where a locked visitor is told to make one.
 	'/t',
 	LOCKED_PATH,
-	// Keeper sign-in: the bypass. /keeper/* is guarded by its own sign-in check.
-	'/keeper',
 	// Decor the locked and sign-in pages are drawn with.
 	'/favicon.png',
 	'/paper-noise.png',
@@ -37,7 +41,11 @@ const OPEN_EXACT = new Set([
  * elsewhere or carries nothing from the archive itself.
  */
 export const OPEN_PREFIXES = [
-	'/keeper/', // every route checks the keeper session (see keeperGuard)
+	// Every route checks the keeper session (see keeperGuard), and an anonymous
+	// visit is sent to /keeper, which only its door opens. Open here so that a
+	// keeper whose pass has lapsed still reaches SvelteKit, where their session
+	// renews it.
+	'/keeper/',
 	'/api/auth/', // better-auth sign-in endpoints
 	'/api/cron/', // bearer-authenticated scheduled jobs
 	'/_app/', // the app's code bundles
@@ -54,6 +62,9 @@ export function routePath(pathname: string): string {
 
 export function isOpenPath(pathname: string): boolean {
 	const route = routePath(pathname);
+	// `/keeper/` and `/keeper/__data.json` match the keeper prefix below, but they
+	// are the sign-in page all the same, which only its door opens.
+	if (route === KEEPER_GATE) return false;
 	return OPEN_EXACT.has(route) || OPEN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
@@ -87,6 +98,8 @@ function isSelfGuardedWrite(request: {
  */
 export function accessDecision(request: {
 	pathname: string;
+	/** The URL's query string, which may carry the keeper door phrase. */
+	search?: string;
 	method: string;
 	accept: string | null;
 	isDataRequest: boolean;
@@ -94,6 +107,11 @@ export function accessDecision(request: {
 	isEnhancedAction?: boolean;
 }): GateDecision {
 	if (isOpenPath(request.pathname) || isSelfGuardedWrite(request)) return 'open';
+	// The sign-in page through its door: the page itself, its data loads and its
+	// form actions, all of which keep the page's query string.
+	if (routePath(request.pathname) === KEEPER_GATE && opensKeeperDoor(request.search ?? '')) {
+		return 'open';
+	}
 	const isRead = request.method === 'GET' || request.method === 'HEAD';
 	const wantsPage = (request.accept ?? '').includes('text/html');
 	return isRead && wantsPage && !request.isDataRequest ? 'redirect' : 'refuse';
