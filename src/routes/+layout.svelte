@@ -1,13 +1,19 @@
 <script lang="ts">
 	import './layout.css';
+	// The latin subset is what nearly every page renders in; preloading it starts
+	// the download alongside the CSS instead of after it, shortening the swap.
+	import nunitoLatin from '@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2?url';
 	import { flushSync } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { onNavigate } from '$app/navigation';
 	import { morph, morphNameForPair, reducedMotion } from '$lib/transitions.svelte';
 	import Sky from '$lib/components/Sky.svelte';
+	import SkyUnderlay from '$lib/components/SkyUnderlay.svelte';
 	import Drawing from '$lib/components/Drawing.svelte';
 	import PublicNav from '$lib/components/PublicNav.svelte';
+	import TapToast from '$lib/components/TapToast.svelte';
+	import { LOCKED_PATH } from '$lib/access/paths';
 
 	let { children } = $props();
 
@@ -40,37 +46,37 @@
 	});
 </script>
 
+<svelte:head>
+	<link rel="preload" href={nunitoLatin} as="font" type="font/woff2" crossorigin="anonymous" />
+</svelte:head>
+
 <!-- Persistent sky: mounted once here, outside the keyed transition, so clouds
      drift continuously across navigation and fill the slide gap behind pages. -->
 <Sky />
 
-<!-- Frosted strip behind the home mark and the hamburger. Mobile only: that is
-     the layout where the page scrolls, so cards pass underneath and the chrome
-     needs something to stay legible against. Sits below both marks (z-40) and
-     above the routed content, and ignores pointer events so the mark and the
-     menu button underneath it stay tappable. -->
-<div
-	aria-hidden="true"
-	style="--fade-delay: 120ms"
-	class="load-fade pointer-events-none fixed inset-x-0 top-0 z-30 h-chrome bg-glass/60 backdrop-blur-md md:hidden"
-></div>
-
-<!-- Handwritten mark linking home -->
+<!-- Handwritten mark linking home. On mobile it is `absolute`, anchored to the
+     top of the document rather than the viewport, so it scrolls away with the
+     page like any in-flow header; pages reserve its band with `pt-chrome`. From
+     md up the page rarely scrolls and the mark stays pinned. -->
 <a
 	href="/"
 	aria-label="Home"
 	data-cloud-block
 	style="--fade-delay: 120ms"
-	class="load-fade fixed top-3 left-3 z-40 touch-manipulation p-2 transition-opacity duration-100 hover:opacity-70"
+	class="load-fade absolute top-3 left-3 z-40 touch-manipulation p-2 transition-opacity duration-100 hover:opacity-70 md:fixed"
 >
 	<Drawing src="/drawing/text/tag-archive.webp" alt="Home" class="w-44 max-w-[32vw]" />
 </a>
 
-{#if !page.url.pathname.startsWith('/keeper')}
+<!-- No nav on the locked page: every link would lead straight back to it. -->
+{#if !page.url.pathname.startsWith('/keeper') && page.url.pathname !== LOCKED_PATH}
 	<PublicNav />
 {/if}
 
+<TapToast />
+
 <div class="route-wrap">
+	<SkyUnderlay />
 	{#key page.url.pathname}
 		<div
 			class="route"
@@ -85,11 +91,15 @@
 <style>
 	.route-wrap {
 		display: grid;
+		/* Containing block for SkyUnderlay, so it spans the whole page. No
+		   z-index: it must not become a stacking context, or the underlay could
+		   no longer sit beneath Sky's paper. */
+		position: relative;
 	}
 	.route {
 		grid-area: 1 / 1;
-		/* Stacking context above the fixed cloud layer (z-0) so page content
-		   paints over the clouds; Sky's paper stays behind at -z-10. */
+		/* Stacking context above Sky's fixed layers (clouds at -z-5, paper at
+		   -z-10) so page content always paints over the clouds. */
 		position: relative;
 		z-index: 1;
 	}

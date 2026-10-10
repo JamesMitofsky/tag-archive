@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
 
-	// 404 gets a friendlier line; any other error hides its raw message.
-	let is404 = $derived(page.status === 404);
+	// 404 gets a friendlier line; any other error hides its raw message. A 401
+	// means the visitor's tap has lapsed mid-visit (see $lib/access/gate).
 	let subtitle = $derived(
-		is404
+		page.status === 404
 			? 'this page has drifted off...'
-			: 'Something seems to have gone wrong... sorry about that!'
+			: page.status === 401
+				? 'The Archive has drifted shut. Visit the Cube to open the Archive.'
+				: 'Something seems to have gone wrong... sorry about that!'
 	);
 </script>
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatDate } from '$lib/formatDate';
+	import { formatArtefactDate } from '$lib/formatDate';
 	import ArtefactId from '$lib/components/ArtefactId.svelte';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import KeeperList from '$lib/components/KeeperList.svelte';
@@ -56,7 +56,7 @@
 				<BackButton class="mt-2" />
 			</div>
 			<a
-				href="/keeper/artefacts/add"
+				href="/contribute"
 				aria-label="Add artefact"
 				title="Add artefact"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
@@ -121,7 +121,7 @@
 											class="mt-0.5 text-sm text-gray-500"
 										>
 											<ArtefactId id={item.id} />
-											{#if item.date}· {formatDate(item.date)}{/if}{#if item.event}
+											· {formatArtefactDate(item.date)}{#if item.event}
 												· {item.event}{/if}
 										</p>
 									</div>

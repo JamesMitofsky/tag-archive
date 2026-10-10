@@ -11,11 +11,18 @@ declare global {
 		interface Locals {
 			user?: AuthSession['user'];
 			session?: AuthSession['session'];
+			/** The visitor's access pass, when they hold one (see $lib/access/pass). */
+			pass?: import('$lib/access/pass').Pass;
 		}
 
 		// interface Error {}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			/** Set on the history entries an open ImmersiveView stacks: that open's token. */
+			immersive?: string;
+			/** Which of those entries this is, from 0. */
+			immersiveStep?: number;
+		}
 		// interface Platform {}
 	}
 }

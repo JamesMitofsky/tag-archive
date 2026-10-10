@@ -22,6 +22,11 @@
  * July 1st, which is exactly the false precision this module exists to avoid.
  * Use `formatPartialDate` to display and `startOfPartialDate` when arithmetic
  * genuinely needs a concrete day.
+ *
+ * An artefact may also carry no date at all — nobody knows when it is from.
+ * That is stored as NULL, never as a sentinel string, so any non-null value
+ * is always a real date. In forms, where every field is a string, the
+ * deliberate choice travels as the `UNDATED` token (see `readDateField`).
  */
 
 /** How much of a date is actually known. */
@@ -149,4 +154,27 @@ export function formatPartialDate(value: string, { short = false } = {}): string
 	const monthLabel = short ? name.slice(0, 3) : name;
 	if (precision === 'month') return `${monthLabel} ${year}`;
 	return `${monthLabel} ${day}, ${year}`;
+}
+
+/**
+ * Form value for "this artefact deliberately has no date". Only ever lives in
+ * a form field: `readDateField` turns it into null before validation and
+ * storage. It is distinct from an empty field, which means nothing was chosen
+ * yet — so a forgotten date can't silently become an undated artefact.
+ */
+export const UNDATED = 'undated';
+
+/**
+ * Read a submitted date field: the `UNDATED` token becomes null (no date,
+ * deliberately); anything else comes back trimmed, with '' meaning "not
+ * chosen" for validation to reject.
+ */
+export function readDateField(raw: string): string | null {
+	const value = (raw ?? '').trim();
+	return value === UNDATED ? null : value;
+}
+
+/** The form-field value for a stored date — the inverse of `readDateField`. */
+export function dateFieldValue(stored: string | null): string {
+	return stored ?? UNDATED;
 }

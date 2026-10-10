@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { fullFrameCorners, type CornerPoints } from '$lib/scanner/detect';
-	import type { CornerEditor } from 'scanic';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import CornersOutIcon from 'phosphor-svelte/lib/CornersOutIcon';
+	import CornerEditorSurface from './CornerEditorSurface.svelte';
+	import type { CornerPoints } from '$lib/scanner/detect';
 
-	// Wraps scanic's imperative corner editor. It already ships drag handles with
-	// a 44px hit area, a magnifier and keyboard nudging, so we mount it into a
-	// container and drive Apply/Cancel from our own buttons (`toolbar` off) to
-	// keep the chrome consistent with the rest of the form.
+	// Re-crop one page: the corner editor plus Cancel / Use whole image / Apply.
 	let {
 		image,
 		corners,
@@ -20,84 +20,59 @@
 		onCancel: () => void;
 	} = $props();
 
-	let container = $state<HTMLDivElement>();
-	let editor: CornerEditor | null = null;
+	let surface = $state<CornerEditorSurface>();
 	let failed = $state(false);
 
-	$effect(() => {
-		const host = container;
-		if (!host) return;
-
-		let disposed = false;
-		void (async () => {
-			try {
-				const { createCornerEditor } = await import('scanic');
-				if (disposed) return;
-				editor = createCornerEditor({
-					container: host,
-					image,
-					corners: corners ?? fullFrameCorners(image.width, image.height),
-					toolbar: { enabled: false },
-					nudges: { enabled: true },
-					theme: { accent: '#22c55e' }
-				});
-			} catch {
-				failed = true;
-			}
-		})();
-
-		return () => {
-			disposed = true;
-			editor?.destroy();
-			editor = null;
-		};
-	});
-
 	function apply() {
-		if (!editor) return;
-		onApply(editor.getCorners());
-	}
-
-	function useWhole() {
-		editor?.setCorners(fullFrameCorners(image.width, image.height));
+		const current = surface?.getCorners();
+		if (current) onApply(current);
 	}
 </script>
 
-<div class="mt-3 rounded-md border border-gray-200 bg-white p-3">
-	{#if failed}
-		<p class="text-xs text-red-600" role="alert">
-			The crop editor could not be loaded. The page is stored as captured.
-		</p>
-	{:else}
-		<p class="mb-2 text-xs text-gray-600">
+<div class="flex h-full flex-col">
+	<header class="px-4 py-3 text-center text-sm text-white/80">
+		{#if failed}
+			<span role="alert" class="text-red-400">
+				The crop editor could not be loaded. The page is stored as captured.
+			</span>
+		{:else}
 			Drag the corners to match the page. Arrow keys nudge a focused corner.
-		</p>
-		<div bind:this={container} class="relative overflow-hidden rounded-sm bg-gray-100"></div>
-	{/if}
+		{/if}
+	</header>
 
-	<div class="mt-3 flex flex-wrap gap-2">
+	<div class="min-h-0 flex-1">
+		<CornerEditorSurface bind:this={surface} bind:failed {image} {corners} />
+	</div>
+
+	<footer class="grid grid-cols-3 items-center px-6 py-5">
+		<button
+			type="button"
+			onclick={onCancel}
+			aria-label="Cancel"
+			class="flex size-12 items-center justify-center justify-self-start rounded-full bg-white/10 transition hover:bg-white/20"
+		>
+			<XIcon size={22} />
+		</button>
+
+		<button
+			type="button"
+			onclick={() => surface?.useWhole()}
+			disabled={failed}
+			aria-label="Use whole image"
+			title="Use whole image"
+			class="flex size-12 items-center justify-center justify-self-center rounded-full bg-white/10 transition hover:bg-white/20 disabled:opacity-40"
+		>
+			<CornersOutIcon size={22} />
+		</button>
+
 		<button
 			type="button"
 			onclick={apply}
 			disabled={failed}
-			class="rounded-sm bg-[#14120f] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#33302a] disabled:opacity-50"
+			aria-label="Apply crop"
+			class="flex size-14 items-center justify-center justify-self-end rounded-full bg-white text-black transition hover:bg-white/90 disabled:opacity-40"
 		>
-			Apply crop
+			<CheckIcon size={24} weight="bold" />
 		</button>
-		<button
-			type="button"
-			onclick={useWhole}
-			disabled={failed}
-			class="rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
-		>
-			Use whole image
-		</button>
-		<button
-			type="button"
-			onclick={onCancel}
-			class="rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
-		>
-			Cancel
-		</button>
-	</div>
+	</footer>
 </div>

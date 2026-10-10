@@ -1,7 +1,7 @@
 <script lang="ts">
 	import BackButton from '$lib/components/BackButton.svelte';
 	import ReviewActions from '$lib/components/ReviewActions.svelte';
-	import { formatDate } from '$lib/formatDate';
+	import { formatArtefactDate } from '$lib/formatDate';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -37,14 +37,14 @@
 							{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
 						>
 							<h3 class="font-medium break-words">
-								<a href="/keeper/{item.id}" class="underline-offset-2 hover:underline">
+								<a href="/keeper/artefacts/{item.id}" class="underline-offset-2 hover:underline">
 									{item.artefact}
 								</a>
 							</h3>
 							<p class="mt-0.5 text-sm text-gray-500">
-								{#if item.date}{formatDate(item.date)}{/if}{#if item.event}{#if item.date}
-										·
-									{/if}{item.event}{/if}
+								{formatArtefactDate(item.date)}{#if item.event}
+									·
+									{item.event}{/if}
 							</p>
 							{#if item.description}
 								<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
@@ -54,6 +54,16 @@
 							{#if item.provenance.length > 0}
 								<p class="mt-2 text-sm text-gray-500">{item.provenance.join(', ')}</p>
 							{/if}
+							<!-- Who it came from: an anonymous submission has no creator. -->
+							<p class="mt-2 text-xs text-gray-500">
+								{item.createdBy
+									? 'From a signed-in contributor'
+									: 'From the public'}{#if item.contactName || item.contactEmail}
+									· Contact: {[item.contactName, item.contactEmail]
+										.filter(Boolean)
+										.join(', ')}{/if}{#if !item.location}
+									· <span class="text-amber-700">No location yet</span>{/if}
+							</p>
 							<ReviewActions id={item.id} />
 						</li>
 					{/each}

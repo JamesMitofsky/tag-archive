@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { formatDate } from '$lib/formatDate';
+	import { formatArtefactDate } from '$lib/formatDate';
 	import ArtefactId from '$lib/components/ArtefactId.svelte';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
@@ -74,7 +74,7 @@
 				class="text-sm text-gray-500"
 			>
 				<ArtefactId id={item.id} />
-				{#if item.date}· {formatDate(item.date)}{/if}{#if item.event}
+				· {formatArtefactDate(item.date)}{#if item.event}
 					· {item.event}{/if}
 			</p>
 

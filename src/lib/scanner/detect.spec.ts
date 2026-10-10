@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-	containFit,
 	cornerList,
 	fullFrameCorners,
+	isFullFrame,
 	isPlausibleQuad,
 	quadArea,
 	scaleCorners,
@@ -58,29 +58,15 @@ describe('scanner geometry', () => {
 		expect(isPlausibleQuad(quad(1000, 100, 10), 1000, 100)).toBe(true);
 	});
 
-	it('centres the object-contain letterbox on both axes', () => {
-		// Source wider than the box: bars top and bottom.
-		expect(containFit(1000, 500, 400, 400)).toMatchObject({
-			scale: 0.4,
-			offsetX: 0,
-			offsetY: 100,
-			drawW: 400,
-			drawH: 200
-		});
+	it('recognises the whole frame, within a pixel', () => {
+		expect(isFullFrame(fullFrameCorners(640, 480), 640, 480)).toBe(true);
+		// What a corner editor hands back after a drag to the very edge.
+		const nudged = fullFrameCorners(640, 480);
+		nudged.bottomRight = { x: 639.4, y: 479.6 };
+		expect(isFullFrame(nudged, 640, 480)).toBe(true);
 
-		// Source taller than the box: bars left and right.
-		expect(containFit(500, 1000, 400, 400)).toMatchObject({
-			scale: 0.4,
-			offsetX: 100,
-			offsetY: 0
-		});
-
-		// Matching aspect ratio: fills exactly, no offset.
-		expect(containFit(1600, 1200, 800, 600)).toMatchObject({ offsetX: 0, offsetY: 0, scale: 0.5 });
-	});
-
-	it('degrades to a zero fit when the video has no intrinsic size yet', () => {
-		expect(containFit(0, 0, 400, 400).scale).toBe(0);
+		expect(isFullFrame(quad(640, 480, 2), 640, 480)).toBe(false);
+		expect(isFullFrame(fullFrameCorners(640, 480), 1280, 960)).toBe(false);
 	});
 
 	it('rejects non-finite and zero-area frames', () => {

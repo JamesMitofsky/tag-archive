@@ -31,6 +31,7 @@
 	} from '$lib/cloudLayout';
 	import { morphBox, morphProgress, type Box } from '$lib/cardMorph';
 	import { reducedMotion } from '$lib/transitions.svelte';
+	import { claimOpening } from '$lib/access/opening.svelte';
 	import { shuffled } from '$lib/utils';
 
 	interface Props {
@@ -126,6 +127,16 @@
 	}
 
 	/**
+	 * Just after a tap opens the Archive, the first cards wait for the "Archive
+	 * opened" toast to bow out (see $lib/access/opening). They are kept out of
+	 * the DOM meanwhile rather than mounted with a longer animation delay, since
+	 * the query effect's own reveal follows the first one and anything set per
+	 * card would have to survive it. Unmounted, they all arrive, and fly in, the
+	 * moment the hold lifts.
+	 */
+	let held = $state(false);
+
+	/**
 	 * Close the open page. In the stacked layout it shrinks back into the slot it
 	 * grew out of (see the morph section below); in the surround layout it glides
 	 * back to its place in the cloud. Nothing else on screen moves either way —
@@ -169,7 +180,16 @@
 		} finally {
 			loading = false;
 			runSearch(query); // apply any query typed while the dataset was loading
-			reveal(); // the no-query grid arrives now, so start its entrance window
+			const holdMs = claimOpening();
+			if (holdMs) {
+				held = true;
+				setTimeout(() => {
+					held = false;
+					reveal();
+				}, holdMs);
+			} else {
+				reveal(); // the no-query grid arrives now, so start its entrance window
+			}
 		}
 	});
 
@@ -183,10 +203,10 @@
 	const FIELD_GAP = 28;
 
 	/**
-	 * Clearance the stacked bar leaves below the frosted top strip
-	 * (`--spacing-chrome`, 4rem), on top of the `p-4` that <main> already applies
-	 * — so 48 would sit the bar flush against the strip's edge, and the extra 20
-	 * is the gap.
+	 * Clearance the stacked bar leaves below the mobile top band holding the home
+	 * mark and menu (`--spacing-chrome`, 4rem), on top of the `p-4` that <main>
+	 * already applies — so 48 would sit the bar flush against the band's edge, and
+	 * the extra 20 is the gap.
 	 */
 	const STACKED_BAR_TOP = 68;
 
@@ -311,7 +331,7 @@
 	 * the sky opens on a random handful of pages that invites a click, and a
 	 * reload deals a different handful.
 	 */
-	let visible = $derived(searched ? results : browseOrder);
+	let visible = $derived(held ? [] : searched ? results : browseOrder);
 	let floating = $derived(placeCloud(visible.slice(0, layout.cap), field, layout));
 	// Open a page and the rest scatter: only the selected card stays mounted, so
 	// every other one plays its off-screen fly-out.
