@@ -197,7 +197,12 @@ describe('createArtefact (signed-in admin)', () => {
 			{ signedIn: true }
 		);
 		expect(isRedirect(result)).toBe(true);
-		const id = Number((result as { location: string }).location.split('/').pop());
+		// Flagged `?created` so the page shows the archive number to write on the item.
+		const match = (result as { location: string }).location.match(
+			/^\/keeper\/artefacts\/(\d+)\?created$/
+		);
+		expect(match).not.toBeNull();
+		const id = Number(match![1]);
 		expect(await row(id)).toMatchObject({ proposedAddition: false, createdBy: ADMIN.id });
 	});
 });
