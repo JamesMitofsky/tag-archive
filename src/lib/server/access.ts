@@ -9,6 +9,7 @@ import {
 	type Pass,
 	type PassKind
 } from '$lib/access/pass';
+import { freshDraft, issueDraft } from './drafts';
 
 /**
  * SvelteKit's side of the access pass ($lib/access/pass): reading it from the
@@ -49,4 +50,23 @@ export async function issuePass(cookies: Cookies, kind: PassKind, now = Date.now
 export async function keeperPass(cookies: Cookies, current: Pass | null, now = Date.now()) {
 	if (current && current.expiresAt - now > KEEPER_RENEW_MS) return current;
 	return issuePass(cookies, 'k', now);
+}
+
+/**
+ * Under `vite dev` there is no tag to hand, so every visitor is treated as
+ * fresh from a tap. Set DEV_REQUIRE_TAP=true to try the locked flow locally
+ * (with `pnpm nfc:tap`). `dev` is false in every build, so production and
+ * `vite preview` always keep the gate.
+ */
+export function devSkipsTap(): boolean {
+	return dev && env.DEV_REQUIRE_TAP !== 'true';
+}
+
+/**
+ * What a tap would grant (src/routes/t): a tap pass and a fresh upload draft,
+ * re-issued whenever either runs out.
+ */
+export async function devTapPass(cookies: Cookies, current: Pass | null, now = Date.now()) {
+	if (!freshDraft(cookies, now)) issueDraft(cookies, now);
+	return current ?? issuePass(cookies, 't', now);
 }
