@@ -174,10 +174,14 @@ default. The pass itself is signed with a key derived from `BETTER_AUTH_SECRET`,
 which the edge function also reads — so that variable must be available to
 functions (its scope in Netlify must include Functions).
 
-**Trying it locally.** `.env.example` ships NXP's all-zero test keys, which dev
-accepts. With the site running, `pnpm nfc:tap` prints a valid tap URL for a fresh
-random tag; open it to be let in. `pnpm nfc:tap --uid 04AABBCCDDEEFF --counter 7`
-twice shows a replay refused. Add `--base https://<tunnel>` to test on a phone.
+**Trying it locally.** `pnpm dev` doesn't ask for a tap: every visitor gets a
+tap's pass and upload draft automatically (`devTapPass` in
+`src/lib/server/access.ts`; never in a build, so `vite preview` and production
+stay gated). To exercise the real flow, set `DEV_REQUIRE_TAP=true`.
+`.env.example` ships NXP's all-zero test keys, which dev accepts. With the site
+running, `pnpm nfc:tap` prints a valid tap URL for a fresh random tag; open it to
+be let in. `pnpm nfc:tap --uid 04AABBCCDDEEFF --counter 7` twice shows a replay
+refused. Add `--base https://<tunnel>` to test on a phone.
 
 **Programming a tag** (e.g. the iPhone app "Secure NTAG 424 DNA", or NFC Ideas
 on a Mac with an ACR1252U):

@@ -3,7 +3,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { building } from '$app/environment';
 import { accessDecision, LOCKED_PATH } from '$lib/access/gate';
 import { auth } from '$lib/server/auth';
-import { keeperPass, readPass } from '$lib/server/access';
+import { devSkipsTap, devTapPass, keeperPass, readPass } from '$lib/server/access';
 import { anonymousKeeperAccess } from '$lib/server/keeperGuard';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
@@ -30,12 +30,14 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 // of an access pass — earned by tapping the garden's NFC tag, or kept topped up
 // for a signed-in keeper. In production the edge function has already turned
 // pass-less requests away; this is the same rule again for everything that
-// reaches SvelteKit, and the only gate under `vite dev`.
+// reaches SvelteKit, and the only gate under `vite dev` — where, unless
+// DEV_REQUIRE_TAP is set, every visitor is let in as if they had just tapped.
 const guardAccess: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
 
 	let pass = await readPass(event.cookies);
 	if (event.locals.user) pass = await keeperPass(event.cookies, pass);
+	else if (devSkipsTap()) pass = await devTapPass(event.cookies, pass);
 	event.locals.pass = pass ?? undefined;
 	if (pass) return resolve(event);
 
