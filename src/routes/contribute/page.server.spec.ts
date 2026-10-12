@@ -48,10 +48,13 @@ function anonymousDraft() {
 }
 
 type ActionName = keyof typeof actions;
+/** An open access pass, as hooks.server.ts leaves it on `locals` ($lib/access/pass). */
+const OPEN_PASS = { kind: 't' as const, issuedAt: 0, expiresAt: Number.MAX_SAFE_INTEGER };
+
 async function run(
 	name: ActionName,
 	fields: Record<string, string | string[]>,
-	{ cookies = cookieJar(), signedIn = false } = {}
+	{ cookies = cookieJar(), signedIn = false, pass = OPEN_PASS as typeof OPEN_PASS | null } = {}
 ) {
 	const body = new FormData();
 	for (const [key, value] of Object.entries(fields)) {
@@ -59,7 +62,7 @@ async function run(
 	}
 	const event = {
 		request: new Request('http://localhost/contribute', { method: 'POST', body }),
-		locals: signedIn ? { user: ADMIN } : {},
+		locals: { ...(signedIn ? { user: ADMIN } : {}), ...(pass ? { pass } : {}) },
 		cookies,
 		getClientAddress: () => '198.51.100.7'
 	};
@@ -88,6 +91,15 @@ describe('createArtefact (anonymous)', () => {
 		const result = await run('createArtefact', minimal(['https://bucket.test/x.webp']));
 		expect(isActionFailure(result) && result.status).toBe(401);
 		// Marked as a lapsed tap, not a validation failure.
+		expect(isActionFailure(result) && result.data).toMatchObject({ locked: true });
+	});
+
+	it('refuses with a draft but no open pass: the archive has drifted shut', async () => {
+		// The gate lets the enhanced post through so the form survives; the action
+		// must still turn it away once the pass has run out (see $lib/access/gate).
+		const { cookies, upload } = anonymousDraft();
+		const result = await run('createArtefact', minimal([upload('p')]), { cookies, pass: null });
+		expect(isActionFailure(result) && result.status).toBe(401);
 		expect(isActionFailure(result) && result.data).toMatchObject({ locked: true });
 	});
 

@@ -101,10 +101,11 @@ addition, hidden from the public site until an admin approves it in the review
 queue. Anonymous writes are guarded by:
 
 - **The garden tag** (see [Access](#access)): a tap also issues a signed
-  draft-session cookie (`src/lib/server/drafts.ts`), fresh for the same three hours.
-  Uploads land in that draft's own `submissions/<draft>/` space; only it can delete
-  from there, and a submission can only attach images from there. A re-tap renews
-  the same draft, so a visitor whose time ran out mid-form loses nothing.
+  draft-session cookie (`src/lib/server/drafts.ts`), the visitor's identity for
+  uploading; it writes for as long as their access pass is open. Uploads land in
+  that draft's own `submissions/<draft>/` space; only it can delete from there, and
+  a submission can only attach images from there. A re-tap renews the same draft,
+  so a visitor whose pass ran out mid-form loses nothing.
 - **Rate limits** backed by the `rate_limit` table (`src/lib/server/rateLimit.ts`).
 - **A daily sweep** (`netlify/functions/sweep-submissions.mts` →
   `/api/cron/sweep-submissions`) that deletes abandoned uploads and stale counters.
@@ -142,8 +143,17 @@ tag's UID and tap counter, AES-encrypted, and `c` a MAC over them. `GET /t`
 (`src/routes/t/+server.ts`) verifies the MAC (`src/lib/server/nfc/sdm.ts`), accepts
 the tap only if its counter beats every one this tag has sent before (the `nfc_tag`
 table, `src/lib/server/nfc/taps.ts` — so a copied URL can't be replayed), then sets
-a signed **access pass** cookie good for three hours (`src/lib/access/pass.ts`) and
-redirects to `/`.
+a signed **access pass** cookie (`src/lib/access/pass.ts`) and redirects to `/`.
+
+The pass is good for 20 minutes and **slides while the site is on screen**: the
+root layout beats `POST /api/presence` (`src/lib/access/presence.ts`,
+`src/routes/api/presence/+server.ts`) every four minutes while the page is visible,
+once more as it goes hidden (`sendBeacon`), and again the moment it is back; each
+beat re-mints the pass for another 20 minutes. So the archive drifts shut 20 minutes
+after it was last on the visitor's screen — screen lock, app switch and closing the
+browser all count as away. The clock is the server's, inside the signed cookie: a
+backgrounded mobile tab cannot be trusted to run one. The beat is the only place a
+pass slides; nothing else sets the cookie on a response the CDN might cache.
 
 The pass is checked twice, from one rule (`src/lib/access/gate.ts`):
 
@@ -160,8 +170,9 @@ and the app bundles and decor the locked page is drawn with.
 **Keepers bypass the tag.** The sign-in page is locked like everything else,
 except through its door: `/keeper?listeningwith=thevoiceofthegarden`, the link
 keepers bookmark (`src/lib/access/keeperDoor.server.ts`; server-only, so the
-phrase never ships in the browser bundle). Signing in there issues the same pass
-and keeps it topped up on every signed-in request. The signed-in area
+phrase never ships in the browser bundle). A signed-in keeper who holds no pass is
+handed one on their next page view, and the same beat keeps it sliding, so a keeper
+is never locked out for being away. The signed-in area
 (`/keeper/*`) stays open at the gate so a keeper whose pass has lapsed still
 reaches SvelteKit, where their session renews it; anyone without a session is
 sent back to `/keeper`.
