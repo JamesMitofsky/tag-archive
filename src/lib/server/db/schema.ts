@@ -249,6 +249,24 @@ export const submissionContact = sqliteTable('submission_contact', {
 });
 
 /**
+ * A keeper's confirmation that an artefact's archive number is written on the
+ * physical item, so record and object can be matched up again. Shown the
+ * number, the keeper has to say so before the record stops asking — a row here
+ * is that answer, and no row means nobody has confirmed it. `created_at` is
+ * when they confirmed and `created_by` who did; a null `created_by` marks a row
+ * the 0009 migration backfilled for artefacts that predate the confirmation.
+ * Kept out of the `artefact` table because the public dataset publishes
+ * artefact rows whole, and this is keeper bookkeeping. Deleted with the
+ * artefact.
+ */
+export const numberConfirmation = sqliteTable('number_confirmation', {
+	artefactId: integer('artefact_id')
+		.primaryKey()
+		.references(() => artefact.id, { onDelete: 'cascade' }),
+	...auditColumns()
+});
+
+/**
  * Fixed-window request counters for anonymous writes (see
  * $lib/server/rateLimit). `key` is `<bucket>:<hashed subject>` — the subject is
  * an IP address or draft id, hashed so no raw address is stored. Each key holds

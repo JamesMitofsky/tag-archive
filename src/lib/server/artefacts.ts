@@ -4,7 +4,7 @@ import { db } from './db';
 import { stampInsert } from './db/audit';
 import { isProposedAddition } from './db/proposals';
 import { resolvePersonIds } from './db/queries';
-import { artefact, artefactProvenance, event } from './db/schema';
+import { artefact, artefactProvenance, event, numberConfirmation } from './db/schema';
 import type { ArtefactData } from '$lib/validation/artefact';
 
 /** Who is creating an artefact: a signed-in user, or an anonymous visitor (both null). */
@@ -74,6 +74,27 @@ export async function createArtefact(data: ArtefactData, actor: Actor): Promise<
 
 	if (!proposed) await purgeArchiveCache();
 	return created.id;
+}
+
+/**
+ * Record that `userId` has written artefact `id`'s archive number on the
+ * physical item. The first confirmation stands: confirming again (a double
+ * submit, a second keeper) leaves the original who-and-when untouched. Returns
+ * false when no such artefact exists.
+ */
+export async function confirmNumber(id: number, userId: string): Promise<boolean> {
+	const [exists] = await db
+		.select({ id: artefact.id })
+		.from(artefact)
+		.where(eq(artefact.id, id))
+		.limit(1);
+	if (!exists) return false;
+
+	await db
+		.insert(numberConfirmation)
+		.values({ artefactId: id, ...stampInsert(userId) })
+		.onConflictDoNothing({ target: numberConfirmation.artefactId });
+	return true;
 }
 
 /**
