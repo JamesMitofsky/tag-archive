@@ -3,15 +3,31 @@
  * (the whole, small, edge-cached dataset) and take their slice; the browser caches
  * the response, so visiting both pages downloads it at most once.
  */
+import { goto } from '$app/navigation';
+import { LOCKED_PATH } from '$lib/access/paths';
+import { sendBeat } from '$lib/access/presence';
 import type { ArtefactWithEvent } from '$lib/server/db/schema';
 import type { EventItem } from '$lib/events';
 
-async function fetchDataset(): Promise<{
-	artefacts: ArtefactWithEvent[];
-	events: EventItem[];
-	people: string[];
-}> {
-	const res = await fetch('/api/dataset');
+type Dataset = { artefacts: ArtefactWithEvent[]; events: EventItem[]; people: string[] };
+
+const EMPTY: Dataset = { artefacts: [], events: [], people: [] };
+
+async function fetchDataset(): Promise<Dataset> {
+	let res = await fetch('/api/dataset');
+	if (res.status === 401) {
+		// The gate turned us away: the pass lapsed while the tab was away, or a
+		// keeper's ran out between visits. One beat settles which — it hands a
+		// signed-in keeper a new pass (see $lib/server/access) and does nothing for
+		// anyone else — so try once more, and if the archive really has drifted
+		// shut, show the locked page rather than an empty cloud.
+		await sendBeat().catch(() => {});
+		res = await fetch('/api/dataset');
+		if (res.status === 401) {
+			await goto(LOCKED_PATH);
+			return EMPTY;
+		}
+	}
 	if (!res.ok) throw new Error(`dataset fetch failed: ${res.status}`);
 	return res.json();
 }
