@@ -99,9 +99,10 @@ export const actions: Actions = {
 			role: locals.user?.role ?? null
 		});
 
-		// Keepers land on the new artefact; the public get a thank-you (with the
-		// optional way to leave contact details) instead.
-		if (signedIn) throw redirect(303, `/keeper/artefacts/${id}`);
+		// Keepers land on the new artefact, flagged as just created so they're shown
+		// the archive number to write on the physical item; the public get a
+		// thank-you (with the optional way to leave contact details) instead.
+		if (signedIn) throw redirect(303, `/keeper/artefacts/${id}?created`);
 		return { submitted: { id, token: contactToken(id) } };
 	},
 
