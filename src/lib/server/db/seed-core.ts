@@ -14,7 +14,15 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { artefact, artefactProvenance, event, eventHost, person, series } from './schema';
+import {
+	artefact,
+	artefactProvenance,
+	event,
+	eventHost,
+	numberConfirmation,
+	person,
+	series
+} from './schema';
 
 /** Source row shape for an archive artefact (data still carries `event`/`provenance` as free text). */
 export type ArtefactSource = {
@@ -172,6 +180,7 @@ export async function seedArchive<S extends Record<string, unknown>>(
 	// Clean slate. Children before parents: the join tables reference their two
 	// sides; artefact + event reference their parents (event → series, joins → person).
 	await db.delete(artefactProvenance);
+	await db.delete(numberConfirmation);
 	await db.delete(eventHost);
 	await db.delete(artefact);
 	await db.delete(event);
@@ -193,6 +202,11 @@ export async function seedArchive<S extends Record<string, unknown>>(
 			location: r.location
 		}))
 	);
+	// The seeded archive predates the confirmation step: take its numbers as
+	// written on the items, as the 0009 migration does for production rows.
+	if (rows.length) {
+		await db.insert(numberConfirmation).values(rows.map((r) => ({ artefactId: r.id })));
+	}
 	if (provLinks.length) await db.insert(artefactProvenance).values(provLinks);
 	if (hostLinks.length) await db.insert(eventHost).values(hostLinks);
 

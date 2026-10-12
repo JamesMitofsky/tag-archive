@@ -1,24 +1,31 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { formatArtefactDate } from '$lib/formatDate';
 	import ArtefactId from '$lib/components/ArtefactId.svelte';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
 	import { isImageUrl } from '$lib/fileType';
 	import { programAreaMeta } from '$lib/programAreas';
 	import { morphName } from '$lib/transitions.svelte';
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	const item = $derived(data.artefact);
 
-	// The create form redirects here with `?created`: the keeper has the physical
-	// item in hand and needs its archive number to write on it.
+	// Until a keeper confirms the archive number is written on the physical item,
+	// the page keeps asking — however they arrived, and however long ago it was
+	// added. The create form lands here with `?created`, item still in hand.
+	const needsNumber = $derived(item.numberConfirmedAt === null);
 	const justCreated = $derived(page.url.searchParams.has('created'));
+
+	let confirming = $state(false);
 
 	// Images embed; anything else falls back to a plain link.
 	const isImage = isImageUrl;
@@ -54,19 +61,53 @@
 			style="view-transition-name:{morphName('artefact', item.id)}"
 			class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8"
 		>
-			{#if justCreated}
+			{#if needsNumber}
 				<!-- A label to copy onto the item: dashed like a tag, number oversized so it
-				     reads from arm's length while writing. -->
-				<div role="status" class="mb-6 rounded-sm border border-dashed border-gray-400 p-4">
-					<p class="text-sm font-medium">Added to the archive.</p>
+				     reads from arm's length while writing. It stays until someone confirms. -->
+				<section
+					aria-labelledby="number-heading"
+					class="mb-6 rounded-sm border border-dashed border-gray-400 p-4"
+				>
+					<h2 id="number-heading" class="text-sm font-medium">
+						{justCreated ? 'Added to the archive.' : 'Archive number not yet on the item.'}
+					</h2>
 					<p class="mt-0.5 text-sm text-gray-600">
-						Write this number on the item so the two can be matched up again.
+						Write this number on the item so the two can be matched up again, then confirm.
 					</p>
 					<div class="mt-3 flex items-center gap-3">
 						<ArtefactId id={item.id} class="text-4xl font-semibold text-[#14120f]" />
 						<CopyButton text={String(item.id)} label="Copy archive number" />
 					</div>
-				</div>
+					<form
+						method="POST"
+						action="?/confirmNumber"
+						class="mt-4"
+						use:enhance={() => {
+							confirming = true;
+							return async ({ update }) => {
+								await update();
+								confirming = false;
+							};
+						}}
+					>
+						{#if form?.confirmError}
+							<p class="mb-2 text-sm text-red-600" role="alert">{form.confirmError}</p>
+						{/if}
+						<button
+							type="submit"
+							disabled={confirming}
+							aria-busy={confirming}
+							class="flex w-full items-center justify-center gap-2 rounded-sm bg-[#14120f] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#33302a] disabled:opacity-50 sm:w-auto"
+						>
+							{#if confirming}
+								<CircleNotchIcon size={18} class="shrink-0 animate-spin" />
+							{:else}
+								<CheckIcon size={18} class="shrink-0" />
+							{/if}
+							I've written #{item.id} on the item
+						</button>
+					</form>
+				</section>
 			{/if}
 
 			<p

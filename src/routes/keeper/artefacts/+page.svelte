@@ -125,13 +125,25 @@
 												· {item.event}{/if}
 										</p>
 									</div>
-									{#if item.proposedAddition}
-										<!-- Contributor submission awaiting a keeper's vetting; amber flags attention. -->
-										<span
-											class="relative z-[2] shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 ring-1 ring-amber-200"
-										>
-											Proposed addition
-										</span>
+									{#if item.proposedAddition || item.numberConfirmedAt === null}
+										<div class="flex shrink-0 flex-col items-end gap-1">
+											{#if item.proposedAddition}
+												<!-- Contributor submission awaiting a keeper's vetting; amber flags attention. -->
+												<span
+													class="relative z-[2] rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 ring-1 ring-amber-200"
+												>
+													Proposed addition
+												</span>
+											{/if}
+											{#if item.numberConfirmedAt === null}
+												<!-- Nobody has confirmed the archive number is written on the item yet. -->
+												<span
+													class="relative z-[2] rounded-full border border-dashed border-gray-400 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-gray-700"
+												>
+													Number not on item
+												</span>
+											{/if}
+										</div>
 									{/if}
 								</div>
 								{#if item.description}
