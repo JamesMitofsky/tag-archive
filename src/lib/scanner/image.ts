@@ -136,6 +136,29 @@ export async function fileToCanvas(
 	}
 }
 
+/**
+ * `source` turned `turns` quarters counterclockwise, as a new canvas. Hands
+ * back `source` itself for a whole number of full turns, so check before
+ * releasing either.
+ */
+export function rotateCanvas(source: HTMLCanvasElement, turns: number): HTMLCanvasElement | null {
+	const quarters = ((turns % 4) + 4) % 4;
+	if (quarters === 0) return source;
+	const sideways = quarters % 2 === 1;
+	const canvas = document.createElement('canvas');
+	canvas.width = sideways ? source.height : source.width;
+	canvas.height = sideways ? source.width : source.height;
+	const ctx = canvas.getContext('2d');
+	if (!ctx) return null;
+	// Move the origin to where the source's top-left corner lands, then turn.
+	if (quarters === 1) ctx.translate(0, canvas.height);
+	else if (quarters === 2) ctx.translate(canvas.width, canvas.height);
+	else ctx.translate(canvas.width, 0);
+	ctx.rotate((-quarters * Math.PI) / 2);
+	ctx.drawImage(source, 0, 0);
+	return canvas;
+}
+
 /** Snapshot a canvas so the un-cropped original survives for later re-cropping. */
 export function cloneCanvas(source: HTMLCanvasElement): HTMLCanvasElement | null {
 	const canvas = document.createElement('canvas');

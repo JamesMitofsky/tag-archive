@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { encodedExtension, encodedImageType, encodeImage, withExtension } from './image';
+import {
+	encodedExtension,
+	encodedImageType,
+	encodeImage,
+	rotateCanvas,
+	withExtension
+} from './image';
 import { paintedCanvas } from '$lib/testing/scanner';
 
 // Chromium can encode WebP. The WebKit fallback is covered in
@@ -56,5 +62,59 @@ describe('withExtension', () => {
 
 	it('leaves the name alone for a type it has no extension for', () => {
 		expect(withExtension('scan.webp', 'application/octet-stream')).toBe('scan.webp');
+	});
+});
+
+describe('rotateCanvas', () => {
+	/** The color at a pixel, as `#rrggbb`. */
+	function colorAt(canvas: HTMLCanvasElement, x: number, y: number) {
+		const [r, g, b] = canvas.getContext('2d')!.getImageData(x, y, 1, 1).data;
+		return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+	}
+
+	/** 4×2, with each corner pixel its own color. */
+	function marked() {
+		const canvas = document.createElement('canvas');
+		canvas.width = 4;
+		canvas.height = 2;
+		const ctx = canvas.getContext('2d')!;
+		const mark = (color: string, x: number, y: number) => {
+			ctx.fillStyle = color;
+			ctx.fillRect(x, y, 1, 1);
+		};
+		mark('#ff0000', 0, 0);
+		mark('#00ff00', 3, 0);
+		mark('#0000ff', 3, 1);
+		mark('#ffff00', 0, 1);
+		return canvas;
+	}
+
+	it('turns a quarter counterclockwise: the top-right corner comes to the top-left', () => {
+		const turned = rotateCanvas(marked(), 1)!;
+		expect([turned.width, turned.height]).toEqual([2, 4]);
+		expect(colorAt(turned, 0, 0)).toBe('#00ff00');
+		expect(colorAt(turned, 1, 0)).toBe('#0000ff');
+		expect(colorAt(turned, 1, 3)).toBe('#ffff00');
+		expect(colorAt(turned, 0, 3)).toBe('#ff0000');
+	});
+
+	it('turns half way round', () => {
+		const turned = rotateCanvas(marked(), 2)!;
+		expect([turned.width, turned.height]).toEqual([4, 2]);
+		expect(colorAt(turned, 0, 0)).toBe('#0000ff');
+		expect(colorAt(turned, 3, 1)).toBe('#ff0000');
+	});
+
+	it('turns three quarters: the bottom-left corner comes to the top-left', () => {
+		const turned = rotateCanvas(marked(), 3)!;
+		expect([turned.width, turned.height]).toEqual([2, 4]);
+		expect(colorAt(turned, 0, 0)).toBe('#ffff00');
+		expect(colorAt(turned, 1, 0)).toBe('#ff0000');
+	});
+
+	it('hands back the canvas itself for a full turn', () => {
+		const canvas = marked();
+		expect(rotateCanvas(canvas, 0)).toBe(canvas);
+		expect(rotateCanvas(canvas, 4)).toBe(canvas);
 	});
 });

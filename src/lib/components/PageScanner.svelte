@@ -12,6 +12,7 @@
 		getScanner,
 		isFullFrame,
 		refineDetection,
+		rotateCorners,
 		type CornerPoints
 	} from '$lib/scanner/detect';
 	import {
@@ -20,6 +21,7 @@
 		encodeImage,
 		fileToCanvas,
 		releaseCanvas,
+		rotateCanvas,
 		withExtension
 	} from '$lib/scanner/image';
 	import { createSerialQueue } from '$lib/scanner/serial';
@@ -82,20 +84,17 @@
 	 * finishing the review turns the photos into pages and uploads them.
 	 */
 	let stage = $state<'closed' | 'camera' | 'review'>('closed');
-	/** Set while the camera is open to replace one page rather than append. */
-	let replacingId = $state<string | null>(null);
-	/** 1-based, as the page list numbers it, for the camera and crop step to name. */
-	const replacingPage = $derived.by(() => {
-		const index = replacingId ? pages.findIndex((p) => p.id === replacingId) : -1;
-		return index < 0 ? undefined : index + 1;
-	});
 	/** Open crop editor, if any. */
 	let adjusting = $state<{
 		id: string;
+		/** The original, turned as the page is. */
 		image: HTMLCanvasElement;
+		/** In `image`'s pixel space. */
 		corners?: CornerPoints;
 		/** The original the editor was opened on. */
 		source: Blob;
+		/** The page's turns when the editor opened. */
+		turns: number;
 	} | null>(null);
 
 	// Live camera is the primary path; the file input is the fallback
@@ -125,8 +124,8 @@
 	}
 
 	/**
-	 * Every run that writes a page's image (a finished shot, a retake, a picked
-	 * photo, a re-crop) claims the page first, and a newer claim supersedes an
+	 * Every run that writes a page's image (a finished shot, a picked photo, a
+	 * re-render after a re-crop or a turn) claims the page first, and a newer claim supersedes an
 	 * older one. A run only writes while it holds its claim, so a slow, older run
 	 * can't land on top of a newer one, or on a page removed in the meantime;
 	 * whatever such a run uploaded is deleted instead.
@@ -218,9 +217,6 @@
 
 	/** The shutter: keep the frame, find the page in it later. Nothing is uploaded yet. */
 	function onCaptured(frame: HTMLCanvasElement) {
-		// A retake is one photo; a second tap landing before the review opens is dropped.
-		if (replacingId && shots.length > 0) return releaseCanvas(frame);
-
 		const id = crypto.randomUUID();
 		const thumb = downscale(frame, frame.width, frame.height, THUMB_DIM);
 		// JPEG, not WebP: Safari can't encode WebP and would hand back a PNG many
@@ -237,8 +233,6 @@
 		// Failures surface where the photo is used (the review, the upload).
 		task.catch(() => {});
 		prepared.set(id, task);
-
-		if (replacingId) stage = 'review';
 	}
 
 	/**
@@ -292,71 +286,23 @@
 		if (shots.length === 0) stage = 'camera';
 	}
 
-	function dropShots() {
-		for (const shot of shots) {
-			prepared.delete(shot.id);
-			edits.delete(shot.id);
-		}
-		shots = [];
-	}
-
-	/** Back from the first photo: shoot more, or shoot the retake again. */
-	function backToCamera() {
-		if (replacingId) dropShots();
-		stage = 'camera';
-	}
-
 	/**
 	 * The exit button, Escape and back. With nothing shot it quits; once
 	 * something is, it moves on to cropping. Leaving the crop step keeps every
-	 * photo, which can still be removed from the page list afterwards. A retake
-	 * is the exception: leaving its crop step keeps the page as it was, since
-	 * finishing would replace it.
+	 * photo, which can still be removed from the page list afterwards.
 	 */
 	function exit() {
-		if (stage === 'review') {
-			if (replacingId) cancelRun();
-			else finishRun();
-		} else if (shots.length > 0) stage = 'review';
-		else closeRun();
-	}
-
-	function closeRun() {
-		stage = 'closed';
-		replacingId = null;
-	}
-
-	/** Drop this run's photos and close: only offered for a retake. */
-	function cancelRun() {
-		dropShots();
-		closeRun();
+		if (stage === 'review') finishRun();
+		else if (shots.length > 0) stage = 'review';
+		else stage = 'closed';
 	}
 
 	/** Turn the run's photos into pages, in the order shot, and upload them. */
 	function finishRun() {
 		const run = shots;
-		const target = replacingId ? pages.find((p) => p.id === replacingId) : undefined;
 		shots = [];
-		closeRun();
+		stage = 'closed';
 		if (run.length === 0) return;
-
-		if (target && run.length === 1) {
-			const [shot] = run;
-			const claim = claimPage(target.id);
-			updateItem(target.id, {
-				fileName: shot.fileName,
-				previewUrl: shot.thumbUrl,
-				status: 'uploading',
-				error: undefined,
-				// The old photo is being replaced: Adjust crop stays away until the
-				// new one's original lands, rather than re-cropping the old one.
-				sourceBlob: undefined,
-				corners: undefined
-			});
-			emit();
-			void commitShot(claim, shot);
-			return;
-		}
 
 		pages = [
 			...pages,
@@ -377,7 +323,7 @@
 			if (!ready) throw new Error('Image processing failed');
 			const corners = edits.get(shot.id) ?? ready.detected;
 			const rendered = await heavy.run(async () => {
-				// Removed or retaken while it waited: no point cropping it.
+				// Removed while it waited: no point cropping it.
 				if (!claim.holds()) return null;
 				const source = await fileToCanvas(ready.blob);
 				if (!source) throw new Error('Could not reopen the photo');
@@ -389,7 +335,12 @@
 				// Behind any photo still being prepared: a new run's crop step waits on those.
 			}, 'background');
 			// The upload runs outside the queue, so the next photo's crop overlaps it.
-			if (rendered) await commitPage(claim, rendered, ready.blob, shot.fileName);
+			if (rendered) {
+				await commitPage(claim, rendered.encoded, shot.fileName, {
+					sourceBlob: ready.blob,
+					corners: rendered.corners ?? undefined
+				});
+			}
 		} catch (e) {
 			claim.update({
 				status: 'error',
@@ -415,14 +366,15 @@
 	}
 
 	/**
-	 * Show the cropped page, keep its original for re-cropping, upload it. `name`'s
-	 * extension, if any, is replaced by the one for the format actually encoded.
+	 * Show the rendered page and upload it, along with whatever else the run
+	 * set in `patch` (the kept original, its crop). `name`'s extension, if any,
+	 * is replaced by the one for the format actually encoded.
 	 */
 	async function commitPage(
 		claim: Claim,
-		{ encoded, corners }: Awaited<ReturnType<typeof cropAndEncode>>,
-		original: Blob | undefined,
-		name: string
+		encoded: Blob,
+		name: string,
+		patch: Partial<ScanPage> = {}
 	) {
 		if (!claim.holds()) return;
 		// Named for the bytes actually sent, whatever the name said before.
@@ -430,12 +382,7 @@
 		// The encoded page itself, not a second encode of it: superseded or removed,
 		// the page's preview URL is released like any other.
 		const previewUrl = trackObjectUrl(encoded);
-		claim.update({
-			fileName,
-			previewUrl,
-			sourceBlob: original,
-			corners: corners ?? undefined
-		});
+		claim.update({ ...patch, fileName, previewUrl });
 		await processUpload(claim, encoded, fileName, previewUrl);
 	}
 
@@ -444,14 +391,15 @@
 		claim: Claim,
 		source: HTMLCanvasElement,
 		corners: CornerPoints | null,
-		fileName: string,
-		/** The original, when it is already encoded. */
-		original?: Blob
+		fileName: string
 	) {
 		const rendered = await cropAndEncode(source, corners);
 		// The un-cropped original rides along as a blob so the crop stays editable.
-		const kept = original ?? (await encodeImage(source)) ?? undefined;
-		await commitPage(claim, rendered, kept, fileName);
+		const original = (await encodeImage(source)) ?? undefined;
+		await commitPage(claim, rendered.encoded, fileName, {
+			sourceBlob: original,
+			corners: rendered.corners ?? undefined
+		});
 	}
 
 	/** Optimistically render picked photo(s), then crop, encode and upload each. */
@@ -525,6 +473,71 @@
 		}
 	}
 
+	// --- Re-rendering -----------------------------------------------------
+
+	/** Pages with a re-render queued that hasn't started yet: later changes join it. */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read imperatively, never rendered
+	const rerenderQueued = new Set<string>();
+
+	/**
+	 * Render a page again from its kept original, cropped and turned as the
+	 * page says when the run starts, and upload it in place of the last one.
+	 * A change made before then rides along; one made after queues another
+	 * run, whose claim supersedes this one.
+	 */
+	function rerender(id: string) {
+		updateItem(id, { status: 'uploading', error: undefined });
+		emit();
+		if (rerenderQueued.has(id)) return;
+		rerenderQueued.add(id);
+
+		const task = heavy.run(async () => {
+			rerenderQueued.delete(id);
+			const claim = claimPage(id);
+			const page = pages.find((p) => p.id === id);
+			if (!page?.sourceBlob) return null;
+			const turns = page.turns ?? 0;
+			let source: HTMLCanvasElement | null = null;
+			let turned: HTMLCanvasElement | null = null;
+			try {
+				source = await fileToCanvas(page.sourceBlob);
+				if (!source) throw new Error('Could not reopen the photo');
+				turned = rotateCanvas(source, turns);
+				if (!turned) throw new Error('Could not turn the photo');
+				const corners = page.corners
+					? rotateCorners(page.corners, source.width, source.height, turns)
+					: null;
+				const { encoded } = await cropAndEncode(turned, corners);
+				return { claim, encoded, fileName: page.fileName, turns };
+			} catch (e) {
+				claim.update({
+					status: 'error',
+					error: e instanceof Error ? e.message : 'Image processing failed'
+				});
+				return null;
+			} finally {
+				if (turned !== source) releaseCanvas(turned);
+				releaseCanvas(source);
+			}
+		});
+		// The upload runs outside the queue, like a finished shot's.
+		void task.then(
+			(done) =>
+				done && commitPage(done.claim, done.encoded, done.fileName, { previewTurns: done.turns })
+		);
+	}
+
+	/**
+	 * A quarter turn counterclockwise per tap. The preview turns at once; the
+	 * page itself is rendered again from the original behind it.
+	 */
+	function rotateById(id: string) {
+		const page = pages.find((p) => p.id === id);
+		if (!page?.sourceBlob) return;
+		updateItem(id, { turns: ((page.turns ?? 0) + 1) % 4 });
+		rerender(id);
+	}
+
 	// --- Crop adjustment ----------------------------------------------------
 
 	/**
@@ -533,18 +546,26 @@
 	 */
 	let adjustRequest = 0;
 
+	/** Open the crop editor on the page's original, turned the way the page is. */
 	async function adjustById(id: string) {
 		const page = pages.find((p) => p.id === id);
 		const source = page?.sourceBlob;
 		if (!source) return;
+		const turns = page.turns ?? 0;
 		const request = ++adjustRequest;
-		const image = await fileToCanvas(source);
+		const original = await fileToCanvas(source);
+		const image = original && rotateCanvas(original, turns);
+		const corners =
+			original && page.corners
+				? rotateCorners(page.corners, original.width, original.height, turns)
+				: undefined;
+		if (image !== original) releaseCanvas(original);
 		if (request !== adjustRequest) return releaseCanvas(image);
 		if (!image) {
 			error = 'Could not reopen that page for cropping.';
 			return;
 		}
-		adjusting = { id, image, corners: page.corners, source };
+		adjusting = { id, image, corners, source, turns };
 	}
 
 	function cancelAdjust() {
@@ -558,35 +579,24 @@
 		const open = adjusting;
 		adjusting = null;
 		if (!open) return;
+		const { width, height } = open.image;
+		setTimeout(() => releaseCanvas(open.image));
 
 		const page = pages.find((p) => p.id === open.id);
-		// Gone, or its photo replaced while the editor was open: these corners
-		// were drawn on a photo the page no longer holds.
-		if (!page || page.sourceBlob !== open.source) {
-			setTimeout(() => releaseCanvas(open.image));
-			return;
-		}
-		const claim = claimPage(open.id);
-		updateItem(open.id, { status: 'uploading', error: undefined });
-		emit();
-
-		void (async () => {
-			try {
-				await finalizePage(claim, open.image, corners, page.fileName, open.source);
-			} catch (e) {
-				claim.update({
-					status: 'error',
-					error: e instanceof Error ? e.message : 'Crop failed'
-				});
-			} finally {
-				releaseCanvas(open.image);
-			}
-		})();
+		// Gone, or its photo replaced or turned while the editor was open: these
+		// corners were drawn on a view of the page it no longer has.
+		if (!page || page.sourceBlob !== open.source || (page.turns ?? 0) !== open.turns) return;
+		// Back into the original's space, where the page keeps its crop.
+		updateItem(open.id, {
+			corners: isFullFrame(corners, width, height)
+				? undefined
+				: rotateCorners(corners, width, height, -open.turns)
+		});
+		rerender(open.id);
 	}
 
-	function openCamera(replacing: string | null = null) {
+	function openCamera() {
 		adjustRequest += 1;
-		replacingId = replacing;
 		error = '';
 		stage = 'camera';
 		// The live view no longer touches scanic, so start loading it now, while
@@ -657,11 +667,10 @@
 
 		<ScanFilmstrip
 			{pages}
-			canRetake={canUseCamera}
 			onMove={moveById}
 			onRemove={removeById}
 			onAdjust={adjustById}
-			onRetake={openCamera}
+			onRotate={rotateById}
 		/>
 	</div>
 </div>
@@ -676,14 +685,13 @@
 <ImmersiveView
 	open={stage !== 'closed'}
 	steps={stage === 'camera' && shots.length > 0 ? 2 : 1}
-	title={stage === 'review' ? 'Crop pages' : replacingId ? 'Retake page' : 'Scan pages'}
+	title={stage === 'review' ? 'Crop pages' : 'Scan pages'}
 	onClose={exit}
 >
 	{#if stage === 'camera'}
 		<CameraStage
 			shotCount={shots.length}
 			latestPreview={shots.at(-1)?.thumbUrl}
-			{replacingPage}
 			onCapture={onCaptured}
 			onDone={exit}
 			onError={(message) => (error = message)}
@@ -692,12 +700,10 @@
 		<ScanReview
 			{shots}
 			load={loadShot}
-			{replacingPage}
 			onChange={(id, corners) => edits.set(id, corners)}
 			onDiscard={discardShot}
-			onBack={backToCamera}
+			onBack={() => (stage = 'camera')}
 			onFinish={finishRun}
-			onCancel={cancelRun}
 		/>
 	{/if}
 </ImmersiveView>

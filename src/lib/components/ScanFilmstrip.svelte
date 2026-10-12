@@ -1,36 +1,43 @@
 <script lang="ts">
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDownIcon';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
+	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
 	import CropIcon from 'phosphor-svelte/lib/CropIcon';
 	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
 	import type { ScanPage } from '$lib/scanner/types';
 
-	// Ordered page list. Reordering is move-left/move-right rather than drag and
-	// drop: no new dependency, identical behaviour on touch and desktop, and
+	// Ordered page list. Reordering is move-earlier/move-later rather than drag
+	// and drop: no new dependency, identical behavior on touch and desktop, and
 	// keyboard/screen-reader accessible for free.
 	let {
 		pages,
-		canRetake = false,
 		onMove,
 		onRemove,
 		onAdjust,
-		onRetake
+		onRotate
 	}: {
 		pages: ScanPage[];
-		/** Retake needs a working camera; hidden when there isn't one. */
-		canRetake?: boolean;
 		onMove: (id: string, direction: -1 | 1) => void;
 		onRemove: (id: string) => void;
 		onAdjust: (id: string) => void;
-		onRetake: (id: string) => void;
+		/** A quarter turn counterclockwise. */
+		onRotate: (id: string) => void;
 	} = $props();
+
+	/** Quarter turns the page has been given that its preview doesn't show yet. */
+	const pendingTurns = (page: ScanPage) =>
+		((((page.turns ?? 0) - (page.previewTurns ?? 0)) % 4) + 4) % 4;
 </script>
 
 {#if pages.length > 0}
-	<div class="mt-4 flex flex-wrap gap-3">
+	<!-- One column on phones, a wrapping row from `sm` up. Pinned to the
+	     breakpoint rather than left to wrapping, so the move arrows below can
+	     point the way the pages actually run. -->
+	<div class="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
 		{#each pages as page, index (page.id)}
 			<div class="w-40">
 				<div
@@ -38,9 +45,12 @@
 						? 'border-red-400 ring-1 ring-red-400'
 						: 'border-gray-200'}"
 				>
+					<!-- Turned by whatever the preview is behind, so a tap shows at once;
+					     the box is square, so the turned image still fits it. -->
 					<img
 						src={page.previewUrl}
 						alt="Page {index + 1}"
+						style:rotate={pendingTurns(page) ? `${-90 * pendingTurns(page)}deg` : undefined}
 						class="h-40 w-full object-contain {page.status === 'uploading' ? 'opacity-50' : ''}"
 					/>
 
@@ -87,7 +97,8 @@
 						aria-label="Move page {index + 1} earlier"
 						class="rounded-sm border border-gray-300 bg-white p-2.5 text-gray-700 transition hover:bg-gray-100 disabled:opacity-40"
 					>
-						<ArrowLeftIcon size={14} />
+						<ArrowUpIcon size={14} class="sm:hidden" />
+						<ArrowLeftIcon size={14} class="hidden sm:block" />
 					</button>
 					<button
 						type="button"
@@ -96,9 +107,12 @@
 						aria-label="Move page {index + 1} later"
 						class="rounded-sm border border-gray-300 bg-white p-2.5 text-gray-700 transition hover:bg-gray-100 disabled:opacity-40"
 					>
-						<ArrowRightIcon size={14} />
+						<ArrowDownIcon size={14} class="sm:hidden" />
+						<ArrowRightIcon size={14} class="hidden sm:block" />
 					</button>
 
+					<!-- Both work from the page's original, which only pages scanned or
+					     picked here have: an already saved page keeps its image as is. -->
 					{#if page.sourceBlob}
 						<button
 							type="button"
@@ -109,14 +123,11 @@
 						>
 							<CropIcon size={14} />
 						</button>
-					{/if}
-
-					{#if canRetake}
 						<button
 							type="button"
-							onclick={() => onRetake(page.id)}
-							aria-label="Retake page {index + 1}"
-							title="Retake"
+							onclick={() => onRotate(page.id)}
+							aria-label="Rotate page {index + 1} left"
+							title="Rotate left"
 							class="rounded-sm border border-gray-300 bg-white p-2.5 text-gray-700 transition hover:bg-gray-100"
 						>
 							<ArrowCounterClockwiseIcon size={14} />

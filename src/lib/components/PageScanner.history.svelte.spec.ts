@@ -20,8 +20,6 @@ vi.mock('$app/state', async () => {
 	return { page };
 });
 
-const URLS = ['https://example.com/scan1.jpg', 'https://example.com/scan2.jpg'];
-
 function fakeCamera() {
 	const canvas = document.createElement('canvas');
 	canvas.width = 640;
@@ -54,7 +52,7 @@ function fakeServer() {
 
 async function openCamera(name = 'Scan pages') {
 	await page.getByRole('button', { name }).click();
-	const shutter = page.getByRole('button', { name: /^(Capture|Retake) page$/ });
+	const shutter = page.getByRole('button', { name: 'Capture page' });
 	await expect.element(shutter).not.toHaveAttribute('aria-disabled', 'true');
 	return shutter;
 }
@@ -109,22 +107,6 @@ it('drops its history entry when closed from inside, so the next back is a real 
 
 	await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
 	await vi.waitFor(() => expect(onOwnEntry()).toBe(false));
-});
-
-it('cancels a retake on back from its crop step, keeping the page', async () => {
-	fakeCamera();
-	const server = fakeServer();
-	const onChange = vi.fn();
-	render(PageScanner, { initial: URLS, onChange });
-	const shutter = await openCamera('Retake page 1');
-	await shutter.click();
-	await expect.element(page.getByText('New photo for page 1')).toBeInTheDocument();
-
-	history.back();
-
-	await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
-	expect(server).not.toHaveBeenCalled();
-	expect(onChange).not.toHaveBeenCalled();
 });
 
 it('never adds a history entry in answer to back, only to a tap', async () => {

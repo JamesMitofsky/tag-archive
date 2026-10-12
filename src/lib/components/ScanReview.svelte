@@ -3,13 +3,11 @@
 	import { on } from 'svelte/events';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
-	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import CameraIcon from 'phosphor-svelte/lib/CameraIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import CornersOutIcon from 'phosphor-svelte/lib/CornersOutIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
-	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CornerEditorSurface from './CornerEditorSurface.svelte';
 	import type { CornerPoints } from '$lib/scanner/detect';
 	import { releaseCanvas } from '$lib/scanner/image';
@@ -21,12 +19,10 @@
 	let {
 		shots,
 		load,
-		replacingPage,
 		onChange,
 		onDiscard,
 		onBack,
-		onFinish,
-		onCancel
+		onFinish
 	}: {
 		/** This run's photos, in capture order. */
 		shots: { id: string; thumbUrl: string }[];
@@ -39,17 +35,13 @@
 			corners: CornerPoints | null;
 			detected: boolean;
 		} | null>;
-		/** Retake mode: the 1-based page this run's one photo will replace. */
-		replacingPage?: number;
 		/** Every corner change, so moving between photos keeps corrections. */
 		onChange: (id: string, corners: CornerPoints) => void;
 		onDiscard: (id: string) => void;
-		/** Leave the first photo backwards: to the camera, or to shoot the retake again. */
+		/** Leave the first photo backwards, to the camera. */
 		onBack: () => void;
-		/** Keep every photo with its crop as it stands: add them, or replace the page. */
+		/** Keep every photo with its crop as it stands, as new pages. */
 		onFinish: () => void;
-		/** Retake mode only: drop the new photo and keep the page as it was. */
-		onCancel: () => void;
 	} = $props();
 
 	/**
@@ -65,7 +57,6 @@
 	/** A string, so a new `shots` array holding the same photo doesn't reload it. */
 	const currentId = $derived(shots[position]?.id);
 	const isLast = $derived(position === shots.length - 1);
-	const replacing = $derived(replacingPage !== undefined);
 
 	type View = {
 		id: string;
@@ -168,15 +159,11 @@
 		);
 	});
 
-	const title = $derived(
-		replacing ? `New photo for page ${replacingPage}` : `Photo ${position + 1} of ${shots.length}`
-	);
+	const title = $derived(`Photo ${position + 1} of ${shots.length}`);
 
 	const hint = $derived.by(() => {
 		if (loadFailed) {
-			return replacing
-				? 'This photo could not be processed. Take it again, or cancel.'
-				: 'This photo could not be processed. Discard it, or keep it and retake it from the page list.';
+			return 'This photo could not be processed. Discard it and take it again.';
 		}
 		if (editorFailed) {
 			return view?.detected
@@ -189,11 +176,7 @@
 			: 'No page edges found. Drag the corners to the page.';
 	});
 
-	const finishLabel = $derived(
-		replacing
-			? `Replace page ${replacingPage}`
-			: `Add ${shots.length} ${shots.length === 1 ? 'page' : 'pages'}`
-	);
+	const finishLabel = $derived(`Add ${shots.length} ${shots.length === 1 ? 'page' : 'pages'}`);
 
 	/**
 	 * Every way out of a photo moves focus to the heading first. Otherwise the
@@ -249,40 +232,28 @@
 		</div>
 
 		<div class="flex shrink-0 items-center gap-2">
-			{#if replacing}
+			<button
+				type="button"
+				onclick={discard}
+				aria-disabled={settling}
+				aria-label="Discard photo {position + 1}"
+				title="Discard"
+				class="flex size-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-red-600"
+			>
+				<TrashIcon size={18} />
+			</button>
+			{#if shots.length > 1}
+				<!-- Skips the rest of the photos with their crops as found. Kept in
+				     the layout on the last photo, where Done says the same. -->
 				<button
 					type="button"
-					onclick={onCancel}
-					aria-label="Cancel retake"
-					title="Cancel retake"
-					class="flex size-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
+					onclick={finish}
+					class="h-10 rounded-full bg-white/10 px-4 font-medium transition hover:bg-white/20 {isLast
+						? 'invisible'
+						: ''}"
 				>
-					<XIcon size={18} />
+					Add all {shots.length}
 				</button>
-			{:else}
-				<button
-					type="button"
-					onclick={discard}
-					aria-disabled={settling}
-					aria-label="Discard photo {position + 1}"
-					title="Discard"
-					class="flex size-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-red-600"
-				>
-					<TrashIcon size={18} />
-				</button>
-				{#if shots.length > 1}
-					<!-- Skips the rest of the photos with their crops as found. Kept in
-					     the layout on the last photo, where Done says the same. -->
-					<button
-						type="button"
-						onclick={finish}
-						class="h-10 rounded-full bg-white/10 px-4 font-medium transition hover:bg-white/20 {isLast
-							? 'invisible'
-							: ''}"
-					>
-						Add all {shots.length}
-					</button>
-				{/if}
 			{/if}
 		</div>
 	</header>
@@ -320,14 +291,12 @@
 		<button
 			type="button"
 			onclick={back}
-			aria-label={position > 0 ? 'Previous photo' : replacing ? 'Retake' : 'Back to camera'}
-			title={position > 0 ? 'Previous photo' : replacing ? 'Retake' : 'Back to camera'}
+			aria-label={position > 0 ? 'Previous photo' : 'Back to camera'}
+			title={position > 0 ? 'Previous photo' : 'Back to camera'}
 			class="flex size-12 items-center justify-center justify-self-start rounded-full bg-white/10 transition hover:bg-white/20"
 		>
 			{#if position > 0}
 				<ArrowLeftIcon size={22} />
-			{:else if replacing}
-				<ArrowCounterClockwiseIcon size={22} />
 			{:else}
 				<CameraIcon size={22} />
 			{/if}

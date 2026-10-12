@@ -98,17 +98,21 @@ export function fakeServer() {
 	return { fetch, uploads, deleted };
 }
 
-export async function widthOf(blob: Blob) {
+export async function sizeOf(blob: Blob) {
 	const bitmap = await createImageBitmap(blob);
-	const { width } = bitmap;
+	const { width, height } = bitmap;
 	bitmap.close();
-	return width;
+	return { width, height };
+}
+
+export async function widthOf(blob: Blob) {
+	return (await sizeOf(blob)).width;
 }
 
 /** Open the camera and wait until the shutter works. */
 export async function openCamera(name = 'Scan pages') {
 	await page.getByRole('button', { name }).click();
-	const shutter = page.getByRole('button', { name: /^(Capture|Retake) page$/ });
+	const shutter = page.getByRole('button', { name: 'Capture page' });
 	await expect.element(shutter).not.toHaveAttribute('aria-disabled', 'true');
 	return shutter;
 }
@@ -123,6 +127,6 @@ export async function shootAndCrop(count: number) {
 	// the moment it ignores taps carried over from the camera.
 	await expect.element(page.getByRole('button', { name: 'Use whole image' })).toBeEnabled();
 	await expect
-		.element(page.getByRole('button', { name: /^(Next photo|Add \d|Replace page)/ }))
+		.element(page.getByRole('button', { name: /^(Next photo|Add \d)/ }))
 		.not.toHaveAttribute('aria-disabled', 'true');
 }
