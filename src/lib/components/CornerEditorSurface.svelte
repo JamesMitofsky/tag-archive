@@ -5,6 +5,8 @@
 	// scanic's imperative corner editor, mounted into a box that fills its parent.
 	// It already ships drag handles with a 44px hit area, a magnifier and keyboard
 	// nudging, so screens around it only add their own buttons (`toolbar` off).
+	// Its on-screen nudge arrows stay off too: they crowd the photo's top-right
+	// corner, and arrow keys still nudge a focused corner without them.
 	// `image` and `corners` are read once, when the editor mounts: wrap this in
 	// a {#key} to show a different image.
 	let {
@@ -20,7 +22,7 @@
 		image: HTMLCanvasElement;
 		/** Starting quad; defaults to the whole image. */
 		corners?: CornerPoints | null;
-		/** Every change: drag, nudge, arrow keys and `setCorners`. */
+		/** Every change: drag, arrow keys and `setCorners`. */
 		onChange?: (corners: CornerPoints) => void;
 		/** Enter on a focused corner handle. */
 		onConfirm?: (corners: CornerPoints) => void;
@@ -47,7 +49,6 @@
 					image,
 					corners: corners ?? fullFrameCorners(image.width, image.height),
 					toolbar: { enabled: false },
-					nudges: { enabled: true },
 					theme: { accent: '#22c55e' },
 					onChange: (next) => onChange?.(next),
 					onConfirm: (next) => onConfirm?.(next)
