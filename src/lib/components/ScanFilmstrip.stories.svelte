@@ -25,11 +25,10 @@
 		component: ScanFilmstrip,
 		tags: ['autodocs'],
 		args: {
-			canRetake: true,
 			onMove: fn(),
 			onRemove: fn(),
 			onAdjust: fn(),
-			onRetake: fn()
+			onRotate: fn()
 		}
 	});
 </script>
@@ -51,10 +50,16 @@
 	}}
 />
 
-<!-- Server-seeded pages from the edit flow: no local original, so no crop control. -->
+<!-- Server-seeded pages from the edit flow: no local original, so no crop or rotate control. -->
 <Story
 	name="No local original"
 	args={{ pages: [page(1, { sourceBlob: undefined }), page(2, { sourceBlob: undefined })] }}
+/>
+
+<!-- Tapped Rotate before the turned render landed: the preview turns ahead of it. -->
+<Story
+	name="Turn pending"
+	args={{ pages: [page(1, { status: 'uploading', turns: 1 }), page(2)] }}
 />
 
 <Story name="Long run" args={{ pages: Array.from({ length: 12 }, (_, i) => page(i + 1)) }} />

@@ -184,3 +184,35 @@ export function isPlausibleQuad(
 	if (pts.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) return false;
 	return quadArea(corners) / frame >= minCoverage;
 }
+
+/** A point of a `width`×`height` frame, after the frame turns a quarter counterclockwise. */
+function turnPoint({ x, y }: Point, width: number): Point {
+	return { x: y, y: width - x };
+}
+
+/**
+ * `corners` of a `width`×`height` frame, carried along as the frame turns
+ * `turns` quarters counterclockwise (see `rotateCanvas`). The keys move with
+ * the page, so the old top-right corner becomes the top-left: a crop of the
+ * turned frame comes out turned too.
+ */
+export function rotateCorners(
+	corners: CornerPoints,
+	width: number,
+	height: number,
+	turns: number
+): CornerPoints {
+	let turned = corners;
+	let w = width;
+	let h = height;
+	for (let i = 0; i < ((turns % 4) + 4) % 4; i++) {
+		turned = {
+			topLeft: turnPoint(turned.topRight, w),
+			topRight: turnPoint(turned.bottomRight, w),
+			bottomRight: turnPoint(turned.bottomLeft, w),
+			bottomLeft: turnPoint(turned.topLeft, w)
+		};
+		[w, h] = [h, w];
+	}
+	return turned;
+}
