@@ -26,11 +26,12 @@
 	// go straight to it; anyone else's waits for a keeper's review, and they get a
 	// thank-you — with an optional side path to leave contact details.
 	//
-	// Anonymous visitors may upload and submit for a few hours after tapping the
-	// garden's NFC tag (the draft session, see $lib/server/drafts). Once that
-	// lapses, the server refuses with a "tap the tag again" message — shown in
-	// place, so nothing typed or scanned is lost, and a fresh tap resumes the
-	// same draft.
+	// Anonymous visitors may upload and submit after tapping the garden's NFC tag
+	// (the draft session, see $lib/server/drafts) for as long as their access
+	// pass stays open — it drifts shut once the site has been off their screen
+	// for a while (see $lib/access/pass). Once it has, the server refuses with a
+	// "tap the tag again" message — shown in place, so nothing typed or scanned
+	// is lost, and a fresh tap resumes the same draft.
 
 	// After an anonymous submit: the new artefact's id and the token that lets
 	// this visitor (and only them) attach contact details to it.

@@ -1,6 +1,7 @@
 /**
  * The whole site opens only to holders of an access pass (./pass): visitors who
- * tapped the garden's NFC tag in the last few hours, and signed-in keepers.
+ * tapped the garden's NFC tag and have had the site on screen since (the pass
+ * drifts shut after a while away, see ./presence), and signed-in keepers.
  * This decides what happens to a request WITHOUT a valid pass. It is enforced
  * twice, from this one list:
  *
@@ -16,20 +17,25 @@
  */
 
 import { opensKeeperDoor } from './keeperDoor.server.ts';
-import { LOCKED_PATH } from './paths.ts';
+import { CONTRIBUTE_PATH, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.ts';
 
 export { LOCKED_PATH };
 
 export type GateDecision = 'open' | 'redirect' | 'refuse';
 
 /** The keeper sign-in page: open only through its door (./keeperDoor.server). */
-const KEEPER_GATE = '/keeper';
+const KEEPER_GATE = KEEPER_PATH;
 
 /** Paths that are always open, exactly. */
 const OPEN_EXACT = new Set([
 	// The tap itself, and where a locked visitor is told to make one.
 	'/t',
 	LOCKED_PATH,
+	// The presence beat. Open here for the same reason as /keeper/ below: a
+	// signed-in keeper whose pass has lapsed must reach SvelteKit, where their
+	// session mints a new one. The route itself answers 401 to anyone without a
+	// pass (src/routes/api/presence), and a beat carries no archive content.
+	PRESENCE_PATH,
 	// Decor the locked and sign-in pages are drawn with.
 	'/favicon.png',
 	'/paper-noise.png',
@@ -85,7 +91,7 @@ function isSelfGuardedWrite(request: {
 	return (
 		request.method === 'POST' &&
 		!!request.isEnhancedAction &&
-		routePath(request.pathname) === '/contribute'
+		routePath(request.pathname) === CONTRIBUTE_PATH
 	);
 }
 

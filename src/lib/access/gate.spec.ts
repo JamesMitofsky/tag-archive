@@ -15,6 +15,7 @@ describe('accessDecision (no pass)', () => {
 		'/t',
 		'/locked',
 		'/locked/',
+		'/api/presence',
 		'/keeper/artefacts/3',
 		'/api/auth/sign-in/email-otp',
 		'/api/cron/sweep-submissions',
@@ -39,6 +40,7 @@ describe('accessDecision (no pass)', () => {
 	it.each([
 		'/api/dataset',
 		'/api/scans',
+		'/api/presencex',
 		'/artefacts/TAG-001.jpg',
 		'/audio/meditation-walk/01%20-%20INTRODUCTION.mp3'
 	])('refuses a fetch of %s', (path) => {

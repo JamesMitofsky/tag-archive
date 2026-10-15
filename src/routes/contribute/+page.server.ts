@@ -4,7 +4,7 @@ import { createArtefact, knownLocations } from '$lib/server/artefacts';
 import { db } from '$lib/server/db';
 import { stampInsert } from '$lib/server/db/audit';
 import { artefact, submissionContact } from '$lib/server/db/schema';
-import { freshDraft, submissionPrefix } from '$lib/server/drafts';
+import { readDraft, submissionPrefix } from '$lib/server/drafts';
 import { consume, LIMITS } from '$lib/server/rateLimit';
 import { keyFromUrl } from '$lib/server/scans';
 import { sign, verify } from '$lib/server/signing';
@@ -40,9 +40,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 		signedIn,
 		// Keepers record where the physical item is kept; the public may not know.
 		requireLocation: signedIn,
-		// Anonymous visitors upload and submit through the draft session a recent
-		// tap of the garden tag started (see $lib/server/drafts).
-		canContribute: signedIn || !!freshDraft(cookies),
+		// Anonymous visitors upload and submit through the draft session a tap of
+		// the garden tag started (see $lib/server/drafts), for as long as their
+		// access pass is open (see $lib/access/pass).
+		canContribute: signedIn || (!!locals.pass && !!readDraft(cookies)),
 		locations: await knownLocations()
 	};
 };
@@ -53,10 +54,12 @@ export const actions: Actions = {
 		const data = parseArtefactForm(form);
 		const signedIn = !!locals.user;
 
-		// Anonymous: a fresh draft session (a recent tap) and a rate limit.
-		const draft = signedIn ? null : freshDraft(cookies);
+		// Anonymous: an open access pass (hooks set `locals.pass` even on the
+		// enhanced posts the gate lets through, see $lib/access/gate), a draft
+		// session (a tap), and a rate limit.
+		const draft = signedIn ? null : readDraft(cookies);
 		if (!signedIn) {
-			if (!draft) {
+			if (!locals.pass || !draft) {
 				return fail(401, {
 					locked: true,
 					artefactError:
