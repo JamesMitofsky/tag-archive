@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
-	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
@@ -16,7 +15,7 @@
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
-	import { createContactSuite, parseContactForm } from '$lib/validation/contact';
+	import SubmittedThanks from '$lib/components/SubmittedThanks.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -41,15 +40,12 @@
 			: undefined
 	);
 	const connected = $derived(!!(form && 'connected' in form && form.connected));
-	let connectOpen = $state(false);
-	let connecting = $state(false);
 	const contactError = $derived(form && 'contactError' in form ? form.contactError : undefined);
 	const contactErrors = $derived(
 		form && 'contactErrors' in form && form.contactErrors
 			? (form.contactErrors as Record<string, string[]>)
 			: {}
 	);
-	const contactValidator = createValidator(createContactSuite(), () => contactErrors);
 
 	// Isomorphic validation: the same vest suite runs here for live, per-field
 	// feedback and on the server as the authority. `errors` seeds field messages
@@ -167,105 +163,29 @@
 		     as the searchbar and the keeper sign-in. -->
 		<section class="rounded-2xl border border-white/40 bg-white/30 p-6 shadow-lg backdrop-blur-md">
 			{#if submitted}
-				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">Thank you</h1>
-				<p class="mt-2 text-gray-700">
-					Your artefact is with the keepers. Once one of them has looked it over, it will join the
-					archive.
-				</p>
-
-				<!-- Full reload, not client navigation: the form's state lives in this
-				     page, and the same URL would keep it. The draft session survives. -->
-				<a
-					href="/contribute"
-					data-sveltekit-reload
-					class="mt-6 flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium {inkButton}"
-				>
-					<ArrowCounterClockwiseIcon size={18} />
-					Add another
-				</a>
-
-				<!-- The side path: entirely optional, and out of the way of the main flow. -->
-				<div class="mt-6 border-t border-gray-200 pt-4">
-					{#if connected}
-						<p class="text-sm text-gray-700" role="status">
-							Thanks — a keeper may be in touch about this artefact.
-						</p>
-					{:else if !connectOpen}
-						<button
-							type="button"
-							onclick={() => (connectOpen = true)}
-							class="text-sm text-gray-600 underline underline-offset-2 hover:text-gray-900"
-						>
-							Happy for a keeper to reach you about it? Leave a name or email.
-						</button>
-					{:else}
-						<form
-							method="POST"
-							action="?/connect"
-							class="space-y-3"
-							use:enhance={({ formData, cancel }) => {
-								contactValidator.revealAll();
-								if (!contactValidator.run(parseContactForm(formData))) {
-									cancel();
-									return;
-								}
-								connecting = true;
-								return async ({ update }) => {
-									await update({ reset: false });
-									connecting = false;
-								};
-							}}
-						>
-							<p class="text-sm text-gray-600">
-								Only keepers see this, and only to follow up on this artefact.
-							</p>
-							<input type="hidden" name="artefactId" value={submitted.id} />
-							<input type="hidden" name="token" value={submitted.token} />
-							<div>
-								<label for="contact-name" class="block text-sm font-medium text-gray-700"
-									>Name</label
-								>
-								<Input
-									id="contact-name"
-									name="name"
-									autocomplete="name"
-									maxlength={200}
-									class="mt-1.5"
-								/>
-								<FieldError message={contactValidator.error('name')} />
-							</div>
-							<div>
-								<label for="contact-email" class="block text-sm font-medium text-gray-700">
-									Email
-								</label>
-								<Input
-									id="contact-email"
-									name="email"
-									type="email"
-									autocomplete="email"
-									maxlength={254}
-									class="mt-1.5"
-								/>
-								<FieldError message={contactValidator.error('email')} />
-							</div>
-							{#if contactError && Object.keys(contactErrors).length === 0}
-								<p class="font-friendly text-sm text-red-600" role="alert">{contactError}</p>
-							{/if}
-							<button
-								type="submit"
-								disabled={connecting}
-								aria-busy={connecting}
-								class="rounded-sm border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 transition hover:bg-gray-100 disabled:opacity-50"
-							>
-								Save
-							</button>
-						</form>
-					{/if}
-				</div>
+				<SubmittedThanks
+					noun="artefact"
+					anotherHref="/contribute"
+					idField="artefactId"
+					{submitted}
+					{connected}
+					{contactError}
+					{contactErrors}
+				/>
 			{:else}
-				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
-					{data.signedIn ? 'New artefact' : 'Add to the archive'}
-				</h1>
+				<!-- Photographs have a form of their own (they become an image set,
+				     not an artefact's pages): pointed to quietly, beside the heading. -->
+				<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+					<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
+						{data.signedIn ? 'New artefact' : 'Add to the archive'}
+					</h1>
+					<a
+						href="/contribute/images"
+						class="text-sm text-gray-600 underline underline-offset-2 hover:text-gray-900"
+					>
+						Adding photographs?
+					</a>
+				</div>
 				{#if !data.canContribute}
 					<p class="mt-4 font-friendly text-sm text-gray-700" role="status">
 						The Archive has drifted shut. Visit the Cube to open the Archive — anything you fill in

@@ -8,6 +8,7 @@
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
+	import ImagesIcon from 'phosphor-svelte/lib/ImagesIcon';
 	import StackIcon from 'phosphor-svelte/lib/StackIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
@@ -128,13 +129,19 @@
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
 
-	// The three archive views, surfaced as hub cards for signed-in keepers.
+	// The archive views, surfaced as hub cards for signed-in keepers.
 	const hubLinks = [
 		{
 			href: '/keeper/artefacts',
 			icon: ArchiveIcon,
 			label: 'Artefacts',
 			blurb: 'Digitized copies of physical things, often linked to an event.'
+		},
+		{
+			href: '/keeper/images',
+			icon: ImagesIcon,
+			label: 'Images',
+			blurb: 'Photographs uploaded together, often from an event.'
 		},
 		{
 			href: '/keeper/events',
@@ -329,7 +336,7 @@
 							{/if}
 						</section>
 					{:else}
-						<!-- Hub: the three archive views live on their own sub-routes. -->
+						<!-- Hub: the archive views live on their own sub-routes. -->
 						<nav class="mt-6 space-y-3">
 							{#each hubLinks as link (link.href)}
 								<a

@@ -17,7 +17,7 @@
  */
 
 import { opensKeeperDoor } from './keeperDoor.server.ts';
-import { CONTRIBUTE_PATH, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.ts';
+import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.ts';
 
 export { LOCKED_PATH };
 
@@ -75,23 +75,31 @@ export function isOpenPath(pathname: string): boolean {
 }
 
 /**
- * Enhanced form actions on /contribute pass the gate, because those actions
- * guard themselves: an anonymous submit needs a fresh draft session, which only
- * a tap issues (see $lib/server/drafts). Turning the post away here instead
- * would replace a half-filled form with the locked page when the visitor's
- * hours run out mid-entry; the action's own refusal keeps the form and says
- * "tap again". Only enhanced posts: their response is the action's result
- * alone, whereas a plain post renders the whole page, load data and all.
+ * Enhanced form actions on the contribution forms — /contribute and the pages
+ * beneath it, such as /contribute/images — pass the gate, because those
+ * actions guard themselves: an anonymous submit needs an open pass and a draft
+ * session, which only a tap issues (see $lib/server/drafts), and a contact
+ * token only the submission's own response carries. Turning the post away
+ * here instead would replace a half-filled form with the locked page when the
+ * visitor's hours run out mid-entry; the action's own refusal keeps the form
+ * and says "tap again". Only enhanced posts: their response is the action's
+ * result alone, whereas a plain post renders the whole page, load data and
+ * all. So every POST handler under /contribute — form action or endpoint —
+ * must guard itself. Never a data request, whatever its headers say:
+ * SvelteKit answers `__data.json` with the route's load data for any method,
+ * POST included.
  */
 function isSelfGuardedWrite(request: {
 	pathname: string;
 	method: string;
+	isDataRequest: boolean;
 	isEnhancedAction?: boolean;
 }): boolean {
 	return (
 		request.method === 'POST' &&
 		!!request.isEnhancedAction &&
-		routePath(request.pathname) === CONTRIBUTE_PATH
+		!request.isDataRequest &&
+		isUnder(routePath(request.pathname), CONTRIBUTE_PATH)
 	);
 }
 
