@@ -1,11 +1,9 @@
 import { error, json } from '@sveltejs/kit';
-import { sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { artefact } from '$lib/server/db/schema';
 import { readDraft, submissionPrefix } from '$lib/server/drafts';
 import { sniffImageType } from '$lib/server/imageType';
 import { consume, LIMITS } from '$lib/server/rateLimit';
 import { deleteScan, keyFromUrl, uploadScan } from '$lib/server/scans';
+import { referencedUrls } from '$lib/server/uploads';
 import type { RequestHandler } from './$types';
 
 // Image uploads for artefact scans — the write gate in front of the bucket,
@@ -71,14 +69,10 @@ export const DELETE: RequestHandler = async ({ request, locals, cookies }) => {
 	}
 
 	// Only unattached transient uploads (draft scans) may be deleted here — never
-	// an image a saved artefact already uses.
-	const existing = await db
-		.select({ id: artefact.id })
-		.from(artefact)
-		.where(sql`exists (select 1 from json_each(${artefact.fileUrls}) where value = ${url})`)
-		.get();
-	if (existing) {
-		throw error(403, 'Forbidden: Cannot delete an image that is attached to a saved artefact');
+	// an image a saved artefact uses, nor either object of a photograph (an
+	// image row, set or not: those go through DELETE /api/images/[id]).
+	if ((await referencedUrls([url])).has(url)) {
+		throw error(403, 'Forbidden: Cannot delete an image that is in use');
 	}
 
 	await deleteScan(key);

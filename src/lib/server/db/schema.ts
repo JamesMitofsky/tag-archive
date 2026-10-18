@@ -303,7 +303,11 @@ export type ImageMetadata = {
 	iptc?: MetadataSegment;
 	/** A summary of the embedded color profile, not the profile itself. */
 	icc?: MetadataSegment;
-	/** Segments left out to keep the stored record under its size cap, in drop order. */
+	/**
+	 * Segments that lost data to the size cap, in the order they were cut: a
+	 * segment named here and absent was left out whole; one still present was
+	 * cut to its essential fields.
+	 */
 	omitted?: string[];
 };
 
@@ -335,7 +339,8 @@ export const image = sqliteTable(
 		bytes: integer('bytes').notNull(),
 		width: integer('width').notNull(),
 		height: integer('height').notNull(),
-		// Wall-clock capture time `YYYY-MM-DDTHH:MM:SS` from the photo's own
+		// Wall-clock capture time `YYYY-MM-DDTHH:MM:SS` (or `YYYY-MM-DD` when the
+		// photo only records a day, as some XMP dates do) from the photo's own
 		// metadata, as the camera recorded it (no time zone applied), or NULL.
 		capturedAt: text('captured_at'),
 		// The camera's UTC offset at capture (`+02:00`), when it recorded one.

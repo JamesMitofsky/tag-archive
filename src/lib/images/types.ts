@@ -44,7 +44,10 @@ export type UploadedImage = {
 	originalUrl: string;
 	width: number;
 	height: number;
-	/** Wall-clock capture time `YYYY-MM-DDTHH:MM:SS`, or null when unknown. */
+	/**
+	 * Wall-clock capture time `YYYY-MM-DDTHH:MM:SS` (`YYYY-MM-DD` when only the
+	 * day is recorded), or null when unknown.
+	 */
 	capturedAt: string | null;
 };
 

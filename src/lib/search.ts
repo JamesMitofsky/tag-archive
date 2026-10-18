@@ -6,7 +6,9 @@
  */
 import type { ArtefactWithEvent } from '$lib/server/db/schema';
 import type { EventItem } from '$lib/events';
-import { startOfPartialDate } from '$lib/partialDate';
+import type { PublicImageSet } from '$lib/images/types';
+import { imageSetLabel } from '$lib/images/label';
+import { formatPartialDate, startOfPartialDate } from '$lib/partialDate';
 
 /** Lowercased, whitespace-split, empty-dropped query tokens. */
 function tokenize(q: string): string[] {
@@ -34,6 +36,30 @@ export function filterArtefacts(rows: ArtefactWithEvent[], q: string): ArtefactW
 			row.description,
 			...(row.programArea ?? []),
 			...(row.provenance ?? [])
+		]);
+		return tokens.every((token) => fields.some((field) => field.includes(token)));
+	});
+}
+
+/**
+ * Image sets: tokenized AND, like artefacts. A set has no title of its own, so
+ * its derived label stands in for one (which only adds anything when the label
+ * is the photograph count), alongside the event title and the description. The
+ * date is searched both as stored and as read, so `2024-07` and `July 2024`
+ * alike find a set dated 2024-07-12. The count is deliberately not searched on
+ * every set: its digits would match date queries ("May 3") on sets of 3.
+ */
+export function filterImageSets(rows: PublicImageSet[], q: string): PublicImageSet[] {
+	const tokens = tokenize(q);
+	if (tokens.length === 0) return [];
+
+	return rows.filter((row) => {
+		const fields = haystack([
+			imageSetLabel(row),
+			row.event,
+			row.description,
+			row.date,
+			row.date && formatPartialDate(row.date)
 		]);
 		return tokens.every((token) => fields.some((field) => field.includes(token)));
 	});
