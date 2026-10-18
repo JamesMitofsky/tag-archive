@@ -18,14 +18,15 @@
 />
 
 {#snippet placeholderMark()}
-	<!-- The art isn't drawn yet; until it is, its word stands in for it. -->
+	<!-- h-8, a step taller than the others: the tall capital leaves the lowercase
+	     a smaller share of the drawing, and h-8 brings it level with theirs. -->
 	<Drawing
 		src="/drawing/text/images.webp"
-		text="Images"
 		alt=""
 		aria-hidden="true"
-		class="h-6 w-auto"
-		textClass="text-base"
+		width="429"
+		height="226"
+		class="h-8 w-auto"
 	/>
 {/snippet}
 
