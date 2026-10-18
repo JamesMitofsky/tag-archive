@@ -1,5 +1,13 @@
 import { relations, sql } from 'drizzle-orm';
-import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+	index,
+	integer,
+	primaryKey,
+	sqliteTable,
+	text,
+	uniqueIndex
+} from 'drizzle-orm/sqlite-core';
+import type { ImageType } from '../../imageType';
 import { user } from './auth.schema';
 
 /**
@@ -249,6 +257,116 @@ export const submissionContact = sqliteTable('submission_contact', {
 });
 
 /**
+ * A set of photographs uploaded together: one or several images, with an
+ * optional description and an optional event. Unlike an artefact it has no
+ * title, location or program areas; its display label is derived (see
+ * $lib/images/label). Contributor-creatable, so it carries the proposal flag
+ * and waits in the review queue like an artefact.
+ */
+export const imageSet = sqliteTable(
+	'image_set',
+	{
+		id: autoIncrementId(),
+		description: text('description'),
+		// The event the photographs were taken at; nullable, no cascade (like artefact).
+		eventId: integer('event_id').references(() => event.id),
+		// A partial date (see $lib/partialDate), NULL when undated. Derived from the
+		// photographs' own capture dates — the earliest day among them — unless an
+		// admin overrode it on the edit page (`dateAuto` false).
+		date: text('date'),
+		// True while `date` follows the photographs; false once an admin set it by hand.
+		dateAuto: integer('date_auto', { mode: 'boolean' }).notNull().default(true),
+		...proposalColumns(),
+		...auditColumns()
+	},
+	(t) => [
+		// Serves the list order `ORDER BY date DESC, id DESC`, as on artefact and event.
+		index('image_set_date_id_idx').on(t.date, t.id),
+		// FK index for event joins.
+		index('image_set_event_id_idx').on(t.eventId)
+	]
+);
+
+/** One parsed metadata segment (tag → JSON-safe value). */
+export type MetadataSegment = Record<string, unknown>;
+
+/**
+ * A photograph's parsed metadata, as stored per image (see
+ * $lib/server/imageMetadata). Each segment is exifr's translated output for it,
+ * binary values removed. Never published: it can carry GPS and device details.
+ */
+export type ImageMetadata = {
+	ifd0?: MetadataSegment;
+	exif?: MetadataSegment;
+	gps?: MetadataSegment;
+	xmp?: MetadataSegment;
+	iptc?: MetadataSegment;
+	/** A summary of the embedded color profile, not the profile itself. */
+	icc?: MetadataSegment;
+	/** Segments left out to keep the stored record under its size cap, in drop order. */
+	omitted?: string[];
+};
+
+/**
+ * One photograph. Two stored objects per row: the original exactly as uploaded
+ * (`original_url`, bit-for-bit, metadata intact) and a WebP display copy
+ * (`url`, at most 2560px on its longest edge, no metadata) that can always be
+ * regenerated from the original. Rows are created by the upload's finalize step
+ * before any set exists, so `set_id` is NULL until a form attaches the image;
+ * unattached rows older than a day are swept (see $lib/server/uploads).
+ */
+export const image = sqliteTable(
+	'image',
+	{
+		id: autoIncrementId(),
+		setId: integer('set_id').references(() => imageSet.id, { onDelete: 'cascade' }),
+		// Display order within the set, 0-based.
+		position: integer('position').notNull().default(0),
+		// Public URL of the WebP display copy.
+		url: text('url').notNull(),
+		// Public URL of the original upload. Unique: finalize is idempotent on it.
+		originalUrl: text('original_url').notNull(),
+		// The original's type as sniffed from its bytes, never as the client declared it.
+		originalType: text('original_type').$type<ImageType>().notNull(),
+		// The file name the uploader's device gave the original, if any.
+		originalName: text('original_name'),
+		originalBytes: integer('original_bytes').notNull(),
+		// Size and pixel dimensions of the WebP display copy.
+		bytes: integer('bytes').notNull(),
+		width: integer('width').notNull(),
+		height: integer('height').notNull(),
+		// Wall-clock capture time `YYYY-MM-DDTHH:MM:SS` from the photo's own
+		// metadata, as the camera recorded it (no time zone applied), or NULL.
+		capturedAt: text('captured_at'),
+		// The camera's UTC offset at capture (`+02:00`), when it recorded one.
+		capturedOffset: text('captured_offset'),
+		metadata: text('metadata', { mode: 'json' }).$type<ImageMetadata | null>(),
+		...auditColumns()
+	},
+	(t) => [
+		uniqueIndex('image_original_url_idx').on(t.originalUrl),
+		// A set's images in display order.
+		index('image_set_position_idx').on(t.setId, t.position),
+		// The unattached-image sweep scans by age.
+		index('image_created_at_idx').on(t.createdAt)
+	]
+);
+
+/**
+ * How a public submitter can be reached about an image set they contributed —
+ * the image-set twin of `submission_contact`, kept off the public row for the
+ * same reason. One row per set; deleted with it.
+ */
+export const imageSetContact = sqliteTable('image_set_contact', {
+	setId: integer('set_id')
+		.primaryKey()
+		.references(() => imageSet.id, { onDelete: 'cascade' }),
+	name: text('name'),
+	email: text('email'),
+	...auditColumns()
+});
+
+/**
  * Fixed-window request counters for anonymous writes (see
  * $lib/server/rateLimit). `key` is `<bucket>:<hashed subject>` — the subject is
  * an IP address or draft id, hashed so no raw address is stored. Each key holds
@@ -284,7 +402,8 @@ export const seriesRelations = relations(series, ({ many }) => ({
 export const eventRelations = relations(event, ({ one, many }) => ({
 	series: one(series, { fields: [event.seriesId], references: [series.id] }),
 	hosts: many(eventHost),
-	artefacts: many(artefact)
+	artefacts: many(artefact),
+	imageSets: many(imageSet)
 }));
 export const personRelations = relations(person, ({ many }) => ({
 	artefacts: many(artefactProvenance),
@@ -309,6 +428,14 @@ export const artefactProvenanceRelations = relations(artefactProvenance, ({ one 
 	})
 }));
 
+export const imageSetRelations = relations(imageSet, ({ one, many }) => ({
+	event: one(event, { fields: [imageSet.eventId], references: [event.id] }),
+	images: many(image)
+}));
+export const imageRelations = relations(image, ({ one }) => ({
+	set: one(imageSet, { fields: [image.setId], references: [imageSet.id] })
+}));
+
 export type Series = typeof series.$inferSelect;
 export type NewSeries = typeof series.$inferInsert;
 export type Event = typeof event.$inferSelect;
@@ -328,5 +455,15 @@ export type SubmissionContact = typeof submissionContact.$inferSelect;
  * one-off) and hosts re-expanded to a plain name array from the join table.
  */
 export type EventWithMeta = Event & { series: string | null; hosts: string[] };
+export type ImageSet = typeof imageSet.$inferSelect;
+export type NewImageSet = typeof imageSet.$inferInsert;
+export type Image = typeof image.$inferSelect;
+export type NewImage = typeof image.$inferInsert;
+export type ImageSetContact = typeof imageSetContact.$inferSelect;
+/**
+ * Image set as the keeper views read it: linked event title flattened in (null
+ * when unlinked) and its images in display order.
+ */
+export type ImageSetWithMeta = ImageSet & { event: string | null; images: Image[] };
 
 export * from './auth.schema';
