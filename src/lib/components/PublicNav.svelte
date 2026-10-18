@@ -21,7 +21,6 @@
 			text: 'Artefacts'
 		},
 		{ href: '/events', label: 'Events', src: '/drawing/text/nav-events.webp', text: 'Events' },
-		// Not drawn yet: until it is, its words stand in for it (see `textClass`).
 		{ href: '/images', label: 'Images', src: '/drawing/text/nav-images.webp', text: 'Images' },
 		// The cloud keeper mark opens the contribution form. Sign-in lives at
 		// /keeper, deliberately unlinked: only admins sign in, and they keep its
