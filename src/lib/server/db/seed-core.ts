@@ -2,7 +2,9 @@
  * Shared archive-seeding logic for `db:seed` (local dev only). Reads the single
  * source export (src/lib/data/seed-data.json, `{ events, artefacts }`), normalises
  * it, and rewrites the six archive tables (series, event, person, event_host,
- * artefact, artefact_provenance).
+ * artefact, artefact_provenance). Image sets have no seed data and are cleared:
+ * they link events by id, which a re-seed reassigns, and their photographs live
+ * in the local store, which every dev boot starts empty.
  *
  * Seeding is dev-only by design — prod is already populated and its data evolves
  * through the keeper UI, not a re-seed. `seed.ts` refuses remote DB URLs, so this
@@ -14,7 +16,17 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { artefact, artefactProvenance, event, eventHost, person, series } from './schema';
+import {
+	artefact,
+	artefactProvenance,
+	event,
+	eventHost,
+	image,
+	imageSet,
+	imageSetContact,
+	person,
+	series
+} from './schema';
 
 /** Source row shape for an archive artefact (data still carries `event`/`provenance` as free text). */
 export type ArtefactSource = {
@@ -170,7 +182,11 @@ export async function seedArchive<S extends Record<string, unknown>>(
 	);
 
 	// Clean slate. Children before parents: the join tables reference their two
-	// sides; artefact + event reference their parents (event → series, joins → person).
+	// sides; artefact + event reference their parents (event → series, joins → person);
+	// image sets reference events, and their images and contact rows reference them.
+	await db.delete(image);
+	await db.delete(imageSetContact);
+	await db.delete(imageSet);
 	await db.delete(artefactProvenance);
 	await db.delete(eventHost);
 	await db.delete(artefact);

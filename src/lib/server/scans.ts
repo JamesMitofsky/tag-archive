@@ -49,7 +49,7 @@ export function isLocalStore(): boolean {
  * The CORS rule a local bucket gets, so the browser can PUT straight to it with
  * a presigned URL (see `presignPut`). Wide open on origin because it only ever
  * applies to a throwaway local store; prod's rule names the site's origins
- * (scripts/r2-cors.json, applied with `pnpm storage:cors`).
+ * (built by scripts/r2-cors.mjs and applied with `pnpm storage:cors`).
  */
 const LOCAL_CORS_XML =
 	'<CORSConfiguration><CORSRule>' +
@@ -62,7 +62,7 @@ const LOCAL_CORS_XML =
 // Local dev is intentionally ephemeral: each `pnpm dev` starts a fresh RustFS with no
 // bucket. `init-bucket.mjs` provisions it at boot, but a container-only restart wipes
 // it again. Rather than persist data, recreate the bucket on demand — mirrors
-// init-bucket.mjs (bucket PUT + public-read policy). Dev-only; never runs in prod.
+// init-bucket.mjs (bucket PUT, public-read policy, CORS rule). Dev-only; never runs in prod.
 async function ensureLocalBucket(c: AwsClient): Promise<void> {
 	const url = bucketEndpoint();
 

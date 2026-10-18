@@ -7,8 +7,8 @@
 //
 // Run with `node --env-file-if-exists=.env` so the dev credentials load, while any
 // endpoint/region exported by the Conductor run script still take precedence.
-import { createHash } from 'node:crypto';
 import { AwsClient } from 'aws4fetch';
+import { applyCors, applyPublicRead, CORS_FALLBACK_HINT } from './local-bucket.mjs';
 
 const {
 	R2_ACCESS_KEY_ID,
@@ -59,71 +59,22 @@ if (created.ok || created.status === 409) {
 }
 
 // Grant public read on the objects, so `${R2_PUBLIC_URL}/<key>` is fetchable.
-const policy = JSON.stringify({
-	Version: '2012-10-17',
-	Statement: [
-		{
-			Effect: 'Allow',
-			Principal: { AWS: ['*'] },
-			Action: ['s3:GetObject'],
-			Resource: [`arn:aws:s3:::${R2_BUCKET}/*`]
-		}
-	]
-});
-const policySet = await client.fetch(`${bucketUrl}?policy`, {
-	method: 'PUT',
-	body: policy,
-	headers: { 'Content-Type': 'application/json' }
-});
-if (policySet.ok) {
+const policyProblem = await applyPublicRead(client, bucketUrl, R2_BUCKET);
+if (policyProblem === null) {
 	console.log('[init-bucket] public-read policy applied.');
 } else {
 	// Non-fatal: uploads still work; only browser-facing public GETs might 403 if
 	// the engine doesn't support PutBucketPolicy. Dev boots regardless.
-	console.warn(
-		'[init-bucket] public-read policy not set:',
-		policySet.status,
-		await policySet.text()
-	);
+	console.warn('[init-bucket] public-read policy not set:', policyProblem);
 }
 
-// Let the browser PUT photographs straight to the bucket with the presigned URLs
-// the app issues (`presignPut` in src/lib/server/scans.ts). Wide open on origin,
-// as only a throwaway local store ever gets it, reached from localhost, a LAN
-// address or a tunnel alike. Keep it identical to LOCAL_CORS_XML in
-// src/lib/server/scans.ts, which re-applies it when the app recreates a lost
-// bucket. Prod's rule names the site's origins instead (scripts/r2-cors.mjs).
-const CORS_XML =
-	'<CORSConfiguration><CORSRule>' +
-	'<AllowedOrigin>*</AllowedOrigin>' +
-	'<AllowedMethod>PUT</AllowedMethod><AllowedMethod>GET</AllowedMethod>' +
-	'<AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader>' +
-	'<MaxAgeSeconds>3600</MaxAgeSeconds>' +
-	'</CORSRule></CORSConfiguration>';
-let corsProblem = null;
-try {
-	const corsSet = await client.fetch(`${bucketUrl}?cors`, {
-		method: 'PUT',
-		body: CORS_XML,
-		// S3 requires Content-MD5 on PutBucketCors.
-		headers: {
-			'Content-Type': 'application/xml',
-			'Content-MD5': createHash('md5').update(CORS_XML).digest('base64')
-		}
-	});
-	if (!corsSet.ok) corsProblem = `${corsSet.status} ${await corsSet.text()}`;
-} catch (e) {
-	corsProblem = e instanceof Error ? e.message : String(e);
-}
+// Let the browser PUT photographs straight to the bucket (see ./local-bucket.mjs).
+const corsProblem = await applyCors(client, bucketUrl);
 if (corsProblem === null) {
 	console.log('[init-bucket] CORS rule applied (browser uploads go straight to the bucket).');
 } else {
 	// Non-fatal: scans post through the app and are unaffected. Photograph
 	// uploads would fail their CORS preflight, and S3_UPLOAD_PROXY=1 in .env
 	// routes them through the app (/api/images/put) instead.
-	console.warn(
-		'[init-bucket] CORS rule not set:',
-		corsProblem,
-		'— photograph uploads from the browser will fail; set S3_UPLOAD_PROXY=1 in .env to route them through the app.'
-	);
+	console.warn('[init-bucket] CORS rule not set:', corsProblem, CORS_FALLBACK_HINT);
 }

@@ -542,4 +542,16 @@ describe('listing', () => {
 
 		expect(await loadImageSet(999_999)).toBeNull();
 	});
+
+	it('keeps photo metadata out of the lists, but not out of one set', async () => {
+		const id = await created([(await upload(byDraft)).id], asDraft());
+		const listed = [
+			...(await listImageSets()).find((set) => set.id === id)!.images,
+			...(await listProposedImageSets()).find((set) => set.id === id)!.images
+		];
+		expect(listed).toHaveLength(2);
+		for (const row of listed) expect(row).not.toHaveProperty('metadata');
+		const [one] = (await loadImageSet(id))!.images;
+		expect(one.metadata).toEqual({ gps: { latitude: 38.9, longitude: -77 } });
+	});
 });

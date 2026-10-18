@@ -6,7 +6,7 @@ import { stampInsert, stampUpdate } from './db/audit';
 import { isProposedAddition } from './db/proposals';
 import { resolveEventId } from './db/queries';
 import { event, image, imageSet, imageSetContact } from './db/schema';
-import type { Image, ImageSetWithMeta } from './db/schema';
+import type { Image, ImageSet, ImageSetWithMeta } from './db/schema';
 import { deleteImageObjects, ownsImage, type UploadOwner } from './imageUploads';
 import type { Actor } from './artefacts';
 import { isFullDate, isPartialDate } from '$lib/partialDate';
@@ -382,12 +382,29 @@ function selectImages(where: SQL | undefined) {
 		.orderBy(image.setId, image.position, image.id);
 }
 
+/**
+ * `selectImages` without the metadata column. Lists show a cover and a
+ * count, and a photo's metadata can run to 64 KB, so reading it for every
+ * image of every set would make the list's cost grow with the archive's
+ * photographs rather than its sets.
+ */
+function selectImageSummaries(where: SQL | undefined) {
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- dropped on purpose
+	const { metadata, ...columns } = getTableColumns(image);
+	return db
+		.select(columns)
+		.from(image)
+		.innerJoin(imageSet, eq(image.setId, imageSet.id))
+		.where(where)
+		.orderBy(image.setId, image.position, image.id);
+}
+
 /** Group `images` under their sets, keeping each set's display order. */
-function withImages<T extends { id: number }>(
+function withImages<T extends { id: number }, I extends { setId: number | null }>(
 	sets: T[],
-	images: Image[]
-): (T & { images: Image[] })[] {
-	const bySet = new Map<number, Image[]>();
+	images: I[]
+): (T & { images: I[] })[] {
+	const bySet = new Map<number, I[]>();
 	for (const row of images) {
 		if (row.setId === null) continue;
 		const list = bySet.get(row.setId) ?? [];
@@ -404,9 +421,17 @@ export async function loadImageSet(id: number): Promise<ImageSetWithMeta | null>
 	return withImages(sets, images)[0] ?? null;
 }
 
+/** An image row as the set lists read it: everything but its metadata. */
+export type ImageSummary = Omit<Image, 'metadata'>;
+/** A set as the lists read it: like `ImageSetWithMeta`, with image summaries. */
+export type ImageSetSummary = ImageSet & { event: string | null; images: ImageSummary[] };
+
 /** Every set, vetted or not, newest first (undated last), each with its images in order. */
-export async function listImageSets(): Promise<ImageSetWithMeta[]> {
-	const [sets, images] = await Promise.all([selectSets(undefined), selectImages(undefined)]);
+export async function listImageSets(): Promise<ImageSetSummary[]> {
+	const [sets, images] = await Promise.all([
+		selectSets(undefined),
+		selectImageSummaries(undefined)
+	]);
 	return withImages(sets, images);
 }
 
@@ -415,7 +440,7 @@ export async function listImageSets(): Promise<ImageSetWithMeta[]> {
  * chose to leave so a keeper can reach them (both null when they left
  * nothing, or for a signed-in contributor's submission).
  */
-export type ProposedImageSet = ImageSetWithMeta & {
+export type ProposedImageSet = ImageSetSummary & {
 	contactName: string | null;
 	contactEmail: string | null;
 };
@@ -436,7 +461,7 @@ export async function listProposedImageSets(): Promise<ProposedImageSet[]> {
 			.leftJoin(imageSetContact, eq(imageSetContact.setId, imageSet.id))
 			.where(pending)
 			.orderBy(desc(imageSet.date), desc(imageSet.id)),
-		selectImages(pending)
+		selectImageSummaries(pending)
 	]);
 	return withImages(sets, images);
 }
