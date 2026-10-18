@@ -39,7 +39,9 @@ vi.mock('$lib/server/imageMetadata', () => ({
 
 const { migrateTestDatabase } = await import('$lib/server/db/testing');
 const { db } = await import('$lib/server/db');
-const { image, user } = await import('$lib/server/db/schema');
+const { image, rateLimit, user } = await import('$lib/server/db/schema');
+const { LIMITS } = await import('$lib/server/rateLimit');
+const { sign } = await import('$lib/server/signing');
 const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('$lib/server/drafts');
 const { imageKeys } = await import('$lib/server/imageKeys');
 const { POST } = await import('./+server');
@@ -61,9 +63,14 @@ const OPEN_PASS = { kind: 't' as const, issuedAt: 0, expiresAt: Number.MAX_SAFE_
 
 type Caller = { user?: { id: string }; pass?: typeof OPEN_PASS; draftToken?: string };
 
-function visitor(): Caller & { prefix: string } {
+function visitor(): Caller & { prefix: string; draftId: string } {
 	const { token, draft } = mintDraftToken();
-	return { pass: OPEN_PASS, draftToken: token, prefix: submissionPrefix(draft.id) };
+	return {
+		pass: OPEN_PASS,
+		draftToken: token,
+		prefix: submissionPrefix(draft.id),
+		draftId: draft.id
+	};
 }
 
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new Array(60).fill(0)]);
@@ -162,6 +169,25 @@ describe('POST /api/images/finalize', () => {
 		fetchObject.mockRejectedValueOnce(new Error('R2 read failed: 500'));
 		await expect(finalize(caller, upload(caller.prefix))).rejects.toThrow('R2 read failed');
 		expect(deleteScan).not.toHaveBeenCalled();
+	});
+
+	it("refuses a visitor past the day's finalize allowance before reading anything", async () => {
+		const caller = visitor();
+		const keys = upload(caller.prefix);
+		// The counter row consume() keeps for this draft, already at the limit.
+		const { limit, windowMs } = LIMITS.finalizePerDraft;
+		await db.insert(rateLimit).values({
+			key: `finalize-draft:${sign('rate-limit', caller.draftId).slice(0, 22)}`,
+			windowStart: Math.floor(Date.now() / windowMs) * windowMs,
+			count: limit
+		});
+		expect((await finalize(caller, keys)).status).toBe(429);
+		expect(fetchObject).not.toHaveBeenCalled();
+		// Another visitor's allowance is their own, and keepers have none.
+		expect((await finalize(visitor(), upload(visitor().prefix))).status).toBe(403);
+		const other = visitor();
+		expect((await finalize(other, upload(other.prefix))).status).toBe(200);
+		expect((await finalize({ user: KEEPER }, upload(''))).status).toBe(200);
 	});
 
 	it('answers locked without a pass, or with a pass but no draft', async () => {
