@@ -28,9 +28,14 @@ free_port() {
 free_port "${DB_PORT}"
 free_port "${STUDIO_PORT}"
 
-# Wire the app (vite) + init script to the local RustFS.
+# Wire the app (vite) + init/seed scripts to the local RustFS. The credentials
+# and bucket default to the ones the container below is started with, so a .env
+# without the R2_* block still reaches it; set them in the shell to override.
 export S3_ENDPOINT="http://127.0.0.1:${S3_PORT}"
 export R2_PUBLIC_URL="http://127.0.0.1:${S3_PORT}/tag-archive"
+export R2_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID:-rustfsadmin}"
+export R2_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY:-rustfsadmin}"
+export R2_BUCKET="${R2_BUCKET:-tag-archive}"
 
 DB_CMD="turso dev --db-file local.db --port ${DB_PORT}"
 WEB_CMD="DATABASE_URL=http://127.0.0.1:${DB_PORT} pnpm dev"
@@ -45,7 +50,10 @@ if docker info >/dev/null 2>&1; then
 	docker rm -f tag-archive-rustfs >/dev/null 2>&1 || true
 	RUSTFS_CMD="docker run --rm --name tag-archive-rustfs -p ${S3_PORT}:9000 -e RUSTFS_ACCESS_KEY=rustfsadmin -e RUSTFS_SECRET_KEY=rustfsadmin -e RUSTFS_ADDRESS=:9000 rustfs/rustfs:latest /data"
 	SEED_IMG_CMD="DATABASE_URL=http://127.0.0.1:${DB_PORT} node --env-file-if-exists=.env scripts/seed-images.mjs"
-	INIT_CMD="(node --env-file-if-exists=.env scripts/init-bucket.mjs && ${SEED_IMG_CMD}) || echo '[storage] seed skipped (unavailable)'; ${WEB_CMD}"
+	SEED_PHOTO_CMD="DATABASE_URL=http://127.0.0.1:${DB_PORT} node --env-file-if-exists=.env scripts/seed-photographs.mjs"
+	# Each seed fails on its own: a broken photograph seed still leaves the scans,
+	# and the site boots either way.
+	INIT_CMD="if node --env-file-if-exists=.env scripts/init-bucket.mjs; then ${SEED_IMG_CMD} || echo '[seed-images] skipped'; ${SEED_PHOTO_CMD} || echo '[seed-photographs] skipped'; else echo '[storage] seed skipped (unavailable)'; fi; ${WEB_CMD}"
 	pnpm exec concurrently -k -n db,rustfs,studio,web -c magenta,yellow,green,cyan \
 		"${DB_CMD}" "${RUSTFS_CMD}" "${STUDIO_CMD}" "${INIT_CMD}"
 else

@@ -2,9 +2,9 @@
 	import BackButton from '$lib/components/BackButton.svelte';
 	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
 	import ReviewActions from '$lib/components/ReviewActions.svelte';
-	import { imageSetLabel } from '$lib/images/label';
+	import { imageSetLabel, withoutTitleLine } from '$lib/images/label';
 	// The keeper image pages' own wording, so a set reads the same here.
-	import { formatSetMeta, withoutTitleLine } from '../../../images/format';
+	import { formatSetMeta } from '../../../images/format';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

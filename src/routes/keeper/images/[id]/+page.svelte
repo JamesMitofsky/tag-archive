@@ -4,15 +4,9 @@
 	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
 	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
-	import { imageSetLabel } from '$lib/images/label';
+	import { imageSetLabel, withoutTitleLine } from '$lib/images/label';
 	import { morphName } from '$lib/transitions.svelte';
-	import {
-		formatCapturedAt,
-		formatFileSize,
-		formatImageType,
-		formatSetMeta,
-		withoutTitleLine
-	} from '../format';
+	import { formatCapturedAt, formatFileSize, formatImageType, formatSetMeta } from '../format';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

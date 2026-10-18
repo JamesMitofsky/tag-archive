@@ -73,24 +73,3 @@ export function formatSetMeta(
 	);
 	return [formatArtefactDate(set.date), ...rest].join(' · ');
 }
-
-/**
- * A set's description less its first line when that line is already showing
- * as the set's label (see `imageSetLabel`), so a page never prints it twice. A
- * first line too long for a label is shortened there, so it no longer matches
- * and the description keeps it, in full. Null when nothing is left to print.
- */
-export function withoutTitleLine(description: string | null, title: string): string | null {
-	if (!description) return null;
-	const lines = description.split(/\r?\n/);
-	const first = lines.findIndex((line) => line.trim());
-	// Blank throughout: nothing to print, rather than an empty paragraph.
-	if (first === -1) return null;
-	if (lines[first].trim() !== title) return description;
-	return (
-		lines
-			.slice(first + 1)
-			.join('\n')
-			.trim() || null
-	);
-}

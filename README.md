@@ -31,6 +31,15 @@ re-runs each boot; re-attach by hand with `pnpm db:seed:images`. If a scan uploa
 ever 404s with `NoSuchBucket` (e.g. the storage container restarted alone), the
 upload path recreates the bucket and retries — no restart needed.
 
+It then seeds six demo image sets (`scripts/seed-photographs.mjs`): painted
+photographs uploaded through the app's own finalize and image-set code, so they
+carry real EXIF capture dates and land like any upload. Four are published on
+`/images` (several photographs at an event, a single photograph, a set with no
+event, an undated set); two wait in the review queue (one from the test
+contributor, one anonymous with contact details). Each run replaces the last
+run's sets (their photographs are named `demo-…`); re-seed by hand with
+`pnpm db:seed:photographs`.
+
 More detail (individual services, Drizzle Studio, prod storage) is below.
 
 ## Data model
@@ -129,7 +138,7 @@ SQLite file), then stops it:
 Tables after setup: the archive's (see [Data model](#data-model)) plus Better
 Auth's `user`, `session`, `account`, `verification`.
 
-Other DB scripts: `db:seed`, `db:seed:images`, `db:push`, `db:generate`, `db:migrate`, `db:studio`.
+Other DB scripts: `db:seed`, `db:seed:images`, `db:seed:photographs`, `db:push`, `db:generate`, `db:migrate`, `db:studio`.
 
 ## Attachments
 

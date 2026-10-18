@@ -12,6 +12,7 @@
 		"dev:storage:init": "S3_ENDPOINT=http://127.0.0.1:9000 R2_PUBLIC_URL=http://127.0.0.1:9000/tag-archive node --env-file-if-exists=.env scripts/init-bucket.mjs",
 		"storage:cors": "node scripts/r2-cors.mjs",
 		"db:seed:images": "S3_ENDPOINT=http://127.0.0.1:9000 R2_PUBLIC_URL=http://127.0.0.1:9000/tag-archive DATABASE_URL=http://127.0.0.1:8081 node --env-file-if-exists=.env scripts/seed-images.mjs",
+		"db:seed:photographs": "S3_ENDPOINT=http://127.0.0.1:9000 R2_PUBLIC_URL=http://127.0.0.1:9000/tag-archive DATABASE_URL=http://127.0.0.1:8081 node --env-file-if-exists=.env scripts/seed-photographs.mjs",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync && husky || echo ''",

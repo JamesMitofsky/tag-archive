@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { imageSetLabel } from '$lib/images/label';
-import {
-	formatCapturedAt,
-	formatFileSize,
-	formatImageType,
-	formatSetMeta,
-	withoutTitleLine
-} from './format';
+import { formatCapturedAt, formatFileSize, formatImageType, formatSetMeta } from './format';
 
 describe('formatCapturedAt', () => {
 	it('reads a wall-clock time as written, whatever zone the viewer is in', () => {
@@ -69,30 +63,5 @@ describe('formatSetMeta', () => {
 		const bare = { date: null, event: null, count: 1 };
 		expect(formatSetMeta(bare, imageSetLabel(bare))).toBe('Undated');
 		expect(formatSetMeta({ ...bare, date: '2019-07' }, 'Picnic')).toBe('July 2019 · 1 photograph');
-	});
-});
-
-describe('withoutTitleLine', () => {
-	it('drops the first line when it is the label', () => {
-		const description = 'Picnic in the garden\n\nEveryone brought a dish.';
-		const label = imageSetLabel({ description, count: 3 });
-		expect(withoutTitleLine(description, label)).toBe('Everyone brought a dish.');
-		expect(withoutTitleLine('  Picnic in the garden  ', 'Picnic in the garden')).toBeNull();
-	});
-
-	it('keeps the whole description when the label came from elsewhere', () => {
-		const description = 'Picnic in the garden\nEveryone brought a dish.';
-		const label = imageSetLabel({ event: 'Summer Picnic', description });
-		expect(withoutTitleLine(description, label)).toBe(description);
-	});
-
-	it('keeps a first line too long to be the label whole', () => {
-		const description = 'x'.repeat(100);
-		expect(withoutTitleLine(description, imageSetLabel({ description }))).toBe(description);
-	});
-
-	it('prints nothing for a blank description', () => {
-		expect(withoutTitleLine(null, '3 photographs')).toBeNull();
-		expect(withoutTitleLine(' \n ', '3 photographs')).toBeNull();
 	});
 });

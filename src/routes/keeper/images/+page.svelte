@@ -5,9 +5,9 @@
 	import ImageSquareIcon from 'phosphor-svelte/lib/ImageSquareIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
-	import { imageSetLabel } from '$lib/images/label';
+	import { imageSetLabel, withoutTitleLine } from '$lib/images/label';
 	import { morphVar } from '$lib/transitions.svelte';
-	import { formatSetMeta, withoutTitleLine } from './format';
+	import { formatSetMeta } from './format';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

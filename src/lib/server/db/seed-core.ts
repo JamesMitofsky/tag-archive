@@ -2,9 +2,10 @@
  * Shared archive-seeding logic for `db:seed` (local dev only). Reads the single
  * source export (src/lib/data/seed-data.json, `{ events, artefacts }`), normalises
  * it, and rewrites the six archive tables (series, event, person, event_host,
- * artefact, artefact_provenance). Image sets have no seed data and are cleared:
- * they link events by id, which a re-seed reassigns, and their photographs live
- * in the local store, which every dev boot starts empty.
+ * artefact, artefact_provenance). Image sets are cleared: they link events by
+ * id, which a re-seed reassigns, and their photographs live in the local store,
+ * which every dev boot starts empty. Demo sets are seeded separately, once the
+ * store is up (see ./seed-photographs).
  *
  * Seeding is dev-only by design — prod is already populated and its data evolves
  * through the keeper UI, not a re-seed. `seed.ts` refuses remote DB URLs, so this
