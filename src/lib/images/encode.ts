@@ -20,9 +20,9 @@ export async function encodeWebP(
 	canvas: HTMLCanvasElement,
 	quality = ENCODE_QUALITY
 ): Promise<Blob> {
-	// Nothing to encode: a released canvas, or a panorama sliver that
-	// downscaling rounded to zero rows. Neither encoder makes a WebP of it
-	// (the native one hands back null, libwebp's pixels can't even be read).
+	// Nothing to encode: a released canvas (see `releaseCanvas`). Neither
+	// encoder makes a WebP of it (the native one hands back null, libwebp's
+	// pixels can't even be read).
 	if (canvas.width === 0 || canvas.height === 0) throw new Error(UNENCODABLE_PHOTO);
 	const q = Number.isFinite(quality) ? Math.min(Math.max(quality, 0), 1) : ENCODE_QUALITY;
 
@@ -39,13 +39,25 @@ function nativeWebP(canvas: HTMLCanvasElement, quality: number): Promise<Blob | 
 	return new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
 }
 
+/** libwebp's WebAssembly, once loading it has started; cleared if it fails. */
+let libwebpReady: Promise<unknown> | undefined;
+
 /** `quality` is 0–1, already clamped. */
 async function wasmWebP(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
 	let encode: typeof import('@jsquash/webp/encode').default;
 	try {
-		({ default: encode } = await import('@jsquash/webp/encode'));
+		const libwebp = await import('@jsquash/webp/encode');
+		// The .wasm is a download of its own, which `encode` would start on first
+		// use: a failure there would be blamed on the photo, and libwebp keeps a
+		// failed load for the page's life. Calling `init` again starts it afresh.
+		libwebpReady ??= libwebp.init().catch((error: unknown) => {
+			libwebpReady = undefined;
+			throw error;
+		});
+		await libwebpReady;
+		encode = libwebp.default;
 	} catch {
-		// A download of its own: a lost connection, not the photo's fault.
+		// Downloads of their own: a lost connection, not the photo's fault.
 		throw new Error('The WebP converter could not be loaded. Check your connection.');
 	}
 

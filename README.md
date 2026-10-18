@@ -157,7 +157,11 @@ queue. Anonymous writes are guarded by:
   uploading; it writes for as long as their access pass is open. Uploads land in
   that draft's own `submissions/<draft>/` space; only it can delete from there, and
   a submission can only attach images from there. A re-tap renews the same draft,
-  so a visitor whose pass ran out mid-form loses nothing.
+  so a visitor whose pass ran out mid-form loses nothing. The space is read from
+  a URL's bucket key, and only a plain key counts (`isPlainKey` in
+  `src/lib/server/scans.ts`: letters, digits, `.`, `_` and `-`, no segment
+  starting with a dot), since a bucket request would turn `%2e%2e`, a backslash
+  and the like into a step up a folder. Every bucket request refuses any other key.
 - **Rate limits** backed by the `rate_limit` table (`src/lib/server/rateLimit.ts`).
 - **A daily sweep** (`netlify/functions/sweep-submissions.mts` →
   `/api/cron/sweep-submissions`) that deletes abandoned uploads and stale counters
@@ -252,16 +256,20 @@ Why this shape:
 | Kept                                                    | Where                                   | Public                                                   |
 | ------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------- |
 | The original, bit-for-bit (its metadata intact)         | `…images/<uuid>/original.<ext>`         | Not listed anywhere public; reachable by its URL (below) |
-| A WebP display copy (≤ 2560 px, no metadata)            | `…images/<uuid>/display.webp`           | Yes: what every page shows                               |
+| A WebP display copy (≤ 2560 px, no metadata)            | `…images/<display id>/display.webp`     | Yes: what every page shows                               |
 | Parsed metadata (EXIF, GPS, XMP, IPTC), as JSON ≤ 64 KB | `image.metadata`                        | Never                                                    |
 | Capture time and UTC offset                             | `image.captured_at` / `captured_offset` | Only the day                                             |
 
 `…` is empty for a keeper's upload and `submissions/<draft>/` for a
-contributor's. `/api/dataset` builds each photograph from an explicit field
-whitelist (`id`, `url`, `width`, `height`, `capturedDate`), so originals and
-metadata never reach it. But the bucket is public: an original stays reachable
-by its direct, unguessable URL, the same accepted limit as scans (see
-[Access](#access)).
+contributor's. `<display id>` is an HMAC of `<uuid>` under a key derived from
+`BETTER_AUTH_SECRET` (`src/lib/server/imageKeys.ts`), written in a uuid's shape,
+so the published display URL doesn't lead to the original's folder.
+`/api/dataset` builds each photograph from an explicit field whitelist (`id`,
+`url`, `width`, `height`, `capturedDate`), so originals and metadata never reach
+it. But the bucket is public: an original stays reachable by its direct URL.
+That URL is random, can't be worked out from the display URL without the
+server's secret, and is only ever shown to keepers and to its own uploader (see
+[Access](#access) for the limit this shares with scans).
 
 **Metadata parsing** (`src/lib/server/imageMetadata.ts`) treats every original
 as hostile, since anyone with a pass can upload one. exifr decodes the tags, but
@@ -277,6 +285,12 @@ the day the camera's clock showed, no time zone applied — recomputed whenever
 its photographs change, or NULL when none records one. An admin can set it by
 hand on the edit page (`date_auto` off), and switch back to following the
 photographs.
+
+**Edits.** The edit page posts the set's version (its `updated_at`) with every
+save and delete, and either is refused once the set has changed since the page
+was opened (another admin's save, an approval). Saving from an out-of-date page
+would otherwise overwrite fields nobody re-read and delete photographs added in
+the meantime.
 
 #### Sweeps
 
@@ -428,7 +442,9 @@ valid one). To retire a lost tag, set its `revoked_at` in the `nfc_tag` table
 (Drizzle Studio).
 
 Known limits, accepted for now: scans and photographs uploaded to R2 (originals
-included) stay reachable by their direct (random, unguessable) URL; search
+included) stay reachable by their direct URL. Those URLs are random, and a
+photograph's original can't be found from its published display URL (see
+[Photographs](#photographs)), but anyone given one can read it. Search
 engines see only `/locked`; and an iPhone opens the tapped link in a new Safari
 tab — a `/locked` tab left open moves on by itself when the visitor returns to
 it.

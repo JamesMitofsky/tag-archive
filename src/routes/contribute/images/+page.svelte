@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { latchedSubmission } from '$lib/forms/submission.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import AsyncComboField from '$lib/components/AsyncComboField.svelte';
@@ -27,13 +28,11 @@
 	// again" message, shown in place, so nothing typed or uploaded is lost, and a
 	// fresh tap resumes the same draft (whose uploads stay attachable).
 
-	// After an anonymous submit: the new set's id and the token that lets this
-	// visitor (and only them) attach contact details to it.
-	const submitted = $derived(
-		form && 'submitted' in form && form.submitted
-			? (form.submitted as { id: number; token: string })
-			: undefined
-	);
+	// After an anonymous submit: the new set's id and the token that lets
+	// this visitor (and only them) attach contact details to it — held through
+	// each answer to the contact form (see latchedSubmission).
+	const submission = latchedSubmission(() => form);
+	const submitted = $derived(submission.value);
 	const connected = $derived(!!(form && 'connected' in form && form.connected));
 	const contactError = $derived(form && 'contactError' in form ? form.contactError : undefined);
 	const contactErrors = $derived(
@@ -83,12 +82,14 @@
 
 	// True while any photograph is still uploading.
 	let uploading = $state(false);
+	// How many photographs failed to upload, waiting to be tried again or removed.
+	let failedUploads = $state(0);
 	// True while the form submit action is processing.
 	let submitting = $state(false);
 
-	// Block submit until a photograph is in and none is still on its way: a set
-	// saved mid-upload would quietly leave the unfinished ones out.
-	const canSubmit = $derived(imageIds.length > 0 && !uploading);
+	// Block submit until a photograph is in and every one has arrived: a set
+	// saved mid-upload, or past a failed one, would quietly leave those out.
+	const canSubmit = $derived(imageIds.length > 0 && !uploading && failedUploads === 0);
 
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
@@ -148,7 +149,7 @@
 					use:enhance={({ formData, cancel }) => {
 						// The button waits for uploads, but an Enter key press in a field
 						// doesn't ask it.
-						if (uploading) {
+						if (uploading || failedUploads > 0) {
 							cancel();
 							return;
 						}
@@ -175,6 +176,7 @@
 							label="Photographs"
 							required
 							bind:pending={uploading}
+							bind:failed={failedUploads}
 							onChange={(ids) => {
 								imageIds = ids;
 								validator.touch('imageIds');
@@ -216,10 +218,22 @@
 						<p class="font-friendly text-sm text-red-600" role="alert">{imageSetError}</p>
 					{/if}
 
+					<!-- Why the button is held, beside it: the uploader's own alert may be
+					     scrolled well out of view on a phone. -->
+					{#if failedUploads > 0}
+						<p id="failed-uploads" class="font-friendly text-sm text-gray-700">
+							{failedUploads === 1
+								? '1 photograph wasn’t uploaded. Try it again, or remove it,'
+								: `${failedUploads} photographs weren’t uploaded. Try them again, or remove them,`}
+							before adding to the archive.
+						</p>
+					{/if}
+
 					<button
 						type="submit"
 						disabled={!canSubmit || submitting}
 						aria-busy={submitting}
+						aria-describedby={failedUploads > 0 ? 'failed-uploads' : undefined}
 						class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 					>
 						{#if submitting}

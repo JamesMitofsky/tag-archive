@@ -25,6 +25,11 @@
 		form && 'values' in form && form.values ? (form.values as ImageSetFormValues) : undefined
 	);
 	const setError = $derived(form && 'setError' in form ? form.setError : undefined);
+	// The set's version as this page loaded it, read once: both forms act on
+	// what the page shows, and a later reload of `data` (were anything to
+	// cause one) must not quietly move them onto a set nobody has looked at.
+	// svelte-ignore state_referenced_locally
+	const loadedVersion = data.set.version;
 	const errors = $derived(
 		form && 'errors' in form && form.errors ? (form.errors as Record<string, string[]>) : {}
 	);
@@ -67,14 +72,20 @@
 
 	// True while a photograph is still uploading.
 	let uploading = $state(false);
+	// How many photographs failed to upload, waiting to be tried again or removed.
+	let failedUploads = $state(0);
 	// True while update or delete actions are processing.
 	let submitting = $state(false);
 	let deleting = $state(false);
 
-	// Hold the save until every photograph is in, there is at least one, and a
-	// hand-set date has an answer ("No date" counts as one).
+	// Hold the save until every photograph is in (none still on its way or
+	// failed, which a save would quietly leave out), there is at least one, and
+	// a hand-set date has an answer ("No date" counts as one).
 	const canSubmit = $derived(
-		!uploading && imageIds.length > 0 && (dateAuto || formDate.trim().length > 0)
+		!uploading &&
+			failedUploads === 0 &&
+			imageIds.length > 0 &&
+			(dateAuto || formDate.trim().length > 0)
 	);
 
 	// The uploader and the date picker change state without a bubbling input
@@ -109,6 +120,12 @@
 				oninput={revalidate}
 				onfocusout={markTouched}
 				use:enhance={({ formData, cancel }) => {
+					// The button waits for uploads, but an Enter key press in a field
+					// doesn't ask it.
+					if (uploading || failedUploads > 0) {
+						cancel();
+						return;
+					}
 					validator.revealAll();
 					if (!validator.run(parseImageSetForm(formData))) {
 						cancel();
@@ -125,6 +142,9 @@
 				{#each imageIds as id (id)}
 					<input type="hidden" name="imageIds" value={id} />
 				{/each}
+				<!-- The version of the set this page shows: the save is refused once
+				     it has moved on, rather than undo what this page never showed. -->
+				<input type="hidden" name="version" value={loadedVersion} />
 
 				<!-- Removing a photograph that was already in the set only takes effect on
 				     save, when the server deletes it; until then leaving undoes it. -->
@@ -134,6 +154,7 @@
 						required
 						initial={data.set.images}
 						bind:pending={uploading}
+						bind:failed={failedUploads}
 						onChange={(ids) => {
 							imageIds = ids;
 							validator.touch('imageIds');
@@ -217,10 +238,20 @@
 					<p class="font-friendly text-sm text-red-600" role="alert">{setError}</p>
 				{/if}
 
+				{#if failedUploads > 0}
+					<p id="failed-uploads" class="font-friendly text-sm text-gray-700">
+						{failedUploads === 1
+							? '1 photograph wasn’t uploaded. Try it again, or remove it,'
+							: `${failedUploads} photographs weren’t uploaded. Try them again, or remove them,`}
+						before saving.
+					</p>
+				{/if}
+
 				<button
 					type="submit"
 					disabled={!canSubmit || submitting || deleting}
 					aria-busy={submitting}
+					aria-describedby={failedUploads > 0 ? 'failed-uploads' : undefined}
 					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>
 					{#if submitting}
@@ -252,6 +283,8 @@
 						};
 					}}
 				>
+					<!-- Deletes only the set as this page shows it (see the save form's version). -->
+					<input type="hidden" name="version" value={loadedVersion} />
 					<button
 						type="submit"
 						disabled={deleting || submitting}

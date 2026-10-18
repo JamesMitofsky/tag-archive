@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sniffImageType } from '$lib/imageType';
+import { MAX_DIM, downscale, releaseCanvas } from '$lib/scanner/image';
 import { bytesOf, dimensionsOf } from '$lib/testing/images';
 import { paintedCanvas, simulateWebKitCanvas } from '$lib/testing/scanner';
 import { encodeWebP, UNENCODABLE_PHOTO } from './encode';
@@ -45,10 +46,14 @@ describe('encodeWebP without a WebP encoder (WebKit)', () => {
 		expect(sniffImageType(await bytesOf(await encodeWebP(source, Number.NaN)))).toBe('image/webp');
 	});
 
+	it('encodes what downscaling leaves of a panorama sliver', async () => {
+		const sliver = downscale(paintedCanvas(10000, 1), 10000, 1)!;
+		expect(await dimensionsOf(await encodeWebP(sliver))).toEqual({ width: MAX_DIM, height: 1 });
+	});
+
 	it('says so, rather than failing deep inside, when there are no pixels to encode', async () => {
-		// What downscaling leaves of a 10000×1 panorama sliver: 2560×0.
-		const sliver = paintedCanvas(16, 16);
-		sliver.height = 0;
-		await expect(encodeWebP(sliver)).rejects.toThrow(UNENCODABLE_PHOTO);
+		const released = paintedCanvas(16, 16);
+		releaseCanvas(released);
+		await expect(encodeWebP(released)).rejects.toThrow(UNENCODABLE_PHOTO);
 	});
 });

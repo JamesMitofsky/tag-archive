@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import FieldError from '$lib/components/FieldError.svelte';
@@ -49,6 +50,10 @@
 	let connectOpen = $state(false);
 	let connecting = $state(false);
 	const contactValidator = createValidator(createContactSuite(), () => contactErrors);
+	const refused = $derived(!!contactError || Object.keys(contactErrors).length > 0);
+	// Open once asked for, and whenever there is a refusal to show: a page that
+	// renders this anew with the answer (a no-JS post, say) starts it closed.
+	const contactShown = $derived(connectOpen || refused);
 
 	// Each step here replaces the control that had focus (the form's submit
 	// button, the "Leave a name or email" button, Save), so focus moves to what
@@ -58,11 +63,22 @@
 	let heading = $state<HTMLHeadingElement>();
 	let nameInput = $state<HTMLInputElement | null>(null);
 	let confirmation = $state<HTMLParagraphElement>();
+	let contactForm = $state<HTMLFormElement>();
 	$effect(() => {
 		heading?.focus();
 	});
 	$effect(() => {
 		nameInput?.focus();
+	});
+	// A refusal leaves the form as it was, typed values and all, and brings
+	// focus back into it if it has left: Save, disabled while sending, loses it.
+	// Read directly, not through `refused`: every answer brings a fresh
+	// `contactErrors`, so a refusal repeated word for word counts again.
+	$effect(() => {
+		if (!contactError && Object.keys(contactErrors).length === 0) return;
+		untrack(() => {
+			if (!contactForm?.contains(document.activeElement)) nameInput?.focus();
+		});
 	});
 	$effect(() => {
 		confirmation?.focus();
@@ -107,7 +123,7 @@
 			Thanks — a keeper may be in touch about {words.these}
 			{noun}.
 		</p>
-	{:else if !connectOpen}
+	{:else if !contactShown}
 		<button
 			type="button"
 			onclick={() => (connectOpen = true)}
@@ -117,6 +133,7 @@
 		</button>
 	{:else}
 		<form
+			bind:this={contactForm}
 			method="POST"
 			action="?/connect"
 			class="space-y-3"

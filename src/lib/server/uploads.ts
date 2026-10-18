@@ -1,7 +1,7 @@
 import { and, inArray, isNull, like, lt, or, sql, type SQL } from 'drizzle-orm';
 import { db } from './db';
 import { artefact, image } from './db/schema';
-import { deleteScan, keyFromUrl, listScans } from './scans';
+import { deleteScan, isPlainKey, keyFromUrl, listScans } from './scans';
 
 /**
  * Housekeeping for uploaded images that nothing uses. Sources of orphans:
@@ -131,7 +131,10 @@ const MAX_DELETES_PER_SWEEP = 500;
  */
 export async function sweepAbandonedSubmissions(now = Date.now()): Promise<number> {
 	const stale = (await listScans('submissions/')).filter(
-		(object) => now - object.lastModified.getTime() > ABANDONED_AFTER_MS
+		(object) =>
+			now - object.lastModified.getTime() > ABANDONED_AFTER_MS &&
+			// The archive only ever writes plain keys, and `deleteScan` refuses any other.
+			isPlainKey(object.key)
 	);
 	if (stale.length === 0) return 0;
 
@@ -180,8 +183,9 @@ export async function sweepUnattachedImages(now = Date.now()): Promise<number> {
 }
 
 /**
- * A keeper's photograph object, as ./imageKeys lays them out: only these are
- * ever swept, so nothing else stored under `images/` is touched.
+ * A keeper's photograph object, as ./imageKeys lays them out (a display copy's
+ * folder is uuid-shaped too): only these are ever swept, so nothing else
+ * stored under `images/` is touched.
  */
 const KEEPER_IMAGE_OBJECT_RE =
 	/^images\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(?:original\.(?:jpg|png|webp|gif|heic)|display\.webp)$/;

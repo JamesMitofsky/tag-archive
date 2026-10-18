@@ -1,19 +1,56 @@
-import { describe, expect, it } from 'vitest';
-import { imageKeys, parseImageKeys, parseOriginalKey } from './imageKeys';
+import { describe, expect, it, vi } from 'vitest';
+
+const env = vi.hoisted(() => ({ BETTER_AUTH_SECRET: 'test-secret' }));
+vi.mock('$env/dynamic/private', () => ({ env }));
+
+const { imageKeys, parseImageKeys, parseOriginalKey } = await import('./imageKeys');
+const { isPlainKey } = await import('./scans');
 
 const UUID = '0b6f8d2e-3c4a-4f1e-9a7b-5d2c1e0f9a8b';
 const DRAFT = 'AbCdEfGhIjKlMnOpQrStUv';
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** The folder a key sits in, under `images/`. */
+const folderOf = (key: string) => /images\/([^/]+)\//.exec(key)?.[1];
+
+/** The display copy's folder for `UUID`'s original, under `secret`. */
+function displayFolderUnder(secret: string) {
+	const saved = env.BETTER_AUTH_SECRET;
+	env.BETTER_AUTH_SECRET = secret;
+	try {
+		return folderOf(imageKeys('', 'image/jpeg', UUID).displayKey);
+	} finally {
+		env.BETTER_AUTH_SECRET = saved;
+	}
+}
 
 describe('imageKeys', () => {
-	it('puts both objects in one folder per image', () => {
-		expect(imageKeys('', 'image/heic', UUID)).toEqual({
-			originalKey: `images/${UUID}/original.heic`,
-			displayKey: `images/${UUID}/display.webp`
-		});
-		expect(imageKeys(`submissions/${DRAFT}/`, 'image/jpeg', UUID)).toEqual({
-			originalKey: `submissions/${DRAFT}/images/${UUID}/original.jpg`,
-			displayKey: `submissions/${DRAFT}/images/${UUID}/display.webp`
-		});
+	it('lays the original out under its uuid, in the uploader’s space', () => {
+		expect(imageKeys('', 'image/heic', UUID).originalKey).toBe(`images/${UUID}/original.heic`);
+		expect(imageKeys(`submissions/${DRAFT}/`, 'image/jpeg', UUID).originalKey).toBe(
+			`submissions/${DRAFT}/images/${UUID}/original.jpg`
+		);
+	});
+
+	it('puts the display copy in a folder of its own, in the same space', () => {
+		for (const prefix of ['', `submissions/${DRAFT}/`]) {
+			const { originalKey, displayKey } = imageKeys(prefix, 'image/jpeg', UUID);
+			const folder = folderOf(displayKey)!;
+			expect(displayKey).toBe(`${prefix}images/${folder}/display.webp`);
+			expect(folder).toMatch(UUID_SHAPE);
+			expect(folder).not.toBe(folderOf(originalKey));
+			expect(isPlainKey(displayKey)).toBe(true);
+		}
+	});
+
+	it('keeps the original’s folder out of reach of anyone holding only the display URL', () => {
+		// The display folder is a keyed hash of the original's: without the
+		// server's secret it can't be recomputed, let alone turned back.
+		expect(displayFolderUnder('test-secret')).toBe(
+			folderOf(imageKeys('', 'image/jpeg', UUID).displayKey)
+		);
+		expect(displayFolderUnder('another-secret')).not.toBe(displayFolderUnder('test-secret'));
+		expect(displayFolderUnder('test-secret')).not.toContain(UUID.slice(0, 8));
 	});
 
 	it('never collides when the original is itself a WebP', () => {
@@ -39,15 +76,18 @@ describe('parseImageKeys', () => {
 		}
 	});
 
-	it('refuses a display key outside the original’s own folder', () => {
+	it('refuses any display key but the one derived from the original', () => {
 		const mine = imageKeys('', 'image/png', UUID);
 		const other = imageKeys('', 'image/png');
-		expect(
-			parseImageKeys({ originalKey: mine.originalKey, displayKey: other.displayKey })
-		).toBeNull();
-		expect(
-			parseImageKeys({ originalKey: mine.originalKey, displayKey: mine.originalKey })
-		).toBeNull();
+		for (const displayKey of [
+			other.displayKey,
+			mine.originalKey,
+			// The layout before display copies got their own folder.
+			`images/${UUID}/display.webp`,
+			`submissions/${DRAFT}/${mine.displayKey}`
+		]) {
+			expect(parseImageKeys({ originalKey: mine.originalKey, displayKey })).toBeNull();
+		}
 	});
 
 	it.each([
@@ -63,7 +103,8 @@ describe('parseImageKeys', () => {
 		`images/${UUID}/original.jpg?x=1`,
 		`${UUID}.webp`
 	])('refuses %s', (originalKey) => {
-		const displayKey = originalKey.replace(/original\.\w+.*$/, 'display.webp');
+		// Paired with the display key its uuid would get, were it well formed.
+		const displayKey = imageKeys('', 'image/jpeg', UUID).displayKey;
 		expect(parseImageKeys({ originalKey, displayKey })).toBeNull();
 	});
 
@@ -73,10 +114,10 @@ describe('parseImageKeys', () => {
 });
 
 describe('parseOriginalKey', () => {
-	it('implies the display sibling', () => {
-		expect(parseOriginalKey(`images/${UUID}/original.gif`)?.displayKey).toBe(
-			`images/${UUID}/display.webp`
-		);
+	it('derives the display key', () => {
+		const keys = imageKeys(`submissions/${DRAFT}/`, 'image/gif', UUID);
+		expect(parseOriginalKey(keys.originalKey)?.displayKey).toBe(keys.displayKey);
+		expect(parseOriginalKey(keys.displayKey)).toBeNull();
 		expect(parseOriginalKey(`images/${UUID}/display.webp`)).toBeNull();
 	});
 });

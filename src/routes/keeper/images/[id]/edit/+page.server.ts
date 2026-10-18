@@ -3,6 +3,7 @@ import {
 	computeSetDate,
 	deleteImageSet as deleteSet,
 	loadImageSet,
+	STALE_REFUSAL,
 	updateImageSet as saveSet
 } from '$lib/server/imageSets';
 import { toUploadedImage } from '$lib/server/imageUploads';
@@ -51,7 +52,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			event: set.event,
 			date: set.date,
 			dateAuto: set.dateAuto,
-			images: set.images.map(toUploadedImage)
+			images: set.images.map(toUploadedImage),
+			// When the set last changed, in ms: the save sends it back, and is
+			// refused once anything (another save, an approval) has moved it on.
+			version: set.updatedAt.getTime()
 		},
 		// What the photographs alone give, for the read-only date while it follows
 		// them — the stored date may be a hand-set override.
@@ -82,9 +86,11 @@ export const actions: Actions = {
 		}
 
 		// Membership, order, removals and the date all settle in here; a refusal
-		// (a photograph claimed elsewhere, the set deleted meanwhile) leaves the
-		// set as it was.
-		const saved = await saveSet(id.data, data, userId);
+		// (the set changed since the page loaded, a photograph claimed elsewhere,
+		// the set deleted meanwhile) leaves the set as it was. A page sent with no
+		// version reads as NaN, which no set is at: it's refused as changed.
+		const version = Number(form.get('version') ?? NaN);
+		const saved = await saveSet(id.data, data, userId, { version });
 		if (!saved.ok) {
 			return fail(400, { setError: saved.message, values: echo(form, data.dateAuto) });
 		}
@@ -93,7 +99,7 @@ export const actions: Actions = {
 		throw redirect(303, `/keeper/images/${id.data}`);
 	},
 
-	deleteImageSet: async ({ params, locals }) => {
+	deleteImageSet: async ({ request, params, locals }) => {
 		if (!locals.user) return fail(401, { setError: 'Sign in to delete an image set' });
 		// Server-side role gate — the UI hides the button, but this is the enforcement.
 		if (locals.user.role !== 'admin') {
@@ -103,9 +109,15 @@ export const actions: Actions = {
 		const id = idSchema.safeParse(params.id);
 		if (!id.success) return fail(400, { setError: 'Unknown image set' });
 
-		// Takes the photographs with it, rows and stored originals. Already gone
-		// (a second tab, say) ends in the same place.
-		await deleteSet(id.data);
+		// Takes the photographs with it, rows and stored originals — but only the
+		// set as this page showed it: one changed since (another admin's save)
+		// may hold photographs nobody here has seen. A missing or unreadable
+		// version reads as NaN, which no set is at. Already gone (a second tab,
+		// say) ends in the same place as deleted.
+		const version = Number((await request.formData()).get('version') ?? NaN);
+		if (!(await deleteSet(id.data, { version })) && (await loadImageSet(id.data))) {
+			return fail(409, { setError: STALE_REFUSAL });
+		}
 		// Nothing left to show here — back to the images list.
 		throw redirect(303, '/keeper/images');
 	}

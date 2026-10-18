@@ -38,6 +38,34 @@ function bucketEndpoint(): string {
 	return `${s3Endpoint()}/${required('R2_BUCKET')}`;
 }
 
+/** One `/`-separated segment of a plain key (see `isPlainKey`). */
+const KEY_SEGMENT_RE = /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/;
+
+/**
+ * Whether `key` is a plain bucket key: `/`-separated segments of letters,
+ * digits, `.`, `_` and `-`, none empty and none starting with a dot. Every key
+ * the archive issues is one (`<uuid>.<ext>`, `submissions/<draft>/…`,
+ * `seed/<id>.svg`, the photograph layout in ./imageKeys).
+ *
+ * An allow-list, because the URL parser that builds each bucket request
+ * rewrites far more than a literal `..`: `%2e%2e`, `.%2E`, backslashes, and
+ * dots split by a tab or newline (which it strips) all step up a folder, and
+ * `?` or `#` end the path. So a key that isn't plain could address some other
+ * object than the one it names.
+ */
+export function isPlainKey(key: string): boolean {
+	return key.split('/').every((segment) => KEY_SEGMENT_RE.test(segment));
+}
+
+/**
+ * The bucket URL of `key`. Every request for one object goes through here, so
+ * a key that isn't plain is refused whichever caller let it through.
+ */
+function objectUrl(key: string): string {
+	if (!isPlainKey(key)) throw new Error(`Not a plain bucket key: ${JSON.stringify(key)}`);
+	return `${bucketEndpoint()}/${key}`;
+}
+
 // True only when pointed at a local RustFS (S3_ENDPOINT set by the dev run scripts).
 // Prod derives its host from R2_ACCOUNT_ID and leaves S3_ENDPOINT unset — so the
 // self-heal below can never fire against the real R2 bucket.
@@ -144,9 +172,10 @@ export async function putObject(
 	bytes: ArrayBuffer | Uint8Array,
 	contentType: string
 ): Promise<void> {
+	const url = objectUrl(key);
 	const c = client();
 	const put = () =>
-		c.fetch(`${bucketEndpoint()}/${key}`, {
+		c.fetch(url, {
 			method: 'PUT',
 			body: bytes as BodyInit,
 			headers: { 'Content-Type': contentType }
@@ -186,7 +215,7 @@ export async function presignPut(
 	size: number,
 	expiresSeconds = 900
 ): Promise<string> {
-	const url = new URL(`${bucketEndpoint()}/${key}`);
+	const url = new URL(objectUrl(key));
 	url.searchParams.set('X-Amz-Expires', String(expiresSeconds));
 	const signed = await client().sign(url.toString(), {
 		method: 'PUT',
@@ -264,7 +293,7 @@ export async function fetchObject(
 	key: string,
 	range?: { start: number; end: number }
 ): Promise<Response | null> {
-	const res = await client().fetch(`${bucketEndpoint()}/${key}`, {
+	const res = await client().fetch(objectUrl(key), {
 		headers: range ? { Range: `bytes=${range.start}-${range.end}` } : {}
 	});
 	if (res.ok || res.status === 416) return res;
@@ -278,16 +307,17 @@ export async function fetchObject(
  * serve (a legacy `/artefacts/...` path, another host). Keys may contain
  * slashes (`submissions/<draft>/<uuid>.webp`), so this strips the public-URL
  * base rather than taking the last path segment.
+ *
+ * Only a plain key (see `isPlainKey`) comes back: callers judge ownership by
+ * the key's text (its `submissions/<draft>/` prefix) and whether it is in use
+ * by comparing it with stored URLs, so the key must name the object a bucket
+ * request for it would reach.
  */
 export function keyFromUrl(url: string): string | null {
 	const base = `${required('R2_PUBLIC_URL')}/`;
 	if (!url.startsWith(base)) return null;
 	const key = url.slice(base.length);
-	// Refuse anything that could step outside the bucket's key space.
-	if (!key || key.split('/').some((part) => part === '' || part === '.' || part === '..')) {
-		return null;
-	}
-	return key;
+	return isPlainKey(key) ? key : null;
 }
 
 /** The public URL an object key is served at. */
@@ -297,10 +327,7 @@ export function urlForKey(key: string): string {
 
 /** Delete an object from R2 by its bucket key. */
 export async function deleteScan(key: string): Promise<void> {
-	const c = client();
-	const res = await c.fetch(`${bucketEndpoint()}/${key}`, {
-		method: 'DELETE'
-	});
+	const res = await client().fetch(objectUrl(key), { method: 'DELETE' });
 
 	if (!res.ok && res.status !== 404) {
 		throw new Error(`R2 delete failed: ${res.status} ${await res.text()}`);

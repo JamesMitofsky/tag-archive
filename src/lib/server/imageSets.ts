@@ -1,8 +1,18 @@
-import { and, desc, eq, getTableColumns, inArray, isNotNull, sql, type SQL } from 'drizzle-orm';
-import type { InStatement } from '@libsql/client';
+import {
+	and,
+	desc,
+	eq,
+	getTableColumns,
+	inArray,
+	isNotNull,
+	isNull,
+	sql,
+	type SQL
+} from 'drizzle-orm';
+import type { InValue, ResultSet } from '@libsql/client';
 import { purgeArchiveCache } from './cache';
 import { client, db } from './db';
-import { stampInsert, stampUpdate } from './db/audit';
+import { stampInsert } from './db/audit';
 import { isProposedAddition } from './db/proposals';
 import { resolveEventId } from './db/queries';
 import { event, image, imageSet, imageSetContact } from './db/schema';
@@ -37,6 +47,9 @@ export { MAX_IMAGES_PER_SET } from '$lib/validation/imageSet';
 export type ImageSetResult = { ok: true; id: number } | { ok: false; message: string };
 
 const ATTACH_REFUSAL = 'Those photographs could not be attached.';
+const GONE_REFUSAL = 'That image set no longer exists.';
+/** Why an edit or delete made from an out-of-date page is refused. */
+export const STALE_REFUSAL = 'This set changed since you opened it — reload to see the latest.';
 const refused = (message = ATTACH_REFUSAL): ImageSetResult => ({ ok: false, message });
 
 /** A set's membership as a form submits it: 1..MAX distinct positive integer ids. */
@@ -75,6 +88,17 @@ export async function computeSetDate(setId: number): Promise<string | null> {
 	return earliestDay(rows.map((row) => row.day));
 }
 
+/** A statement, or a condition, with positional arguments: one can be added to another. */
+type Sql = { sql: string; args: InValue[] };
+
+const placeholders = (count: number) => Array.from({ length: count }, () => '?').join(', ');
+
+/** `statement` (ending in its WHERE clause), made to affect no row unless `condition` holds. */
+const onlyIf = (statement: Sql, condition: Sql): Sql => ({
+	sql: `${statement.sql} AND ${condition.sql}`,
+	args: [...statement.args, ...condition.args]
+});
+
 /** Claim an unattached image for `setId` at `position`; affects no row once it's taken. */
 const attachStatement = (
 	setId: number,
@@ -82,7 +106,7 @@ const attachStatement = (
 	position: number,
 	now: number,
 	userId: string | null
-): InStatement => ({
+): Sql => ({
 	sql: 'UPDATE image SET set_id = ?, position = ?, updated_at = ?, updated_by = ? WHERE id = ? AND set_id IS NULL',
 	args: [setId, position, now, userId, imageId]
 });
@@ -94,7 +118,7 @@ const repositionStatement = (
 	position: number,
 	now: number,
 	userId: string | null
-): InStatement => ({
+): Sql => ({
 	sql: 'UPDATE image SET position = ?, updated_at = ?, updated_by = ? WHERE id = ? AND set_id = ?',
 	args: [position, now, userId, imageId, setId]
 });
@@ -105,11 +129,48 @@ function detachStatement(
 	now: number,
 	userId: string | null,
 	imageIds?: number[]
-): InStatement {
-	const only = imageIds ? ` AND id IN (${imageIds.map(() => '?').join(', ')})` : '';
+): Sql {
+	const only = imageIds ? ` AND id IN (${placeholders(imageIds.length)})` : '';
 	return {
 		sql: `UPDATE image SET set_id = NULL, position = 0, updated_at = ?, updated_by = ? WHERE set_id = ?${only}`,
 		args: [now, userId, setId, ...(imageIds ?? [])]
+	};
+}
+
+/** A set's own fields, as an edit writes them. */
+type SetFields = Pick<ImageSet, 'description' | 'eventId' | 'dateAuto' | 'date'>;
+
+/** Write `setId`'s fields as `version` (its `updated_at`, in ms), by `userId`. */
+const fieldsStatement = (
+	setId: number,
+	fields: SetFields,
+	version: number,
+	userId: string | null
+): Sql => ({
+	sql: 'UPDATE image_set SET description = ?, event_id = ?, date_auto = ?, date = ?, updated_at = ?, updated_by = ? WHERE id = ?',
+	args: [fields.description, fields.eventId, fields.dateAuto, fields.date, version, userId, setId]
+});
+
+/** Holds while `setId` is still at `version`. */
+const atVersion = (setId: number, version: number): Sql => ({
+	sql: 'EXISTS (SELECT 1 FROM image_set WHERE id = ? AND updated_at = ?)',
+	args: [setId, version]
+});
+
+/**
+ * Holds while `setId` is as an edit read it: still at `version`, with each of
+ * `ids` in it, but for `added`, which may instead still be unattached. Nothing
+ * an edit writes changes the answer until it moves the version on, so with
+ * that last, every statement of the edit holds or none does.
+ */
+function asRead(setId: number, version: number, ids: number[], added: number[]): Sql {
+	const unattached =
+		added.length > 0 ? ` OR (set_id IS NULL AND id IN (${placeholders(added.length)}))` : '';
+	const present = `(SELECT count(*) FROM image WHERE id IN (${placeholders(ids.length)}) AND (set_id = ?${unattached})) = ?`;
+	const current = atVersion(setId, version);
+	return {
+		sql: `${current.sql} AND ${present}`,
+		args: [...current.args, ...ids, setId, ...added, ids.length]
 	};
 }
 
@@ -218,21 +279,27 @@ export async function createImageSet(
 }
 
 /**
- * Save an admin's edit. `data.imageIds` is the set's new membership, in
- * order: images already in the set stay; new ones must be unattached uploads
- * of this admin's own; images left out are deleted, rows and stored objects,
- * since they were only ever uploaded for this set. The event resolves against
- * every event, vetted or not. The date follows the photographs while
- * `dateAuto` holds, else it is `data.date` (null: deliberately undated).
+ * Save an admin's edit, made from the set as it stood at `version`: its
+ * `updated_at` in ms, as the edit page loaded it. `data.imageIds` is the
+ * set's new membership, in order: images already in the set stay; new ones
+ * must be unattached uploads of this admin's own; images left out are
+ * deleted, rows and stored objects, since they were only ever uploaded for
+ * this set. The event resolves against every event, vetted or not. The date
+ * follows the photographs while `dateAuto` holds, else it is `data.date`
+ * (null: deliberately undated).
  *
- * Positions and new members are written first and verified; only then are
- * the left-out images deleted and the set's own fields saved, so a refusal
- * leaves the set as it was.
+ * Refused, changing nothing, once the set has moved on from `version` (another
+ * save, an approval): the page never showed that change, so saving it would
+ * undo it, deleting any photograph added since. The whole edit — membership,
+ * order, fields and the next version — is one write that checks this as it
+ * lands, so of two saves made from one version only the first gets through,
+ * and a refusal leaves the set as it was.
  */
 export async function updateImageSet(
 	id: number,
 	data: ImageSetData,
-	userId: string
+	userId: string,
+	{ version }: { version: number }
 ): Promise<ImageSetResult> {
 	const ids = data.imageIds;
 	if (!isMembership(ids)) return refused();
@@ -240,47 +307,102 @@ export async function updateImageSet(
 		return refused('Pick a valid date');
 	}
 
-	const set = await db.select({ id: imageSet.id }).from(imageSet).where(eq(imageSet.id, id)).get();
-	if (!set) return refused('That image set no longer exists.');
+	const set = await db
+		.select({
+			description: imageSet.description,
+			eventId: imageSet.eventId,
+			dateAuto: imageSet.dateAuto,
+			date: imageSet.date,
+			updatedAt: imageSet.updatedAt,
+			updatedBy: imageSet.updatedBy
+		})
+		.from(imageSet)
+		.where(eq(imageSet.id, id))
+		.get();
+	if (!set) return refused(GONE_REFUSAL);
+	// Said early when it's plain; the write below checks again as it lands.
+	if (set.updatedAt.getTime() !== version) return refused(STALE_REFUSAL);
 
 	const members = await db
-		.select({ id: image.id, position: image.position })
+		.select({ id: image.id, position: image.position, capturedAt: image.capturedAt })
 		.from(image)
 		.where(eq(image.setId, id));
 	const memberIds = new Set(members.map((member) => member.id));
 	const added = ids.filter((imageId) => !memberIds.has(imageId));
-	if (added.length > 0) {
-		const owner: UploadOwner = { kind: 'keeper', userId };
-		const rows = await claimable(added);
-		const usable =
-			rows.length === added.length &&
-			rows.every((row) => row.setId === null && ownsImage(row, owner));
-		if (!usable) return refused();
-	}
+	const addedRows = added.length > 0 ? await claimable(added) : [];
+	const owner: UploadOwner = { kind: 'keeper', userId };
+	const usable =
+		addedRows.length === added.length &&
+		addedRows.every((row) => row.setId === null && ownsImage(row, owner));
+	if (!usable) return refused();
+
+	const kept = new Set(ids);
+	const removed = members.filter((member) => !kept.has(member.id)).map((member) => member.id);
+	// As in `createImageSet`, the date comes from the rows just read: they are
+	// exactly the set's photographs once the write below lands.
+	const fields: SetFields = {
+		description: data.description.trim() || null,
+		eventId: await resolveEventId(data.event, false),
+		dateAuto: data.dateAuto,
+		date: data.dateAuto
+			? earliestDay(
+					[...members.filter((member) => kept.has(member.id)), ...addedRows].map(
+						(row) => row.capturedAt
+					)
+				)
+			: data.date
+	};
 
 	const now = Date.now();
-	// Undo the membership write below: let go of the images it added, and put
-	// the members back where they were. Harmless if that write never landed.
-	const restore = () =>
-		client.batch(
+	// The set's next version: later than the one the edit was made from, even
+	// within the same millisecond, so no page opened before it can match it.
+	const next = Math.max(now, version + 1);
+	const unchanged = asRead(id, version, ids, added);
+	// Undo the write below should it land but its reply be lost: only while the
+	// set is still at the version it wrote, so a later save is never undone.
+	// Harmless if it never landed. The version goes back last, as `ours` reads it.
+	const restore = () => {
+		const ours = atVersion(id, next);
+		return client.batch(
 			[
-				...(added.length > 0 ? [detachStatement(id, now, userId, added)] : []),
-				...members.map((member) => repositionStatement(id, member.id, member.position, now, userId))
+				...(added.length > 0 ? [onlyIf(detachStatement(id, now, userId, added), ours)] : []),
+				...members.map((member) =>
+					onlyIf(
+						kept.has(member.id)
+							? repositionStatement(id, member.id, member.position, now, userId)
+							: attachStatement(id, member.id, member.position, now, userId),
+						ours
+					)
+				),
+				onlyIf(fieldsStatement(id, set, version, set.updatedBy), ours)
 			],
 			'write'
 		);
+	};
 
-	let written: number;
+	// One transaction: the version as the write finds it, then the new order and
+	// members, the left-out images let go, and the fields with the next version,
+	// each only while `unchanged` holds. That moves the version on, so it's last.
+	let results: ResultSet[];
 	try {
-		const results = await client.batch(
-			ids.map((imageId, position) =>
-				memberIds.has(imageId)
-					? repositionStatement(id, imageId, position, now, userId)
-					: attachStatement(id, imageId, position, now, userId)
-			),
+		results = await client.batch(
+			[
+				{ sql: 'SELECT updated_at FROM image_set WHERE id = ?', args: [id] },
+				...ids.map((imageId, position) =>
+					onlyIf(
+						memberIds.has(imageId)
+							? repositionStatement(id, imageId, position, now, userId)
+							: attachStatement(id, imageId, position, now, userId),
+						unchanged
+					)
+				),
+				...(removed.length > 0
+					? [onlyIf(detachStatement(id, now, userId, removed), unchanged)]
+					: []),
+				onlyIf(fieldsStatement(id, fields, next, userId), unchanged)
+			],
 			'write'
 		);
-		written = rowsAffected(results);
 	} catch (e) {
 		// It may still have committed (a reply lost in transit), as in
 		// `createImageSet`. Best-effort: the original error is the one to report.
@@ -289,36 +411,26 @@ export async function updateImageSet(
 		);
 		throw e;
 	}
-	// Short when a new image was claimed elsewhere, or a member left the set
-	// (a concurrent edit), since the reads above. Put things back as they were.
-	if (written !== ids.length) {
-		await restore();
-		return refused();
+
+	// Nothing was written unless the last statement was: say why.
+	if (results[results.length - 1].rowsAffected !== 1) {
+		const found = results[0].rows[0]?.updated_at;
+		if (found === undefined) return refused(GONE_REFUSAL);
+		// Still at `version`: an image it named was claimed elsewhere, or left the set.
+		return refused(Number(found) === version ? ATTACH_REFUSAL : STALE_REFUSAL);
 	}
 
-	// Conditional on still being in this set, so only what this edit let go is
-	// deleted. Rows first, objects after: a failed object delete leaves an
-	// orphan the sweeps remove, never a row pointing at nothing.
-	const kept = new Set(ids);
-	const removed = members.filter((member) => !kept.has(member.id)).map((member) => member.id);
+	// The left-out images are unattached now, out of every page's sight; delete
+	// them, conditional on staying so (a form that has since claimed one keeps
+	// it). Rows first, objects after: a failed object delete leaves an orphan
+	// the sweeps remove, never a row pointing at nothing.
 	if (removed.length > 0) {
 		const deleted = await db
 			.delete(image)
-			.where(and(inArray(image.id, removed), eq(image.setId, id)))
+			.where(and(inArray(image.id, removed), isNull(image.setId)))
 			.returning({ url: image.url, originalUrl: image.originalUrl });
 		await deleteImageObjects(deleted);
 	}
-
-	await db
-		.update(imageSet)
-		.set({
-			description: data.description.trim() || null,
-			eventId: await resolveEventId(data.event, false),
-			dateAuto: data.dateAuto,
-			date: data.dateAuto ? await computeSetDate(id) : data.date,
-			...stampUpdate(userId)
-		})
-		.where(eq(imageSet.id, id));
 
 	await purgeArchiveCache();
 	return { ok: true, id };
@@ -329,20 +441,25 @@ export async function updateImageSet(
  * photographs' stored objects are removed (best-effort, see
  * `deleteImageObjects`). With `proposedOnly`, only a set still awaiting review
  * is deleted — the review queue's reject, which must never discard a set an
- * approval has just vetted. Returns whether a set was deleted.
+ * approval has just vetted. With `version` (its `updated_at` in ms, as the edit
+ * page read it), only a set still at that version is deleted, so a delete from
+ * an out-of-date page can't take photographs it never showed. Returns whether a
+ * set was deleted.
  */
 export async function deleteImageSet(
 	id: number,
-	{ proposedOnly = false }: { proposedOnly?: boolean } = {}
+	{ proposedOnly = false, version }: { proposedOnly?: boolean; version?: number } = {}
 ): Promise<boolean> {
+	// No set is at a version that isn't a whole number of ms (a form sent none).
+	if (version !== undefined && !Number.isSafeInteger(version)) return false;
 	// One write transaction, so the objects noted are exactly those of the image
 	// rows the delete takes with it, even with an edit landing at the same time.
 	const [images, deleted] = await client.batch(
 		[
 			{ sql: 'SELECT url, original_url FROM image WHERE set_id = ?', args: [id] },
 			{
-				sql: `DELETE FROM image_set WHERE id = ?${proposedOnly ? ' AND proposed_addition = 1' : ''} RETURNING proposed_addition`,
-				args: [id]
+				sql: `DELETE FROM image_set WHERE id = ?${proposedOnly ? ' AND proposed_addition = 1' : ''}${version === undefined ? '' : ' AND updated_at = ?'} RETURNING proposed_addition`,
+				args: version === undefined ? [id] : [id, version]
 			}
 		],
 		'write'

@@ -121,6 +121,42 @@ describe('accessDecision (no pass)', () => {
 		expect(post('/images', true)).toBe('refuse');
 	});
 
+	it('opens an enhanced post only when SvelteKit will answer it with the action result alone', () => {
+		// SvelteKit picks that answer from the Accept header, not from
+		// `x-sveltekit-action`: one that prefers HTML runs the action and then
+		// renders the whole page around its refusal, load data and all.
+		const post = (pathname: string, accept: string | null) =>
+			accessDecision({
+				pathname,
+				method: 'POST',
+				accept,
+				isDataRequest: false,
+				isEnhancedAction: true
+			});
+		for (const pathname of ['/contribute', '/contribute/images']) {
+			const at = (accept: string | null) => post(pathname, accept);
+			// What `use:enhance` sends.
+			expect(at('application/json'), pathname).toBe('open');
+			// No header, or no preference, is answered with JSON…
+			expect(at(null), pathname).toBe('open');
+			expect(at('*/*'), pathname).toBe('open');
+			expect(at('application/json,text/html;q=0.9'), pathname).toBe('open');
+			// …but an empty header, or one that prefers HTML, gets the page.
+			expect(at(''), pathname).toBe('refuse');
+			expect(at('text/html'), pathname).toBe('refuse');
+			expect(at('text/html,application/json;q=0.9'), pathname).toBe('refuse');
+			expect(at('text/html, */*'), pathname).toBe('refuse');
+			expect(at('text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'), pathname).toBe(
+				'refuse'
+			);
+			// q=0 ranks last but, as SvelteKit reads it, still accepts.
+			expect(at('text/html;q=0,application/json'), pathname).toBe('open');
+			expect(at('application/json;q=0,text/html'), pathname).toBe('refuse');
+			expect(at('application/json;q=0'), pathname).toBe('open');
+			expect(at('text/html;q=0'), pathname).toBe('refuse');
+		}
+	});
+
 	describe('the keeper sign-in page', () => {
 		const door = new URL(KEEPER_DOOR_URL, 'https://archive.test').search;
 		const at = (
@@ -226,6 +262,12 @@ describe('gateRequest (edge)', () => {
 			const res = await gateRequest(actionPost(path), () => undefined, SECRET);
 			expect(res?.status, path).toBe(401);
 		}
+		// Dressed as an action but asking for HTML: SvelteKit would render the page.
+		const htmlPost = new Request('https://archive.test/contribute/images?/createImageSet', {
+			method: 'POST',
+			headers: { accept: 'text/html', 'x-sveltekit-action': 'true' }
+		});
+		expect((await gateRequest(htmlPost, () => undefined, SECRET))?.status).toBe(401);
 	});
 
 	it('fails closed without a secret, but keeps sign-in reachable through its door', async () => {

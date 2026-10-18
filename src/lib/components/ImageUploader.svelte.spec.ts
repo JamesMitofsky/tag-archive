@@ -317,6 +317,40 @@ describe('ImageUploader.svelte', () => {
 		expect(server.puts[0].aborted).toBe(true);
 	});
 
+	it('counts the photographs that failed, until each is tried again or removed', async () => {
+		const server = fakeImageServer();
+		server.control.locked = true;
+		let failed = 0;
+		const { unmount } = render(ImageUploader, {
+			get failed() {
+				return failed;
+			},
+			set failed(value: number) {
+				failed = value;
+			}
+		});
+		await picker().upload([
+			await canvasPhoto('a.png'),
+			await canvasPhoto('b.png'),
+			await canvasPhoto('c.png')
+		]);
+		await vi.waitFor(() => expect(failed).toBe(3));
+
+		// Tried again: on its way, so no longer failed (`pending` holds the form now).
+		server.control.locked = false;
+		await page.getByRole('button', { name: 'Retry photograph 1' }).click();
+		await vi.waitFor(() => expect(failed).toBe(2));
+		await vi.waitFor(() => expect(server.finalized).toHaveLength(1));
+		expect(failed).toBe(2);
+
+		await page.getByRole('button', { name: 'Remove photograph 2' }).click();
+		await vi.waitFor(() => expect(failed).toBe(1));
+
+		// Gone, nothing is left to try again.
+		await unmount();
+		expect(failed).toBe(0);
+	});
+
 	it('says once that the visit has lapsed, however many photographs it stopped', async () => {
 		const server = fakeImageServer();
 		server.control.locked = true;

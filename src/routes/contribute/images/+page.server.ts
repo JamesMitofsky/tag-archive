@@ -31,12 +31,16 @@ export type ImageSetFormValues = {
 const CONTACT_PURPOSE = 'contact-image-set';
 const contactToken = (id: number) => sign(CONTACT_PURPOSE, String(id));
 
-/** The "tap again" refusal: shown in place, so the photographs already added stay put. */
+/**
+ * The "tap again" refusal: shown in place, so the photographs already added
+ * stay put. A tap doesn't restart the uploads the lapse stopped, and the form
+ * holds its submit until they are tried again (or removed), so it says to.
+ */
 const locked = () =>
 	fail(401, {
 		locked: true,
 		imageSetError:
-			'The Archive has drifted shut. Visit the Cube to open the Archive, then press “Add to the archive” — your entry is kept.'
+			'The Archive has drifted shut. Visit the Cube to open the Archive, press “Try again” on any photographs marked “Not uploaded”, then “Add to the archive” — your entry is kept.'
 	});
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {

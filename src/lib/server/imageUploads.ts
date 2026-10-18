@@ -131,7 +131,7 @@ export async function deleteImageObjects(
 }
 
 /**
- * Stop a body that won't be read. Cancelling drops its connection, so the rest
+ * Stop a body that won't be read. Canceling drops its connection, so the rest
  * is never transferred. Cleanup only: it never fails the caller.
  */
 async function release(body: ReadableStream | null): Promise<void> {

@@ -86,15 +86,16 @@ async function upload(
 	capturedAt: string | null = null
 ): Promise<Image> {
 	uploads++;
-	const uuid = `00000000-0000-4000-8000-${String(uploads).padStart(12, '0')}`;
 	const prefix = 'draft' in by ? submissionPrefix(by.draft) : '';
-	const folder = `https://bucket.test/${prefix}images/${uuid}`;
+	// A folder per object, as ./imageKeys lays them out.
+	const folder = (variant: number) =>
+		`https://bucket.test/${prefix}images/00000000-0000-4000-${variant}000-${String(uploads).padStart(12, '0')}`;
 	const createdBy = 'userId' in by ? by.userId : null;
 	const [row] = await db
 		.insert(image)
 		.values({
-			url: `${folder}/display.webp`,
-			originalUrl: `${folder}/original.jpg`,
+			url: `${folder(9)}/display.webp`,
+			originalUrl: `${folder(8)}/original.jpg`,
 			originalType: 'image/jpeg',
 			originalBytes: 1000,
 			bytes: 500,
@@ -135,6 +136,20 @@ async function setRow(id: number) {
 async function imageRow(id: number) {
 	return db.select().from(image).where(eq(image.id, id)).get();
 }
+
+/** The version an edit page opened now would send: the set's `updated_at`, in ms. */
+async function versionOf(id: number): Promise<number> {
+	const row = await setRow(id);
+	if (!row) throw new Error(`no image set ${id}`);
+	return row.updatedAt.getTime();
+}
+
+/** Save an admin's edit from a page opened just now. */
+async function edit(id: number, data: ImageSetData) {
+	return updateImageSet(id, data, ADMIN.id, { version: await versionOf(id) });
+}
+
+const STALE = 'This set changed since you opened it — reload to see the latest.';
 
 const countSets = async () => (await db.select({ id: imageSet.id }).from(imageSet)).length;
 const countImages = async () => (await db.select({ id: image.id }).from(image)).length;
@@ -300,7 +315,7 @@ describe('updateImageSet', () => {
 		const d = await upload(byAdmin);
 		purgeArchiveCache.mockClear();
 
-		const result = await updateImageSet(id, form([c.id, d.id, a.id]), ADMIN.id);
+		const result = await edit(id, form([c.id, d.id, a.id]));
 		expect(result).toEqual({ ok: true, id });
 
 		const set = await loadImageSet(id);
@@ -322,11 +337,7 @@ describe('updateImageSet', () => {
 		await created([elsewhere.id]);
 
 		for (const extra of [keepers.id, elsewhere.id, 999_999]) {
-			const result = await updateImageSet(
-				id,
-				form([b.id, extra], { description: 'After' }),
-				ADMIN.id
-			);
+			const result = await edit(id, form([b.id, extra], { description: 'After' }));
 			expect(result.ok).toBe(false);
 		}
 
@@ -350,7 +361,7 @@ describe('updateImageSet', () => {
 			await db.delete(image).where(eq(image.id, b.id));
 			return batch(...args);
 		});
-		const result = await updateImageSet(id, form([b.id, c.id, a.id]), ADMIN.id);
+		const result = await edit(id, form([b.id, c.id, a.id]));
 		spy.mockRestore();
 
 		expect(result.ok).toBe(false);
@@ -361,6 +372,7 @@ describe('updateImageSet', () => {
 	it('backs out the membership write when it fails, even if it landed', async () => {
 		const [a, b, c] = [await upload(byAdmin), await upload(byAdmin), await upload(byAdmin)];
 		const id = await created([a.id, b.id]);
+		const before = await setRow(id);
 
 		// The write commits, but its reply is lost: the edit can't tell, so it undoes it.
 		const batch = client.batch.bind(client);
@@ -368,7 +380,7 @@ describe('updateImageSet', () => {
 			await batch(...args);
 			throw new Error('connection reset');
 		});
-		await expect(updateImageSet(id, form([c.id, b.id, a.id]), ADMIN.id)).rejects.toThrow(
+		await expect(edit(id, form([c.id, b.id, a.id], { description: 'After' }))).rejects.toThrow(
 			'connection reset'
 		);
 		spy.mockRestore();
@@ -379,6 +391,142 @@ describe('updateImageSet', () => {
 		]);
 		expect((await imageRow(c.id))?.setId).toBeNull();
 		expect(deleteScan).not.toHaveBeenCalled();
+		// The set's own fields and version too, so the page can simply save again.
+		expect(await setRow(id)).toEqual(before);
+	});
+
+	it('refuses an edit made before another save, changing and deleting nothing', async () => {
+		// Admin 1 opens the edit page of a set of two...
+		const [a, b] = [await upload(byAdmin), await upload(byAdmin)];
+		const id = await created([a.id, b.id], asAdmin, { description: 'Before' });
+		const opened = await versionOf(id);
+
+		// ...admin 2 adds a third photograph and saves...
+		const c = await upload(byAdmin);
+		expect(await edit(id, form([a.id, b.id, c.id], { description: 'Before' }))).toEqual({
+			ok: true,
+			id
+		});
+		const saved = await setRow(id);
+		purgeArchiveCache.mockClear();
+
+		// ...then admin 1 fixes a typo on the page they opened, which never showed
+		// it. So does a page sent with no version, or one that never was.
+		const typo = form([b.id, a.id], {
+			description: 'Typo fixed',
+			event: 'Vetted Concert',
+			dateAuto: false,
+			date: '2019'
+		});
+		for (const version of [opened, NaN, 0]) {
+			expect(await updateImageSet(id, typo, ADMIN.id, { version })).toEqual({
+				ok: false,
+				message: STALE
+			});
+		}
+
+		expect((await loadImageSet(id))?.images.map((i) => [i.id, i.position])).toEqual([
+			[a.id, 0],
+			[b.id, 1],
+			[c.id, 2]
+		]);
+		expect(await setRow(id)).toEqual(saved);
+		expect(deleteScan).not.toHaveBeenCalled();
+		expect(purgeArchiveCache).not.toHaveBeenCalled();
+	});
+
+	it('takes an edit made from the current version, and moves the version on', async () => {
+		const a = await upload(byAdmin);
+		const id = await created([a.id], asAdmin, { description: 'Before' });
+		const opened = await versionOf(id);
+
+		const result = await updateImageSet(id, form([a.id], { description: 'After' }), ADMIN.id, {
+			version: opened
+		});
+		expect(result).toEqual({ ok: true, id });
+		expect((await setRow(id))?.description).toBe('After');
+		expect(await versionOf(id)).toBeGreaterThan(opened);
+
+		// A second tab opened alongside the first can't save over it.
+		const again = await updateImageSet(id, form([a.id], { description: 'Tab 2' }), ADMIN.id, {
+			version: opened
+		});
+		expect(again).toEqual({ ok: false, message: STALE });
+		expect((await setRow(id))?.description).toBe('After');
+	});
+
+	it('lets one of two saves from the same version through, even if both read before either writes', async () => {
+		const [a, b, c] = [await upload(byAdmin), await upload(byAdmin), await upload(byAdmin)];
+		const id = await created([a.id, b.id, c.id], asAdmin, { description: 'Before' });
+		const opened = await versionOf(id);
+		const [d, e] = [await upload(byAdmin), await upload(byAdmin)];
+
+		// Tab 1 adds `d` and lands after tab 2 has read the set but before it
+		// writes, so any check tab 2 made before writing would pass.
+		let first: Awaited<ReturnType<typeof updateImageSet>> | undefined;
+		const batch = client.batch.bind(client);
+		const spy = vi.spyOn(client, 'batch').mockImplementationOnce(async (...args) => {
+			first = await updateImageSet(
+				id,
+				form([a.id, b.id, c.id, d.id], { description: 'Tab 1' }),
+				ADMIN.id,
+				{ version: opened }
+			);
+			return batch(...args);
+		});
+		// Tab 2 drops `c` and adds `e`, never having seen `d`.
+		const second = await updateImageSet(
+			id,
+			form([e.id, a.id, b.id], { description: 'Tab 2' }),
+			ADMIN.id,
+			{ version: opened }
+		);
+		spy.mockRestore();
+
+		expect(first).toEqual({ ok: true, id });
+		expect(second).toEqual({ ok: false, message: STALE });
+		expect((await loadImageSet(id))?.images.map((i) => i.id)).toEqual([a.id, b.id, c.id, d.id]);
+		expect((await setRow(id))?.description).toBe('Tab 1');
+		expect((await imageRow(e.id))?.setId).toBeNull();
+		expect(deleteScan).not.toHaveBeenCalled();
+	});
+
+	it('writes nothing when an upload is claimed elsewhere mid-save, so the page can try again', async () => {
+		const [a, b] = [await upload(byAdmin), await upload(byAdmin)];
+		const id = await created([a.id], asAdmin, { description: 'Before' });
+		const before = await setRow(id);
+
+		// Another form takes `b` between this edit's checks and its write.
+		const batch = client.batch.bind(client);
+		const spy = vi.spyOn(client, 'batch').mockImplementationOnce(async (...args) => {
+			await created([b.id]);
+			return batch(...args);
+		});
+		const result = await edit(id, form([b.id, a.id], { description: 'After' }));
+		spy.mockRestore();
+
+		expect(result).toEqual({ ok: false, message: 'Those photographs could not be attached.' });
+		expect(await setRow(id)).toEqual(before);
+		expect((await loadImageSet(id))?.images.map((i) => [i.id, i.position])).toEqual([[a.id, 0]]);
+		// Still at the version the page holds: without `b`, the same page saves.
+		expect(await edit(id, form([a.id], { description: 'After' }))).toEqual({ ok: true, id });
+	});
+
+	it('counts an approval as a change to the set', async () => {
+		const x = await upload(byDraft);
+		const id = await created([x.id], asDraft(), { description: 'As sent' });
+		// Opened well before the approval, whatever the clock's resolution.
+		await db
+			.update(imageSet)
+			.set({ updatedAt: new Date(1_000) })
+			.where(eq(imageSet.id, id));
+		await approveProposed('imageSet', id, ADMIN.id);
+
+		const result = await updateImageSet(id, form([x.id], { description: 'Edited' }), ADMIN.id, {
+			version: 1_000
+		});
+		expect(result).toEqual({ ok: false, message: STALE });
+		expect(await setRow(id)).toMatchObject({ description: 'As sent', proposedAddition: false });
 	});
 
 	it("keeps a contributor's photographs when an admin edits their set, which stays proposed", async () => {
@@ -386,7 +534,7 @@ describe('updateImageSet', () => {
 		const id = await created([x.id, y.id], asDraft());
 		const mine = await upload(byAdmin);
 
-		const result = await updateImageSet(id, form([y.id, mine.id, x.id]), ADMIN.id);
+		const result = await edit(id, form([y.id, mine.id, x.id]));
 		expect(result).toEqual({ ok: true, id });
 		expect((await loadImageSet(id))?.images.map((i) => i.id)).toEqual([y.id, mine.id, x.id]);
 		expect((await setRow(id))?.proposedAddition).toBe(true);
@@ -394,7 +542,7 @@ describe('updateImageSet', () => {
 
 	it('refuses an edit of a set that is gone', async () => {
 		const a = await upload(byAdmin);
-		expect(await updateImageSet(999_999, form([a.id]), ADMIN.id)).toEqual({
+		expect(await updateImageSet(999_999, form([a.id]), ADMIN.id, { version: 0 })).toEqual({
 			ok: false,
 			message: 'That image set no longer exists.'
 		});
@@ -406,42 +554,30 @@ describe('updateImageSet', () => {
 		const [first] = (await loadImageSet(id))!.images;
 		expect((await setRow(id))?.date).toBe('2024-05-10');
 
-		await updateImageSet(id, form([first.id], { dateAuto: false, date: '2019' }), ADMIN.id);
+		await edit(id, form([first.id], { dateAuto: false, date: '2019' }));
 		expect(await setRow(id)).toMatchObject({ date: '2019', dateAuto: false });
 
 		// An earlier photograph doesn't move an overridden date...
 		const earlier = await upload(byAdmin, '2024-05-01T09:00:00');
-		await updateImageSet(
-			id,
-			form([first.id, earlier.id], { dateAuto: false, date: '2019' }),
-			ADMIN.id
-		);
+		await edit(id, form([first.id, earlier.id], { dateAuto: false, date: '2019' }));
 		expect((await setRow(id))?.date).toBe('2019');
 
 		// ...a deliberate "no date" sticks too...
-		await updateImageSet(
-			id,
-			form([first.id, earlier.id], { dateAuto: false, date: null }),
-			ADMIN.id
-		);
+		await edit(id, form([first.id, earlier.id], { dateAuto: false, date: null }));
 		expect(await setRow(id)).toMatchObject({ date: null, dateAuto: false });
 
 		// ...and handing the date back to the photographs recomputes it.
-		await updateImageSet(id, form([first.id, earlier.id], { dateAuto: true }), ADMIN.id);
+		await edit(id, form([first.id, earlier.id], { dateAuto: true }));
 		expect(await setRow(id)).toMatchObject({ date: '2024-05-01', dateAuto: true });
 	});
 
 	it('links any event, vetted or not, and refuses a malformed manual date', async () => {
 		const a = await upload(byAdmin);
 		const id = await created([a.id]);
-		await updateImageSet(id, form([a.id], { event: 'Pending Picnic' }), ADMIN.id);
+		await edit(id, form([a.id], { event: 'Pending Picnic' }));
 		expect(await setRow(id)).toMatchObject({ eventId: 2, updatedBy: ADMIN.id });
 
-		const result = await updateImageSet(
-			id,
-			form([a.id], { dateAuto: false, date: '2024-13' }),
-			ADMIN.id
-		);
+		const result = await edit(id, form([a.id], { dateAuto: false, date: '2024-13' }));
 		expect(result.ok).toBe(false);
 	});
 });

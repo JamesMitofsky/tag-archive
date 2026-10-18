@@ -104,6 +104,12 @@ async function run(
 	for (const [key, value] of Object.entries(fields)) {
 		for (const v of Array.isArray(value) ? value : [value]) body.append(key, v);
 	}
+	// A save or delete sends the version its page was opened at: just now, unless
+	// the test says when.
+	if (!('version' in fields)) {
+		const opened = await setRow(Number(id));
+		if (opened) body.append('version', String(opened.updatedAt.getTime()));
+	}
 	const requestEvent = {
 		request: new Request(`http://localhost/keeper/images/${id}/edit`, { method: 'POST', body }),
 		params: { id: String(id) },
@@ -133,16 +139,23 @@ async function loadAs(id: number | string, caller: Caller = ADMIN) {
 /** The form as the edit page submits it: ids in order, the date only while it's set by hand. */
 const edit = (
 	imageIds: number[],
-	fields: { description?: string; event?: string; date?: string; dateAuto?: boolean } = {}
+	fields: {
+		description?: string;
+		event?: string;
+		date?: string;
+		dateAuto?: boolean;
+		version?: number;
+	} = {}
 ) => {
-	const { dateAuto = true, date, ...rest } = fields;
+	const { dateAuto = true, date, version, ...rest } = fields;
 	return {
 		imageIds: imageIds.map(String),
 		description: '',
 		event: '',
 		...rest,
 		...(dateAuto ? { dateAuto: 'on' } : {}),
-		...(date !== undefined ? { date } : {})
+		...(date !== undefined ? { date } : {}),
+		...(version !== undefined ? { version: String(version) } : {})
 	};
 };
 
@@ -183,7 +196,9 @@ describe('load', () => {
 			// What the photographs give, whatever the set's stored date says.
 			photographDate: '2023-07-02'
 		});
-		const { set } = data as { set: { images: object[] } };
+		const { set } = data as { set: { images: object[]; version: number } };
+		// The version a save is checked against: when the set last changed, in ms.
+		expect(set.version).toBe((await setRow(id))?.updatedAt.getTime());
 		// Exactly what the uploader takes: no metadata, no original name or size.
 		expect(set.images).toEqual(
 			images.map((row) => ({
@@ -311,6 +326,32 @@ describe('updateImageSet', () => {
 		expect(await imageRow(images[0].id)).toBeDefined();
 	});
 
+	it('refuses a save from a page opened before another save, keeping what was typed', async () => {
+		const { id, images } = await setWith([null, null]);
+		const [a, b] = images;
+		const { set: opened } = (await loadAs(id)) as { set: { version: number } };
+
+		// Someone else adds a photograph and saves meanwhile.
+		const c = await photograph();
+		expect(isRedirect(await run('updateImageSet', id, edit([a.id, b.id, c.id])))).toBe(true);
+		const saved = await setRow(id);
+
+		// The page opened first never showed it, so must not save over it.
+		const result = await run(
+			'updateImageSet',
+			id,
+			edit([b.id, a.id], { description: 'Typo fixed', event: 'x', version: opened.version })
+		);
+		expect(isActionFailure(result) && result.status).toBe(400);
+		expect(isActionFailure(result) && result.data).toMatchObject({
+			setError: 'This set changed since you opened it — reload to see the latest.',
+			values: { description: 'Typo fixed', event: 'x', dateAuto: true }
+		});
+		expect((await members(id)).map((row) => row.id)).toEqual([a.id, b.id, c.id]);
+		expect(await setRow(id)).toEqual(saved);
+		expect(deleteScan).not.toHaveBeenCalled();
+	});
+
 	it('says so when the set is gone', async () => {
 		const loose = await photograph();
 		const result = await run('updateImageSet', 999999, edit([loose.id]));
@@ -346,5 +387,27 @@ describe('deleteImageSet', () => {
 	it('lands on the list even when the set is already gone', async () => {
 		const result = await run('deleteImageSet', 999999);
 		expect(isRedirect(result) && result.location).toBe('/keeper/images');
+	});
+
+	it('refuses a delete from a page opened before the set last changed, keeping everything', async () => {
+		const { id, images } = await setWith([null, null]);
+		const opened = (await setRow(id))!.updatedAt.getTime();
+		// Another admin's save lands after this page was opened.
+		await db
+			.update(imageSet)
+			.set({ description: 'Edited elsewhere', updatedAt: new Date(opened + 1000) })
+			.where(eq(imageSet.id, id));
+		deleteScan.mockClear();
+
+		for (const version of [String(opened), '', 'not a number']) {
+			const result = await run('deleteImageSet', id, { version });
+			expect(isActionFailure(result) && result.status).toBe(409);
+			expect(isActionFailure(result) && result.data).toEqual({
+				setError: 'This set changed since you opened it — reload to see the latest.'
+			});
+		}
+		expect(await setRow(id)).toBeDefined();
+		for (const row of images) expect(await imageRow(row.id)).toBeDefined();
+		expect(deleteScan).not.toHaveBeenCalled();
 	});
 });

@@ -23,12 +23,15 @@ import { sniffImageType } from './imageType';
  *  - its PNG reader inflates iCCP with no output limit (a zlib bomb);
  *  - its TIFF reader reads every entry's value in full, so a block whose
  *    thousands of entries all point at one long value costs seconds;
+ *  - its IPTC reader trusts each dataset's length, reading past the end of
+ *    the block it is given into whatever bytes follow it in memory;
  *  - it has no WebP reader, and its HEIF reader refuses brands other than heic.
  *
  * So the containers (JPEG, PNG, WebP, HEIF) are walked here with every length
  * checked and every loop capped, exifr is only handed a TIFF block bounded by
- * `boundTiff`, an XMP packet that passed `UNSAFE_XMP`, or an IPTC record, and
- * color profiles are summarized here.
+ * `boundTiff`, an XMP packet that passed `UNSAFE_XMP`, or an IPTC record cut
+ * to its whole datasets by `wholeDatasets`, and color profiles are summarized
+ * here.
  */
 
 /** Largest stored metadata record, as serialized JSON in UTF-8 bytes. */
@@ -282,10 +285,36 @@ function iptcResource(resources: Uint8Array): Uint8Array | undefined {
 		const size = view.getUint32(sizeAt);
 		const start = sizeAt + 4;
 		if (size > resources.length - start) return undefined;
-		if (id === 0x0404) return resources.subarray(start, start + size);
+		if (id === 0x0404) return wholeDatasets(resources.subarray(start, start + size));
 		at = start + size + (size % 2);
 	}
 	return undefined;
+}
+
+/**
+ * An IPTC block's whole datasets, as a copy, from its first record-2 one (the
+ * only record exifr reads). exifr takes each dataset's declared length on
+ * trust and reads it from the underlying buffer, so a dataset that claims
+ * more bytes than the block holds would be filled with whatever follows in
+ * the file. That dataset and any after it are dropped instead. Starting at
+ * record 2 keeps exifr, which seeks for its first record-2 marker byte by
+ * byte, walking exactly the datasets checked here.
+ */
+function wholeDatasets(block: Uint8Array): Uint8Array | undefined {
+	let at = block.indexOf(0x1c);
+	if (at === -1) return undefined;
+	let from = -1;
+	let end = at;
+	// Each dataset: 0x1C, record, dataset number, 16-bit length, value.
+	while (at + 5 <= block.length && block[at] === 0x1c) {
+		const size = (block[at + 3] << 8) | block[at + 4];
+		// A set top bit marks an extended length, which exifr would misread as a size.
+		if (size & 0x8000 || at + 5 + size > block.length) break;
+		if (from === -1 && block[at + 1] === 2) from = at;
+		at += 5 + size;
+		end = at;
+	}
+	return from === -1 ? undefined : block.slice(from, end);
 }
 
 const PNG_XMP_KEYWORD = 'XML:com.adobe.xmp\0';

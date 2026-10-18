@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { latchedSubmission } from '$lib/forms/submission.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
@@ -33,12 +34,10 @@
 	// is lost, and a fresh tap resumes the same draft.
 
 	// After an anonymous submit: the new artefact's id and the token that lets
-	// this visitor (and only them) attach contact details to it.
-	const submitted = $derived(
-		form && 'submitted' in form && form.submitted
-			? (form.submitted as { id: number; token: string })
-			: undefined
-	);
+	// this visitor (and only them) attach contact details to it — held through
+	// each answer to the contact form (see latchedSubmission).
+	const submission = latchedSubmission(() => form);
+	const submitted = $derived(submission.value);
 	const connected = $derived(!!(form && 'connected' in form && form.connected));
 	const contactError = $derived(form && 'contactError' in form ? form.contactError : undefined);
 	const contactErrors = $derived(

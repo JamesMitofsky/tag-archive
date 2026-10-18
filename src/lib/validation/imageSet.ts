@@ -4,7 +4,7 @@ import { check, defineSuite, isPartialDate, maxLen, str } from './helpers';
 /** The most photographs one set may hold. Mirrored by the uploader's `max`. */
 export const MAX_IMAGES_PER_SET = 50;
 
-/** Normalised image-set form values — validated, then used for the DB write. */
+/** Normalized image-set form values — validated, then used for the DB write. */
 export type ImageSetData = {
 	description: string;
 	event: string;

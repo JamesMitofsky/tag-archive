@@ -361,8 +361,10 @@ export function exifJpeg(options: ExifJpegOptions = {}): Uint8Array {
 			segments.push(jpegSegment(0xe2, text('ICC_PROFILE\0'), Uint8Array.of(i + 1, count), chunk));
 		}
 	}
-	if (options.iptc)
-		segments.push(jpegSegment(0xed, text('Photoshop 3.0\0'), photoshopIptc(options.iptc)));
+	if (options.iptc) {
+		const datasets = options.iptc.map(([number, value]) => iptcDataset(2, number, text(value)));
+		segments.push(iptcSegment(concatBytes(IPTC_UTF8, ...datasets)));
+	}
 	const prelude = options.prelude ?? new Uint8Array(0);
 	return concatBytes(Uint8Array.of(0xff, 0xd8), prelude, ...segments, Uint8Array.of(0xff, 0xd9));
 }
@@ -375,16 +377,31 @@ export function jpegSegment(marker: number, ...parts: Uint8Array[]): Uint8Array 
 	return concatBytes(Uint8Array.of(0xff, marker), be16(length), body);
 }
 
-/** A Photoshop image resource block holding one IPTC resource (0x0404), declared UTF-8. */
-function photoshopIptc(datasets: [number, string][]): Uint8Array {
-	const dataset = (record: number, number: number, value: Uint8Array) =>
-		concatBytes(Uint8Array.of(0x1c, record, number), be16(value.length), value);
-	const iim = concatBytes(
-		// 1:90 CodedCharacterSet = ESC % G, i.e. UTF-8.
-		dataset(1, 90, Uint8Array.of(0x1b, 0x25, 0x47)),
-		...datasets.map(([number, value]) => dataset(2, number, text(value)))
-	);
-	return concatBytes(
+/**
+ * An IPTC-IIM dataset: marker, record, dataset number, 16-bit length, value.
+ * `declaredLength` replaces the value's real length in the header, to forge a
+ * dataset that claims more bytes than it holds.
+ */
+export function iptcDataset(
+	record: number,
+	number: number,
+	value: Uint8Array,
+	declaredLength = value.length
+): Uint8Array {
+	return concatBytes(Uint8Array.of(0x1c, record, number), be16(declaredLength), value);
+}
+
+/** 1:90 CodedCharacterSet = ESC % G, i.e. UTF-8. */
+export const IPTC_UTF8 = iptcDataset(1, 90, Uint8Array.of(0x1b, 0x25, 0x47));
+
+/**
+ * An APP13 segment as Photoshop writes it: an image resource block holding one
+ * IPTC resource (0x0404) of the IIM bytes given.
+ */
+export function iptcSegment(iim: Uint8Array): Uint8Array {
+	return jpegSegment(
+		0xed,
+		text('Photoshop 3.0\0'),
 		text('8BIM'),
 		be16(0x0404),
 		Uint8Array.of(0, 0), // empty Pascal-string name, padded to even

@@ -34,10 +34,14 @@ const url = (key: string) => `https://bucket.test/${key}`;
 /** Where a record written before `R2_PUBLIC_URL` moved points: same object, older base. */
 const oldUrl = (key: string) => `https://pub-old.r2.dev/${key}`;
 
-/** The two object keys of photograph `n` under `prefix`, laid out as ./imageKeys does. */
+/**
+ * The two object keys of photograph `n` under `prefix`, laid out as ./imageKeys
+ * does: a folder each, both uuid-shaped.
+ */
 function photo(prefix: string, n: number) {
-	const folder = `${prefix}images/00000000-0000-4000-8000-${String(n).padStart(12, '0')}/`;
-	return { display: `${folder}display.webp`, original: `${folder}original.jpg` };
+	const folder = (variant: number) =>
+		`${prefix}images/00000000-0000-4000-${variant}000-${String(n).padStart(12, '0')}/`;
+	return { display: `${folder(9)}display.webp`, original: `${folder(8)}original.jpg` };
 }
 
 const SUBMITTED_IN_SET = photo('submissions/d1/', 1);
@@ -49,8 +53,8 @@ const KEEPER_FRESH_UNATTACHED = photo('', 6);
 const KEEPER_ORPHAN = photo('', 7);
 const KEEPER_FRESH_ORPHAN = photo('', 8);
 const KEEPER_MOVED = photo('', 9);
-// LIKE wildcards in the key: they must match only themselves.
-const SUBMITTED_MOVED_SCAN = 'submissions/d1/moved_100%.webp';
+// A LIKE wildcard in the key (the only one a plain key can hold): it must match only itself.
+const SUBMITTED_MOVED_SCAN = 'submissions/d1/moved_100.webp';
 
 /** Both objects of `p`, as a bucket listing reports them. */
 const listed = (p: { display: string; original: string }, lastModified: Date) => [
@@ -127,7 +131,8 @@ describe('referencedUrls', () => {
 			url(KEEPER_MOVED.display),
 			url(SUBMITTED_MOVED_SCAN),
 			// Same tail as a stored key, but not on a path boundary: a different object.
-			url('submissions/d1/xmoved_100%.webp')
+			url('submissions/d1/xmoved_100.webp'),
+			url('submissions/d1/movedX100.webp')
 		]);
 		expect([...inUse].sort()).toEqual(
 			[url(KEEPER_MOVED.display), url(SUBMITTED_MOVED_SCAN)].sort()
@@ -146,6 +151,17 @@ describe('deleteUnreferencedImages', () => {
 		expect(deleted).toBe(1);
 		expect(deletedKeys()).toEqual(['submissions/d1/abandoned.webp']);
 	});
+
+	it('never deletes through a URL whose key climbs out of its folder', async () => {
+		// As a rejected submission's `file_urls` could name them: each one's
+		// bucket request would reach the vetted photograph's display copy.
+		const climbs = ['%2e%2e/%2e%2e/', '.%2E/%2E./', '..\\..\\', '.\t./.\n./'];
+		const deleted = await deleteUnreferencedImages(
+			climbs.map((climb) => url(`submissions/d1/${climb}${KEEPER_IN_SET.display}`))
+		);
+		expect(deleted).toBe(0);
+		expect(deleteScan).not.toHaveBeenCalled();
+	});
 });
 
 describe('sweepAbandonedSubmissions', () => {
@@ -157,7 +173,10 @@ describe('sweepAbandonedSubmissions', () => {
 			...listed(SUBMITTED_IN_SET, OLD),
 			...listed(SUBMITTED_UNATTACHED, OLD),
 			...listed(SUBMITTED_ORPHAN, OLD),
-			{ key: SUBMITTED_MOVED_SCAN, lastModified: OLD }
+			{ key: SUBMITTED_MOVED_SCAN, lastModified: OLD },
+			// Never a key the archive issues: not ours to sweep.
+			{ key: 'submissions/d1/scan (1).webp', lastModified: OLD },
+			{ key: 'submissions/d1/.hidden', lastModified: OLD }
 		]);
 
 		expect(await sweepAbandonedSubmissions(NOW)).toBe(3);

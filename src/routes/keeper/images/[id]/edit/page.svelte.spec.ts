@@ -1,13 +1,22 @@
 import { page } from 'vitest/browser';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
+import type { SubmitFunction } from '@sveltejs/kit';
 import type { UploadedImage } from '$lib/images/types';
+import { canvasPhoto, fakeImageServer } from '$lib/testing/images';
 import { paintedCanvas } from '$lib/testing/scanner';
 
-// Rendered without a running app: stand in for what SvelteKit would provide.
+// Rendered without a running app: stand in for what SvelteKit would provide,
+// keeping hold of what the page hands `use:enhance` for the edit form.
+const enhanced = vi.hoisted(() => ({ submit: undefined as SubmitFunction | undefined }));
 vi.mock('$app/navigation', () => ({ beforeNavigate: () => {}, goto: vi.fn() }));
-vi.mock('$app/forms', () => ({ enhance: () => ({ destroy() {} }) }));
+vi.mock('$app/forms', () => ({
+	enhance: (form: HTMLFormElement, submit: SubmitFunction) => {
+		if (form.getAttribute('action') === '?/updateImageSet') enhanced.submit = submit;
+		return { destroy() {} };
+	}
+}));
 vi.mock('$app/state', () => ({
 	page: { url: new URL('http://localhost/keeper/images/5/edit') }
 }));
@@ -16,6 +25,10 @@ vi.mock('$lib/dataset', () => ({ loadEvents: async () => [] }));
 
 const { default: EditPage } = await import('./+page.svelte');
 type Props = ComponentProps<typeof EditPage>;
+
+afterEach(() => {
+	vi.restoreAllMocks();
+});
 
 /** Photographs already in the set. Data URLs: nothing to fetch. */
 const images: UploadedImage[] = [7, 8, 9].map((id) => ({
@@ -41,6 +54,7 @@ function renderEdit(
 			date: '2023-07-02',
 			dateAuto: true,
 			images,
+			version: 1_700_000_000_000,
 			...set
 		},
 		photographDate
@@ -53,6 +67,20 @@ const submitted = (name: string) => new FormData(form()).getAll(name);
 const save = () => page.getByRole('button', { name: 'Save changes' });
 const followsPhotographs = () =>
 	page.getByRole('checkbox', { name: 'Date follows the photographs' });
+
+/** Submit the way an Enter key press in a field would, past the button. */
+async function pressEnter() {
+	const cancel = vi.fn();
+	await enhanced.submit!({
+		formData: new FormData(form()),
+		formElement: form(),
+		action: new URL('http://localhost/keeper/images/5/edit?/updateImageSet'),
+		cancel,
+		controller: new AbortController(),
+		submitter: null
+	});
+	return cancel;
+}
 
 describe('/keeper/images/[id]/edit', () => {
 	it('submits the set’s photographs in order before the uploader has said a word', async () => {
@@ -111,6 +139,42 @@ describe('/keeper/images/[id]/edit', () => {
 		await expect.element(followsPhotographs()).not.toBeChecked();
 		expect(submitted('date')).toEqual(['2019-07']);
 		// The photographs are still the set's own.
+		expect(submitted('imageIds')).toEqual(['7', '8', '9']);
+	});
+
+	it('sends the version it was opened at, and keeps what was typed when the set moved on', async () => {
+		renderEdit({}, '2023-07-02', {
+			setError: 'This set changed since you opened it — reload to see the latest.',
+			values: { description: 'Typo fixed', event: '', date: '', dateAuto: true }
+		});
+		await expect
+			.element(page.getByRole('alert'))
+			.toHaveTextContent('This set changed since you opened it — reload to see the latest.');
+		await expect.element(page.getByLabelText('Description')).toHaveValue('Typo fixed');
+		// Still the version it was opened at: only a reload brings the latest.
+		expect(submitted('version')).toEqual(['1700000000000']);
+		expect(submitted('imageIds')).toEqual(['7', '8', '9']);
+	});
+
+	it('holds the save while a photograph failed to upload, until it is removed', async () => {
+		const server = fakeImageServer();
+		server.control.locked = true;
+		renderEdit();
+		await expect.element(save()).toBeEnabled();
+
+		await page.getByLabelText('Add photographs').upload(await canvasPhoto('new.png'));
+		await expect
+			.element(page.getByText('1 photograph wasn’t uploaded.'))
+			.toHaveTextContent(
+				'1 photograph wasn’t uploaded. Try it again, or remove it, before saving.'
+			);
+		await expect.element(save()).toBeDisabled();
+		expect(await pressEnter()).toHaveBeenCalled();
+
+		await page.getByRole('button', { name: 'Remove photograph 4' }).click();
+		await expect.element(save()).toBeEnabled();
+		await expect.element(page.getByText('wasn’t uploaded')).not.toBeInTheDocument();
+		expect(await pressEnter()).not.toHaveBeenCalled();
 		expect(submitted('imageIds')).toEqual(['7', '8', '9']);
 	});
 

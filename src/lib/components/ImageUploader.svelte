@@ -24,12 +24,16 @@
 	// Photographs for an image set: picked or dropped, each uploaded as it
 	// arrives (see $lib/images/upload). Emits the ids of the uploaded ones in
 	// display order, for the parent form to submit as hidden `imageIds` fields.
-	// `pending` (bindable) is true while any is still uploading, so the parent
-	// can hold the submit until every one is finalized.
+	// `pending` (bindable) is true while any is still uploading, and `failed`
+	// (bindable) counts the ones that failed and wait to be tried again or
+	// removed, so the parent can hold the submit until every one is finalized:
+	// a set saved past either would quietly leave those photographs out.
 	let {
 		onChange,
 		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		pending = $bindable(false),
+		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
+		failed = $bindable(0),
 		initial = [],
 		label,
 		required = false,
@@ -37,6 +41,7 @@
 	}: {
 		onChange?: (ids: number[]) => void;
 		pending?: boolean;
+		failed?: number;
 		/** Photographs already in the set (edit flow). Shown as uploaded. */
 		initial?: UploadedImage[];
 		/** Section label shown above the uploader, styled like the other form fields'. */
@@ -135,9 +140,12 @@
 		onChange?.(ids);
 	}
 
-	// Block submit while any photograph is still on its way.
+	// Block submit while any photograph is still on its way, or has failed to get there.
 	$effect(() => {
 		pending = tiles.some((t) => t.status === 'working');
+	});
+	$effect(() => {
+		failed = tiles.filter((t) => t.status === 'error').length;
 	});
 
 	// --- Previews -------------------------------------------------------------
@@ -373,15 +381,17 @@
 			runs.clear();
 			for (const url of objectUrls) URL.revokeObjectURL(url);
 			objectUrls.clear();
-			// Nothing is on its way any more. A form that outlives the uploader
-			// (one that hides it, say) would otherwise wait on it for good.
+			// Nothing is on its way, or waiting to be tried again, any more. A form
+			// that outlives the uploader (one that hides it, say) would otherwise
+			// wait on it for good.
 			pending = false;
+			failed = 0;
 		};
 	});
 
 	/** The locked refusal is about the visit, not any one file: said once, whichever tiles hit it. */
 	const lockedMessage = $derived(tiles.find((t) => t.status === 'error' && t.locked)?.error);
-	const failed = $derived(tiles.filter((t) => t.status === 'error' && !t.locked));
+	const failures = $derived(tiles.filter((t) => t.status === 'error' && !t.locked));
 </script>
 
 <div role="group" aria-labelledby={label ? labelId : undefined}>
@@ -450,7 +460,7 @@
 			</div>
 		{/if}
 
-		{#if lockedMessage || failed.length > 0}
+		{#if lockedMessage || failures.length > 0}
 			<div
 				class="mt-3 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-700"
 				role="alert"
@@ -467,10 +477,10 @@
 						</button>
 					</div>
 				{/if}
-				{#if failed.length > 0}
+				{#if failures.length > 0}
 					<p class="font-medium">One or more photographs failed to upload:</p>
 					<ul class="mt-1 list-inside list-disc space-y-0.5">
-						{#each failed as tile (tile.key)}
+						{#each failures as tile (tile.key)}
 							<li>{tile.name}: {tile.error || 'Upload error'}</li>
 						{/each}
 					</ul>

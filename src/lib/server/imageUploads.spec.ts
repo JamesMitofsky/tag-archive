@@ -395,6 +395,8 @@ describe('finalizeImage', () => {
 			{ ...keys, originalKey: keys.originalKey.replace('.jpg', '.svg') },
 			{ ...keys, displayKey: keys.displayKey.replace('display', 'other') },
 			{ ...keys, displayKey: imageKeys('', 'image/jpeg').displayKey },
+			// The display copy beside its original, where its public URL would lead to it.
+			{ ...keys, displayKey: keys.originalKey.replace(/original\.jpg$/, 'display.webp') },
 			{ ...keys, name: 42 },
 			{ originalKey: keys.originalKey, displayKey: keys.displayKey }
 		];

@@ -9,6 +9,9 @@ import {
 	exifTiff,
 	exifWebp,
 	iccProfile,
+	IPTC_UTF8,
+	iptcDataset,
+	iptcSegment,
 	jpegSegment,
 	pngIccp,
 	pngXmpText,
@@ -506,6 +509,33 @@ describe('parseImageMetadata: what exifr must never parse', () => {
 		expect(parsed.metadata).not.toHaveProperty('xmp');
 		expect(parsed.metadata).not.toHaveProperty('iptc');
 		expect(parsed.metadata).not.toHaveProperty('icc');
+	});
+
+	it('keeps the IPTC datasets the block holds whole, never the bytes that follow it', async () => {
+		// The caption holds 5 bytes but claims more: running into the EXIF
+		// segment after it, past the end of the file, or an extended length.
+		for (const declared of [200, 60000, 0x8004]) {
+			const iim = concatBytes(
+				IPTC_UTF8,
+				iptcDataset(2, 25, text('kw')),
+				iptcDataset(2, 120, text('Hello'), declared)
+			);
+			const bytes = exifJpeg({
+				// Ahead of the EXIF segment, so the block has a camera's bytes after it.
+				prelude: iptcSegment(iim),
+				make: 'Canon',
+				dateTimeOriginal: '2024:05:01 14:30:00',
+				gps: { lat: 51.5, lon: -0.12 }
+			});
+			// Only the first claim ends inside the file, among the EXIF segment's bytes.
+			const claimEnd = Buffer.from(bytes).indexOf('Hello') + declared;
+			expect(claimEnd <= bytes.length).toBe(declared === 200);
+
+			const parsed = await parseImageMetadata(bytes);
+			expect(parsed.metadata?.iptc).toEqual({ Keywords: 'kw' });
+			expect(parsed.capturedAt).toBe('2024-05-01T14:30:00');
+			expect(parsed.metadata?.ifd0).toEqual({ Make: 'Canon' });
+		}
 	});
 
 	it('still reads a packet that merely mentions such a word in its text', async () => {

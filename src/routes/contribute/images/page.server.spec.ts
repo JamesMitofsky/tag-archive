@@ -178,7 +178,13 @@ describe('createImageSet (anonymous)', () => {
 		const before = await countSets();
 		const result = await run('createImageSet', fields([photo]), { cookies, pass: null });
 		expect(isActionFailure(result) && result.status).toBe(401);
-		expect(isActionFailure(result) && result.data).toMatchObject({ locked: true });
+		expect(isActionFailure(result) && result.data).toMatchObject({
+			locked: true,
+			// A tap alone doesn't restart the photographs the lapse stopped: the
+			// message, beside the button, says to try those again before submitting.
+			imageSetError:
+				'The Archive has drifted shut. Visit the Cube to open the Archive, press “Try again” on any photographs marked “Not uploaded”, then “Add to the archive” — your entry is kept.'
+		});
 		expect(await countSets()).toBe(before);
 		expect((await db.select().from(image).where(eq(image.id, photo.id)).get())?.setId).toBeNull();
 	});

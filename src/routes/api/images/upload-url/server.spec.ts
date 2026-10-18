@@ -34,6 +34,7 @@ const { MAX_DISPLAY_BYTES, MAX_ORIGINAL_BYTES, UPLOAD_URL_TTL_S } =
 	await import('$lib/server/imageUploads');
 const { sign, verify } = await import('$lib/server/signing');
 const { verifyProxyPut } = await import('$lib/server/scans');
+const { parseOriginalKey } = await import('$lib/server/imageKeys');
 const { POST } = await import('./+server');
 
 type Grant = import('$lib/images/types').OriginalUploadGrant;
@@ -110,7 +111,10 @@ describe('POST /api/images/upload-url — originals', () => {
 		expect(status).toBe(200);
 		const grant = body as Grant;
 		expect(grant.originalKey).toMatch(new RegExp(`^images/${UUID}/original\\.jpg$`));
-		expect(grant.displayKey).toBe(grant.originalKey.replace('original.jpg', 'display.webp'));
+		// In a folder of its own: the display URL is published, the original's isn't.
+		expect(grant.displayKey).toMatch(new RegExp(`^images/${UUID}/display\\.webp$`));
+		expect(grant.displayKey.split('/')[1]).not.toBe(grant.originalKey.split('/')[1]);
+		expect(grant.displayKey).toBe(parseOriginalKey(grant.originalKey)?.displayKey);
 		expect(verify('image-display', grant.originalKey, grant.ticket)).toBe(true);
 
 		const url = new URL(grant.upload.url);
@@ -129,6 +133,9 @@ describe('POST /api/images/upload-url — originals', () => {
 		expect(status).toBe(200);
 		expect((body as Grant).originalKey).toMatch(
 			new RegExp(`^submissions/${caller.draftId}/images/${UUID}/original\\.heic$`)
+		);
+		expect((body as Grant).displayKey).toMatch(
+			new RegExp(`^submissions/${caller.draftId}/images/${UUID}/display\\.webp$`)
 		);
 		expect(vi.mocked(consume).mock.calls).toEqual([
 			['upload-ip', IP, LIMITS.uploadPerIp],

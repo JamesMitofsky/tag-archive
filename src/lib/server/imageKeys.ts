@@ -1,18 +1,22 @@
 import { randomUUID } from 'node:crypto';
 import type { ImageType } from '$lib/imageType';
+import { sign } from './signing';
 
 /**
- * Bucket key layout for photographs. Each image gets its own folder holding
- * exactly two objects:
+ * Bucket key layout for photographs. Each image's two objects get a folder
+ * each:
  *
- *   <prefix>images/<uuid>/original.<ext>   the upload, bit-for-bit
- *   <prefix>images/<uuid>/display.webp     the WebP display copy
+ *   <prefix>images/<uuid>/original.<ext>          the upload, bit-for-bit
+ *   <prefix>images/<display id>/display.webp      the WebP display copy
  *
  * `prefix` is '' for a signed-in keeper and `submissions/<draft>/` for an
  * anonymous contributor (see $lib/server/drafts), so ownership is readable from
- * the key itself. A folder per image, rather than two sibling files, keeps the
- * pair from colliding when the original is itself a WebP, and keeps every key
- * free of anything `keyFromUrl` would refuse.
+ * either key itself. `<display id>` is a keyed hash of `<uuid>` (see
+ * `displayFolderId`): the display copy is published and the bucket is public,
+ * so were the two in one folder, anyone could swap `display.webp` for
+ * `original.jpg` and read the original's GPS position and device details.
+ * Separate folders also keep the pair from colliding when the original is
+ * itself a WebP, and every key stays plain (see `isPlainKey` in ./scans).
  *
  * Keys come back from the browser at finalize time, so `parseImageKeys` is
  * strict: anything that isn't exactly this layout is refused.
@@ -35,18 +39,35 @@ export type ImageKeys = { originalKey: string; displayKey: string };
 export type ParsedImageKeys = ImageKeys & {
 	/** '' or `submissions/<draft>/`. */
 	prefix: string;
-	/** The per-image folder's id. */
+	/** The original's folder id. */
 	uuid: string;
 	/** The original's type, as its key's extension names it. */
 	originalType: ImageType;
 };
 
+/**
+ * The display copy's folder for the original in folder `uuid`: 16 bytes of an
+ * HMAC over it, which only the server can compute, and which can't be turned
+ * back into `uuid`. Written in a uuid's shape (lowercase hex, 8-4-4-4-12), so
+ * it passes every check a uuid folder does, the sweeps' included. Rows store
+ * both URLs, so rotating the secret only strands uploads still in flight, as
+ * it does their tickets.
+ */
+function displayFolderId(uuid: string): string {
+	const hex = Buffer.from(sign('image-display-folder', uuid), 'base64url')
+		.subarray(0, 16)
+		.toString('hex');
+	return hex.replace(/^(.{8})(.{4})(.{4})(.{4})/, '$1-$2-$3-$4-');
+}
+
+const displayKeyFor = (prefix: string, uuid: string) =>
+	`${prefix}images/${displayFolderId(uuid)}/display.webp`;
+
 /** Fresh keys for one image under `prefix`, its original stored as `type`. */
 export function imageKeys(prefix: string, type: ImageType, uuid: string = randomUUID()): ImageKeys {
-	const folder = `${prefix}images/${uuid}/`;
 	return {
-		originalKey: `${folder}original.${EXTENSIONS[type]}`,
-		displayKey: `${folder}display.webp`
+		originalKey: `${prefix}images/${uuid}/original.${EXTENSIONS[type]}`,
+		displayKey: displayKeyFor(prefix, uuid)
 	};
 }
 
@@ -57,8 +78,8 @@ const ORIGINAL_KEY_RE =
 
 /**
  * Validate a pair of keys handed back by the browser: the original must match
- * the layout above exactly, and the display key must be its own folder's
- * `display.webp`. Null for anything else.
+ * the layout above exactly, and the display key must be the one derived from
+ * it. Null for anything else.
  */
 export function parseImageKeys(keys: {
 	originalKey: unknown;
@@ -69,14 +90,14 @@ export function parseImageKeys(keys: {
 	const match = ORIGINAL_KEY_RE.exec(originalKey);
 	if (!match) return null;
 	const [, prefix, uuid, extension] = match;
-	if (displayKey !== `${prefix}images/${uuid}/display.webp`) return null;
+	if (displayKey !== displayKeyFor(prefix, uuid)) return null;
 	return { originalKey, displayKey, prefix, uuid, originalType: TYPE_BY_EXTENSION[extension] };
 }
 
-/** `parseImageKeys` for an original key alone: its display sibling is implied. */
+/** `parseImageKeys` for an original key alone: its display key is derived. */
 export function parseOriginalKey(originalKey: unknown): ParsedImageKeys | null {
 	if (typeof originalKey !== 'string') return null;
 	const match = ORIGINAL_KEY_RE.exec(originalKey);
 	if (!match) return null;
-	return parseImageKeys({ originalKey, displayKey: `${match[1]}images/${match[2]}/display.webp` });
+	return parseImageKeys({ originalKey, displayKey: displayKeyFor(match[1], match[2]) });
 }

@@ -112,4 +112,24 @@ describe('DELETE /api/scans', () => {
 		expect(await remove(VISITOR, url(`${other}draft.webp`))).toEqual({ status: 403 });
 		expect(deleteScan).not.toHaveBeenCalled();
 	});
+
+	it('refuses a URL that climbs out of its folder, encoded or not', async () => {
+		// A vetted photograph: its display URL is public, so anyone can aim at it.
+		const target = await photograph('', setId);
+		// Each starts with the visitor's own prefix, and none is stored anywhere,
+		// but the URL parser that builds the bucket request turns every one of
+		// them into the target's own key.
+		const climbs = ['%2e%2e/%2e%2e/', '.%2E/%2E./', '..\\..\\', '.\t./.\n./'];
+		for (const climb of climbs) {
+			const key = `${PREFIX}${climb}${target.displayKey}`;
+			expect(new URL(`http://s3.test/tag-archive/${key}`).pathname).toBe(
+				`/tag-archive/${target.displayKey}`
+			);
+			expect(await remove(VISITOR, url(key))).toEqual({ status: 400 });
+		}
+		// A keeper needs no prefix; the saved artefact's scan is as exposed.
+		expect(await remove(KEEPER, url(`x/%2e%2e/${target.originalKey}`))).toEqual({ status: 400 });
+		expect(await remove(KEEPER, url('x/%2e%2e/saved.webp'))).toEqual({ status: 400 });
+		expect(deleteScan).not.toHaveBeenCalled();
+	});
 });
