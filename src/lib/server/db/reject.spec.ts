@@ -17,7 +17,7 @@ vi.mock('../scans', async (importOriginal) => ({
 const { migrateTestDatabase } = await import('./testing');
 const { db } = await import('./index');
 const { rejectProposed } = await import('./queries');
-const { artefact, artefactProvenance, person } = await import('./schema');
+const { artefact, artefactProvenance, event, imageSet, person, user } = await import('./schema');
 
 beforeAll(async () => {
 	await migrateTestDatabase();
@@ -65,5 +65,30 @@ describe('rejecting a proposed artefact', () => {
 	it('deletes the names it introduced, but keeps people still linked elsewhere', async () => {
 		const names = (await db.select({ name: person.name }).from(person)).map((p) => p.name);
 		expect(names).toEqual(['Also on a vetted one']);
+	});
+});
+
+describe('rejecting a proposed event', () => {
+	beforeAll(async () => {
+		await db.insert(user).values({ id: 'admin', name: 'Admin', email: 'admin@example.org' });
+		await db.insert(event).values({
+			id: 1,
+			title: 'Pending Picnic',
+			date: '2024-07-01',
+			proposedAddition: true
+		});
+		// Both point at the event with no cascade: the reject must unlink them first.
+		await db.insert(artefact).values({ id: 3, artefact: 'Picnic flyer', date: '2024', eventId: 1 });
+		await db.insert(imageSet).values({ id: 1, description: 'Picnic photographs', eventId: 1 });
+
+		await rejectProposed('event', 1, 'admin');
+	});
+
+	it('removes the event and unlinks what pointed at it, keeping those rows', async () => {
+		expect(await db.select().from(event).where(eq(event.id, 1))).toHaveLength(0);
+		const [flyer] = await db.select().from(artefact).where(eq(artefact.id, 3));
+		expect(flyer).toMatchObject({ eventId: null, updatedBy: 'admin' });
+		const [set] = await db.select().from(imageSet).where(eq(imageSet.id, 1));
+		expect(set).toMatchObject({ eventId: null, updatedBy: 'admin' });
 	});
 });
