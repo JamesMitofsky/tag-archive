@@ -50,8 +50,9 @@ export default {
 	extensions: ['.svelte', '.svx', '.md'],
 	preprocess: [mdsvex({ extensions: ['.svx', '.md'] })],
 	kit: {
+		// No `runtime`: the functions run the Node version the build ran on, which
+		// `engines.node` in package.json sets. Pinning it here too would let the two drift.
 		adapter: adapter({
-			runtime: 'nodejs22.x',
 			images: /** @type {import('@sveltejs/adapter-vercel').Config['images']} */ ({
 				sizes: [...CDN_WIDTHS],
 				domains: [],

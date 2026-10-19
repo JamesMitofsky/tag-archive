@@ -77,7 +77,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: package.json
 
       # Run from outside the checkout, pointed at it with --cwd: npx resolves the
       # CLI with the working directory's npm config, and the PR's own .npmrc
