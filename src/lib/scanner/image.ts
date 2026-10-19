@@ -12,7 +12,8 @@ let encodedType: EncodedType | undefined;
  * browser can encode it, JPEG where it can't. Safari (through at least 26)
  * can't, and `toBlob` doesn't fail when asked: it silently hands back a PNG,
  * 4–10 MB for one 2560px photo, which is past what an upload can carry
- * (Netlify's function body limit is 6 MB, ~4.5 MB once binary is base64'd).
+ * (scans are capped at 4 MB, under Vercel's 4.5 MB function body limit; see
+ * ./limits).
  * The same photo as JPEG is 1–2 MB and encodes several times faster.
  */
 export function encodedImageType(): EncodedType {

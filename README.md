@@ -172,7 +172,7 @@ queue. Anonymous writes are guarded by:
   starting with a dot), since a bucket request would turn `%2e%2e`, a backslash
   and the like into a step up a folder. Every bucket request refuses any other key.
 - **Rate limits** backed by the `rate_limit` table (`src/lib/server/rateLimit.ts`).
-- **A daily sweep** (`netlify/functions/sweep-submissions.mts` →
+- **A daily sweep** (a Vercel Cron Job in `vercel.json` →
   `/api/cron/sweep-submissions`) that deletes abandoned uploads and stale counters
   (see [Sweeps](#sweeps)).
 
@@ -200,8 +200,10 @@ same code targets two backends via env:
 | `R2_CORS_ORIGINS`      | only for `pnpm storage:cors`      | _(unset)_                           |
 
 - **Prod:** no `S3_ENDPOINT`, so `scans.ts` derives the R2 host from `R2_ACCOUNT_ID`.
-  Set all `R2_*` in Netlify → Site settings → Environment variables (`.env.production`
-  is **not** read by the deployed site). Credentials are server-only
+  Set all `R2_*` in Vercel → Project → Settings → Environment Variables
+  (`.env.production` is **not** read by the deployed site). `R2_PUBLIC_URL` must be
+  there for builds too: the build allows the image optimizer to fetch from it, and
+  fails without it. Credentials are server-only
   (`$env/dynamic/private`) — they never reach the browser.
 - **Local:** the run script starts a [RustFS](https://github.com/rustfs/rustfs)
   container (a maintained, S3-compatible object store) and points `S3_ENDPOINT`
@@ -249,8 +251,9 @@ where admins also edit and delete them; the public page is `/images`.
 
 Why this shape:
 
-- **Netlify caps a function's request body at ~6 MB**, and phone photos run past
-  it. So the bytes never pass through a function: the server only issues URLs
+- **Vercel caps a function's request body at 4.5 MB**, and phone photos run past
+  it. (Scans, which do go through a function, are capped at 4 MB:
+  `src/lib/scanner/limits.ts`.) So the bytes never pass through a function: the server only issues URLs
   and checks what landed.
 - **Declared types are never trusted.** What the browser declares only picks
   which URL to ask for; finalize sniffs the stored bytes, as `/api/scans` does.
@@ -337,20 +340,21 @@ it from your machine with wrangler (a devDependency):
 
 ```sh
 pnpm exec wrangler login        # once, or set CLOUDFLARE_API_TOKEN
-export R2_BUCKET=<bucket> R2_CORS_ORIGINS=https://tag-archive.netlify.app
+export R2_BUCKET=<bucket> R2_CORS_ORIGINS=https://archive.ustreetcommunity.org
 pnpm storage:cors --dry-run     # print the rule as JSON, apply nothing
 pnpm storage:cors               # apply it, then list what R2 now holds
 ```
 
 `R2_CORS_ORIGINS` is comma-separated; list every origin pages are served from
-(the Netlify site and any custom domain). The script reads the shell's
+(the custom domain, and the project's `*.vercel.app` domain if anyone uses it).
+The script reads the shell's
 environment only, never `.env` (whose `ORIGIN` and `R2_BUCKET` are the dev
 site's). When `R2_CORS_ORIGINS` is unset, an exported `ORIGIN` stands in, unless
 it is `.env`'s or a local address. The script replaces the bucket's whole CORS
-configuration. **R2 can't wildcard subdomains**, so a deploy preview
-(`https://deploy-preview-<n>--tag-archive.netlify.app`) can't upload photographs
-unless its exact origin is added and the rule re-applied; the rest of a preview
-works. Without the rule, every photograph fails with "The upload was
+configuration. **R2 can't wildcard subdomains**, so a preview deployment
+(`https://tag-archive-<hash>-<team>.vercel.app`, a new one per deploy) can't
+upload photographs unless its exact origin is added and the rule re-applied; the
+rest of a preview works. Without the rule, every photograph fails with "The upload was
 interrupted" and the browser console shows a CORS error.
 
 **Local (RustFS).** `scripts/init-bucket.mjs` gives the dev bucket a wide-open
@@ -366,10 +370,12 @@ signed terms. It only works under `vite dev` with a local store.
 2. On the live site, add a photograph at `/contribute/images`. In DevTools →
    Network, the cross-origin `PUT`s to `<account>.r2.cloudflarestorage.com`
    and their `OPTIONS` preflights succeed, and `finalize` answers 200.
-3. The display copy renders through the image CDN: on the site, open
-   `/.netlify/images?url=<the display.webp URL>&w=400`. If that answers with an
-   error rather than the image, check that the bucket's public host is in
-   `[images] remote_images` in `netlify.toml`.
+3. The display copy renders through the image optimizer: on the site, open
+   `/_vercel/image?url=<the display.webp URL, percent-encoded>&w=480&q=75`. If
+   that answers with an error rather than the image, check that the deploy was
+   built with `R2_PUBLIC_URL` set to the bucket's public URL (`svelte.config.js`
+   allows only that host), and that `w` is one of `CDN_WIDTHS`
+   (`src/lib/images/cdnWidths.js`).
 4. Once the set is vetted, `/api/dataset` lists it with only `id`, `url`,
    `width`, `height` and `capturedDate` per photograph.
 
@@ -395,11 +401,11 @@ pass slides; nothing else sets the cookie on a response the CDN might cache.
 
 The pass is checked twice, from one rule (`src/lib/access/gate.ts`):
 
-- **At the edge** (`netlify/edge-functions/access-gate.ts`), in front of the CDN —
+- **In Vercel's Routing Middleware** (`middleware.ts`), in front of the CDN —
   the only layer that sees static scans and audio and cached responses like
   `/api/dataset`, none of which ever reach SvelteKit.
 - **In `hooks.server.ts`**, for everything SvelteKit serves — and the only gate
-  under `vite dev`, which doesn't run edge functions.
+  under `vite dev`, which doesn't run the middleware.
 
 Without a pass, a page view lands on `/locked`; anything else gets a 401. Always
 open: `/t`, `/locked`, the sign-in endpoints (`/api/auth/*`), the cron endpoint,
@@ -420,8 +426,7 @@ the AES-128 keys written onto the tag. They are their own env vars, not derived
 from `BETTER_AUTH_SECRET`, so rotating the auth secret never bricks the tag.
 Production refuses taps when they are unset or left at the all-zero factory
 default. The pass itself is signed with a key derived from `BETTER_AUTH_SECRET`,
-which the edge function also reads — so that variable must be available to
-functions (its scope in Netlify must include Functions).
+which the middleware also reads from the same project environment variables.
 
 **Trying it locally.** `.env.example` ships NXP's all-zero test keys, which dev
 accepts. With the site running, `pnpm nfc:tap` prints a valid tap URL for a fresh
@@ -433,7 +438,7 @@ on a Mac with an ACR1252U):
 
 1. Generate three keys with `openssl rand -hex 16`: the meta key, the file key,
    and a new app master key. Keep all three in a password manager; set the first
-   two in Netlify.
+   two in Vercel's environment variables.
 2. Change **key 0 (the app master key)** from its default — otherwise anyone with
    the same app can rewrite the tag.
 3. Write the NDEF URL
@@ -576,4 +581,31 @@ pnpm build      # production build
 pnpm preview    # preview it
 ```
 
-Deploy target uses the Netlify adapter.
+## Deploying
+
+The site runs on Vercel (`@sveltejs/adapter-vercel`, configured in
+`svelte.config.js`; platform settings in `vercel.json`).
+
+- **Production only.** Vercel builds `main` and nothing else from git
+  (`git.deploymentEnabled`). For a preview of a pull request, comment `/deploy`
+  on it (`.github/workflows/deploy-command.yml`); previews are behind Vercel
+  Authentication. A preview signs keepers in at its own URL, not `ORIGIN`
+  (`src/lib/server/origin.ts`). Photograph uploads fail there unless its exact
+  origin is added to the bucket's CORS rule (see [CORS](#cors)).
+- **Environment variables** go in Vercel → Project → Settings → Environment
+  Variables, for Production (and Preview, for `/deploy`). Use `.env.example` as
+  the checklist, plus `CRON_SECRET`: a random string of at least 16 characters,
+  which Vercel sends as the daily sweep's bearer. Without it the sweep refuses to
+  run.
+- **Node 22**, pinned by the adapter's `runtime`; set the project's Node.js
+  version to 22.x to build on the same.
+- **The daily sweep** runs once a day, at some point in the hour after midnight
+  UTC (the Hobby plan's cron precision). Run it by hand with
+  `curl -H "Authorization: Bearer $CRON_SECRET" https://<site>/api/cron/sweep-submissions`.
+- **Building locally with `vercel build`** needs nothing special: the gate uses the
+  `middleware.ts` file convention, which every Vercel CLI picks up.
+- **Image optimization** covers the bucket's images only, as WebP, at the widths in
+  `src/lib/images/cdnWidths.js`. The Hobby plan includes 5,000 transformations a
+  month; past that, `OptimizedImage` falls back to the original file.
+- **Fluid compute** must stay on (the default for new projects): the daily sweep
+  asks for 300 seconds, which Hobby allows only with it.

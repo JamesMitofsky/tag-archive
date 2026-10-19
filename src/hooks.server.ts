@@ -29,7 +29,7 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 // The site-wide access gate (see $lib/access/gate): the site opens to holders
 // of an access pass — earned by tapping the garden's NFC tag, or handed to a
 // signed-in keeper — and kept alive by the presence beat while the site is on
-// screen (src/routes/api/presence). In production the edge function has already turned
+// screen (src/routes/api/presence). In production the middleware has already turned
 // pass-less requests away; this is the same rule again for everything that
 // reaches SvelteKit, and the only gate under `vite dev`.
 const guardAccess: Handle = async ({ event, resolve }) => {
