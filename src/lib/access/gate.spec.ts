@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { config } from '../../../netlify/edge-functions/access-gate';
-import { gateRequest } from './edge';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import middleware, { config } from '../../../middleware';
+import { gateRequest, readCookie } from './edge';
 import { accessDecision, isOpenPath, LOCKED_PATH } from './gate';
 import { KEEPER_DOOR_PARAM, KEEPER_DOOR_URL } from './keeperDoor.server';
-import { mintPass } from './pass';
+import { mintPass, PASS_COOKIE } from './pass';
 
 const page = (pathname: string, method = 'GET') =>
 	accessDecision({ pathname, method, accept: 'text/html,*/*', isDataRequest: false });
@@ -212,12 +212,115 @@ describe('accessDecision (no pass)', () => {
 	});
 });
 
-describe('edge function config', () => {
+describe('middleware matcher', () => {
+	// As Vercel compiles each matcher: anchored, with one optional trailing
+	// `/`, `#` or `?` (see `middlewareRawSrc` in .vercel/output/config.json).
+	const matchers = config.matcher.map((m) => new RegExp(`^(?:${m})[/#?]?$`));
+	const runsOn = (path: string) => matchers.some((m) => m.test(path));
+
 	it('only skips paths the gate leaves open anyway', () => {
-		for (const pattern of config.excludedPath) {
-			const sample = pattern.replace('*', 'anything');
-			expect(isOpenPath(sample), pattern).toBe(true);
+		for (const path of [
+			'/_app/immutable/entry/start.js',
+			'/_app/version.json',
+			'/drawing/text/tag-archive.webp',
+			'/clouds/cloud-1.webp',
+			'/email/logo.png',
+			'/favicon.png'
+		]) {
+			expect(runsOn(path), path).toBe(false);
+			expect(isOpenPath(path), path).toBe(true);
 		}
+	});
+
+	it('runs on everything the gate may lock, look-alikes included', () => {
+		for (const path of [
+			'/',
+			'/events',
+			'/events/__data.json',
+			'/keeper',
+			'/api/dataset',
+			'/api/scans',
+			'/artefacts/TAG-001.jpg',
+			'/audio/meditation-walk/01%20-%20INTRODUCTION.mp3',
+			'/_vercel/image',
+			'/_appx',
+			'/drawingx/a.webp',
+			'/favicon.png.map',
+			'/favicon.pngx'
+		]) {
+			expect(runsOn(path), path).toBe(true);
+		}
+	});
+});
+
+describe('readCookie', () => {
+	const withCookie = (cookie?: string) =>
+		new Request('https://archive.test/', cookie ? { headers: { cookie } } : undefined);
+
+	it('finds a cookie among others, by its exact name', () => {
+		const request = withCookie('a=1; tag_pass=v1.t.1.2.sig; tag_passx=no');
+		expect(readCookie(request, 'tag_pass')).toBe('v1.t.1.2.sig');
+		expect(readCookie(request, 'tag')).toBeUndefined();
+	});
+
+	it('takes the first of two pairs with the same name', () => {
+		expect(readCookie(withCookie('tag_pass=first; tag_pass=second'), 'tag_pass')).toBe('first');
+	});
+
+	it('decodes the value, drops its quotes, and keeps one it cannot decode', () => {
+		expect(readCookie(withCookie('a=%20b'), 'a')).toBe(' b');
+		expect(readCookie(withCookie('a="quoted"'), 'a')).toBe('quoted');
+		expect(readCookie(withCookie('a=%E0%A4%A'), 'a')).toBe('%E0%A4%A');
+		expect(readCookie(withCookie('a=x=y'), 'a')).toBe('x=y');
+	});
+
+	it('is undefined without the header or the cookie', () => {
+		expect(readCookie(withCookie(), 'a')).toBeUndefined();
+		expect(readCookie(withCookie('novalue; b=2'), 'novalue')).toBeUndefined();
+	});
+});
+
+describe('middleware', () => {
+	const SECRET = 'middleware-secret';
+
+	afterEach(() => {
+		vi.unstubAllEnvs();
+		vi.restoreAllMocks();
+	});
+
+	it('lets a request with a pass through to the app or the cache', async () => {
+		vi.stubEnv('BETTER_AUTH_SECRET', SECRET);
+		const { token } = await mintPass(SECRET, 't');
+		const res = await middleware(
+			new Request('https://archive.test/events', {
+				headers: { accept: 'text/html', cookie: `${PASS_COOKIE}=${token}` }
+			})
+		);
+		expect(res.headers.get('x-middleware-next')).toBe('1');
+	});
+
+	it('locks a request without one', async () => {
+		vi.stubEnv('BETTER_AUTH_SECRET', SECRET);
+		const res = await middleware(
+			new Request('https://archive.test/events', { headers: { accept: 'text/html' } })
+		);
+		expect(res.status).toBe(303);
+		expect(res.headers.get('x-middleware-next')).toBeNull();
+	});
+
+	it('fails closed when the check itself throws', async () => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		// A Request whose URL getter throws stands in for any failure inside the gate.
+		const broken = new Proxy(new Request('https://archive.test/events'), {
+			get(target, prop) {
+				if (prop === 'url') throw new Error('boom');
+				return Reflect.get(target, prop, target);
+			}
+		});
+		const res = await middleware(broken);
+		expect(res.status).toBe(500);
+		expect(res.headers.get('cache-control')).toBe('no-store');
+		expect(res.headers.get('x-middleware-next')).toBeNull();
 	});
 });
 

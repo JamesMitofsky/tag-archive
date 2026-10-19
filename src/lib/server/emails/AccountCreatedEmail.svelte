@@ -6,7 +6,7 @@
 	// recipient signs in whenever they like via an emailed one-time code.
 	//
 	// `logoUrl` is an absolute URL to the handwritten wordmark PNG (built from
-	// env.ORIGIN at the call site). Email clients can't resolve relative paths, so
+	// siteOrigin() at the call site). Email clients can't resolve relative paths, so
 	// the header image must be fully-qualified.
 	let { signInUrl, logoUrl }: { signInUrl: string; logoUrl: string } = $props();
 

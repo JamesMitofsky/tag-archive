@@ -5,15 +5,16 @@
  * This decides what happens to a request WITHOUT a valid pass. It is enforced
  * twice, from this one list:
  *
- *  - netlify/edge-functions/access-gate.ts, in front of everything — the only
- *    layer that sees static files (scans, audio) and CDN-cached responses
+ *  - middleware.ts (Vercel Routing Middleware), in front of everything — the
+ *    only layer that sees static files (scans, audio) and CDN-cached responses
  *    (/api/dataset), which never reach SvelteKit;
  *  - hooks.server.ts, for every SvelteKit request — defense in depth in
- *    production, and the only gate under `vite dev`, where edge functions
- *    don't run.
+ *    production, and the only gate under `vite dev`, where the middleware
+ *    doesn't run.
  *
- * Imports nothing but its siblings, by relative path, so the edge bundle can
- * load it. Server and edge only: the browser gets LOCKED_PATH from ./paths.
+ * Imports nothing but its siblings, by relative path, so the middleware bundle
+ * can load it. Server and middleware only: the browser gets LOCKED_PATH from
+ * ./paths.
  */
 
 import { opensKeeperDoor } from './keeperDoor.server.ts';
@@ -119,7 +120,7 @@ function answersWithActionResult(accept: string | null): boolean {
 /**
  * Which of `types` an Accept header prefers, or undefined for none: SvelteKit's
  * own `negotiate` (@sveltejs/kit/src/utils/http.js), copied rather than
- * imported so the edge bundle can load this file, and kept to the letter so
+ * imported so the middleware bundle can load this file, and kept to the letter so
  * the gate reads a header exactly as SvelteKit will. Like it, an entry with
  * q=0 still accepts, only last.
  */

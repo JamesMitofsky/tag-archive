@@ -8,7 +8,7 @@
  *
  * Server-only (the `.server` suffix makes SvelteKit refuse to bundle it for the
  * browser), so the phrase never ships in the public JS. Imports nothing, so
- * the edge bundle can load it by relative path through ./gate.
+ * the middleware bundle can load it by relative path through ./gate.
  */
 
 export const KEEPER_DOOR_PARAM = 'listeningwith';

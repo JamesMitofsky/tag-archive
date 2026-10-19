@@ -7,9 +7,9 @@ import { sign } from './signing';
  * Fixed-window rate limiting for anonymous writes, backed by the database.
  *
  * Why the database: the app runs as stateless serverless functions, so an
- * in-memory counter would reset per instance; and Netlify's platform rate
- * limits attach to standalone functions or redirect rules, not to routes inside
- * SvelteKit's generated function. One upsert per guarded request is cheap next
+ * in-memory counter would reset per instance; and a platform rate limit (the
+ * host's firewall rules) is configured outside the app and keyed on paths, not on
+ * the draft sessions and visitors these limits count. One upsert per guarded request is cheap next
  * to the write it guards.
  *
  * Subjects (IP addresses, draft ids) are stored hashed, never raw.
