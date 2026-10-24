@@ -82,3 +82,36 @@ describe('0006_undated_artefacts', () => {
 		expect(rows.rows.at(-1)?.artefact).toBe('undated');
 	});
 });
+
+describe('0009_number_confirmation', () => {
+	let client: Client;
+
+	beforeAll(async () => {
+		client = createClient({ url: `file:${join(work, 'replay-0009.db')}` });
+		await migrateThrough(client, '0008_nfc_tags');
+		await client.execute(
+			"INSERT INTO artefact (id, artefact, date, created_at) VALUES (1, 'a', '2020', 1000), (2, 'b', '2021', 2000)"
+		);
+		await migrateThrough(client, '0009_number_confirmation');
+	});
+
+	afterAll(() => client.close());
+
+	it('takes every existing artefact as numbered, as an unattributed assumption', async () => {
+		const rows = await client.execute(
+			'SELECT artefact_id, created_at, created_by FROM number_confirmation ORDER BY artefact_id'
+		);
+		expect(rows.rows.map((r) => ({ ...r }))).toEqual([
+			{ artefact_id: 1, created_at: 1000, created_by: null },
+			{ artefact_id: 2, created_at: 2000, created_by: null }
+		]);
+	});
+
+	it('leaves artefacts added afterwards unconfirmed', async () => {
+		await client.execute("INSERT INTO artefact (id, artefact, date) VALUES (3, 'c', '2024')");
+		const row = await client.execute(
+			'SELECT count(*) AS n FROM number_confirmation WHERE artefact_id = 3'
+		);
+		expect(Number(row.rows[0].n)).toBe(0);
+	});
+});

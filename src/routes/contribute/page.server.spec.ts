@@ -13,7 +13,8 @@ vi.mock('$env/dynamic/public', () => ({ env: {} }));
 
 const { migrateTestDatabase } = await import('$lib/server/db/testing');
 const { db } = await import('$lib/server/db');
-const { artefact, event, submissionContact, user } = await import('$lib/server/db/schema');
+const { artefact, event, numberConfirmation, submissionContact, user } =
+	await import('$lib/server/db/schema');
 const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('$lib/server/drafts');
 const { approveProposed } = await import('$lib/server/db/queries');
 const { UNDATED } = await import('$lib/partialDate');
@@ -216,5 +217,11 @@ describe('createArtefact (signed-in admin)', () => {
 		expect(match).not.toBeNull();
 		const id = Number(match![1]);
 		expect(await row(id)).toMatchObject({ proposedAddition: false, createdBy: ADMIN.id });
+		// Nobody has written the number on the item yet, so the page will ask.
+		const confirmed = await db
+			.select()
+			.from(numberConfirmation)
+			.where(eq(numberConfirmation.artefactId, id));
+		expect(confirmed).toEqual([]);
 	});
 });
