@@ -80,6 +80,38 @@ Tables after setup: `artefact`, `user`, `session`, `account`, `verification`.
 
 Other DB scripts: `db:seed`, `db:seed:images`, `db:push`, `db:generate`, `db:migrate`, `db:studio`.
 
+## Importing new events from ustreetcommunity.org
+
+Events are published on the U Street community site first. Three local steps
+bring the ones the archive doesn't have yet into production (code in
+`src/lib/server/events-import/`, working files in the gitignored
+`temp/events-import/`):
+
+```sh
+pnpm events:fetch     # diff the site's sitemap against the seed, save each new page's JSON
+pnpm events:curate    # write description/hosts/series/review flag with Claude → events.json
+# review and hand-edit temp/events-import/events.json
+DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' pnpm events:import            # dry run
+DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' IMPORT_CONFIRM=1 \
+  pnpm events:import --apply --as you@example.com --write-seed
+```
+
+- **Fetch** reads `?format=json` for each page and is resumable. Pass
+  `--sitemap <file>` to use a saved copy of the sitemap.
+- **Curate** copies title, date, time, location, and URL from the page, and asks
+  Claude (`ANTHROPIC_API_KEY` or an `ant auth login` profile) for the fields the
+  catalogue writes with judgment, following the seed's existing entries and
+  series. Results are cached per page, and a re-run keeps your edits to
+  `events.json`. `--no-llm` skips Claude and flags every entry for review.
+- **Import** is insert-only and safe to re-run. It skips URLs the database
+  already holds, events matching an existing title and date, and events dated
+  after today (`--include-upcoming` keeps them). It writes everything in one
+  transaction. The events land in the keeper review queue
+  (`/keeper/settings/review/events`), and approving one publishes it. `--publish`
+  skips the queue and purges the site cache itself (needs `NETLIFY_AUTH_TOKEN`).
+  `--write-seed` appends the entries to `src/lib/data/seed-data.json` so local dev
+  matches.
+
 ## Attachments
 
 Two sources feed an artefact's `fileUrl`:
