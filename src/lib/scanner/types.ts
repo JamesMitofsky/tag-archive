@@ -15,6 +15,14 @@ export type ScanPage = {
 	 * which have no local original.
 	 */
 	sourceBlob?: Blob;
-	/** Applied crop, in `sourceBlob`'s pixel space. */
+	/** Applied crop, in `sourceBlob`'s pixel space (before any `turns`). */
 	corners?: CornerPoints;
+	/**
+	 * Quarter turns counterclockwise from `sourceBlob` to the page as uploaded.
+	 * Applied when the page is rendered, so the original is never re-encoded
+	 * to turn it and `corners` never leaves its space.
+	 */
+	turns?: number;
+	/** The `turns` that `previewUrl` was rendered at, when it was rendered from `sourceBlob`. */
+	previewTurns?: number;
 };

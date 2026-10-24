@@ -5,6 +5,7 @@ import {
 	isFullFrame,
 	isPlausibleQuad,
 	quadArea,
+	rotateCorners,
 	scaleCorners,
 	type CornerPoints
 } from './detect';
@@ -75,5 +76,43 @@ describe('scanner geometry', () => {
 
 		expect(isPlausibleQuad(broken, 100, 100)).toBe(false);
 		expect(isPlausibleQuad(fullFrameCorners(100, 100), 0, 0)).toBe(false);
+	});
+
+	it('carries corners along a quarter turn counterclockwise, keys and all', () => {
+		// A page in the top-right quarter of a 100×50 landscape frame.
+		const page: CornerPoints = {
+			topLeft: { x: 60, y: 5 },
+			topRight: { x: 95, y: 5 },
+			bottomRight: { x: 95, y: 20 },
+			bottomLeft: { x: 60, y: 20 }
+		};
+		// Turned upright (50×100), that corner of the frame is the top-left, and
+		// the page's old top-right corner is its new top-left.
+		expect(rotateCorners(page, 100, 50, 1)).toEqual({
+			topLeft: { x: 5, y: 5 },
+			topRight: { x: 20, y: 5 },
+			bottomRight: { x: 20, y: 40 },
+			bottomLeft: { x: 5, y: 40 }
+		});
+	});
+
+	it('turns the whole frame into the whole turned frame', () => {
+		expect(rotateCorners(fullFrameCorners(100, 50), 100, 50, 1)).toEqual(fullFrameCorners(50, 100));
+		expect(rotateCorners(fullFrameCorners(100, 50), 100, 50, 2)).toEqual(fullFrameCorners(100, 50));
+		expect(rotateCorners(fullFrameCorners(100, 50), 100, 50, 3)).toEqual(fullFrameCorners(50, 100));
+	});
+
+	it('comes back where it started after four turns, or none', () => {
+		const page = quad(640, 480, 12);
+		expect(rotateCorners(page, 640, 480, 4)).toEqual(page);
+		expect(rotateCorners(page, 640, 480, 0)).toEqual(page);
+	});
+
+	it('matches three single turns to one turn of three', () => {
+		const page = quad(640, 480, 12);
+		page.topRight = { x: 600, y: 40 };
+		const once = (c: CornerPoints, w: number, h: number) => rotateCorners(c, w, h, 1);
+		const stepped = once(once(once(page, 640, 480), 480, 640), 640, 480);
+		expect(rotateCorners(page, 640, 480, 3)).toEqual(stepped);
 	});
 });
