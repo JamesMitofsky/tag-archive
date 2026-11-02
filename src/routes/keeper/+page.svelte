@@ -3,7 +3,6 @@
 	import { fly } from 'svelte/transition';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
-	import { confetti } from '@neoconfetti/svelte';
 	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
@@ -11,9 +10,11 @@
 	import StackIcon from 'phosphor-svelte/lib/StackIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import { createEmailSuite, parseEmailForm } from '$lib/validation/auth';
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
+	import Confetti from '$lib/components/Confetti.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -54,13 +55,29 @@
 	let otpDigits = $state<string[]>(['', '', '', '', '', '']);
 	let otpInputs = $state<HTMLInputElement[]>([]);
 	let otpForm = $state<HTMLFormElement>();
+	let otpFieldset = $state<HTMLFieldSetElement>();
 	let otpPending = $state(false);
-	// True while the success confetti plays, just before the connected view mounts.
+	// True from a confirmed code until the connected view replaces the form.
 	let otpCelebrating = $state(false);
 	const otpValue = $derived(otpDigits.join(''));
-	// Particles stay in the air this long; we bail off the page mid-flight (HOLD_MS).
-	const CONFETTI_MS = 2600;
+
+	// A confirmed code throws confetti from just under the code boxes. It is
+	// drawn over the whole page rather than inside the form, so it outlives the
+	// form: the hub flies in after HOLD_MS and the petals keep falling over it
+	// until CONFETTI_MS.
+	let mainEl = $state<HTMLElement>();
+	let confettiAt = $state<{ x: number; y: number }>();
+	const CONFETTI_MS = 3200;
 	const HOLD_MS = 1100;
+
+	function celebrate() {
+		otpCelebrating = true;
+		if (!mainEl || !otpFieldset) return;
+		const frame = mainEl.getBoundingClientRect();
+		const boxes = otpFieldset.getBoundingClientRect();
+		confettiAt = { x: boxes.left + boxes.width / 2 - frame.left, y: boxes.bottom - frame.top + 28 };
+		setTimeout(() => (confettiAt = undefined), CONFETTI_MS);
+	}
 
 	function focusOtp(i: number) {
 		otpInputs[i]?.focus();
@@ -155,7 +172,7 @@
 	<title>Cloud Keeper · TAG Archive</title>
 </svelte:head>
 
-<main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
+<main bind:this={mainEl} class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
@@ -253,10 +270,12 @@
 														const positive =
 															result.type === 'redirect' || result.type === 'success';
 														if (positive) {
-															// Code confirmed: swap the spinner for confetti, let it play, then reveal.
-															otpCelebrating = true;
+															// Code confirmed: swap the spinner for confetti, let it
+															// play, then reveal. Keep the digits in the boxes (no
+															// form reset) while the form flies out.
+															celebrate();
 															await new Promise((r) => setTimeout(r, HOLD_MS));
-															await update();
+															await update({ reset: false });
 															return;
 														}
 														await update();
@@ -271,6 +290,7 @@
 												<input type="hidden" name="email" value={authEmail} />
 												<input type="hidden" name="otp" value={otpValue} />
 												<fieldset
+													bind:this={otpFieldset}
 													class="flex justify-center gap-2 sm:gap-3"
 													disabled={otpPending}
 													onpaste={handleOtpPaste}
@@ -293,20 +313,18 @@
 													{/each}
 												</fieldset>
 												{#if otpCelebrating}
+													<!-- The confetti itself is drawn over the page (below). Under
+													     reduced motion it is not drawn, and a check stands in. -->
 													<div
 														class="mt-4 flex justify-center"
 														role="status"
 														aria-label="Code confirmed"
 													>
-														<div
-															use:confetti={{
-																particleCount: 120,
-																duration: CONFETTI_MS,
-																force: 0.7,
-																stageHeight: 500,
-																colors: ['#14120f', '#f4a259', '#8cb369', '#5b8e7d', '#bc4b51']
-															}}
-														></div>
+														<CheckIcon
+															size={20}
+															weight="bold"
+															class="hidden text-gray-700 motion-reduce:block"
+														/>
 													</div>
 												{:else if otpPending}
 													<div
@@ -350,6 +368,9 @@
 			{/key}
 		</div>
 	</div>
+	{#if confettiAt}
+		<Confetti x={confettiAt.x} y={confettiAt.y} duration={CONFETTI_MS} />
+	{/if}
 </main>
 
 <style>
