@@ -55,28 +55,23 @@
 	let otpDigits = $state<string[]>(['', '', '', '', '', '']);
 	let otpInputs = $state<HTMLInputElement[]>([]);
 	let otpForm = $state<HTMLFormElement>();
-	let otpFieldset = $state<HTMLFieldSetElement>();
 	let otpPending = $state(false);
 	// True from a confirmed code until the connected view replaces the form.
 	let otpCelebrating = $state(false);
 	const otpValue = $derived(otpDigits.join(''));
 
-	// A confirmed code throws confetti from just under the code boxes. It is
-	// drawn over the whole page rather than inside the form, so it outlives the
-	// form: the hub flies in after HOLD_MS and the petals keep falling over it
-	// until CONFETTI_MS.
-	let mainEl = $state<HTMLElement>();
-	let confettiAt = $state<{ x: number; y: number }>();
-	const CONFETTI_MS = 3200;
+	// A confirmed code brings a shower of petals down from the top of the
+	// screen. It is drawn over the whole page rather than inside the form, so it
+	// outlives the form: the hub flies in after HOLD_MS and the petals keep
+	// falling over it until CONFETTI_MS.
+	let showConfetti = $state(false);
+	const CONFETTI_MS = 4000;
 	const HOLD_MS = 1100;
 
 	function celebrate() {
 		otpCelebrating = true;
-		if (!mainEl || !otpFieldset) return;
-		const frame = mainEl.getBoundingClientRect();
-		const boxes = otpFieldset.getBoundingClientRect();
-		confettiAt = { x: boxes.left + boxes.width / 2 - frame.left, y: boxes.bottom - frame.top + 28 };
-		setTimeout(() => (confettiAt = undefined), CONFETTI_MS);
+		showConfetti = true;
+		setTimeout(() => (showConfetti = false), CONFETTI_MS);
 	}
 
 	function focusOtp(i: number) {
@@ -172,7 +167,7 @@
 	<title>Cloud Keeper · TAG Archive</title>
 </svelte:head>
 
-<main bind:this={mainEl} class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
+<main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
@@ -270,8 +265,8 @@
 														const positive =
 															result.type === 'redirect' || result.type === 'success';
 														if (positive) {
-															// Code confirmed: swap the spinner for confetti, let it
-															// play, then reveal. Keep the digits in the boxes (no
+															// Code confirmed: drop the spinner, start the petals, let them
+															// fall a moment, then reveal. Keep the digits in the boxes (no
 															// form reset) while the form flies out.
 															celebrate();
 															await new Promise((r) => setTimeout(r, HOLD_MS));
@@ -290,7 +285,6 @@
 												<input type="hidden" name="email" value={authEmail} />
 												<input type="hidden" name="otp" value={otpValue} />
 												<fieldset
-													bind:this={otpFieldset}
 													class="flex justify-center gap-2 sm:gap-3"
 													disabled={otpPending}
 													onpaste={handleOtpPaste}
@@ -368,8 +362,8 @@
 			{/key}
 		</div>
 	</div>
-	{#if confettiAt}
-		<Confetti x={confettiAt.x} y={confettiAt.y} duration={CONFETTI_MS} />
+	{#if showConfetti}
+		<Confetti duration={CONFETTI_MS} />
 	{/if}
 </main>
 

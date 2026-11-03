@@ -57,9 +57,6 @@ importers:
       '@libsql/client':
         specifier: ^0.17.3
         version: 0.17.4
-      '@neoconfetti/svelte':
-        specifier: ^2.2.2
-        version: 2.2.2(svelte@5.56.5(@typescript-eslint/types@8.64.0))
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.61.1
@@ -1271,11 +1268,6 @@ packages:
 
   '@neoconfetti/react@1.0.0':
     resolution: {integrity: sha512-klcSooChXXOzIm+SE5IISIAn3bYzYfPjbX7D7HoqZL84oAfgREeSg5vSIaSFH+DaGzzvImTyWe1OyrJ67vik4A==}
-
-  '@neoconfetti/svelte@2.2.2':
-    resolution: {integrity: sha512-E7xCFVEEm5Ctnj2udTJy1b9oaTvjz1zi1mYdEtE8rB5BVwq6kHisosDS+zdWN5PMfEMjtbsOV9Cl6tsNSAD1sA==}
-    peerDependencies:
-      svelte: ^3.0.0 || ^4.0.0 || ^5.0.0
 
   '@neon-rs/load@0.0.4':
     resolution: {integrity: sha512-kTPhdZyTQxB+2wpiRcFWrDcejc4JI6tkPuS7UZCG4l6Zvc5kU/gGQ/ozvHTh1XR5tS+UlfAfGuPajjzQjCiHCw==}
@@ -5156,10 +5148,6 @@ snapshots:
     optional: true
 
   '@neoconfetti/react@1.0.0': {}
-
-  '@neoconfetti/svelte@2.2.2(svelte@5.56.5(@typescript-eslint/types@8.64.0))':
-    dependencies:
-      svelte: 5.56.5(@typescript-eslint/types@8.64.0)
 
   '@neon-rs/load@0.0.4': {}
 
