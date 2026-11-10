@@ -17,7 +17,7 @@
  */
 
 import { opensKeeperDoor } from './keeperDoor.server.ts';
-import { CONTRIBUTE_PATH, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.ts';
+import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.ts';
 
 export { LOCKED_PATH };
 
@@ -75,24 +75,86 @@ export function isOpenPath(pathname: string): boolean {
 }
 
 /**
- * Enhanced form actions on /contribute pass the gate, because those actions
- * guard themselves: an anonymous submit needs a fresh draft session, which only
- * a tap issues (see $lib/server/drafts). Turning the post away here instead
- * would replace a half-filled form with the locked page when the visitor's
- * hours run out mid-entry; the action's own refusal keeps the form and says
- * "tap again". Only enhanced posts: their response is the action's result
- * alone, whereas a plain post renders the whole page, load data and all.
+ * Enhanced form actions on the contribution forms — /contribute and the pages
+ * beneath it, such as /contribute/images — pass the gate, because those
+ * actions guard themselves: an anonymous submit needs an open pass and a draft
+ * session, which only a tap issues (see $lib/server/drafts), and a contact
+ * token only the submission's own response carries. Turning the post away
+ * here instead would replace a half-filled form with the locked page when the
+ * visitor's hours run out mid-entry; the action's own refusal keeps the form
+ * and says "tap again". Only enhanced posts that SvelteKit will answer with
+ * the action's result alone (`answersWithActionResult`), whereas a plain post
+ * renders the whole page, load data and all. So every POST handler under
+ * /contribute — form action or endpoint — must guard itself. Never a data
+ * request, whatever its headers say: SvelteKit answers `__data.json` with the
+ * route's load data for any method, POST included.
  */
 function isSelfGuardedWrite(request: {
 	pathname: string;
 	method: string;
+	accept: string | null;
+	isDataRequest: boolean;
 	isEnhancedAction?: boolean;
 }): boolean {
 	return (
 		request.method === 'POST' &&
 		!!request.isEnhancedAction &&
-		routePath(request.pathname) === CONTRIBUTE_PATH
+		answersWithActionResult(request.accept) &&
+		!request.isDataRequest &&
+		isUnder(routePath(request.pathname), CONTRIBUTE_PATH)
 	);
+}
+
+/**
+ * Whether SvelteKit answers a page POST with the action's result alone (JSON),
+ * rather than running the action and rendering the whole page around it. It
+ * decides from the Accept header, not `x-sveltekit-action`, and reads a
+ * missing one as accepting anything, which it answers with JSON
+ * (`is_action_json_request` in @sveltejs/kit/src/runtime/server/page/actions.js).
+ */
+function answersWithActionResult(accept: string | null): boolean {
+	return negotiate(accept ?? '*/*', ['application/json', 'text/html']) === 'application/json';
+}
+
+/**
+ * Which of `types` an Accept header prefers, or undefined for none: SvelteKit's
+ * own `negotiate` (@sveltejs/kit/src/utils/http.js), copied rather than
+ * imported so the edge bundle can load this file, and kept to the letter so
+ * the gate reads a header exactly as SvelteKit will. Like it, an entry with
+ * q=0 still accepts, only last.
+ */
+function negotiate(accept: string, types: string[]): string | undefined {
+	const parts: { type: string; subtype: string; q: number; i: number }[] = [];
+	accept.split(',').forEach((entry, i) => {
+		const match = /([^/ \t]+)\/([^; \t]+)[ \t]*(?:;[ \t]*q=([0-9.]+))?/.exec(entry);
+		// An entry it can't read is ignored, as SvelteKit ignores it.
+		if (match) {
+			const [, type, subtype, q = '1'] = match;
+			parts.push({ type, subtype, q: +q, i });
+		}
+	});
+	// Highest q first; on a tie, exact before wildcard, then header order.
+	parts.sort((a, b) => {
+		if (a.q !== b.q) return b.q - a.q;
+		if ((a.subtype === '*') !== (b.subtype === '*')) return a.subtype === '*' ? 1 : -1;
+		if ((a.type === '*') !== (b.type === '*')) return a.type === '*' ? 1 : -1;
+		return a.i - b.i;
+	});
+	let accepted: string | undefined;
+	let best = Infinity;
+	for (const mimetype of types) {
+		const [type, subtype] = mimetype.split('/');
+		const rank = parts.findIndex(
+			(part) =>
+				(part.type === type || part.type === '*') &&
+				(part.subtype === subtype || part.subtype === '*')
+		);
+		if (rank !== -1 && rank < best) {
+			accepted = mimetype;
+			best = rank;
+		}
+	}
+	return accepted;
 }
 
 /**

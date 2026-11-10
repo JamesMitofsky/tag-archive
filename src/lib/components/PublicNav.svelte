@@ -3,18 +3,42 @@
 	import { afterNavigate } from '$app/navigation';
 	import Drawing from '$lib/components/Drawing.svelte';
 
-	const links = [
-		{ href: '/', label: 'Artefacts', src: '/drawing/text/nav-artefacts.webp' },
-		{ href: '/events', label: 'Events', src: '/drawing/text/nav-events.webp' },
+	type NavLink = {
+		href: string;
+		/** The link's accessible name. */
+		label: string;
+		/** The hand-drawn button. */
+		src: string;
+		/** The button's words, set in type if the drawing can't be shown (see Drawing). */
+		text: string;
+	};
+
+	const links: NavLink[] = [
+		{
+			href: '/',
+			label: 'Artefacts',
+			src: '/drawing/text/nav-artefacts.webp',
+			text: 'Artefacts'
+		},
+		{ href: '/events', label: 'Events', src: '/drawing/text/nav-events.webp', text: 'Events' },
+		{ href: '/images', label: 'Images', src: '/drawing/text/nav-images.webp', text: 'Images' },
 		// The cloud keeper mark opens the contribution form. Sign-in lives at
 		// /keeper, deliberately unlinked: only admins sign in, and they keep its
 		// door link (see $lib/access/keeperDoor.server).
 		{
 			href: '/contribute',
 			label: 'Cloud Keeper — add to the archive',
-			src: '/drawing/text/cloud-keeper-btn.webp'
+			src: '/drawing/text/cloud-keeper-btn.webp',
+			text: 'Cloud Keeper'
 		}
 	];
+
+	/**
+	 * The typeset stand-in for a nav drawing, drawn as the same button: the ink
+	 * box every nav drawing is lettered inside, at the drawings' shared `h-10`,
+	 * with the words sized to the drawn lettering's rather than to fill the box.
+	 */
+	const textClass = 'rounded-md border border-current px-2.5 text-xl';
 
 	let open = $state(false);
 
@@ -35,7 +59,7 @@
 			aria-label={link.label}
 			class="transition-opacity duration-100 hover:opacity-70"
 		>
-			<Drawing src={link.src} alt={link.label} class="h-10 w-auto" />
+			<Drawing src={link.src} alt={link.label} text={link.text} {textClass} class="h-10 w-auto" />
 		</a>
 	{/each}
 </nav>
@@ -69,7 +93,13 @@
 				>
 					<!-- One shared height across every item; the assets are cropped tight to
 					     the ink, so equal box height means equal drawn height. -->
-					<Drawing src={link.src} alt={link.label} class="h-10 w-auto" />
+					<Drawing
+						src={link.src}
+						alt={link.label}
+						text={link.text}
+						{textClass}
+						class="h-10 w-auto"
+					/>
 				</a>
 			{/each}
 		</DialogPrimitive.Content>

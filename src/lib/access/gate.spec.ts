@@ -29,13 +29,18 @@ describe('accessDecision (no pass)', () => {
 		expect(fetchCall(path, 'POST')).toBe('open');
 	});
 
-	it.each(['/', '/events', '/contribute', '/meditation-walk', '/demo'])(
-		'sends a page view of %s to the locked page',
-		(path) => {
-			expect(page(path)).toBe('redirect');
-			expect(page(path, 'HEAD')).toBe('redirect');
-		}
-	);
+	it.each([
+		'/',
+		'/events',
+		'/images',
+		'/contribute',
+		'/contribute/images',
+		'/meditation-walk',
+		'/demo'
+	])('sends a page view of %s to the locked page', (path) => {
+		expect(page(path)).toBe('redirect');
+		expect(page(path, 'HEAD')).toBe('redirect');
+	});
 
 	it.each([
 		'/api/dataset',
@@ -71,6 +76,85 @@ describe('accessDecision (no pass)', () => {
 		expect(post('/events', true)).toBe('refuse');
 		expect(page('/contribute')).toBe('redirect');
 		expect(fetchCall('/contribute/__data.json')).toBe('refuse');
+	});
+
+	it('lets enhanced form posts to the forms beneath /contribute through, and only those', () => {
+		const post = (pathname: string, isEnhancedAction: boolean) =>
+			accessDecision({
+				pathname,
+				method: 'POST',
+				accept: 'application/json',
+				isDataRequest: false,
+				isEnhancedAction
+			});
+		// The photograph form keeps its entry when a pass lapses, as /contribute does.
+		expect(post('/contribute/images', true)).toBe('open');
+		expect(post('/contribute/images/', true)).toBe('open');
+		expect(post('/contribute/images', false)).toBe('refuse');
+		expect(page('/contribute/images', 'POST')).toBe('refuse');
+		// Only its actions guard themselves: the page and its data loads stay locked.
+		expect(page('/contribute/images')).toBe('redirect');
+		expect(fetchCall('/contribute/images/__data.json')).toBe('refuse');
+		// SvelteKit answers a data request with load data whatever its method, so
+		// a POST dressed as an action is still a data load. Under hooks the
+		// suffix is already stripped from the path, and only the flag tells.
+		for (const pathname of [
+			'/contribute/__data.json',
+			'/contribute/images/__data.json',
+			'/contribute',
+			'/contribute/images'
+		]) {
+			const dataPost = accessDecision({
+				pathname,
+				method: 'POST',
+				accept: '*/*',
+				isDataRequest: true,
+				isEnhancedAction: true
+			});
+			expect(dataPost, pathname).toBe('refuse');
+		}
+		// A look-alike path is no form of ours.
+		expect(post('/contribute-images', true)).toBe('refuse');
+		expect(post('/contributex', true)).toBe('refuse');
+		// The public photographs page is gated like every other public page.
+		expect(page('/images')).toBe('redirect');
+		expect(post('/images', true)).toBe('refuse');
+	});
+
+	it('opens an enhanced post only when SvelteKit will answer it with the action result alone', () => {
+		// SvelteKit picks that answer from the Accept header, not from
+		// `x-sveltekit-action`: one that prefers HTML runs the action and then
+		// renders the whole page around its refusal, load data and all.
+		const post = (pathname: string, accept: string | null) =>
+			accessDecision({
+				pathname,
+				method: 'POST',
+				accept,
+				isDataRequest: false,
+				isEnhancedAction: true
+			});
+		for (const pathname of ['/contribute', '/contribute/images']) {
+			const at = (accept: string | null) => post(pathname, accept);
+			// What `use:enhance` sends.
+			expect(at('application/json'), pathname).toBe('open');
+			// No header, or no preference, is answered with JSON…
+			expect(at(null), pathname).toBe('open');
+			expect(at('*/*'), pathname).toBe('open');
+			expect(at('application/json,text/html;q=0.9'), pathname).toBe('open');
+			// …but an empty header, or one that prefers HTML, gets the page.
+			expect(at(''), pathname).toBe('refuse');
+			expect(at('text/html'), pathname).toBe('refuse');
+			expect(at('text/html,application/json;q=0.9'), pathname).toBe('refuse');
+			expect(at('text/html, */*'), pathname).toBe('refuse');
+			expect(at('text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'), pathname).toBe(
+				'refuse'
+			);
+			// q=0 ranks last but, as SvelteKit reads it, still accepts.
+			expect(at('text/html;q=0,application/json'), pathname).toBe('open');
+			expect(at('application/json;q=0,text/html'), pathname).toBe('refuse');
+			expect(at('application/json;q=0'), pathname).toBe('open');
+			expect(at('text/html;q=0'), pathname).toBe('refuse');
+		}
 	});
 
 	describe('the keeper sign-in page', () => {
@@ -163,6 +247,27 @@ describe('gateRequest (edge)', () => {
 	it('refuses a client-side data load even when it asks for HTML', async () => {
 		const res = await gateRequest(request('/events/__data.json'), () => undefined, SECRET);
 		expect(res?.status).toBe(401);
+	});
+
+	it('lets an enhanced post to a contribution form through, but not one to its data', async () => {
+		const actionPost = (path: string) =>
+			new Request(`https://archive.test${path}`, {
+				method: 'POST',
+				headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
+			});
+		expect(
+			await gateRequest(actionPost('/contribute/images?/createImageSet'), () => undefined, SECRET)
+		).toBeUndefined();
+		for (const path of ['/contribute/__data.json', '/contribute/images/__data.json']) {
+			const res = await gateRequest(actionPost(path), () => undefined, SECRET);
+			expect(res?.status, path).toBe(401);
+		}
+		// Dressed as an action but asking for HTML: SvelteKit would render the page.
+		const htmlPost = new Request('https://archive.test/contribute/images?/createImageSet', {
+			method: 'POST',
+			headers: { accept: 'text/html', 'x-sveltekit-action': 'true' }
+		});
+		expect((await gateRequest(htmlPost, () => undefined, SECRET))?.status).toBe(401);
 	});
 
 	it('fails closed without a secret, but keeps sign-in reachable through its door', async () => {

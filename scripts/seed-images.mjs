@@ -10,6 +10,7 @@
 // The store is intentionally ephemeral (fresh RustFS each boot), so this re-uploads
 // and re-attaches every time — deterministic subset, idempotent.
 import { AwsClient } from 'aws4fetch';
+import { applyCors, applyPublicRead, CORS_FALLBACK_HINT } from './local-bucket.mjs';
 import { createClient } from '@libsql/client';
 
 const {
@@ -94,30 +95,17 @@ if (!created.ok && created.status !== 409) {
 	process.exit(1);
 }
 
-// Grant anonymous read so the seeded `${R2_PUBLIC_URL}/<key>` URLs load in the browser.
-// Re-applied here (not just in init-bucket) so a standalone `pnpm db:seed:images` works.
-const policy = JSON.stringify({
-	Version: '2012-10-17',
-	Statement: [
-		{
-			Effect: 'Allow',
-			Principal: { AWS: ['*'] },
-			Action: ['s3:GetObject'],
-			Resource: [`arn:aws:s3:::${R2_BUCKET}/*`]
-		}
-	]
-});
-const policySet = await client.fetch(`${bucketUrl}?policy`, {
-	method: 'PUT',
-	body: policy,
-	headers: { 'Content-Type': 'application/json' }
-});
-if (!policySet.ok) {
-	console.warn(
-		'[seed-images] public-read policy not set:',
-		policySet.status,
-		await policySet.text()
-	);
+// Grant anonymous read so the seeded `${R2_PUBLIC_URL}/<key>` URLs load in the
+// browser, and let photograph uploads PUT straight to the bucket. Re-applied here
+// (not just in init-bucket) so a standalone `pnpm db:seed:images` that creates the
+// bucket leaves it as usable as init-bucket would.
+const policyProblem = await applyPublicRead(client, bucketUrl, R2_BUCKET);
+if (policyProblem !== null) {
+	console.warn('[seed-images] public-read policy not set:', policyProblem);
+}
+const corsProblem = await applyCors(client, bucketUrl);
+if (corsProblem !== null) {
+	console.warn('[seed-images] CORS rule not set:', corsProblem, CORS_FALLBACK_HINT);
 }
 
 // Pick the artefacts to decorate — lowest ids, so it's stable across runs.

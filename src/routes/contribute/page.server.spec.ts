@@ -116,6 +116,19 @@ describe('createArtefact (anonymous)', () => {
 		}
 	});
 
+	it('refuses an image URL that starts in its own draft space but climbs out of it', async () => {
+		// Each starts with the visitor's own prefix, and a URL parser (the one
+		// that would later fetch or delete it) turns it into `saved.webp`.
+		const { cookies, upload } = anonymousDraft();
+		const own = upload('x').replace(/x\.webp$/, '');
+		for (const climb of ['%2e%2e/%2e%2e/', '.%2E/%2E./', '..\\..\\']) {
+			const url = `${own}${climb}saved.webp`;
+			expect(new URL(url).pathname).toBe('/saved.webp');
+			const result = await run('createArtefact', minimal([url]), { cookies });
+			expect(isActionFailure(result) && result.status).toBe(400);
+		}
+	});
+
 	it('lands a proposed, unattributed artefact — location optional, undated allowed', async () => {
 		const { cookies, upload } = anonymousDraft();
 		const result = await run(

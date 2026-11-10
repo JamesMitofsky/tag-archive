@@ -80,23 +80,26 @@ Everything is configured through **environment variables** — no vendor SDK is 
 
 ---
 
-## 4. Cloudflare R2 — Object storage (scan images)
+## 4. Cloudflare R2 — Object storage (scans and photographs)
 
-**What it does.** Stores uploaded scan images. R2 is **S3-compatible**.
+**What it does.** Stores uploaded scan images and photographs. R2 is **S3-compatible**.
 
 **Where the coupling lives.**
 
-- Accessed via `aws4fetch` (a generic S3 request signer), NOT a Cloudflare SDK. The code talks the **S3 API**, not an R2-specific one.
+- Accessed via `aws4fetch` (a generic S3 request signer), NOT a Cloudflare SDK. The code talks the **S3 API**, not an R2-specific one — presigned upload URLs included.
 - Config: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL`, `S3_REGION`, and `S3_ENDPOINT`. Local dev points the exact same code at a **RustFS** container (`pnpm dev:storage`) — again proving no R2-specific dependency.
+- **Bucket CORS rule.** Photographs upload from the browser straight to the bucket with presigned PUT URLs (originals can be far larger than a Netlify function body carries), so the bucket carries a CORS rule allowing `PUT` and `GET` from the site's origin(s) with the `Content-Type` header. It lives in `scripts/r2-cors.mjs` and is applied with `pnpm storage:cors` (`R2_BUCKET`, `R2_CORS_ORIGINS`), through wrangler — the one Cloudflare-specific tool here, used only from a developer's machine. It is bucket configuration, not data: a copy of the objects does not bring it along.
+- **What is stored where.** Scans sit at the bucket root (`<uuid>.<ext>`). Each photograph is two objects in two folders, the original exactly as uploaded and its WebP display copy: `images/<uuid>/original.<ext>` + `images/<display id>/display.webp` for a keeper's upload, where `<display id>` is an HMAC of `<uuid>` keyed from `BETTER_AUTH_SECRET` (so the public display URL doesn't reveal the original's). Anonymous contributions keep both kinds under their draft's own space, `submissions/<draft>/<uuid>.<ext>` and `submissions/<draft>/images/…`. The originals are the archive's masters (metadata intact); the display copies can be regenerated from them, but copy everything. Each `image` row stores both URLs, so a migration never has to recompute a display key; only a photograph whose upload is still in flight needs the same secret to finish.
 
 **Getting off safely.**
 
 1. Pick any S3-compatible target: AWS S3, Backblaze B2, MinIO/RustFS self-hosted, Wasabi, etc.
-2. Copy the objects: `rclone sync r2:tag-archive newremote:tag-archive` (rclone speaks S3 to both ends) or `aws s3 sync`.
+2. Copy the objects: `rclone sync r2:tag-archive newremote:tag-archive` (rclone speaks S3 to both ends) or `aws s3 sync`. Keys must stay as they are: the app reads ownership and type from them (see `src/lib/server/imageKeys.ts`).
 3. Update the `R2_*` / `S3_ENDPOINT` / `R2_PUBLIC_URL` env vars to the new bucket. No code change — `aws4fetch` signs for whatever endpoint you give it.
-4. **Watch the public URL.** `R2_PUBLIC_URL` is stored/derived for serving images. After migration, confirm objects are publicly readable at the new host and that any URLs persisted in the DB still resolve (you may need a redirect or a DB update if URLs were stored absolute).
+4. **Recreate the CORS rule** on the new bucket for the site's origins — or photograph uploads fail at their preflight while everything else looks fine. Most S3 stores take S3's `PutBucketCors` XML; `scripts/init-bucket.mjs` sends the (wide-open) local version of it, a template to narrow to the site's origins. `pnpm storage:cors` only speaks to R2.
+5. **Watch the public URL.** `R2_PUBLIC_URL` is stored/derived for serving images. After migration, confirm objects are publicly readable at the new host and that any URLs persisted in the DB still resolve — `artefact.file_urls` and `image.url` / `image.original_url` are stored absolute, so you may need a redirect or a DB update. (The daily sweeps match stored URLs to objects by key, not by full URL, so a changed base doesn't make the archive's objects look unused to them.) Also update the Netlify Image CDN allowlist (`[images] remote_images` in `netlify.toml`), which must match the new public host, or images served from the bucket stop loading on the site.
 
-**Lock-in verdict:** Low. Standard S3 API + a portable object copy.
+**Lock-in verdict:** Low. Standard S3 API + a portable object copy; the CORS rule is one small, re-creatable setting.
 
 ---
 
@@ -136,11 +139,11 @@ Ordered so the site never goes dark:
 
 1. **Back up first.** `turso db dump` (DB, incl. all users/sessions) + `rclone sync` the R2 bucket. Save `.env` / Netlify env vars.
 2. **Database:** stand up the new libSQL/SQLite host, load the dump, update `DATABASE_URL` + `DATABASE_AUTH_TOKEN`.
-3. **Storage:** copy the bucket to the new S3-compatible target, update `R2_*` / `S3_ENDPOINT` / `R2_PUBLIC_URL`, verify public reads.
+3. **Storage:** copy the bucket to the new S3-compatible target, update `R2_*` / `S3_ENDPOINT` / `R2_PUBLIC_URL`, recreate the CORS rule, verify public reads and a photograph upload.
 4. **Email:** repoint `src/lib/server/email`, re-verify the sending domain.
 5. **Host:** swap the SvelteKit adapter, re-enter every env var (use `.env.example` as the checklist), carry `BETTER_AUTH_SECRET` verbatim.
 6. **DNS:** point records at the new host (keep or move Netlify DNS — independent of hosting).
 7. **Registrar:** transfer the domain from Namecheap only when unrelated to an outage; allow ~5 days.
-8. **Verify:** login (OTP delivers), image loads (R2 URLs resolve), existing sessions behave, admin role intact.
+8. **Verify:** login (OTP delivers), image loads (R2 URLs resolve), a photograph uploads from the site's own origin (CORS), existing sessions behave, admin role intact.
 
 **The one rule that prevents most portability pain:** never let a secret or a data blob live _only_ at a vendor. The DB is a file, the bucket is copyable, and every credential is enumerated in `.env.example`. Keep current backups of all three and no single vendor can strand this project.

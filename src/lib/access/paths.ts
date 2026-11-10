@@ -11,7 +11,7 @@ export const LOCKED_PATH = '/locked';
 /** The keeper sign-in page (and the prefix of the signed-in keeper area). */
 export const KEEPER_PATH = '/keeper';
 
-/** The public contribution form, whose actions guard themselves (see ./gate). */
+/** The public contribution forms (artefacts here, photographs beneath it), whose actions guard themselves (see ./gate). */
 export const CONTRIBUTE_PATH = '/contribute';
 
 /**
