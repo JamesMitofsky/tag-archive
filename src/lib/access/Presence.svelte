@@ -1,8 +1,8 @@
 <!--
 	Keeps the access pass alive while the site is on screen (see $lib/access/presence
 	for the why and the schedule). Mounted once in the root layout, outside the
-	per-route transition, and not on the locked page or the keeper sign-in page,
-	where the visitor holds no pass to keep alive.
+	per-route transition, and not on the locked page, where the visitor holds no
+	pass to keep alive.
 
 	A 401 beat means the archive has drifted shut while the tab was away: the
 	visitor is shown the locked page — except where that would cost them their

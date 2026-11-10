@@ -21,6 +21,16 @@ describe('access pass', () => {
 		expect(await verifyPass(SECRET, token, 1_000 + PASS_TTL_MS)).toBeNull();
 	});
 
+	it.each(['t', 'd', 'k'] as const)('accepts a pass of kind %s', async (kind) => {
+		const { token, pass } = await mintPass(SECRET, kind, 0);
+		expect(await verifyPass(SECRET, token, 1)).toEqual(pass);
+	});
+
+	it('rejects a pass of an unknown kind, even one signed correctly', async () => {
+		const { token } = await mintPass(SECRET, 'x' as never, 0);
+		expect(await verifyPass(SECRET, token, 1)).toBeNull();
+	});
+
 	it('rejects a pass signed with another secret', async () => {
 		const { token } = await mintPass('other-secret', 'k', 0);
 		expect(await verifyPass(SECRET, token, 1)).toBeNull();

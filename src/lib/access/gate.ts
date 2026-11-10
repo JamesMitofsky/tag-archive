@@ -1,7 +1,8 @@
 /**
  * The whole site opens only to holders of an access pass (./pass): visitors who
- * tapped the garden's NFC tag and have had the site on screen since (the pass
- * drifts shut after a while away, see ./presence), and signed-in keepers.
+ * tapped the garden's NFC tag or came through the door (./door.server), and
+ * have had the site on screen since (the pass drifts shut after a while away,
+ * see ./presence), and signed-in keepers.
  * This decides what happens to a request WITHOUT a valid pass. It is enforced
  * twice, from this one list:
  *
@@ -16,14 +17,14 @@
  * load it. Server and edge only: the browser gets LOCKED_PATH from ./paths.
  */
 
-import { opensKeeperDoor } from './keeperDoor.server.ts';
+import { opensDoor } from './door.server.ts';
 import { CONTRIBUTE_PATH, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.ts';
 
 export { LOCKED_PATH };
 
 export type GateDecision = 'open' | 'redirect' | 'refuse';
 
-/** The keeper sign-in page: open only through its door (./keeperDoor.server). */
+/** The keeper sign-in page: closed without a pass, like any other page. */
 const KEEPER_GATE = KEEPER_PATH;
 
 /** Paths that are always open, exactly. */
@@ -48,7 +49,7 @@ const OPEN_EXACT = new Set([
  */
 export const OPEN_PREFIXES = [
 	// Every route checks the keeper session (see keeperGuard), and an anonymous
-	// visit is sent to /keeper, which only its door opens. Open here so that a
+	// visit is sent to /keeper, which is locked without a pass. Open here so that a
 	// keeper whose pass has lapsed still reaches SvelteKit, where their session
 	// renews it.
 	'/keeper/',
@@ -69,7 +70,7 @@ export function routePath(pathname: string): string {
 export function isOpenPath(pathname: string): boolean {
 	const route = routePath(pathname);
 	// `/keeper/` and `/keeper/__data.json` match the keeper prefix below, but they
-	// are the sign-in page all the same, which only its door opens.
+	// are the sign-in page all the same, which is locked like any other page.
 	if (route === KEEPER_GATE) return false;
 	return OPEN_EXACT.has(route) || OPEN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
@@ -95,30 +96,47 @@ function isSelfGuardedWrite(request: {
 	);
 }
 
-/**
- * What to do with a request that carries no valid pass:
- *  - `open`: always-open paths (above);
- *  - `redirect`: a page view — send it to the locked page;
- *  - `refuse`: anything else (data loads, API calls, files) gets a 401. A
- *    redirect would be followed by `fetch` into an HTML page the caller can't use.
- */
-export function accessDecision(request: {
+/** The shape of a request the gate decides on. */
+export type GateRequest = {
 	pathname: string;
-	/** The URL's query string, which may carry the keeper door phrase. */
+	/** The URL's query string, which may carry the door phrase. */
 	search?: string;
 	method: string;
 	accept: string | null;
 	isDataRequest: boolean;
 	/** A `use:enhance` form post (the `x-sveltekit-action: true` header). */
 	isEnhancedAction?: boolean;
-}): GateDecision {
-	if (isOpenPath(request.pathname) || isSelfGuardedWrite(request)) return 'open';
-	// The sign-in page through its door: the page itself, its data loads and its
-	// form actions, all of which keep the page's query string.
-	if (routePath(request.pathname) === KEEPER_GATE && opensKeeperDoor(request.search ?? '')) {
-		return 'open';
-	}
+};
+
+/** A browser asking for a page to show: a read that wants HTML, not data. */
+function isPageView(request: GateRequest): boolean {
 	const isRead = request.method === 'GET' || request.method === 'HEAD';
-	const wantsPage = (request.accept ?? '').includes('text/html');
-	return isRead && wantsPage && !request.isDataRequest ? 'redirect' : 'refuse';
+	return isRead && (request.accept ?? '').includes('text/html') && !request.isDataRequest;
+}
+
+/**
+ * A navigation through the door (./door.server): a page view, or the client-side
+ * data load for one, whose URL carries the door phrase. On any path. SvelteKit
+ * answers it with a pass and a redirect to the same URL without the phrase
+ * (hooks.server.ts); both kinds of response are rendered per visitor, never
+ * cached, so they may carry the pass cookie ($lib/server/access, mayIssuePass).
+ */
+export function isDoorNavigation(request: GateRequest): boolean {
+	const isRead = request.method === 'GET' || request.method === 'HEAD';
+	return (
+		(isPageView(request) || (isRead && request.isDataRequest)) && opensDoor(request.search ?? '')
+	);
+}
+
+/**
+ * What to do with a request that carries no valid pass:
+ *  - `open`: always-open paths (above), and navigations through the door;
+ *  - `redirect`: a page view — send it to the locked page;
+ *  - `refuse`: anything else (data loads, API calls, files) gets a 401. A
+ *    redirect would be followed by `fetch` into an HTML page the caller can't use.
+ */
+export function accessDecision(request: GateRequest): GateDecision {
+	if (isOpenPath(request.pathname) || isSelfGuardedWrite(request)) return 'open';
+	if (isDoorNavigation(request)) return 'open';
+	return isPageView(request) ? 'redirect' : 'refuse';
 }

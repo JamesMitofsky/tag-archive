@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../../../netlify/edge-functions/access-gate';
 import { gateRequest } from './edge';
-import { accessDecision, isOpenPath, LOCKED_PATH } from './gate';
-import { KEEPER_DOOR_PARAM, KEEPER_DOOR_URL } from './keeperDoor.server';
+import { DOOR_PARAM, KEEPER_DOOR_URL, opensDoor, withoutDoor } from './door.server';
+import { accessDecision, isDoorNavigation, isOpenPath, LOCKED_PATH } from './gate';
 import { mintPass } from './pass';
 
 const page = (pathname: string, method = 'GET') =>
@@ -73,7 +73,7 @@ describe('accessDecision (no pass)', () => {
 		expect(fetchCall('/contribute/__data.json')).toBe('refuse');
 	});
 
-	describe('the keeper sign-in page', () => {
+	describe('the door', () => {
 		const door = new URL(KEEPER_DOOR_URL, 'https://archive.test').search;
 		const at = (
 			pathname: string,
@@ -81,37 +81,80 @@ describe('accessDecision (no pass)', () => {
 			{ method = 'GET', accept = 'text/html', isDataRequest = false, isEnhancedAction = false } = {}
 		) => accessDecision({ pathname, search, method, accept, isDataRequest, isEnhancedAction });
 
-		it('is locked without its door, however the path is spelled', () => {
+		it('keeps the sign-in page locked without it, however the path is spelled', () => {
 			expect(at('/keeper', '')).toBe('redirect');
 			expect(at('/keeper/', '')).toBe('redirect');
 			expect(at('/keeper/__data.json', '', { accept: '*/*', isDataRequest: true })).toBe('refuse');
 			expect(at('/keeper', '?/sendOtp', { method: 'POST', isEnhancedAction: true })).toBe('refuse');
 		});
 
-		it('opens through its door: the page, its data loads and its form actions', () => {
-			expect(at('/keeper', door)).toBe('open');
-			expect(at('/keeper/', door)).toBe('open');
-			expect(at('/keeper/__data.json', `${door}&x-sveltekit-invalidated=01`)).toBe('open');
-			expect(
-				at('/keeper', `?/sendOtp&${door.slice(1)}`, { method: 'POST', isEnhancedAction: true })
-			).toBe('open');
+		it.each([
+			'/',
+			'/events',
+			'/events/3',
+			'/contribute',
+			'/meditation-walk',
+			'/keeper',
+			'/keeper/'
+		])('opens a page view of %s', (path) => {
+			expect(at(path, door)).toBe('open');
+			expect(at(path, door, { method: 'HEAD' })).toBe('open');
+			expect(at(path, `?q=clouds&${door.slice(1)}`)).toBe('open');
+		});
+
+		it('opens a client-side navigation, whose data load keeps the query string', () => {
+			const load = { accept: '*/*', isDataRequest: true };
+			expect(at('/events/__data.json', `${door}&x-sveltekit-invalidated=01`, load)).toBe('open');
+			expect(at('/keeper/__data.json', door, load)).toBe('open');
 		});
 
 		it('takes the phrase in any case, but only the phrase', () => {
-			expect(
-				at(
-					'/keeper',
-					door.toUpperCase().replace(KEEPER_DOOR_PARAM.toUpperCase(), KEEPER_DOOR_PARAM)
-				)
-			).toBe('open');
-			expect(at('/keeper', `?${KEEPER_DOOR_PARAM}=thewindinthetrees`)).toBe('redirect');
-			expect(at('/keeper', `?${KEEPER_DOOR_PARAM}=`)).toBe('redirect');
+			const shouted = door.toUpperCase().replace(DOOR_PARAM.toUpperCase(), DOOR_PARAM);
+			expect(at('/events', shouted)).toBe('open');
+			expect(at('/events', `?${DOOR_PARAM}=thewindinthetrees`)).toBe('redirect');
+			expect(at('/events', `?${DOOR_PARAM}=`)).toBe('redirect');
+			expect(at('/events', `?${DOOR_PARAM.toUpperCase()}=thevoiceofthegarden`)).toBe('redirect');
 		});
 
-		it('opens nothing else', () => {
-			expect(at('/', door)).toBe('redirect');
-			expect(at('/keeperx', door)).toBe('redirect');
+		it('opens no fetch, file or write: those need the pass the navigation hands out', () => {
 			expect(at('/api/dataset', door, { accept: '*/*' })).toBe('refuse');
+			expect(at('/artefacts/TAG-001.jpg', door, { accept: 'image/*' })).toBe('refuse');
+			expect(at('/events', door, { method: 'POST' })).toBe('refuse');
+			expect(at('/keeper', `?/sendOtp&${door.slice(1)}`, { method: 'POST' })).toBe('refuse');
+			expect(
+				at('/keeper', `?/sendOtp&${door.slice(1)}`, { method: 'POST', isEnhancedAction: true })
+			).toBe('refuse');
+		});
+
+		it('names exactly the requests hooks.server.ts answers with a pass', () => {
+			const request = (search: string, extra = {}) => ({
+				pathname: '/events',
+				search,
+				method: 'GET',
+				accept: 'text/html',
+				isDataRequest: false,
+				...extra
+			});
+			expect(isDoorNavigation(request(door))).toBe(true);
+			expect(isDoorNavigation(request(door, { accept: '*/*', isDataRequest: true }))).toBe(true);
+			expect(isDoorNavigation(request(''))).toBe(false);
+			expect(isDoorNavigation(request(door, { accept: 'application/json' }))).toBe(false);
+			expect(isDoorNavigation(request(door, { method: 'POST' }))).toBe(false);
+		});
+
+		it('leads on to the same URL without the phrase', () => {
+			const strip = (path: string) => withoutDoor(new URL(path, 'https://archive.test'));
+			expect(strip(KEEPER_DOOR_URL)).toBe('/keeper');
+			expect(strip(`/events/3${door}`)).toBe('/events/3');
+			expect(strip(`/events?q=clouds&${door.slice(1)}&page=2#map`)).toBe(
+				'/events?q=clouds&page=2#map'
+			);
+			expect(strip(`/${door.toUpperCase().replace(DOOR_PARAM.toUpperCase(), DOOR_PARAM)}`)).toBe(
+				'/'
+			);
+			expect(opensDoor(new URL(strip(`/events${door}`), 'https://archive.test').search)).toBe(
+				false
+			);
 		});
 	});
 
@@ -165,16 +208,30 @@ describe('gateRequest (edge)', () => {
 		expect(res?.status).toBe(401);
 	});
 
-	it('fails closed without a secret, but keeps sign-in reachable through its door', async () => {
+	it('fails closed without a secret, but keeps sign-in reachable through the door', async () => {
 		const { token } = await mintPass(SECRET, 't');
 		expect((await gateRequest(request('/'), () => token, undefined))?.status).toBe(303);
 		expect(await gateRequest(request(KEEPER_DOOR_URL), () => undefined, undefined)).toBeUndefined();
 	});
 
-	it('locks the keeper sign-in page without its door', async () => {
+	it('locks the keeper sign-in page without the door', async () => {
 		const res = await gateRequest(request('/keeper'), () => undefined, SECRET);
 		expect(res?.status).toBe(303);
 		expect(res?.headers.get('location')).toBe(LOCKED_PATH);
 		expect(await gateRequest(request(KEEPER_DOOR_URL), () => undefined, SECRET)).toBeUndefined();
+	});
+
+	it('lets a page view through the door on to SvelteKit, on any path', async () => {
+		const door = new URL(KEEPER_DOOR_URL, 'https://archive.test').search;
+		expect(await gateRequest(request(`/events${door}`), () => undefined, SECRET)).toBeUndefined();
+		expect(
+			await gateRequest(request(`/events/__data.json${door}`, '*/*'), () => undefined, SECRET)
+		).toBeUndefined();
+		const fetched = await gateRequest(
+			request(`/api/dataset${door}`, '*/*'),
+			() => undefined,
+			SECRET
+		);
+		expect(fetched?.status).toBe(401);
 	});
 });

@@ -167,10 +167,14 @@ Without a pass, a page view lands on `/locked`; anything else gets a 401. Always
 open: `/t`, `/locked`, the sign-in endpoints (`/api/auth/*`), the cron endpoint,
 and the app bundles and decor the locked page is drawn with.
 
-**Keepers bypass the tag.** The sign-in page is locked like everything else,
-except through its door: `/keeper?listeningwith=thevoiceofthegarden`, the link
-keepers bookmark (`src/lib/access/keeperDoor.server.ts`; server-only, so the
-phrase never ships in the browser bundle). A signed-in keeper who holds no pass is
+**The door bypasses the tag.** Any page opens without a pass when its URL carries
+`?listeningwith=thevoiceofthegarden` (case-insensitive value;
+`src/lib/access/door.server.ts`, server-only, so the phrase never ships in the
+browser bundle). Coming through the door counts as a tap: the visitor is handed a
+pass and an upload draft, then redirected to the same URL without the phrase, so
+the rest of the site opens behind it. Keepers bookmark the sign-in page through it,
+`/keeper?listeningwith=thevoiceofthegarden`, which is otherwise locked like
+everything else. A signed-in keeper who holds no pass is
 handed one on their next page view, and the same beat keeps it sliding, so a keeper
 is never locked out for being away. The signed-in area
 (`/keeper/*`) stays open at the gate so a keeper whose pass has lapsed still

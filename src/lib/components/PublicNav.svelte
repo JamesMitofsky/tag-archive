@@ -8,7 +8,7 @@
 		{ href: '/events', label: 'Events', src: '/drawing/text/nav-events.webp' },
 		// The cloud keeper mark opens the contribution form. Sign-in lives at
 		// /keeper, deliberately unlinked: only admins sign in, and they keep its
-		// door link (see $lib/access/keeperDoor.server).
+		// door link (see $lib/access/door.server).
 		{
 			href: '/contribute',
 			label: 'Cloud Keeper — add to the archive',
