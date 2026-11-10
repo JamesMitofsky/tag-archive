@@ -3,34 +3,12 @@ import { purgeArchiveCache } from './cache';
 import { db } from './db';
 import { stampInsert } from './db/audit';
 import { isProposedAddition } from './db/proposals';
-import { resolvePersonIds } from './db/queries';
-import { artefact, artefactProvenance, event } from './db/schema';
+import { resolveEventId, resolvePersonIds } from './db/queries';
+import { artefact, artefactProvenance } from './db/schema';
 import type { ArtefactData } from '$lib/validation/artefact';
 
 /** Who is creating an artefact: a signed-in user, or an anonymous visitor (both null). */
 export type Actor = { userId: string | null; role: string | null };
-
-/**
- * Resolve a typed event title to an existing event's id. Events are dated
- * happenings sourced from the events export — a bare title here can't create one,
- * so an unknown title yields null (the artefact stays unlinked). A recurring
- * title resolves to its earliest event. An unvetted submitter can only link to
- * vetted events: the only ones they could have seen.
- */
-async function resolveEventId(name: string, vettedOnly: boolean): Promise<number | null> {
-	const trimmed = name.trim();
-	if (!trimmed) return null;
-
-	const [existing] = await db
-		.select({ id: event.id })
-		.from(event)
-		.where(
-			and(eq(event.title, trimmed), vettedOnly ? eq(event.proposedAddition, false) : undefined)
-		)
-		.orderBy(event.date)
-		.limit(1);
-	return existing?.id ?? null;
-}
 
 /** Empty string → null, for the artefact's nullable columns. */
 const nullIfEmpty = (value: string) => (value === '' ? null : value);

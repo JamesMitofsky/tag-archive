@@ -8,12 +8,16 @@ import {
 	artefactProvenance,
 	event,
 	eventHost,
+	image,
+	imageSet,
 	person,
 	series,
 	submissionContact
 } from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
 import type { EventItem } from '$lib/events';
+import type { PublicImage, PublicImageSet } from '$lib/images/types';
+import { isFullDate } from '$lib/partialDate';
 
 /**
  * Fold one or more people into a single kept entry: every artefact/event link on
@@ -187,6 +191,8 @@ export type PublicDataset = {
 	artefacts: ArtefactWithEvent[];
 	events: EventItem[];
 	people: string[];
+	/** Vetted image sets, newest first, each with its photographs in display order. */
+	images: PublicImageSet[];
 };
 
 /**
@@ -200,11 +206,17 @@ export type PublicDataset = {
  *  - people: only names linked to at least one vetted artefact or event. A
  *    submission creates its provenance people immediately (find-or-create by
  *    name), so without this an unreviewed name would surface in the people
- *    list — and in the provenance autocomplete — before anyone vetted it.
+ *    list — and in the provenance autocomplete — before anyone vetted it;
+ *  - image sets: vetted sets only, their event title under the same rule as
+ *    an artefact's, and each photograph as a whitelist of fields (see
+ *    `PublicImage`). An image row also holds the original's URL, its parsed
+ *    metadata and its exact capture time, any of which can carry GPS or
+ *    device details — so its columns are picked one by one, never spread.
  */
 export async function loadPublicDataset(): Promise<PublicDataset> {
 	const vettedEvent = and(eq(artefact.eventId, event.id), eq(event.proposedAddition, false));
-	const [artefactRows, eventRows, personRows] = await Promise.all([
+	const vettedSetEvent = and(eq(imageSet.eventId, event.id), eq(event.proposedAddition, false));
+	const [artefactRows, eventRows, personRows, setRows, imageRows] = await Promise.all([
 		db
 			.select({ ...getTableColumns(artefact), event: event.title })
 			.from(artefact)
@@ -236,7 +248,34 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 							.where(and(eq(eventHost.personId, person.id), eq(event.proposedAddition, false)))
 					)
 				)
-			)
+			),
+		db
+			.select({
+				id: imageSet.id,
+				description: imageSet.description,
+				event: event.title,
+				date: imageSet.date
+			})
+			.from(imageSet)
+			.leftJoin(event, vettedSetEvent)
+			.where(eq(imageSet.proposedAddition, false))
+			.orderBy(desc(imageSet.date), desc(imageSet.id)),
+		// Every photograph of every vetted set in one query, grouped below (no
+		// N+1). The capture time is cut to its day: the hour and the camera's
+		// offset say more about the photographer than the archive needs to.
+		db
+			.select({
+				setId: image.setId,
+				id: image.id,
+				url: image.url,
+				width: image.width,
+				height: image.height,
+				capturedDate: sql<string | null>`substr(${image.capturedAt}, 1, 10)`
+			})
+			.from(image)
+			.innerJoin(imageSet, eq(image.setId, imageSet.id))
+			.where(eq(imageSet.proposedAddition, false))
+			.orderBy(image.setId, image.position, image.id)
 	]);
 
 	const [artefacts, eventsWithHosts] = await Promise.all([
@@ -254,7 +293,32 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 		url: e.url
 	}));
 
-	return { artefacts, events, people: personRows.map((p) => p.name) };
+	const imagesBySet = new Map<number, PublicImage[]>();
+	for (const row of imageRows) {
+		if (row.setId === null) continue;
+		const list = imagesBySet.get(row.setId) ?? [];
+		// Built field by field, like the select: nothing else may ride along.
+		list.push({
+			id: row.id,
+			url: row.url,
+			width: row.width,
+			height: row.height,
+			capturedDate: row.capturedDate && isFullDate(row.capturedDate) ? row.capturedDate : null
+		});
+		imagesBySet.set(row.setId, list);
+	}
+	const images: PublicImageSet[] = setRows
+		.map((set) => ({
+			id: set.id,
+			description: set.description,
+			event: set.event,
+			date: set.date,
+			images: imagesBySet.get(set.id) ?? []
+		}))
+		// A set with no photographs is a create that failed halfway; nothing to show.
+		.filter((set) => set.images.length > 0);
+
+	return { artefacts, events, people: personRows.map((p) => p.name), images };
 }
 
 /**
@@ -296,8 +360,9 @@ export async function countPendingReview(): Promise<{
 	artefacts: number;
 	events: number;
 	series: number;
+	images: number;
 }> {
-	const [[a], [e], [s]] = await Promise.all([
+	const [[a], [e], [s], [i]] = await Promise.all([
 		db
 			.select({ n: sql<number>`count(*)` })
 			.from(artefact)
@@ -309,9 +374,13 @@ export async function countPendingReview(): Promise<{
 		db
 			.select({ n: sql<number>`count(*)` })
 			.from(series)
-			.where(eq(series.proposedAddition, true))
+			.where(eq(series.proposedAddition, true)),
+		db
+			.select({ n: sql<number>`count(*)` })
+			.from(imageSet)
+			.where(eq(imageSet.proposedAddition, true))
 	]);
-	return { artefacts: a.n, events: e.n, series: s.n };
+	return { artefacts: a.n, events: e.n, series: s.n, images: i.n };
 }
 
 /**
@@ -357,9 +426,9 @@ export async function listProposedSeries(): Promise<Series[]> {
 	return db.select().from(series).where(eq(series.proposedAddition, true)).orderBy(series.name);
 }
 
-/** The three domain tables that carry a `proposed_addition` flag. */
-export type ReviewKind = 'artefact' | 'event' | 'series';
-const reviewTable = { artefact, event, series } as const;
+/** The domain tables that carry a `proposed_addition` flag. */
+export type ReviewKind = 'artefact' | 'event' | 'series' | 'imageSet';
+const reviewTable = { artefact, event, series, imageSet } as const;
 
 /** Vet a proposed row: clear the flag so it joins the archive proper. No-op if
  *  the row is already vetted or gone. */
@@ -374,7 +443,8 @@ export async function approveProposed(kind: ReviewKind, id: number, userId: stri
 }
 
 /** Discard a proposed row entirely. Clears the FK references a delete would trip
- *  (artefacts point at events; events point at series) before removing the row. */
+ *  (artefacts and image sets point at events; events point at series) before
+ *  removing the row. */
 export async function rejectProposed(kind: ReviewKind, id: number, userId: string): Promise<void> {
 	// Only ever delete a still-pending row — an approved row is real archive data.
 	const guard = await db
@@ -384,12 +454,27 @@ export async function rejectProposed(kind: ReviewKind, id: number, userId: strin
 		.limit(1);
 	if (guard.length === 0) return;
 
+	if (kind === 'imageSet') {
+		// Its photographs, their stored objects and its contact row go with it.
+		// Imported here, not at the top: ../imageSets imports this module.
+		// `proposedOnly` makes the delete itself conditional, so an approval that
+		// lands after the guard above still wins. It refreshes the cache itself.
+		const { deleteImageSet } = await import('../imageSets');
+		await deleteImageSet(id, { proposedOnly: true });
+		return;
+	}
+
 	if (kind === 'event') {
-		// Artefacts reference this event (nullable, no cascade) — unlink first.
+		// Artefacts and image sets reference this event (nullable, no cascade) —
+		// unlink them first, or the delete trips the foreign key.
 		await db
 			.update(artefact)
 			.set({ eventId: null, ...stampUpdate(userId) })
 			.where(eq(artefact.eventId, id));
+		await db
+			.update(imageSet)
+			.set({ eventId: null, ...stampUpdate(userId) })
+			.where(eq(imageSet.eventId, id));
 		await db.delete(event).where(eq(event.id, id));
 	} else if (kind === 'series') {
 		// Events reference this series (nullable) — detach them into one-offs first.
@@ -433,6 +518,29 @@ export async function deleteOrphanPeople(ids: number[]): Promise<void> {
 				sql`not exists (select 1 from ${eventHost} where ${eventHost.personId} = ${person.id})`
 			)
 		);
+}
+
+/**
+ * Resolve a typed event title to an existing event's id. Events are dated
+ * happenings sourced from the events export — a bare title here can't create
+ * one, so an unknown title yields null (the row stays unlinked). A recurring
+ * title resolves to its earliest event. With `vettedOnly`, only vetted events
+ * match: an unvetted submitter can only link to the events they could have
+ * seen. Keepers editing a row pass false.
+ */
+export async function resolveEventId(name: string, vettedOnly: boolean): Promise<number | null> {
+	const trimmed = name.trim();
+	if (!trimmed) return null;
+
+	const [existing] = await db
+		.select({ id: event.id })
+		.from(event)
+		.where(
+			and(eq(event.title, trimmed), vettedOnly ? eq(event.proposedAddition, false) : undefined)
+		)
+		.orderBy(event.date)
+		.limit(1);
+	return existing?.id ?? null;
 }
 
 /**

@@ -50,16 +50,21 @@ export function withExtension(name: string, type: string): string {
 	return extension ? `${name.replace(/\.[^/.]+$/, '')}.${extension}` : name;
 }
 
-/** Longest-edge-capped dimensions, preserving aspect ratio. */
+/**
+ * Longest-edge-capped dimensions, preserving aspect ratio. The short edge is
+ * at least 1: a panorama sliver rounded to 0 would leave nothing to encode.
+ */
 export function fitWithin(
 	width: number,
 	height: number,
 	maxDim: number
 ): { width: number; height: number } {
 	if (width <= maxDim && height <= maxDim) return { width, height };
+	const scaled = (edge: number, longest: number) =>
+		Math.max(1, Math.round((edge * maxDim) / longest));
 	return width > height
-		? { width: maxDim, height: Math.round((height * maxDim) / width) }
-		: { width: Math.round((width * maxDim) / height), height: maxDim };
+		? { width: maxDim, height: scaled(height, width) }
+		: { width: scaled(width, height), height: maxDim };
 }
 
 /** Draw `source` into a new canvas, scaled down to `maxDim` on its longest edge. */
@@ -75,6 +80,9 @@ export function downscale(
 	canvas.height = height;
 	const ctx = canvas.getContext('2d');
 	if (!ctx) return null;
+	// The default, 'low', aliases fine detail when a large photo shrinks
+	// several times over (a 48 MP one is ~3× wider than MAX_DIM).
+	ctx.imageSmoothingQuality = 'high';
 	ctx.drawImage(source, 0, 0, width, height);
 	return canvas;
 }

@@ -2,17 +2,19 @@
 	import { tick } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { enhance } from '$app/forms';
-	import { confetti } from '@neoconfetti/svelte';
 	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
+	import ImagesIcon from 'phosphor-svelte/lib/ImagesIcon';
 	import StackIcon from 'phosphor-svelte/lib/StackIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import { createEmailSuite, parseEmailForm } from '$lib/validation/auth';
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
+	import Confetti from '$lib/components/Confetti.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -43,12 +45,23 @@
 	let otpInputs = $state<HTMLInputElement[]>([]);
 	let otpForm = $state<HTMLFormElement>();
 	let otpPending = $state(false);
-	// True while the success confetti plays, just before the connected view mounts.
+	// True from a confirmed code until the connected view replaces the form.
 	let otpCelebrating = $state(false);
 	const otpValue = $derived(otpDigits.join(''));
-	// Particles stay in the air this long; we bail off the page mid-flight (HOLD_MS).
-	const CONFETTI_MS = 2600;
+
+	// A confirmed code brings a shower of petals down from the top of the
+	// screen. It is drawn over the whole page rather than inside the form, so it
+	// outlives the form: the hub flies in after HOLD_MS and the petals keep
+	// falling over it until CONFETTI_MS.
+	let showConfetti = $state(false);
+	const CONFETTI_MS = 4000;
 	const HOLD_MS = 1100;
+
+	function celebrate() {
+		otpCelebrating = true;
+		showConfetti = true;
+		setTimeout(() => (showConfetti = false), CONFETTI_MS);
+	}
 
 	function focusOtp(i: number) {
 		otpInputs[i]?.focus();
@@ -116,13 +129,19 @@
 	// Ink button, same graphite tone as the landing handwriting.
 	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
 
-	// The three archive views, surfaced as hub cards for signed-in keepers.
+	// The archive views, surfaced as hub cards for signed-in keepers.
 	const hubLinks = [
 		{
 			href: '/keeper/artefacts',
 			icon: ArchiveIcon,
 			label: 'Artefacts',
 			blurb: 'Digitized copies of physical things, often linked to an event.'
+		},
+		{
+			href: '/keeper/images',
+			icon: ImagesIcon,
+			label: 'Images',
+			blurb: 'Photographs uploaded together, often from an event.'
 		},
 		{
 			href: '/keeper/events',
@@ -241,10 +260,12 @@
 														const positive =
 															result.type === 'redirect' || result.type === 'success';
 														if (positive) {
-															// Code confirmed: swap the spinner for confetti, let it play, then reveal.
-															otpCelebrating = true;
+															// Code confirmed: drop the spinner, start the petals, let them
+															// fall a moment, then reveal. Keep the digits in the boxes (no
+															// form reset) while the form flies out.
+															celebrate();
 															await new Promise((r) => setTimeout(r, HOLD_MS));
-															await update();
+															await update({ reset: false });
 															return;
 														}
 														await update();
@@ -281,20 +302,18 @@
 													{/each}
 												</fieldset>
 												{#if otpCelebrating}
+													<!-- The confetti itself is drawn over the page (below). Under
+													     reduced motion it is not drawn, and a check stands in. -->
 													<div
 														class="mt-4 flex justify-center"
 														role="status"
 														aria-label="Code confirmed"
 													>
-														<div
-															use:confetti={{
-																particleCount: 120,
-																duration: CONFETTI_MS,
-																force: 0.7,
-																stageHeight: 500,
-																colors: ['#14120f', '#f4a259', '#8cb369', '#5b8e7d', '#bc4b51']
-															}}
-														></div>
+														<CheckIcon
+															size={20}
+															weight="bold"
+															class="hidden text-gray-700 motion-reduce:block"
+														/>
 													</div>
 												{:else if otpPending}
 													<div
@@ -317,7 +336,7 @@
 							{/if}
 						</section>
 					{:else}
-						<!-- Hub: the three archive views live on their own sub-routes. -->
+						<!-- Hub: the archive views live on their own sub-routes. -->
 						<nav class="mt-6 space-y-3">
 							{#each hubLinks as link (link.href)}
 								<a
@@ -338,6 +357,9 @@
 			{/key}
 		</div>
 	</div>
+	{#if showConfetti}
+		<Confetti duration={CONFETTI_MS} />
+	{/if}
 </main>
 
 <style>
