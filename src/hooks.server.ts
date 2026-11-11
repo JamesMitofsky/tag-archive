@@ -27,32 +27,38 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 };
 
 // The site-wide access gate (see $lib/access/gate): the site opens to holders
-// of an access pass — earned by tapping the garden's NFC tag, or kept topped up
-// for a signed-in keeper. In production the edge function has already turned
+// of an access pass — earned by tapping the garden's NFC tag, or handed to a
+// signed-in keeper — and kept alive by the presence beat while the site is on
+// screen (src/routes/api/presence). In production the edge function has already turned
 // pass-less requests away; this is the same rule again for everything that
 // reaches SvelteKit, and the only gate under `vite dev`.
 const guardAccess: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
 
-	let pass = await readPass(event.cookies);
-	if (event.locals.user) pass = await keeperPass(event.cookies, pass);
-	event.locals.pass = pass ?? undefined;
-	if (pass) return resolve(event);
-
-	const isEnhancedAction = event.request.headers.get('x-sveltekit-action') === 'true';
-	const decision = accessDecision({
-		pathname: event.url.pathname,
-		search: event.url.search,
+	const request = {
 		method: event.request.method,
 		accept: event.request.headers.get('accept'),
 		isDataRequest: event.isDataRequest,
-		isEnhancedAction
+		isEnhancedAction: event.request.headers.get('x-sveltekit-action') === 'true'
+	};
+
+	// Reading a pass costs one HMAC; a signed-in keeper without one is handed one
+	// here (never on a response the CDN might cache, see $lib/server/access).
+	let pass = await readPass(event.cookies);
+	if (event.locals.user) pass = await keeperPass(event.cookies, pass, request);
+	event.locals.pass = pass ?? undefined;
+	if (pass) return resolve(event);
+
+	const decision = accessDecision({
+		...request,
+		pathname: event.url.pathname,
+		search: event.url.search
 	});
 	if (decision === 'open') return resolve(event);
 	// SvelteKit serialises a redirect thrown here correctly for client-side data
 	// loads and enhanced form actions too, so those land on the locked page
 	// rather than an error.
-	if (decision === 'redirect' || event.isDataRequest || isEnhancedAction) {
+	if (decision === 'redirect' || request.isDataRequest || request.isEnhancedAction) {
 		throw redirect(303, LOCKED_PATH);
 	}
 	throw error(401, 'Visit the Cube to open the Archive');

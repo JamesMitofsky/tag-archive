@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { purgeArchiveCache } from '$lib/server/cache';
 import { attachHosts, resolvePersonIds, resolveSeriesId } from '$lib/server/db/queries';
 import { stampInsert, stampUpdate } from '$lib/server/db/audit';
-import { artefact, event, eventHost, person, series } from '$lib/server/db/schema';
+import { artefact, event, eventHost, imageSet, person, series } from '$lib/server/db/schema';
 import { idSchema } from '$lib/schemas';
 import { createEventSuite, parseEventForm } from '$lib/validation/event';
 import { summary } from '$lib/validation/helpers';
@@ -132,12 +132,17 @@ export const actions: Actions = {
 		const id = idSchema.safeParse(params.id);
 		if (!id.success) return fail(400, { eventError: 'Unknown event' });
 
-		// Artefacts reference this event (nullable, no cascade) — unlink them first
-		// so the delete doesn't trip the foreign key. Host links cascade on their own.
+		// Artefacts and image sets reference this event (nullable, no cascade) —
+		// unlink them first so the delete doesn't trip the foreign key. Host links
+		// cascade on their own.
 		await db
 			.update(artefact)
 			.set({ eventId: null, ...stampUpdate(locals.user.id) })
 			.where(eq(artefact.eventId, id.data));
+		await db
+			.update(imageSet)
+			.set({ eventId: null, ...stampUpdate(locals.user.id) })
+			.where(eq(imageSet.eventId, id.data));
 		await db.delete(event).where(eq(event.id, id.data));
 		await purgeArchiveCache();
 		// Nothing left to show here — back to the events list.

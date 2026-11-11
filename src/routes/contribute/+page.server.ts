@@ -4,7 +4,7 @@ import { createArtefact, knownLocations } from '$lib/server/artefacts';
 import { db } from '$lib/server/db';
 import { stampInsert } from '$lib/server/db/audit';
 import { artefact, submissionContact } from '$lib/server/db/schema';
-import { freshDraft, submissionPrefix } from '$lib/server/drafts';
+import { readDraft, submissionPrefix } from '$lib/server/drafts';
 import { consume, LIMITS } from '$lib/server/rateLimit';
 import { keyFromUrl } from '$lib/server/scans';
 import { sign, verify } from '$lib/server/signing';
@@ -40,9 +40,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 		signedIn,
 		// Keepers record where the physical item is kept; the public may not know.
 		requireLocation: signedIn,
-		// Anonymous visitors upload and submit through the draft session a recent
-		// tap of the garden tag started (see $lib/server/drafts).
-		canContribute: signedIn || !!freshDraft(cookies),
+		// Anonymous visitors upload and submit through the draft session a tap of
+		// the garden tag started (see $lib/server/drafts), for as long as their
+		// access pass is open (see $lib/access/pass).
+		canContribute: signedIn || (!!locals.pass && !!readDraft(cookies)),
 		locations: await knownLocations()
 	};
 };
@@ -53,10 +54,12 @@ export const actions: Actions = {
 		const data = parseArtefactForm(form);
 		const signedIn = !!locals.user;
 
-		// Anonymous: a fresh draft session (a recent tap) and a rate limit.
-		const draft = signedIn ? null : freshDraft(cookies);
+		// Anonymous: an open access pass (hooks set `locals.pass` even on the
+		// enhanced posts the gate lets through, see $lib/access/gate), a draft
+		// session (a tap), and a rate limit.
+		const draft = signedIn ? null : readDraft(cookies);
 		if (!signedIn) {
-			if (!draft) {
+			if (!locals.pass || !draft) {
 				return fail(401, {
 					locked: true,
 					artefactError:
@@ -114,7 +117,11 @@ export const actions: Actions = {
 			return fail(403, { contactError: 'That link has expired.' });
 		}
 		if (!(await consume('connect-ip', getClientAddress(), LIMITS.connectPerIp))) {
-			return fail(429, { contactError: 'Too many attempts — wait a little and try again.' });
+			// Keep `submitted`, or the thank-you (and this message with it) vanishes.
+			return fail(429, {
+				contactError: 'Too many attempts — wait a little and try again.',
+				submitted: { id, token }
+			});
 		}
 
 		const data = parseContactForm(form);
@@ -133,7 +140,12 @@ export const actions: Actions = {
 			.select({ id: artefact.id })
 			.from(artefact)
 			.where(and(eq(artefact.id, id), eq(artefact.proposedAddition, true)));
-		if (!pending) return fail(410, { contactError: 'That submission has already been reviewed.' });
+		if (!pending) {
+			return fail(410, {
+				contactError: 'That submission has already been reviewed.',
+				submitted: { id, token }
+			});
+		}
 
 		const contact = { name: data.name || null, email: data.email || null };
 		await db

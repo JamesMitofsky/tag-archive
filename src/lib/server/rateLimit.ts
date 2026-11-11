@@ -31,6 +31,13 @@ export const LIMITS = {
 	uploadPerIp: { limit: 1500, windowMs: HOUR },
 	/** Image uploads per draft session, per day — the cap on any one visitor. */
 	uploadPerDraft: { limit: 200, windowMs: 24 * HOUR },
+	/**
+	 * Photograph finalizes per draft session, per day. Each one that isn't yet
+	 * recorded re-reads the original from the bucket (up to 50 MB) and parses it,
+	 * so a burst of calls for one upload would multiply that work. One per
+	 * upload is the norm; twice the upload cap leaves room for retries.
+	 */
+	finalizePerDraft: { limit: 400, windowMs: 24 * HOUR },
 	/** Artefact submissions per IP. */
 	submitPerIp: { limit: 150, windowMs: HOUR },
 	/** Contact details left after submitting, per IP. */

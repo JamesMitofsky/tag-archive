@@ -2,6 +2,7 @@
 	import BackButton from '$lib/components/BackButton.svelte';
 	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
+	import ImagesIcon from 'phosphor-svelte/lib/ImagesIcon';
 	import StackIcon from 'phosphor-svelte/lib/StackIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import type { Component } from 'svelte';
@@ -18,6 +19,12 @@
 			count: data.pending.artefacts
 		},
 		{
+			href: '/keeper/settings/review/images',
+			label: 'Images',
+			icon: ImagesIcon,
+			count: data.pending.images
+		},
+		{
 			href: '/keeper/settings/review/events',
 			label: 'Events',
 			icon: CalendarBlankIcon,
@@ -31,7 +38,7 @@
 		}
 	]);
 
-	const total = $derived(data.pending.artefacts + data.pending.events + data.pending.series);
+	const total = $derived(sections.reduce((sum, section) => sum + section.count, 0));
 </script>
 
 <svelte:head>

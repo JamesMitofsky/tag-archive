@@ -12,9 +12,10 @@ import type { RequestHandler } from './$types';
 
 // Where the garden's NFC tag points. Every tap rewrites `e` (the tag's UID and
 // tap counter, encrypted) and `c` (a MAC over them) — see $lib/server/nfc/sdm.
-// A genuine tap with a counter we haven't seen opens the whole site for a few
-// hours ($lib/access/pass) and starts or renews the visitor's upload draft
-// ($lib/server/drafts), so contributing needs no further check.
+// A genuine tap with a counter we haven't seen opens the whole site for as long
+// as it stays on the visitor's screen, plus a while ($lib/access/pass), and
+// starts or renews the visitor's upload draft ($lib/server/drafts), so
+// contributing needs no further check.
 //
 // Always answers with a redirect, so the one-time URL never lingers in the
 // address bar or history to be copied. The outcome rides along in a short-lived

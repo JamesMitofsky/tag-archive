@@ -1,11 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mintPass, PASS_TTL_MS, verifyPass } from './pass';
+import { PRESENCE_INTERVAL_MS } from './paths';
 
 vi.mock('$env/dynamic/private', () => ({ env: { BETTER_AUTH_SECRET: 'test-secret' } }));
 
 const SECRET = 'test-secret';
 
 describe('access pass', () => {
+	it('stays open 20 minutes past the last beat, and beats often enough to keep it so', () => {
+		expect(PASS_TTL_MS).toBe(20 * 60 * 1000);
+		// A beat or two lost to a flaky signal must not shut the site on someone
+		// still looking at it (see $lib/access/presence).
+		expect(PRESENCE_INTERVAL_MS * 3).toBeLessThanOrEqual(PASS_TTL_MS);
+	});
+
 	it('round-trips a minted pass until it expires', async () => {
 		const { token, pass } = await mintPass(SECRET, 't', 1_000);
 		expect(pass).toEqual({ kind: 't', issuedAt: 1_000, expiresAt: 1_000 + PASS_TTL_MS });

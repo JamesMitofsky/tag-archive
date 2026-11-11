@@ -34,6 +34,42 @@ describe('getParentRoute & getRouteTitle', () => {
 		});
 	});
 
+	it('places the image pages beside their artefact counterparts', () => {
+		expect(getParentRoute('/images')).toEqual({ href: '/', label: 'Home' });
+		expect(getParentRoute('/contribute/images')).toEqual({
+			href: '/contribute',
+			label: 'Contribute'
+		});
+
+		expect(getParentRoute('/keeper/images')).toEqual({ href: '/keeper', label: 'Cloud Keeper' });
+		// The add route is static, so it never reads as an image set called "add".
+		expect(getParentRoute('/keeper/images/add')).toEqual({
+			href: '/keeper/images',
+			label: 'Images'
+		});
+		expect(getParentRoute('/keeper/images/12')).toEqual({
+			href: '/keeper/images',
+			label: 'Images'
+		});
+		expect(getParentRoute('/keeper/images/12/edit')).toEqual({
+			href: '/keeper/images/12',
+			label: 'Image Set'
+		});
+		expect(getParentRoute('/keeper/images/12/')).toEqual({
+			href: '/keeper/images',
+			label: 'Images'
+		});
+		expect(getParentRoute('/keeper/settings/review/images')).toEqual({
+			href: '/keeper/settings/review',
+			label: 'Review Queue'
+		});
+
+		expect(getRouteTitle('/images')).toBe('Images');
+		expect(getRouteTitle('/keeper/images')).toBe('Images');
+		expect(getRouteTitle('/keeper/images/12')).toBe('Image Set');
+		expect(getRouteTitle('/keeper/images/12/edit')).toBe('Edit Image Set');
+	});
+
 	it('infers parent route and label for dynamic routes with IDs', () => {
 		expect(getParentRoute('/keeper/artefacts/item-123')).toEqual({
 			href: '/keeper/artefacts',

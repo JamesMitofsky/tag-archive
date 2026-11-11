@@ -2,7 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { purgeArchiveCache } from '$lib/server/cache';
-import { attachProvenance, resolvePersonIds } from '$lib/server/db/queries';
+import { attachProvenance, resolveEventId, resolvePersonIds } from '$lib/server/db/queries';
 import { stampInsert, stampUpdate } from '$lib/server/db/audit';
 import { artefact, artefactProvenance, event } from '$lib/server/db/schema';
 import { idSchema } from '$lib/schemas';
@@ -25,24 +25,6 @@ export type ArtefactFormValues = {
 
 /** Empty string → null, for the artefact's nullable columns. */
 const nullIfEmpty = (value: string) => (value === '' ? null : value);
-
-/**
- * Resolve a typed event title to an existing event's id. Events are dated
- * happenings sourced from the events export — a bare title here can't create one,
- * so an unknown title yields null. A recurring title resolves to its earliest event.
- */
-async function resolveEventId(name: string): Promise<number | null> {
-	const trimmed = name.trim();
-	if (!trimmed) return null;
-
-	const [existing] = await db
-		.select({ id: event.id })
-		.from(event)
-		.where(eq(event.title, trimmed))
-		.orderBy(event.date)
-		.limit(1);
-	return existing?.id ?? null;
-}
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	// Editing is admin-only; bounce anyone else back to the keeper page.
@@ -101,7 +83,8 @@ export const actions: Actions = {
 			});
 		}
 
-		const eventId = await resolveEventId(data.event);
+		// A keeper may link any event, vetted or not.
+		const eventId = await resolveEventId(data.event, false);
 		const personIds = await resolvePersonIds(data.provenance, userId);
 
 		await db

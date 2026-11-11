@@ -3,6 +3,13 @@
  * by tapping the garden's NFC tag (kind `t`, see src/routes/t); a signed-in
  * keeper is issued one automatically (kind `k`, see hooks.server.ts).
  *
+ * A pass is good for PASS_TTL_MS from the moment it was minted, and it slides:
+ * while the site is on the visitor's screen, the browser re-mints it through
+ * POST /api/presence (see ./presence and src/routes/api/presence), so the site
+ * drifts shut PASS_TTL_MS after it was last visible, not a fixed time after the
+ * tap. The clock lives here, in the signed token, because a backgrounded mobile
+ * tab cannot be trusted to run one.
+ *
  * Checked in two runtimes — the Netlify edge function in front of everything
  * (Deno) and SvelteKit's hooks (Node) — so this module uses only Web Crypto and
  * imports nothing: the edge bundle loads it by relative path.
@@ -13,10 +20,14 @@
  */
 
 export const PASS_COOKIE = 'tag_pass';
-/** How long one tap keeps the site open. */
-export const PASS_TTL_MS = 3 * 60 * 60 * 1000;
+/** How long the site stays open after the visitor was last seen on it. */
+export const PASS_TTL_MS = 20 * 60 * 1000;
 
 export type PassKind = 't' | 'k';
+/**
+ * `issuedAt` is when this token was minted: the tap, or the latest presence
+ * beat that re-minted it. So on a pass that has slid, it reads as "last seen".
+ */
 export type Pass = { kind: PassKind; issuedAt: number; expiresAt: number };
 
 const VERSION = 'v1';

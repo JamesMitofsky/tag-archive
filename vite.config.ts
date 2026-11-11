@@ -27,6 +27,14 @@ export default defineConfig({
 		// guard). Tunnel domains are random per session, so allow the wildcards.
 		allowedHosts: ['.ngrok-free.dev', '.ngrok-free.app', '.ngrok.dev', '.ngrok.app']
 	},
+	optimizeDeps: {
+		// Both load lazily, only when a photograph needs them (see $lib/images).
+		// The WebP encoder finds its .wasm next to itself through
+		// `new URL(…, import.meta.url)`, which pre-bundling into .vite/deps
+		// breaks in dev; heic-to is a 3 MB self-contained libheif build that
+		// gains nothing from pre-bundling but a slower cold start.
+		exclude: ['@jsquash/webp', 'heic-to']
+	},
 	build: {
 		// Declare a browser floor for the CSS minifier. Without it, esbuild treats a
 		// vendor-prefixed property and its standard twin as one declaration and keeps

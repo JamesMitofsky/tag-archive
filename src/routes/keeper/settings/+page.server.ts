@@ -10,7 +10,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Admins get the review queue's pending total for the Review link's badge.
 	const isAdmin = locals.user.role === 'admin';
 	const pending = isAdmin ? await countPendingReview() : null;
-	const pendingTotal = pending ? pending.artefacts + pending.events + pending.series : 0;
+	const pendingTotal = pending
+		? pending.artefacts + pending.events + pending.series + pending.images
+		: 0;
 
 	return {
 		user: { email: locals.user.email, role: locals.user.role },

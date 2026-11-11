@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('$env/dynamic/private', () => ({ env: { BETTER_AUTH_SECRET: 'test-secret' } }));
 
-const { DRAFT_COOKIE, DRAFT_TTL_MS, freshDraft, issueDraft, mintDraftToken, parseDraftToken } =
+const { DRAFT_COOKIE, issueDraft, mintDraftToken, parseDraftToken, readDraft } =
 	await import('./drafts');
 
 /** Just enough of SvelteKit's cookie jar for these helpers. */
@@ -28,24 +28,23 @@ describe('draft tokens', () => {
 		const [id, issued, signature] = token.split('.');
 		const otherId = mintDraftToken(undefined, 1_000).draft.id;
 		expect(parseDraftToken(`${otherId}.${issued}.${signature}`)).toBeNull();
-		// Pushing the timestamp forward would extend a session for free.
 		expect(parseDraftToken(`${id}.${Number(issued) + 1}.${signature}`)).toBeNull();
 		expect(parseDraftToken(`${id}.${issued}`)).toBeNull();
 		expect(parseDraftToken('garbage')).toBeNull();
 	});
 
-	it('is fresh until its TTL runs out, then needs renewal', () => {
+	it('keeps no clock of its own: a draft reads the same however long ago it was issued', () => {
+		// Permission to write is the access pass's question ($lib/access/pass).
 		const cookies = jar(mintDraftToken(undefined, 0).token);
-		expect(freshDraft(cookies, DRAFT_TTL_MS - 1)).not.toBeNull();
-		expect(freshDraft(cookies, DRAFT_TTL_MS)).toBeNull();
+		expect(readDraft(cookies)?.issuedAt).toBe(0);
 	});
 
-	it('keeps the same id on renewal, so earlier uploads stay attachable', () => {
+	it('keeps the same id on re-issue, so earlier uploads stay attachable', () => {
 		const first = mintDraftToken(undefined, 0);
 		const cookies = jar(first.token);
-		const renewed = issueDraft(cookies, DRAFT_TTL_MS * 2);
+		const renewed = issueDraft(cookies, 7 * 24 * 60 * 60 * 1000);
 		expect(renewed.id).toBe(first.draft.id);
-		expect(freshDraft(cookies, DRAFT_TTL_MS * 2)).toEqual(renewed);
+		expect(readDraft(cookies)).toEqual(renewed);
 	});
 
 	it('mints a new id when the old cookie is forged', () => {

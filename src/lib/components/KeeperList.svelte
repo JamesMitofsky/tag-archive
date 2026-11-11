@@ -87,14 +87,19 @@
 </script>
 
 <div bind:this={wrapper} style="position: relative; height: {$virtualizer.getTotalSize()}px;">
+	<!-- The virtualizer's range catches up with `items` one tick after a search
+	     narrows them, so for that render it can name indexes past the end. A row
+	     is only ever handed an item that exists. -->
 	{#each $virtualizer.getVirtualItems() as item (item.key)}
-		<div
-			data-index={item.index}
-			use:$virtualizer.measureElement
-			style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({item.start -
-				scrollMargin}px);"
-		>
-			{@render row(items[item.index], item.index)}
-		</div>
+		{#if item.index < items.length}
+			<div
+				data-index={item.index}
+				use:$virtualizer.measureElement
+				style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({item.start -
+					scrollMargin}px);"
+			>
+				{@render row(items[item.index], item.index)}
+			</div>
+		{/if}
 	{/each}
 </div>

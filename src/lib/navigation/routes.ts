@@ -11,10 +11,15 @@ interface RouteDefinition {
 const STATIC_ROUTES: Record<string, RouteDefinition> = {
 	'/': { title: 'Home', parent: '/' },
 	'/events': { title: 'Events', parent: '/' },
+	'/images': { title: 'Images', parent: '/' },
 	'/contribute': { title: 'Contribute', parent: '/' },
+	// Photographs are one of the ways to contribute, so their form backs out there.
+	'/contribute/images': { title: 'Contribute', parent: '/contribute' },
 	'/keeper': { title: 'Cloud Keeper', parent: '/' },
 	'/keeper/artefacts': { title: 'Artefacts', parent: '/keeper' },
 	'/keeper/artefacts/add': { title: 'Artefacts', parent: '/keeper/artefacts' },
+	'/keeper/images': { title: 'Images', parent: '/keeper' },
+	'/keeper/images/add': { title: 'Images', parent: '/keeper/images' },
 	'/keeper/events': { title: 'Events', parent: '/keeper' },
 	'/keeper/events/add': { title: 'Events', parent: '/keeper/events' },
 	'/keeper/series': { title: 'Series', parent: '/keeper' },
@@ -25,6 +30,7 @@ const STATIC_ROUTES: Record<string, RouteDefinition> = {
 	'/keeper/settings/review/artefacts': { title: 'Review Queue', parent: '/keeper/settings/review' },
 	'/keeper/settings/review/events': { title: 'Review Queue', parent: '/keeper/settings/review' },
 	'/keeper/settings/review/series': { title: 'Review Queue', parent: '/keeper/settings/review' },
+	'/keeper/settings/review/images': { title: 'Review Queue', parent: '/keeper/settings/review' },
 	'/keeper/contributors': { title: 'Contributors', parent: '/keeper/settings' },
 	'/keeper/contributors/merge': { title: 'Merge Contributors', parent: '/keeper/contributors' },
 	'/keeper/contributors/merge/review': {
@@ -73,6 +79,18 @@ const DYNAMIC_ROUTE_PATTERNS: Array<{
 		pattern: /^\/keeper\/artefacts\/([^/]+)$/,
 		title: 'Artefact',
 		getParent: () => ({ href: '/keeper/artefacts', label: 'Artefacts' })
+	},
+	{
+		// /keeper/images/[id]/edit
+		pattern: /^\/keeper\/images\/([^/]+)\/edit$/,
+		title: 'Edit Image Set',
+		getParent: (m) => ({ href: `/keeper/images/${m[1]}`, label: 'Image Set' })
+	},
+	{
+		// /keeper/images/[id]
+		pattern: /^\/keeper\/images\/([^/]+)$/,
+		title: 'Image Set',
+		getParent: () => ({ href: '/keeper/images', label: 'Images' })
 	}
 ];
 

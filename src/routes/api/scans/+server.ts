@@ -1,20 +1,20 @@
 import { error, json } from '@sveltejs/kit';
-import { sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { artefact } from '$lib/server/db/schema';
-import { freshDraft, readDraft, submissionPrefix } from '$lib/server/drafts';
+import { readDraft, submissionPrefix } from '$lib/server/drafts';
 import { sniffImageType } from '$lib/server/imageType';
 import { consume, LIMITS } from '$lib/server/rateLimit';
 import { deleteScan, keyFromUrl, uploadScan } from '$lib/server/scans';
+import { referencedUrls } from '$lib/server/uploads';
 import type { RequestHandler } from './$types';
 
 // Image uploads for artefact scans — the write gate in front of the bucket,
 // which itself has no per-request access control. Two kinds of uploader:
 //
 //  - a signed-in keeper: uploads land at the bucket root, as before;
-//  - an anonymous visitor on /contribute: needs a fresh draft session (a
-//    recent tap of the garden tag, see $lib/server/drafts) and is rate-limited; uploads
-//    land in that draft's private `submissions/<draft>/` space.
+//  - an anonymous visitor on /contribute: needs an open access pass (the site
+//    has been on their screen since they tapped the garden tag, see
+//    $lib/access/pass) and a draft session (the tap, see $lib/server/drafts),
+//    and is rate-limited; uploads land in that draft's private
+//    `submissions/<draft>/` space.
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB — generous cap for a scanned image.
 
 /** 401 the client recognises as "tap the tag again to keep going". */
@@ -24,8 +24,9 @@ const locked = () =>
 export const POST: RequestHandler = async ({ request, locals, cookies, getClientAddress }) => {
 	let prefix = '';
 	if (!locals.user) {
-		const draft = freshDraft(cookies);
-		if (!draft) return locked();
+		// The gate has already refused a pass-less call; this keeps the rule legible.
+		const draft = readDraft(cookies);
+		if (!locals.pass || !draft) return locked();
 		const ip = getClientAddress();
 		const allowed =
 			(await consume('upload-ip', ip, LIMITS.uploadPerIp)) &&
@@ -58,8 +59,8 @@ export const DELETE: RequestHandler = async ({ request, locals, cookies }) => {
 	const key = keyFromUrl(url);
 	if (!key) throw error(400, 'Not an uploaded image');
 
-	// A visitor may only discard their own draft's uploads. Any validly signed
-	// draft counts, fresh or not: ownership doesn't lapse with the tap.
+	// A visitor may only discard their own draft's uploads. The draft cookie is
+	// the proof of ownership; the pass that let this call through is the permission.
 	if (!locals.user) {
 		const draft = readDraft(cookies);
 		if (!draft || !key.startsWith(submissionPrefix(draft.id))) {
@@ -68,14 +69,10 @@ export const DELETE: RequestHandler = async ({ request, locals, cookies }) => {
 	}
 
 	// Only unattached transient uploads (draft scans) may be deleted here — never
-	// an image a saved artefact already uses.
-	const existing = await db
-		.select({ id: artefact.id })
-		.from(artefact)
-		.where(sql`exists (select 1 from json_each(${artefact.fileUrls}) where value = ${url})`)
-		.get();
-	if (existing) {
-		throw error(403, 'Forbidden: Cannot delete an image that is attached to a saved artefact');
+	// an image a saved artefact uses, nor either object of a photograph (an
+	// image row, set or not: those go through DELETE /api/images/[id]).
+	if ((await referencedUrls([url])).has(url)) {
+		throw error(403, 'Forbidden: Cannot delete an image that is in use');
 	}
 
 	await deleteScan(key);

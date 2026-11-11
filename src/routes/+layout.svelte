@@ -13,7 +13,8 @@
 	import Drawing from '$lib/components/Drawing.svelte';
 	import PublicNav from '$lib/components/PublicNav.svelte';
 	import TapToast from '$lib/components/TapToast.svelte';
-	import { LOCKED_PATH } from '$lib/access/paths';
+	import Presence from '$lib/access/Presence.svelte';
+	import { KEEPER_PATH, LOCKED_PATH } from '$lib/access/paths';
 
 	let { children } = $props();
 
@@ -69,11 +70,18 @@
 </a>
 
 <!-- No nav on the locked page: every link would lead straight back to it. -->
-{#if !page.url.pathname.startsWith('/keeper') && page.url.pathname !== LOCKED_PATH}
+{#if !page.url.pathname.startsWith(KEEPER_PATH) && page.url.pathname !== LOCKED_PATH}
 	<PublicNav />
 {/if}
 
 <TapToast />
+
+<!-- Keeps the pass alive while the site is on screen. Not where there is no pass
+     to keep: the locked page, and the keeper sign-in page (open through its door
+     to keepers who hold neither pass nor session yet). -->
+{#if page.url.pathname !== LOCKED_PATH && page.url.pathname.replace(/\/$/, '') !== KEEPER_PATH}
+	<Presence />
+{/if}
 
 <div class="route-wrap">
 	<SkyUnderlay />
