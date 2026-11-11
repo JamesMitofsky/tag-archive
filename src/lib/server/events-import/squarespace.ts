@@ -4,6 +4,8 @@
  * appended. Network-free so it is unit-tested; the CLIs in this folder do the
  * fetching and file I/O.
  */
+import { decodeHTML } from 'entities';
+import { Parser } from 'htmlparser2';
 import { z } from 'zod';
 
 export const SITE_ORIGIN = 'https://www.ustreetcommunity.org';
@@ -22,13 +24,11 @@ const EVENT_URL = /^https:\/\/www\.ustreetcommunity\.org\/events\/[^/?#]+$/;
  */
 export function parseSitemapEventUrls(xml: string): string[] {
 	const extract = (source: string) => {
-		const urls = [...source.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/g)].map((m) =>
-			decodeEntities(m[1])
-		);
+		const urls = [...source.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/g)].map((m) => decodeHTML(m[1]));
 		return [...new Set(urls.filter((u) => EVENT_URL.test(u)))];
 	};
 	const direct = extract(xml);
-	return direct.length > 0 ? direct : extract(decodeEntities(xml.replace(/<[^>]+>/g, '')));
+	return direct.length > 0 ? direct : extract(decodeHTML(xml.replace(/<[^>]+>/g, '')));
 }
 
 /** The last path segment of an event URL, used to name its workspace files. */
@@ -80,17 +80,28 @@ export function parseEventPage(json: unknown): { item: SquarespaceItem; timeZone
 }
 
 /**
- * An event as the site publishes it, before curation: the fields the catalogue
- * takes verbatim, plus the page text the description and hosts are drawn from.
+ * An event as the site publishes it, before curation. `title` and
+ * `description` are the page's own words and go into the archive unedited (see
+ * `verbatimText`); the rest feeds the fields curation decides with judgment.
  */
 export type RawEvent = {
 	url: string;
+	/**
+	 * The page's title, exactly as published: Squarespace serves titles
+	 * HTML-escaped ("Seeds &amp; Snacks"), so entities are decoded and outer
+	 * whitespace trimmed, nothing else.
+	 */
 	title: string;
 	/** ISO `YYYY-MM-DD` in the site's time zone. */
 	date: string;
 	/** e.g. "6:00 PM - 7:30 PM", the house format. */
 	time: string;
 	location: string | null;
+	/**
+	 * The page's description, word for word: the body text, or the excerpt when
+	 * the body has none, or null when the page has neither.
+	 */
+	description: string | null;
 	bodyText: string;
 	excerptText: string;
 	tags: string[];
@@ -98,17 +109,29 @@ export type RawEvent = {
 };
 
 export function toRawEvent(url: string, item: SquarespaceItem, timeZone: string): RawEvent {
+	const bodyText = htmlToText(item.body ?? '');
+	const excerptText = htmlToText(item.excerpt ?? '');
 	return {
 		url,
-		title: item.title.trim(),
+		title: decodeHTML(item.title).trim(),
 		date: formatDate(item.startDate, timeZone),
 		time: formatTimeSpan(item.startDate, item.endDate ?? null, timeZone),
 		location: formatLocation(item.location ?? null),
-		bodyText: htmlToText(item.body ?? ''),
-		excerptText: htmlToText(item.excerpt ?? ''),
+		description: bodyText || excerptText || null,
+		bodyText,
+		excerptText,
 		tags: item.tags ?? [],
 		categories: item.categories ?? []
 	};
+}
+
+/**
+ * The two fields the archive keeps exactly as the source page wrote them. Every
+ * step that writes an event's title or description (curate, import, restore)
+ * takes them from here, and the import refuses entries that differ from it.
+ */
+export function verbatimText(raw: RawEvent): { title: string; description: string | null } {
+	return { title: raw.title, description: raw.description };
 }
 
 /** Epoch ms → `YYYY-MM-DD` on the wall calendar of `timeZone`. */
@@ -163,49 +186,144 @@ export function formatLocation(location: SquarespaceLocation | null): string | n
 	return parts.length > 0 ? parts.join(', ') : null;
 }
 
-const BLOCK_TAGS =
-	/<\/?(?:p|div|br|li|ul|ol|h[1-6]|blockquote|section|article|figure|tr)\b[^>]*>/gi;
+/** Elements whose contents are never visible page text. */
+const HIDDEN = new Set([
+	'script',
+	'style',
+	'noscript',
+	'template',
+	'svg',
+	'iframe',
+	'head',
+	'title'
+]);
+
+/** Elements that start a new paragraph (a blank line in the text). */
+const PARAGRAPH = new Set([
+	'p',
+	'div',
+	'section',
+	'article',
+	'header',
+	'footer',
+	'aside',
+	'main',
+	'nav',
+	'h1',
+	'h2',
+	'h3',
+	'h4',
+	'h5',
+	'h6',
+	'blockquote',
+	'pre',
+	'ul',
+	'ol',
+	'dl',
+	'figure',
+	'figcaption',
+	'table',
+	'hr',
+	'form',
+	'fieldset'
+]);
+
+/** Elements that start a new line within a paragraph. */
+const LINE = new Set(['li', 'dt', 'dd', 'tr']);
+
+// Private-use markers for breaks while text is collected, resolved at the end
+// so runs of nested wrappers collapse into a single break. A structural line
+// (a list item, a block inside one) never doubles up; a visible line (`<br>`,
+// a pre-wrap newline) does, since two in a row is an empty line on the page.
+const LINE_MARK = '\u{F0001}';
+const VISIBLE_LINE_MARK = '\u{F0003}';
+const PARAGRAPH_MARK = '\u{F0002}';
+
+/** True when an inline style keeps the element's own line breaks visible. */
+const keepsNewlines = (style: string | undefined) =>
+	!!style && /white-space\s*:\s*(pre|pre-wrap|pre-line|break-spaces)\b/i.test(style);
 
 /**
- * Readable plain text from a page body: scripts and styles dropped, block
- * elements turned into line breaks, entities decoded, whitespace tidied. Only
- * feeds the curation step, so it aims for faithful text, not perfect layout.
+ * The visible text of a page body, word for word, as the archive stores an
+ * event description. Parsed with a real HTML parser rather than patterns, so
+ * attributes containing `>`, unclosed tags and entities can't leak markup or
+ * drop words.
+ *
+ * Kept: every visible word, in order, including link, button and caption text.
+ * Paragraphs and blocks become blank-line breaks, `<br>` and list items line
+ * breaks (list items prefixed "• "), and line breaks the page shows through
+ * `white-space: pre-wrap` stay line breaks. Dropped: markup, scripts, styles,
+ * hidden fallbacks, and layout whitespace (runs of spaces collapse to one,
+ * lines are trimmed). Event descriptions render with `whitespace-pre-line`, so
+ * the breaks survive on the site.
  */
 export function htmlToText(html: string): string {
-	const text = html
-		.replace(/<(script|style|noscript)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-		.replace(BLOCK_TAGS, '\n')
-		.replace(/<[^>]+>/g, '');
-	return decodeEntities(text)
+	let out = '';
+	let hiddenDepth = 0;
+	// Inside a list item, blocks (Squarespace wraps each item's text in a <p>)
+	// only start a new line, and the bullet waits for the item's first word.
+	let listItemDepth = 0;
+	let bulletPending = false;
+	const blockBreak = () => (listItemDepth > 0 ? LINE_MARK : PARAGRAPH_MARK);
+	// One entry per open element: whether it (or an ancestor) keeps newlines.
+	const preStack: boolean[] = [];
+
+	const parser = new Parser(
+		{
+			onopentag(name, attribs) {
+				const inPre = preStack.at(-1) ?? false;
+				preStack.push(inPre || name === 'pre' || keepsNewlines(attribs.style));
+				if (HIDDEN.has(name)) hiddenDepth++;
+				if (hiddenDepth > 0) return;
+				if (PARAGRAPH.has(name)) out += blockBreak();
+				else if (LINE.has(name)) out += LINE_MARK;
+				else if (name === 'br') out += VISIBLE_LINE_MARK;
+				if (name === 'li') {
+					listItemDepth++;
+					bulletPending = true;
+				}
+			},
+			ontext(text) {
+				if (hiddenDepth > 0) return;
+				const inPre = preStack.at(-1) ?? false;
+				if (bulletPending && /\S/.test(text)) {
+					out += '\u2022 ';
+					text = text.trimStart();
+					bulletPending = false;
+				}
+				out += inPre ? text.replace(/\r\n?|\n/g, VISIBLE_LINE_MARK) : text.replace(/\s+/g, ' ');
+			},
+			onclosetag(name) {
+				preStack.pop();
+				if (HIDDEN.has(name)) {
+					hiddenDepth = Math.max(0, hiddenDepth - 1);
+					return;
+				}
+				if (hiddenDepth > 0) return;
+				if (name === 'li') {
+					listItemDepth = Math.max(0, listItemDepth - 1);
+					bulletPending = false;
+				}
+				if (PARAGRAPH.has(name)) out += blockBreak();
+			}
+		},
+		{ decodeEntities: true, lowerCaseTags: true }
+	);
+	parser.write(html);
+	parser.end();
+
+	const marks = `${LINE_MARK}${VISIBLE_LINE_MARK}${PARAGRAPH_MARK}`;
+	const breaks = new RegExp(`[^\\S\\n]*[${marks}][\\s${marks}]*`, 'gu');
+	return out
+		.replace(breaks, (run) => {
+			// A paragraph break, or two line breaks in a row (an empty line the page
+			// shows), is a blank line; a single line break is a newline.
+			const lines = [...run].filter((c) => c === VISIBLE_LINE_MARK).length;
+			return run.includes(PARAGRAPH_MARK) || lines >= 2 ? '\n\n' : '\n';
+		})
 		.split('\n')
-		.map((line) => line.replace(/[ \t\u00a0]+/g, ' ').trim())
-		.filter(Boolean)
-		.join('\n');
-}
-
-const NAMED_ENTITIES: Record<string, string> = {
-	amp: '&',
-	lt: '<',
-	gt: '>',
-	quot: '"',
-	apos: "'",
-	nbsp: '\u00a0',
-	ndash: '\u2013',
-	mdash: '\u2014',
-	lsquo: '\u2018',
-	rsquo: '\u2019',
-	ldquo: '\u201c',
-	rdquo: '\u201d',
-	hellip: '\u2026'
-};
-
-export function decodeEntities(text: string): string {
-	return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, code: string) => {
-		if (code[0] === '#') {
-			const n =
-				code[1] === 'x' || code[1] === 'X' ? parseInt(code.slice(2), 16) : Number(code.slice(1));
-			return Number.isFinite(n) ? String.fromCodePoint(n) : match;
-		}
-		return NAMED_ENTITIES[code.toLowerCase()] ?? match;
-	});
+		.map((line) => line.replace(/[^\S\n]+/g, ' ').trim())
+		.join('\n')
+		.replace(/\n{3,}/g, '\n\n')
+		.trim();
 }

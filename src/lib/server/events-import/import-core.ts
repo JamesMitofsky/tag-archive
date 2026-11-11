@@ -24,7 +24,11 @@ export type ImportEvent = EventSource & { url: string };
 export type SkipReason =
 	/** The database already has an event with this URL (e.g. a previous run). */
 	| 'already-imported'
-	/** Same title and date as an existing event under another (or no) URL. */
+	/**
+	 * Same title (ignoring case, punctuation and spacing) and date as an existing
+	 * event under another (or no) URL: the archive's copy of this event, filed
+	 * under a different page or with a tidied title.
+	 */
 	| 'same-title-and-date'
 	/** Dated after `today`; left for a later run unless upcoming events are allowed. */
 	| 'upcoming'
@@ -48,6 +52,14 @@ export type PlanOptions = {
 	includeUpcoming: boolean;
 };
 
+/** A title as the duplicate check compares it: letters and digits only, any case. */
+export const titleKey = (title: string) =>
+	title
+		.normalize('NFKC')
+		.toLowerCase()
+		.replace(/[^\p{L}\p{N}]+/gu, ' ')
+		.trim();
+
 const unique = (values: string[]) => [...new Set(values.map((v) => v.trim()).filter(Boolean))];
 
 /**
@@ -67,7 +79,7 @@ export async function planImport(
 		.select({ title: event.title, date: event.date, url: event.url })
 		.from(event);
 	const existingUrls = new Set(existing.map((e) => e.url).filter(Boolean));
-	const existingTitleDates = new Set(existing.map((e) => `${e.title.trim()}\u0000${e.date}`));
+	const existingTitleDates = new Set(existing.map((e) => `${titleKey(e.title)}\u0000${e.date}`));
 	const seriesNames = new Set(
 		(await db.select({ name: series.name }).from(series)).map((s) => s.name)
 	);
@@ -79,7 +91,7 @@ export async function planImport(
 		let reason: SkipReason | null = null;
 		if (seen.has(e.url)) reason = 'repeated-in-file';
 		else if (existingUrls.has(e.url)) reason = 'already-imported';
-		else if (existingTitleDates.has(`${e.title.trim()}\u0000${e.date}`)) {
+		else if (existingTitleDates.has(`${titleKey(e.title)}\u0000${e.date}`)) {
 			reason = 'same-title-and-date';
 		} else if (!options.includeUpcoming && e.date > options.today) reason = 'upcoming';
 		seen.add(e.url);

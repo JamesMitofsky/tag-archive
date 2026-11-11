@@ -6,10 +6,13 @@
  *   pnpm events:fetch                       # live sitemap
  *   pnpm events:fetch --sitemap ~/sitemap.xml
  *   pnpm events:fetch --refresh             # re-download pages already saved
+ *   pnpm events:fetch --all                 # also every event already in the seed,
+ *                                           # for pnpm events:restore
  *
  * Resumable: pages already on disk are skipped, except upcoming events, which
- * are re-fetched each run because their pages still change. Failures are
- * listed in fetch-report.json and retried on the next run.
+ * are re-fetched each run because their pages still change. Pages the site no
+ * longer has (404/410) are listed as `gone` in fetch-report.json and not
+ * retried; other failures are listed as `failed` and retried on the next run.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -30,6 +33,7 @@ const { values: args } = parseArgs({
 	options: {
 		sitemap: { type: 'string' },
 		refresh: { type: 'boolean', default: false },
+		all: { type: 'boolean', default: false },
 		limit: { type: 'string' },
 		'delay-ms': { type: 'string', default: '750' }
 	}
@@ -38,6 +42,13 @@ const delayMs = Number(args['delay-ms']);
 
 const USER_AGENT = 'tag-archive-events-import (+https://github.com/JamesMitofsky/tag-archive)';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** The site answered that the page doesn't exist; retrying won't change that. */
+class PageGoneError extends Error {
+	constructor(readonly status: number) {
+		super(`HTTP ${status}`);
+	}
+}
 
 /**
  * GET with retries for the failures worth retrying (network errors, 429, 5xx),
@@ -49,6 +60,7 @@ async function get(url: string): Promise<Response> {
 		try {
 			const res = await fetch(url, { headers: { 'user-agent': USER_AGENT } });
 			if (res.ok) return res;
+			if (res.status === 404 || res.status === 410) throw new PageGoneError(res.status);
 			const retryable = res.status === 429 || res.status >= 500;
 			if (!retryable || attempt === 4) throw new Error(`HTTP ${res.status} for ${url}`);
 			const header = Number(res.headers.get('retry-after'));
@@ -92,17 +104,37 @@ const sitemapUrls = parseSitemapEventUrls(await loadSitemap());
 if (sitemapUrls.length === 0) {
 	throw new Error('No event URLs found in the sitemap. Is it the ustreetcommunity.org sitemap?');
 }
-const seedUrls = new Set(loadSeedData().events.map((e) => e.url));
-const candidates = sitemapUrls.filter((url) => !seedUrls.has(url));
-const unsettled = candidates.filter((url) => !isSettled(url));
+const seedUrls = loadSeedData()
+	.events.map((e) => e.url)
+	.filter((u): u is string => !!u);
+const seedUrlSet = new Set(seedUrls);
+// --all: every sitemap page plus seed events the sitemap no longer lists, so
+// events:restore can compare each archived event with its page.
+const candidates = args.all
+	? [...new Set([...sitemapUrls, ...seedUrls])]
+	: sitemapUrls.filter((url) => !seedUrlSet.has(url));
+// Pages an earlier run found gone stay skipped until --refresh.
+const knownGone = new Set<string>(
+	!args.refresh && existsSync(FETCH_REPORT)
+		? (readJson<{ gone?: { url: string }[] }>(FETCH_REPORT).gone ?? []).map((g) => g.url)
+		: []
+);
+const unsettled = candidates.filter((url) => !isSettled(url) && !knownGone.has(url));
 const queue = unsettled.slice(0, args.limit ? Number(args.limit) : undefined);
 
 console.log(
-	`${sitemapUrls.length} event pages in the sitemap, ${candidates.length} not in the seed; ` +
-		`${candidates.length - unsettled.length} already saved, fetching ${queue.length}.`
+	`${sitemapUrls.length} event pages in the sitemap; ${candidates.length} candidates` +
+		`${args.all ? ' (--all: sitemap + seed)' : ' not in the seed'}; ` +
+		`${candidates.length - unsettled.length} already saved or known gone, fetching ${queue.length}.`
 );
 
 const failed: { url: string; error: string }[] = [];
+// Carried over so the report keeps listing every gone page, not just this run's.
+const gone: { url: string; status: number }[] = existsSync(FETCH_REPORT)
+	? (readJson<{ gone?: { url: string; status: number }[] }>(FETCH_REPORT).gone ?? []).filter(
+			(g) => knownGone.has(g.url) && candidates.includes(g.url)
+		)
+	: [];
 let fetched = 0;
 for (const [i, url] of queue.entries()) {
 	try {
@@ -117,9 +149,14 @@ for (const [i, url] of queue.entries()) {
 		fetched++;
 		console.log(`[${i + 1}/${queue.length}] ${item.title}`);
 	} catch (err) {
-		const error = describe(err);
-		failed.push({ url, error });
-		console.error(`[${i + 1}/${queue.length}] FAILED ${url}: ${error}`);
+		if (err instanceof PageGoneError) {
+			gone.push({ url, status: err.status });
+			console.warn(`[${i + 1}/${queue.length}] gone (HTTP ${err.status}) ${url}`);
+		} else {
+			const error = describe(err);
+			failed.push({ url, error });
+			console.error(`[${i + 1}/${queue.length}] FAILED ${url}: ${error}`);
+		}
 	}
 	if (i < queue.length - 1) await sleep(delayMs);
 }
@@ -127,13 +164,15 @@ for (const [i, url] of queue.entries()) {
 writeJson(FETCH_REPORT, {
 	ranAt: new Date().toISOString(),
 	sitemapEventPages: sitemapUrls.length,
-	alreadyInSeed: sitemapUrls.length - candidates.length,
+	alreadyInSeed: sitemapUrls.filter((url) => seedUrlSet.has(url)).length,
+	all: args.all,
 	candidates: candidates.length,
 	fetched,
-	failed
+	failed,
+	gone
 });
 console.log(
-	`\nFetched ${fetched}, failed ${failed.length}. Report: ${FETCH_REPORT}` +
+	`\nFetched ${fetched}, gone ${gone.length}, failed ${failed.length}. Report: ${FETCH_REPORT}` +
 		(failed.length ? '\nRe-run to retry the failures.' : '\nNext: pnpm events:curate')
 );
 if (failed.length) process.exitCode = 1;

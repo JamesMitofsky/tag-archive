@@ -68,6 +68,17 @@ describe('planImport', () => {
 		]);
 	});
 
+	it('recognizes an existing event whose archived title was tidied', async () => {
+		// The archive holds "Field Trip" on this date; the page punctuates it differently.
+		const plan = await planImport(
+			db,
+			[entry({ url: 'https://x/field-trip-page', title: 'FIELD TRIP!', date: '2026-05-12' })],
+			options
+		);
+		expect(plan.insert).toEqual([]);
+		expect(plan.skipped.map((s) => s.reason)).toEqual(['same-title-and-date']);
+	});
+
 	it('includes upcoming events on request', async () => {
 		const plan = await planImport(db, [entry({ url: 'https://x/later', date: '2026-10-20' })], {
 			...options,

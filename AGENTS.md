@@ -17,3 +17,13 @@ artifact.
 Leave quoted archival content as it was written (event and artefact
 descriptions, venue and organization names, such as those in
 `src/lib/data/seed-data.json`), even where it uses British spellings.
+
+## Event titles and descriptions
+
+An event's title and description are the source page's own words, copied
+verbatim from ustreetcommunity.org. Never write, summarize, paraphrase or tidy
+them, whether by model or by hand. Claude may only decide hosts, series and the
+review flag. The import pipeline enforces this. Read
+`.claude/skills/event-source-text/SKILL.md` before touching
+`src/lib/server/events-import/`, the events in `src/lib/data/seed-data.json`, or
+anything that sets an event's title or description.

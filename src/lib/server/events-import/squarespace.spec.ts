@@ -6,7 +6,8 @@ import {
 	htmlToText,
 	parseEventPage,
 	parseSitemapEventUrls,
-	toRawEvent
+	toRawEvent,
+	verbatimText
 } from './squarespace';
 
 const TZ = 'America/New_York';
@@ -85,11 +86,75 @@ describe('formatLocation', () => {
 });
 
 describe('htmlToText', () => {
-	it('keeps paragraphs as lines, drops markup and scripts, decodes entities', () => {
+	it('keeps every word, paragraphs as blank lines, drops markup and scripts, decodes entities', () => {
 		const html =
 			'<div class="sqs-block"><p>Bring a mat &amp; water.&nbsp;</p><script>track()</script>' +
 			'<p>Hosted by <strong>Zoe</strong> &#8211; all welcome</p><br><ul><li>Free</li></ul></div>';
-		expect(htmlToText(html)).toBe('Bring a mat & water.\nHosted by Zoe \u2013 all welcome\nFree');
+		expect(htmlToText(html)).toBe(
+			'Bring a mat & water.\n\nHosted by Zoe \u2013 all welcome\n\n\u2022 Free'
+		);
+	});
+
+	it('reads a real Squarespace text block, ignoring its layout wrappers and styles', () => {
+		const html =
+			'<div class="sqs-layout" data-block-css="[&quot;https://x.css&quot;]"><div class="row">' +
+			'<div class="sqs-block-content"><div class="sqs-html-content">' +
+			'<p style="white-space:pre-wrap;">Join the Garden plants and critters for an evening of ' +
+			'home-grown music \u2013\u2013 somewhere between a house show and barnyard jam.</p>' +
+			'<p style="white-space:pre-wrap;">Bring a blanket to sit on and snacks to share :)</p>' +
+			'<p style="white-space:pre-wrap;">produced by Lucy</p></div></div></div></div>' +
+			'<style>#block-af6d { mix-blend-mode: var(--tweak); }</style>';
+		expect(htmlToText(html)).toBe(
+			'Join the Garden plants and critters for an evening of home-grown music \u2013\u2013 ' +
+				'somewhere between a house show and barnyard jam.\n\n' +
+				'Bring a blanket to sit on and snacks to share :)\n\n' +
+				'produced by Lucy'
+		);
+	});
+
+	it('turns <br> into a line break and two in a row into a blank line', () => {
+		expect(htmlToText('<p><strong>Free screening</strong><br><strong>#MMIW</strong></p>')).toBe(
+			'Free screening\n#MMIW'
+		);
+		expect(htmlToText('<p>One<br><br>Two</p>')).toBe('One\n\nTwo');
+	});
+
+	it('keeps line breaks a pre-wrap paragraph shows, and collapses ordinary source newlines', () => {
+		expect(htmlToText('<p style="white-space: pre-wrap">Line one\nLine two</p>')).toBe(
+			'Line one\nLine two'
+		);
+		expect(htmlToText('<p>Wrapped\n   in   the source</p>')).toBe('Wrapped in the source');
+	});
+
+	it('keeps link, button and caption text in order, word for word', () => {
+		const html =
+			'<p>RSVP <a href="https://example.com/rsvp?a=1&amp;b=2">on Eventbrite</a>.</p>' +
+			'<div class="sqs-block-button"><a class="sqs-button-element">Donate</a></div>' +
+			'<figure><img alt="ignored alt" src="x.jpg"><figcaption>Photo: Ana</figcaption></figure>';
+		expect(htmlToText(html)).toBe('RSVP on Eventbrite.\n\nDonate\n\nPhoto: Ana');
+	});
+
+	it('keeps a list as one bulleted line per item, even when items wrap their text in <p>', () => {
+		const html =
+			'<p>What to bring:</p><ul data-rte-list="default">' +
+			'<li><p style="white-space:pre-wrap;">Water</p></li>' +
+			'<li><p style="white-space:pre-wrap;">A <strong>mat</strong></p></li>' +
+			'<li><p></p></li></ul><p>See you there!</p>';
+		expect(htmlToText(html)).toBe('What to bring:\n\n\u2022 Water\n\u2022 A mat\n\nSee you there!');
+	});
+
+	it('survives unclosed tags and a ">" inside an attribute', () => {
+		expect(htmlToText('<p title="a > b">First<p>Second')).toBe('First\n\nSecond');
+	});
+
+	it('drops hidden fallbacks and embeds', () => {
+		expect(
+			htmlToText('<p>Shown</p><noscript><img src="x"><p>Fallback</p></noscript><iframe>x</iframe>')
+		).toBe('Shown');
+	});
+
+	it('is empty for a page with no text', () => {
+		expect(htmlToText('<div><p data-rte-preserve-empty="true"></p><img src="x"></div>')).toBe('');
 	});
 });
 
@@ -124,10 +189,37 @@ describe('parseEventPage + toRawEvent', () => {
 			date: '2026-10-03',
 			time: '10:00 AM - 12:00 PM',
 			location: 'Temperance Alley Garden',
-			bodyText: 'Help us plant natives.\nLed by Joe.',
+			description: 'Help us plant natives.\n\nLed by Joe.',
+			bodyText: 'Help us plant natives.\n\nLed by Joe.',
 			excerptText: 'Plant natives with neighbors.',
 			tags: ['garden'],
 			categories: []
+		});
+	});
+
+	it('takes the description from the body, else the excerpt, else none', () => {
+		const url = 'https://www.ustreetcommunity.org/events/x';
+		const withoutBody = parseEventPage({ item: { ...page.item, body: '<div></div>' } });
+		expect(toRawEvent(url, withoutBody.item, TZ).description).toBe('Plant natives with neighbors.');
+		const empty = parseEventPage({ item: { ...page.item, body: null, excerpt: '' } });
+		expect(toRawEvent(url, empty.item, TZ).description).toBeNull();
+	});
+
+	it('decodes the HTML escapes Squarespace serves titles with, and nothing more', () => {
+		const titled = parseEventPage({
+			item: { ...page.item, title: 'Canopy &amp; Candlelight: An Analog Sukkot Shabbat ' }
+		});
+		expect(toRawEvent('https://www.ustreetcommunity.org/events/x', titled.item, TZ).title).toBe(
+			'Canopy & Candlelight: An Analog Sukkot Shabbat'
+		);
+	});
+
+	it('keeps the title exactly as published, emoji and punctuation included', () => {
+		const titled = parseEventPage({ item: { ...page.item, title: 'Music in the Garden 🎶' } });
+		const raw = toRawEvent('https://www.ustreetcommunity.org/events/x', titled.item, TZ);
+		expect(verbatimText(raw)).toEqual({
+			title: 'Music in the Garden 🎶',
+			description: 'Help us plant natives.\n\nLed by Joe.'
 		});
 	});
 

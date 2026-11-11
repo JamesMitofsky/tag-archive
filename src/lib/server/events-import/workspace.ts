@@ -18,7 +18,7 @@ import * as prettier from 'prettier';
 import { z } from 'zod';
 import type { EventSource, SeedData } from '../db/seed-core';
 
-const ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
+export const ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 
 export const SEED_PATH = join(ROOT, 'src/lib/data/seed-data.json');
 export const WORKSPACE = join(ROOT, 'temp/events-import');

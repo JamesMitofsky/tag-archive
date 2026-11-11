@@ -3,7 +3,12 @@
  * entry in the seed file's shape, and collect them in
  * temp/events-import/events.json for review before importing.
  *
- *   pnpm events:curate                 # Claude writes description/hosts/series/flags
+ * Every entry's title and description are the page's own words, copied
+ * verbatim (see `verbatimText`); Claude only decides hosts, series and the
+ * review flag. The import refuses an entry whose title or description no
+ * longer matches its saved page.
+ *
+ *   pnpm events:curate                 # Claude decides hosts/series/flags
  *   pnpm events:curate --no-llm        # no API calls; every entry flagged for review
  *   pnpm events:curate --force         # redo cached curations and overwrite events.json
  *
@@ -11,8 +16,9 @@
  * `ant auth login`. Each curation is cached in curated/<slug>.json against a
  * hash of its input, so a re-run only pays for new or changed pages.
  *
- * events.json is yours to edit: a re-run adds entries for new pages but keeps
- * the ones already there as you left them (unless --force).
+ * events.json is yours to edit (hosts, series, flags): a re-run adds entries
+ * for new pages but keeps the ones already there as you left them (unless
+ * --force).
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -29,7 +35,8 @@ import {
 	toEventSource,
 	uncuratedEventSource
 } from './curate-prompt';
-import { eventSlug, parseEventPage, toRawEvent, type RawEvent } from './squarespace';
+import { eventSlug, type RawEvent } from './squarespace';
+import { loadRawEvents } from './verbatim';
 import {
 	CURATED_DIR,
 	EVENTS_FILE,
@@ -37,11 +44,9 @@ import {
 	canonicalEvent,
 	eventsFileSchema,
 	hashInput,
-	listJson,
 	readJson,
 	writeJson,
-	type CuratedFile,
-	type RawFile
+	type CuratedFile
 } from './workspace';
 
 const { values: args } = parseArgs({
@@ -57,20 +62,22 @@ const useClaude = !args['no-llm'];
 const curatedBy = useClaude ? MODEL : 'no-llm';
 
 // Pages → the fields code can read off them directly.
-const raws: RawEvent[] = [];
-for (const path of listJson(RAW_DIR)) {
-	const file = readJson<RawFile>(path);
-	try {
-		const { item, timeZone } = parseEventPage(file.page);
-		raws.push(toRawEvent(file.url, item, timeZone));
-	} catch (err) {
-		console.error(`Skipping unreadable ${path}: ${err instanceof Error ? err.message : err}`);
-	}
-}
-if (raws.length === 0)
-	throw new Error(`No saved pages in ${RAW_DIR}. Run pnpm events:fetch first.`);
-
+const { byUrl, unreadable } = loadRawEvents();
+for (const { path, error } of unreadable) console.error(`Skipping unreadable ${path}: ${error}`);
 const seedEvents = loadSeedData().events;
+// Pages saved by `events:fetch --all` for events the archive already has are
+// for events:restore; only pages new to the archive are curated.
+const seedUrls = new Set(seedEvents.map((e) => e.url));
+const raws: RawEvent[] = [...byUrl.values()].filter((r) => !seedUrls.has(r.url));
+if (raws.length === 0) {
+	throw new Error(
+		`No saved pages for events missing from the seed in ${RAW_DIR}. Run pnpm events:fetch first.`
+	);
+}
+if (raws.length < byUrl.size) {
+	console.log(`${byUrl.size - raws.length} saved pages are already in the seed; skipping them.`);
+}
+
 const knownSeries = new Set(seriesCatalog(seedEvents).map((s) => s.name));
 const system = buildSystemPrompt(seedEvents);
 

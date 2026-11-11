@@ -8,6 +8,10 @@
  *   DATABASE_URL=libsql://… DATABASE_AUTH_TOKEN=… IMPORT_CONFIRM=1 \
  *     pnpm events:import --apply --as you@example.com
  *
+ * Every entry's title and description must match its saved page in
+ * temp/events-import/raw/ word for word; the import refuses the whole file
+ * otherwise, so a paraphrased or edited description can't reach the archive.
+ *
  * By default the events land as proposed additions: they wait in the keeper
  * review queue (/keeper/settings/review/events) and reach the public site as an
  * admin approves each one — approving also refreshes the site's cached dataset.
@@ -31,7 +35,9 @@ import { drizzle } from 'drizzle-orm/libsql';
 import { loadSeedData, type EventSource } from '../db/seed-core';
 import { user } from '../db/schema';
 import { applyImport, planImport, type ImportEvent, type SkipReason } from './import-core';
+import { purgeArchiveCache } from './purge';
 import { DEFAULT_TIME_ZONE, formatDate } from './squarespace';
+import { loadRawEvents, verbatimMismatches } from './verbatim';
 import { EVENTS_FILE, SEED_PATH, canonicalEvent, eventsFileSchema, formatSeed } from './workspace';
 
 const { values: args } = parseArgs({
@@ -75,6 +81,24 @@ if (missingUrl.length) {
 }
 const events = parsed.data as ImportEvent[];
 
+// Titles and descriptions are the source pages' own words; refuse anything else.
+const mismatches = verbatimMismatches(events, loadRawEvents().byUrl);
+if (mismatches.length) {
+	const show = (text: string | null | undefined) => JSON.stringify(text ?? null);
+	const lines = mismatches.map((m) => {
+		const at = `${m.date} ${m.title} (${m.url})`;
+		if (m.problem === 'no-saved-page') return `  ${at}: no saved page to check it against`;
+		const field = m.problem === 'title-differs' ? 'title' : 'description';
+		return `  ${at}: ${field} differs from the page\n    page: ${show(m.expected)}\n    file: ${show(m.actual)}`;
+	});
+	throw new Error(
+		`${mismatches.length} entr${mismatches.length === 1 ? 'y does' : 'ies do'} not keep the ` +
+			`page's own title and description:\n${lines.join('\n')}\n\n` +
+			`Titles and descriptions are copied from the page verbatim. Re-run ` +
+			`pnpm events:curate (after pnpm events:fetch for missing pages) instead of editing them.`
+	);
+}
+
 const client = createClient({ url, authToken: process.env.DATABASE_AUTH_TOKEN });
 const db = drizzle(client);
 
@@ -104,7 +128,8 @@ try {
 	}
 	const reasons: Record<SkipReason, string> = {
 		'already-imported': 'already in the database (same URL)',
-		'same-title-and-date': 'same title and date as an existing event',
+		'same-title-and-date':
+			'same title (ignoring case and punctuation) and date as an existing event',
 		upcoming: `dated after today (${today}); pass --include-upcoming to add`,
 		'repeated-in-file': 'URL repeated in the file'
 	};
@@ -134,18 +159,8 @@ try {
 				`${summary.people} new people, ${summary.hostLinks} host links.`
 		);
 		if (summary.events > 0 && args.publish) {
-			const { purgeCache } = await import('@netlify/functions');
-			const siteID = process.env.NETLIFY_SITE_ID;
 			try {
-				await purgeCache(
-					siteID
-						? { tags: ['archive'], token: netlifyToken, siteID }
-						: {
-								tags: ['archive'],
-								token: netlifyToken,
-								siteSlug: process.env.NETLIFY_SITE_SLUG || 'tag-archive'
-							}
-				);
+				await purgeArchiveCache(netlifyToken!);
 				console.log('Purged the site cache; the events are live now.');
 			} catch (err) {
 				// The events are already in; only the cached public dataset is stale.

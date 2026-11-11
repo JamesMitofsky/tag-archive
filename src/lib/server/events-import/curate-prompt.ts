@@ -5,23 +5,24 @@
  * pays only for its own page text.
  *
  * Code copies the fields a page states outright (title, date, time, location,
- * URL). Claude writes the fields the existing catalogue was written with
- * judgment: the short description, the hosts named in the text, the series
- * banner, and the review flag.
+ * URL), and the title and description are the page's own words, word for
+ * word (`verbatimText`). Claude never writes or rewrites either: it only reads
+ * the page to decide the fields that need judgment — the hosts named in the
+ * text, the series banner, and the review flag. Its output schema has no
+ * title or description field, so it cannot supply one.
  */
 import { z } from 'zod';
-import type { EventSource } from '../db/seed-core';
-import type { RawEvent } from './squarespace';
+import { SERIES_MIN_EVENTS, type EventSource } from '../db/seed-core';
+import { verbatimText, type RawEvent } from './squarespace';
 
 /** Bump when the prompt or schema changes, so cached curations are redone. */
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 2;
 
-/** A series banner exists once its key covers this many events (as in seed-core). */
-const SERIES_MIN_EVENTS = 5;
-
-/** What Claude returns for one event. */
+/**
+ * What Claude returns for one event. Deliberately no `title` or `description`:
+ * those are copied from the page, never written by the model.
+ */
 export const curationSchema = z.object({
-	description: z.string(),
 	hosts: z.array(z.string()),
 	series: z.string().nullable(),
 	mayHaveException: z.boolean(),
@@ -109,26 +110,38 @@ export function buildSystemPrompt(events: EventSource[]): string {
 			return `- ${s.name} (${parts.join('; ')})`;
 		})
 		.join('\n');
+	// Only the fields Claude decides, plus the title for context. Descriptions are
+	// left out: Claude doesn't write them, and they shouldn't steer its reading.
 	const examples = styleExamples(events)
-		.map((e) => JSON.stringify(e))
+		.map((e) =>
+			JSON.stringify({
+				title: e.title,
+				...(e.series ? { series: e.series } : {}),
+				date: e.date,
+				time: e.time,
+				hosts: e.hosts,
+				mayHaveException: e.mayHaveException ?? false,
+				...(e.possibleExceptionDescription
+					? { possibleExceptionDescription: e.possibleExceptionDescription }
+					: {})
+			})
+		)
 		.join('\n');
 
-	return `You catalogue events for the archive of the Temperance Alley Garden (TAG), a community garden in the alley between 12th & 13th and T & U Streets NW in Washington, DC. Each event page from the U Street community website (ustreetcommunity.org) becomes one catalogue entry. Code has already copied the title, date, time, location and URL from the page. You write the remaining fields so they read like the rest of the catalogue.
+	return `You catalogue events for the archive of the Temperance Alley Garden (TAG), a community garden in the alley between 12th & 13th and T & U Streets NW in Washington, DC. Each event page from the U Street community website (ustreetcommunity.org) becomes one catalogue entry. Code has already copied the title, date, time, location and URL from the page, and the archive keeps the page's title and description exactly as the page wrote them. You do not write, summarize or rewrite either. You read the page only to decide the three fields below.
 
 Fields you return:
-
-description: One to three sentences, usually 30 to 70 words, saying what happens at the event, who it is for, and any practical notes the page gives attendees (what to bring, cost, accessibility, partner organizations). Write it in the third person, in your own words, in US English, and keep names and short direct quotes exactly as the page writes them. Do not restate the date, time or address. Do not add anything the page does not say. If the page has no real description, write one plain sentence from the title and flag the entry.
 
 hosts: The people, or named groups such as "Zoe & Friends", that the page credits with hosting, leading, facilitating or performing, written as the page writes them (a first name alone is fine). Include an organization only when the page presents it as the host and names no person. Leave out partners, sponsors and venues. Return an empty list when nobody is named.
 
 series: When the event is one occurrence of a recurring banner listed below, that banner's exact name; otherwise null. Match on what the event is, not just shared words: "Music in the Garden ft. Yaddiya" belongs to "Music in the Garden", but a one-off concert does not. Never invent a banner that is not in the list.
 
-mayHaveException and possibleExceptionDescription: Flag the entry (true) when a keeper should double-check it: the page names no host where the series usually has one, the event was canceled, postponed, rain-dated, moved or shortened, its time differs from the series' usual time, it is a one-off or first session of something new, the page is a placeholder, or the page contradicts itself. possibleExceptionDescription is then a short phrase in sentence case with no final period and under 10 words, for example "No host listed, unlike similar sessions" or "Canceled due to rain". Otherwise return false and null.
+mayHaveException and possibleExceptionDescription: Flag the entry (true) when a keeper should double-check it: the page names no host where the series usually has one, the event was canceled, postponed, rain-dated, moved or shortened, its time differs from the series' usual time, it is a one-off or first session of something new, the page has no description text, the page is a placeholder, or the page contradicts itself. possibleExceptionDescription is then a short phrase in sentence case with no final period and under 10 words, for example "No host listed, unlike similar sessions" or "Canceled due to rain". Otherwise return false and null.
 
 Recurring series banners in the archive:
 ${catalog}
 
-Finished catalogue entries, as examples of the house style (one JSON object per line):
+Finished catalogue entries, as examples of how hosts, series and flags are decided (one JSON object per line):
 ${examples}`;
 }
 
@@ -153,10 +166,11 @@ export function buildUserMessage(raw: RawEvent): string {
 }
 
 /**
- * Combine the code-copied fields with Claude's, enforcing what the prompt asks
- * for rather than trusting it: unknown banners are dropped, host names are
- * trimmed and deduped, and a review note only survives on a flagged entry.
- * Returns warnings for anything it had to correct.
+ * Combine the page's fields with Claude's, enforcing what the prompt asks for
+ * rather than trusting it: title and description come from the page alone,
+ * unknown banners are dropped, host names are trimmed and deduped, and a review
+ * note only survives on a flagged entry. Returns warnings for anything it had
+ * to correct.
  */
 export function toEventSource(
 	raw: RawEvent,
@@ -174,15 +188,16 @@ export function toEventSource(
 	const flagged = curation.mayHaveException || false;
 	if (flagged && !note) warnings.push('flagged without a note');
 
+	const { title, description } = verbatimText(raw);
 	return {
 		warnings,
 		event: {
-			title: raw.title,
+			title,
 			...(seriesName ? { series: seriesName } : {}),
 			date: raw.date,
 			time: raw.time,
 			location: raw.location,
-			description: curation.description.trim() || null,
+			description,
 			hosts,
 			url: raw.url,
 			mayHaveException: flagged,
@@ -192,27 +207,22 @@ export function toEventSource(
 }
 
 /**
- * The no-Claude fallback: copy what the page says and flag every entry, since
- * hosts and a summary need a person (or a later curated run) to fill in.
+ * The no-Claude fallback: the page's own title and description, with every
+ * entry flagged, since hosts and a series need a person (or a later curated
+ * run) to fill in.
  */
 export function uncuratedEventSource(raw: RawEvent, knownSeries: Set<string>): EventSource {
-	const text = raw.excerptText || raw.bodyText;
-	const sentences = text.replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+(\s|$)/g) ?? [text];
-	let description = '';
-	for (const s of sentences) {
-		if (description && (description + s).length > 400) break;
-		description += s;
-	}
+	const { title, description } = verbatimText(raw);
 	return {
-		title: raw.title,
-		...(knownSeries.has(raw.title) ? { series: raw.title } : {}),
+		title,
+		...(knownSeries.has(title) ? { series: title } : {}),
 		date: raw.date,
 		time: raw.time,
 		location: raw.location,
-		description: description.trim() || null,
+		description,
 		hosts: [],
 		url: raw.url,
 		mayHaveException: true,
-		possibleExceptionDescription: 'Not curated; check description and hosts'
+		possibleExceptionDescription: 'Not curated; check hosts and series'
 	};
 }

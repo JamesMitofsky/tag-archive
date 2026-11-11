@@ -29,7 +29,10 @@ const raw: RawEvent = {
 	date: '2026-09-04',
 	time: '7:00 PM - 9:00 PM',
 	location: null,
-	bodyText: 'Live music. Bring a blanket. Free and open to all. Donations welcome.',
+	description:
+		'Live music \u2013\u2013 somewhere between a house show and barnyard jam.\n\nBring a blanket :)',
+	bodyText:
+		'Live music \u2013\u2013 somewhere between a house show and barnyard jam.\n\nBring a blanket :)',
 	excerptText: '',
 	tags: [],
 	categories: []
@@ -57,6 +60,17 @@ describe('the prompt built from the real seed', () => {
 		expect(buildSystemPrompt(seed)).toBe(buildSystemPrompt([...seed]));
 	});
 
+	it("tells Claude the title and description are the page's, not its to write", () => {
+		const prompt = buildSystemPrompt(seed);
+		expect(prompt).toContain('exactly as the page wrote them');
+		expect(prompt).not.toMatch(/in your own words/i);
+		expect(prompt).not.toMatch(/^description:/m);
+		// The examples show only the judged fields, never a description to imitate.
+		for (const line of prompt.split('\n').filter((l) => l.startsWith('{"title"'))) {
+			expect(JSON.parse(line)).not.toHaveProperty('description');
+		}
+	});
+
 	it('names the recurring banners and shows varied examples', () => {
 		const prompt = buildSystemPrompt(seed);
 		expect(prompt).toContain('- Garden Volunteer Hours (');
@@ -71,11 +85,10 @@ describe('the prompt built from the real seed', () => {
 describe('toEventSource', () => {
 	const known = new Set(['Music in the Garden']);
 
-	it('takes copied fields from the page and judged fields from Claude', () => {
+	it('takes the title and description word for word from the page, judged fields from Claude', () => {
 		const { event, warnings } = toEventSource(
 			raw,
 			{
-				description: ' An informal garden concert. ',
 				hosts: ['Lucy', ' Lucy ', ''],
 				series: 'Music in the Garden',
 				mayHaveException: false,
@@ -90,7 +103,7 @@ describe('toEventSource', () => {
 			date: raw.date,
 			time: raw.time,
 			location: null,
-			description: 'An informal garden concert.',
+			description: raw.description,
 			hosts: ['Lucy'],
 			url: raw.url,
 			mayHaveException: false
@@ -101,7 +114,6 @@ describe('toEventSource', () => {
 		const { event, warnings } = toEventSource(
 			raw,
 			{
-				description: 'A concert.',
 				hosts: [],
 				series: 'Garden Concerts',
 				mayHaveException: true,
@@ -116,9 +128,11 @@ describe('toEventSource', () => {
 });
 
 describe('uncuratedEventSource', () => {
-	it('copies the page and flags the entry for review', () => {
-		const event = uncuratedEventSource(raw, new Set());
-		expect(event.description).toBe(raw.bodyText);
+	it('copies the page in full and flags the entry for review', () => {
+		const long = { ...raw, description: 'A sentence that runs on. '.repeat(40).trim() };
+		const event = uncuratedEventSource(long, new Set());
+		expect(event.title).toBe(raw.title);
+		expect(event.description).toBe(long.description);
 		expect(event.hosts).toEqual([]);
 		expect(event.mayHaveException).toBe(true);
 	});

@@ -89,20 +89,27 @@ bring the ones the archive doesn't have yet into production (code in
 
 ```sh
 pnpm events:fetch     # diff the site's sitemap against the seed, save each new page's JSON
-pnpm events:curate    # write description/hosts/series/review flag with Claude → events.json
-# review and hand-edit temp/events-import/events.json
+pnpm events:curate    # copy title/description verbatim; Claude decides hosts/series/flag → events.json
+# review temp/events-import/events.json (hosts, series and flags only)
 DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' pnpm events:import            # dry run
 DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' IMPORT_CONFIRM=1 \
   pnpm events:import --apply --as you@example.com --write-seed
 ```
 
+**Titles and descriptions are the page's own words.** They are copied verbatim
+and never summarized or rewritten. The import refuses any entry whose title or
+description differs from its saved page. See
+`.claude/skills/event-source-text/SKILL.md` for the full rule and its history.
+
 - **Fetch** reads `?format=json` for each page and is resumable. Pass
-  `--sitemap <file>` to use a saved copy of the sitemap.
-- **Curate** copies title, date, time, location, and URL from the page, and asks
-  Claude (`ANTHROPIC_API_KEY` or an `ant auth login` profile) for the fields the
-  catalogue writes with judgment, following the seed's existing entries and
-  series. Results are cached per page, and a re-run keeps your edits to
-  `events.json`. `--no-llm` skips Claude and flags every entry for review.
+  `--sitemap <file>` to use a saved copy of the sitemap, or `--all` to also save
+  pages for events already archived (for `events:restore`). Pages the site no
+  longer has are listed as `gone` in `fetch-report.json`.
+- **Curate** copies title, description, date, time, location and URL from the
+  page. It asks Claude (`ANTHROPIC_API_KEY` or an `ant auth login` profile) only
+  for the fields that need judgment: hosts, series banner and review flag.
+  Results are cached per page, and a re-run keeps your edits to `events.json`.
+  `--no-llm` skips Claude and flags every entry for review.
 - **Import** is insert-only and safe to re-run. It skips URLs the database
   already holds, events matching an existing title and date, and events dated
   after today (`--include-upcoming` keeps them). It writes everything in one
@@ -111,6 +118,25 @@ DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' IMPORT_CONFIRM=1 \
   skips the queue and purges the site cache itself (needs `NETLIFY_AUTH_TOKEN`).
   `--write-seed` appends the entries to `src/lib/data/seed-data.json` so local dev
   matches.
+
+### Restoring original text to archived events
+
+The first catalog stored model-written summaries instead of the pages' text.
+`events:restore` puts the originals back (dry run unless `--apply`; the full
+before/after goes to `temp/events-import/restore-report.json`):
+
+```sh
+pnpm events:fetch --all                 # save every event's page (read-only)
+pnpm events:restore --seed [--apply]    # src/lib/data/seed-data.json
+DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' pnpm events:restore --db   # dry run
+DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' IMPORT_CONFIRM=1 NETLIFY_AUTH_TOKEN='…' \
+  pnpm events:restore --db --apply --as you@example.com
+```
+
+In the seed, retitled events keep their series and artefact links. In a
+database, a field is restored only while it still holds what the original
+import wrote, so keeper edits are never overwritten (they are listed in the
+report instead).
 
 ## Attachments
 
