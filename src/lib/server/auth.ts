@@ -5,9 +5,10 @@ import { admin, emailOTP, magicLink } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
+import { siteOrigin } from '$lib/server/origin';
 
 export const auth = betterAuth({
-	baseURL: env.ORIGIN,
+	baseURL: siteOrigin(),
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
 	session: {

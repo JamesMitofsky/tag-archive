@@ -3,7 +3,7 @@ import type { PageLoad } from './$types';
 // Unlisted: reachable by link only. X-Robots-Tag on the HTML response (set during
 // SSR — `setHeaders` is a no-op on client navigations, where no crawler is
 // involved) backs up the <meta name="robots"> in the page head. The audio files
-// get the same header from netlify.toml, since they are served straight off the
+// get the same header from vercel.json, since they are served straight off the
 // CDN and never pass through this load.
 //
 // Deliberately NOT listed in robots.txt: a Disallow there would advertise the

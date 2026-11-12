@@ -19,7 +19,8 @@ const { db } = await import('$lib/server/db');
 const { artefact, image, imageSet } = await import('$lib/server/db/schema');
 const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('$lib/server/drafts');
 const { imageKeys } = await import('$lib/server/imageKeys');
-const { DELETE } = await import('./+server');
+const { DELETE, POST } = await import('./+server');
+const { MAX_SCAN_BYTES, SCAN_TOO_LARGE } = await import('$lib/scanner/limits');
 
 /** An open access pass, as hooks.server.ts leaves it on `locals` ($lib/access/pass). */
 const OPEN_PASS = { kind: 't' as const, issuedAt: 0, expiresAt: Number.MAX_SAFE_INTEGER };
@@ -131,5 +132,52 @@ describe('DELETE /api/scans', () => {
 		expect(await remove(KEEPER, url(`x/%2e%2e/${target.originalKey}`))).toEqual({ status: 400 });
 		expect(await remove(KEEPER, url('x/%2e%2e/saved.webp'))).toEqual({ status: 400 });
 		expect(deleteScan).not.toHaveBeenCalled();
+	});
+});
+
+describe('POST /api/scans size limit', () => {
+	/** A keeper's upload of `bytes` zero bytes, so no rate limit or draft is involved. */
+	async function upload(bytes: number, declared?: number) {
+		const body = new FormData();
+		body.append('file', new File([new Uint8Array(bytes)], 'scan.webp', { type: 'image/webp' }));
+		const request = new Request('http://localhost/api/scans', { method: 'POST', body });
+		if (declared !== undefined) {
+			// Stand in for what the client says before its body is read.
+			Object.defineProperty(request, 'headers', {
+				value: new Headers({ 'content-length': String(declared) })
+			});
+		}
+		const event = {
+			request,
+			locals: KEEPER,
+			cookies: { get: () => undefined } as unknown as Cookies
+		};
+		try {
+			const response = await POST(event as never);
+			return { status: response.status };
+		} catch (thrown) {
+			const { status, body } = thrown as { status?: number; body?: { message?: string } };
+			return { status, message: body?.message };
+		}
+	}
+
+	it('refuses a scan over the cap, saying why, before storing anything', async () => {
+		expect(await upload(MAX_SCAN_BYTES + 1)).toEqual({ status: 413, message: SCAN_TOO_LARGE });
+	});
+
+	it('refuses a body declared past the cap without reading it', async () => {
+		expect(await upload(10, MAX_SCAN_BYTES + 128 * 1024)).toEqual({
+			status: 413,
+			message: SCAN_TOO_LARGE
+		});
+	});
+
+	it('lets a scan of exactly the cap past the size check', async () => {
+		// Zero bytes are no image, so it is refused next, by type: the size passed.
+		expect((await upload(MAX_SCAN_BYTES)).status).toBe(415);
+	});
+
+	it('stays under the platform body limit, multipart framing included', () => {
+		expect(MAX_SCAN_BYTES + 64 * 1024).toBeLessThan(4.5 * 1024 * 1024);
 	});
 });

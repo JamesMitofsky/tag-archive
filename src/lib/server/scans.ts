@@ -204,7 +204,7 @@ export async function putObject(
 /**
  * A presigned PUT for `key`: the browser uploads straight to the bucket, so
  * large originals never pass through a function (whose request body caps at
- * ~6 MB). Both `Content-Type` and `Content-Length` are signed in, so the
+ * 4.5 MB). Both `Content-Type` and `Content-Length` are signed in, so the
  * bucket refuses the PUT unless it carries exactly the type the server agreed
  * to store and exactly `size` bytes — a URL issued for a 3 MB photo can't
  * carry 5 GB, nor store image bytes as `text/html` on the public host.

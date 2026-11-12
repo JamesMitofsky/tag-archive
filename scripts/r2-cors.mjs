@@ -1,23 +1,23 @@
 // Apply the production R2 bucket's CORS rule. Photographs upload from the
 // browser straight to the bucket with presigned PUTs (`presignPut` in
 // src/lib/server/scans.ts), because an original can be far larger than a
-// Netlify function body (~6 MB) carries. Those PUTs are cross-origin, so
+// Vercel function body (4.5 MB) carries. Those PUTs are cross-origin, so
 // without this rule every photograph upload fails at its CORS preflight.
 //
 // Run it from a machine logged in to Cloudflare (`pnpm exec wrangler login`, or
 // a CLOUDFLARE_API_TOKEN allowed to edit R2), naming the bucket and the origins
 // the site is served from:
 //
-//   R2_BUCKET=<bucket> R2_CORS_ORIGINS=https://tag-archive.netlify.app \
+//   R2_BUCKET=<bucket> R2_CORS_ORIGINS=https://archive.ustreetcommunity.org \
 //     pnpm storage:cors [--dry-run]
 //
 // --dry-run prints the rule as JSON and applies nothing.
 //
 // R2_CORS_ORIGINS is comma-separated; when unset, an exported ORIGIN (the
 // site's own origin) stands in, unless it is .env's or a local address. R2
-// matches origins exactly and has no wildcard subdomains, so a Netlify deploy
-// preview (https://deploy-preview-<n>--tag-archive.netlify.app) can only
-// upload once its own origin is listed. The Cloudflare account is
+// matches origins exactly and has no wildcard subdomains, so a Vercel preview
+// deployment (https://tag-archive-<hash>-<team>.vercel.app) can only upload
+// once its own origin is listed. The Cloudflare account is
 // CLOUDFLARE_ACCOUNT_ID, else R2_ACCOUNT_ID.
 //
 // Unlike the dev scripts, this reads only the shell's environment, never .env:

@@ -1,22 +1,24 @@
 import { env } from '$env/dynamic/private';
 import { render } from 'svelte/server';
 import type { Component } from 'svelte';
+import { siteOrigin } from './origin';
 import { otpEmailSubject, accountCreatedEmailSubject } from './emails/subjects';
 
 /**
  * Low-level send. Whether a message is delivered or logged keys off
  * RESEND_API_KEY alone: with the key we send via Resend, otherwise we log to the
  * server console so the auth flows stay testable against seeded accounts in
- * local dev. We deliberately do NOT gate on NODE_ENV — Netlify only guarantees
- * it at build time, not inside the function runtime where $env/dynamic/private
- * reads, so relying on it silently downgraded prod to console-logging.
+ * local dev. We deliberately do NOT gate on NODE_ENV — a serverless host only
+ * guarantees it at build time, not inside the function runtime where
+ * $env/dynamic/private reads, so relying on it once silently downgraded prod to
+ * console-logging.
  *
  * Note: Resend's free tier only delivers to the account owner until a domain is
  * verified, so seeded test recipients bounce even with a key set.
  *
- * The Resend call is awaited deliberately: on Netlify the function invocation
- * can be frozen as soon as the response is returned, which would drop a
- * fire-and-forget request before the email ever sends.
+ * The Resend call is awaited deliberately: a Vercel Function can be frozen as
+ * soon as the response is returned, which would drop a fire-and-forget request
+ * before the email ever sends.
  */
 async function sendEmail(opts: {
 	to: string;
@@ -70,11 +72,11 @@ function renderEmail<P extends Record<string, unknown>>(component: Component<P>,
 
 /**
  * Absolute URL to the handwritten wordmark header served from static/. Email
- * clients can't resolve relative paths, so it's fully-qualified via ORIGIN;
- * ORIGIN is the same base better-auth uses (see auth.ts).
+ * clients can't resolve relative paths, so it's fully-qualified via the
+ * site's origin, the same base better-auth uses (see $lib/server/origin).
  */
 function logoUrl(): string {
-	const origin = (env.ORIGIN ?? '').replace(/\/$/, '');
+	const origin = (siteOrigin() ?? '').replace(/\/$/, '');
 	return `${origin}/email/temperance-alley-archive.png`;
 }
 

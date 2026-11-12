@@ -1,6 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { readDraft, submissionPrefix } from '$lib/server/drafts';
 import { sniffImageType } from '$lib/server/imageType';
+import { MAX_SCAN_BYTES, SCAN_TOO_LARGE } from '$lib/scanner/limits';
 import { consume, LIMITS } from '$lib/server/rateLimit';
 import { deleteScan, keyFromUrl, uploadScan } from '$lib/server/scans';
 import { referencedUrls } from '$lib/server/uploads';
@@ -15,7 +16,8 @@ import type { RequestHandler } from './$types';
 //    $lib/access/pass) and a draft session (the tap, see $lib/server/drafts),
 //    and is rate-limited; uploads land in that draft's private
 //    `submissions/<draft>/` space.
-const MAX_BYTES = 25 * 1024 * 1024; // 25 MB — generous cap for a scanned image.
+// Under the platform's body limit, so an oversized scan gets this route's message (see $lib/scanner/limits).
+const MAX_BYTES = MAX_SCAN_BYTES;
 
 /** 401 the client recognises as "tap the tag again to keep going". */
 const locked = () =>
@@ -37,12 +39,13 @@ export const POST: RequestHandler = async ({ request, locals, cookies, getClient
 
 	// Refuse an oversized body before buffering it, when the size is declared.
 	const declared = Number(request.headers.get('content-length'));
-	if (declared > MAX_BYTES + 64 * 1024) throw error(413, 'Image is too large');
+	if (declared > MAX_BYTES + 64 * 1024) throw error(413, SCAN_TOO_LARGE);
 
 	const data = await request.formData();
 	const file = data.get('file');
 	if (!(file instanceof File)) throw error(400, 'No file provided');
-	if (file.size === 0 || file.size > MAX_BYTES) throw error(413, 'Image is empty or too large');
+	if (file.size === 0) throw error(413, 'Image is empty');
+	if (file.size > MAX_BYTES) throw error(413, SCAN_TOO_LARGE);
 
 	// The stored type comes from the bytes, never from what the client declared.
 	const bytes = await file.arrayBuffer();

@@ -10,9 +10,10 @@
  * tap. The clock lives here, in the signed token, because a backgrounded mobile
  * tab cannot be trusted to run one.
  *
- * Checked in two runtimes — the Netlify edge function in front of everything
- * (Deno) and SvelteKit's hooks (Node) — so this module uses only Web Crypto and
- * imports nothing: the edge bundle loads it by relative path.
+ * Checked in two places — Vercel's Routing Middleware in front of everything
+ * (middleware.ts) and SvelteKit's hooks — so this module uses only Web Crypto
+ * and imports nothing: the middleware bundle, built apart from SvelteKit, loads
+ * it by relative path.
  *
  * The HMAC key is derived from BETTER_AUTH_SECRET exactly as
  * $lib/server/signing derives its purpose keys (purpose `access`), so the two
