@@ -31,6 +31,9 @@ storybook-static
 *.db-shm
 *.db-wal
 
+# events-import pipeline workspace (raw pages, curations, events.json)
+/temp/events-import/
+
 # throwaway worktree used by scripts/migrate-test.sh
 .migrate-base/
 
