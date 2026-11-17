@@ -1,7 +1,8 @@
 import { error, json } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
+import type { Config } from '@sveltejs/adapter-vercel';
+import { env } from '$env/dynamic/private';
 import { pruneRateLimits } from '$lib/server/rateLimit';
-import { cronToken } from '$lib/server/signing';
 import {
 	sweepAbandonedSubmissions,
 	sweepOrphanObjects,
@@ -22,17 +23,34 @@ async function step(name: string, run: () => Promise<number>): Promise<number | 
 	}
 }
 
-// Daily housekeeping for uploads and anonymous submissions, called by the
-// scheduled function in netlify/functions/sweep-submissions.mts (a scheduled
-// function has no public URL of its own, so the work lives here and it just
-// calls in). Guarded by a bearer derived from BETTER_AUTH_SECRET — see
-// $lib/server/signing.
-export const POST: RequestHandler = async ({ request }) => {
-	const expected = Buffer.from(`Bearer ${cronToken()}`);
-	const given = Buffer.from(request.headers.get('authorization') ?? '');
-	if (expected.length !== given.length || !timingSafeEqual(expected, given)) {
-		throw error(401, 'Unauthorized');
+/**
+ * The bucket listings grow with the archive, so give the sweep the Hobby
+ * plan's full five minutes rather than the default.
+ */
+export const config: Config = { maxDuration: 300 };
+
+/**
+ * Whether `authorization` is the bearer Vercel Cron presents: the project's
+ * CRON_SECRET, compared in constant time. With no secret set, nothing is.
+ */
+function isCron(authorization: string | null): boolean {
+	const secret = env.CRON_SECRET;
+	if (!secret) {
+		console.error('[sweep-submissions] CRON_SECRET is not set');
+		return false;
 	}
+	const expected = Buffer.from(`Bearer ${secret}`);
+	const given = Buffer.from(authorization ?? '');
+	return expected.length === given.length && timingSafeEqual(expected, given);
+}
+
+// Daily housekeeping for uploads and anonymous submissions, run by the Vercel
+// Cron Job in vercel.json. Cron calls with GET, and only the bearer guards it:
+// it changes state, but no browser can send the header, so no other page can
+// trigger it. Delivery is best effort and may repeat a run, which is safe:
+// every step only removes what is already stale, so a second pass finds less.
+export const GET: RequestHandler = async ({ request }) => {
+	if (!isCron(request.headers.get('authorization'))) throw error(401, 'Unauthorized');
 
 	// Sequential. The counters first: one quick query that nothing else needs,
 	// so a slow storage step after it can't keep it from running. Then
@@ -47,7 +65,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const orphanObjects = await step('orphan objects', () => sweepOrphanObjects());
 
 	const report = { images, unattachedImages, orphanObjects, counters };
-	// A 500 shows up in the scheduled function's log; the body says which step.
+	// A 500 shows up in the cron job's log; the body says which step.
 	const failed = Object.values(report).some((n) => n === null);
 	return json(report, { status: failed ? 500 : 200 });
 };
