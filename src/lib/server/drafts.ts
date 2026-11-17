@@ -6,8 +6,9 @@ import { sign, verify } from './signing';
 /**
  * Draft sessions: how an anonymous visitor on /contribute is allowed to write.
  *
- * Tapping the garden's NFC tag (src/routes/t) issues a signed cookie naming a
- * random draft id, alongside the access pass that opens the site. That id is
+ * Tapping the garden's NFC tag (src/routes/t), or coming through the door
+ * ($lib/access/door.server, see hooks.server.ts), issues a signed cookie naming
+ * a random draft id, alongside the access pass that opens the site. That id is
  * the visitor's private upload space: their images are stored under
  * `submissions/<id>/`, only that cookie may delete from it, and a submission
  * may only attach images from it. Nothing is stored server-side — the

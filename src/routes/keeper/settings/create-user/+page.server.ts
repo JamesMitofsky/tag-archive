@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
 import { auth } from '$lib/server/auth';
-import { KEEPER_DOOR_URL } from '$lib/access/keeperDoor.server';
+import { KEEPER_DOOR_URL } from '$lib/access/door.server';
 import { ASSIGNABLE_ROLES, createNewUserSuite, parseCreateUserForm } from '$lib/validation/auth';
 import type { Actions, PageServerLoad } from './$types';
 

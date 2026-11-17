@@ -1,7 +1,7 @@
 /**
  * Paths the client needs from the access gate. Kept apart from ./gate so the
- * browser bundle never pulls in the gate, and with it the keeper door phrase
- * (./keeperDoor.server). ./gate imports these same constants, so the two sides
+ * browser bundle never pulls in the gate, and with it the door phrase
+ * (./door.server). ./gate imports these same constants, so the two sides
  * can never disagree about which path is which.
  */
 

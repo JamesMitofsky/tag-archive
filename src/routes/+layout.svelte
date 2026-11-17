@@ -76,10 +76,9 @@
 
 <TapToast />
 
-<!-- Keeps the pass alive while the site is on screen. Not where there is no pass
-     to keep: the locked page, and the keeper sign-in page (open through its door
-     to keepers who hold neither pass nor session yet). -->
-{#if page.url.pathname !== LOCKED_PATH && page.url.pathname.replace(/\/$/, '') !== KEEPER_PATH}
+<!-- Keeps the pass alive while the site is on screen. Not on the locked page,
+     where there is no pass to keep. -->
+{#if page.url.pathname !== LOCKED_PATH}
 	<Presence />
 {/if}
 

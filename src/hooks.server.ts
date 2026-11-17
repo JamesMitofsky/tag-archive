@@ -1,9 +1,11 @@
 import { error, redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { building } from '$app/environment';
-import { accessDecision, LOCKED_PATH } from '$lib/access/gate';
+import { withoutDoor } from '$lib/access/door.server';
+import { accessDecision, isDoorNavigation, LOCKED_PATH } from '$lib/access/gate';
 import { auth } from '$lib/server/auth';
-import { keeperPass, readPass } from '$lib/server/access';
+import { issuePass, keeperPass, readPass } from '$lib/server/access';
+import { issueDraft } from '$lib/server/drafts';
 import { anonymousKeeperAccess } from '$lib/server/keeperGuard';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
@@ -27,10 +29,10 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 };
 
 // The site-wide access gate (see $lib/access/gate): the site opens to holders
-// of an access pass — earned by tapping the garden's NFC tag, or handed to a
-// signed-in keeper — and kept alive by the presence beat while the site is on
-// screen (src/routes/api/presence). In production the edge function has already turned
-// pass-less requests away; this is the same rule again for everything that
+// of an access pass — earned by tapping the garden's NFC tag or coming through
+// the door, or handed to a signed-in keeper — and kept alive by the presence
+// beat while the site is on screen (src/routes/api/presence). In production the
+// edge function has already turned pass-less requests away; this is the same rule again for everything that
 // reaches SvelteKit, and the only gate under `vite dev`.
 const guardAccess: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
@@ -46,14 +48,27 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 	// here (never on a response the CDN might cache, see $lib/server/access).
 	let pass = await readPass(event.cookies);
 	if (event.locals.user) pass = await keeperPass(event.cookies, pass, request);
+
+	const gateRequest = { ...request, pathname: event.url.pathname, search: event.url.search };
+
+	// Through the door (see $lib/access/door.server), on any page: let the
+	// visitor in as a tap would — a pass, and a draft so /contribute works —
+	// then send them on to the same URL without the phrase, so the next click
+	// still finds the site open and the phrase leaves the address bar. Someone
+	// already holding a pass keeps it and only loses the phrase. SvelteKit
+	// carries cookies set here onto the redirect, a JSON one for a data load.
+	if (isDoorNavigation(gateRequest)) {
+		if (!pass) {
+			await issuePass(event.cookies, 'd');
+			issueDraft(event.cookies);
+		}
+		throw redirect(303, withoutDoor(event.url));
+	}
+
 	event.locals.pass = pass ?? undefined;
 	if (pass) return resolve(event);
 
-	const decision = accessDecision({
-		...request,
-		pathname: event.url.pathname,
-		search: event.url.search
-	});
+	const decision = accessDecision(gateRequest);
 	if (decision === 'open') return resolve(event);
 	// SvelteKit serialises a redirect thrown here correctly for client-side data
 	// loads and enhanced form actions too, so those land on the locked page
