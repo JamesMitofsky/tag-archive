@@ -4,7 +4,7 @@
  * action, and endpoint. Those per-route checks stay, but only as type narrowing
  * and defense in depth: forgetting one is no longer a hole. The one exception is
  * /keeper itself, the sign-in page, which the access gate opens to visitors
- * without a pass only through its door (see $lib/access/keeperDoor.server).
+ * without a pass only through the door (see $lib/access/door.server).
  */
 
 /** True for the sign-in page, the only /keeper path open without a session. */

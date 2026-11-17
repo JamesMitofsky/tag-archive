@@ -34,6 +34,13 @@ export interface ProgramAreaMeta {
 	pill: string;
 	/** Solid accent colour (e.g. dots, borders). */
 	accent: string;
+	/**
+	 * The accent's hue as a watercolor wash: a CSS color, lighter and less
+	 * saturated than the Tailwind 500 it follows, so it sits on the painted
+	 * sky the way the clouds do. For decoration that paints with all six areas
+	 * at once (the sign-in confetti), not for anything that labels an area.
+	 */
+	wash: string;
 	/** Phosphor icon component representing the area. */
 	icon: Component;
 }
@@ -43,36 +50,42 @@ export const PROGRAM_AREA_META: Record<ProgramArea, ProgramAreaMeta> = {
 		label: 'DIY',
 		pill: 'bg-amber-500/15 text-amber-800',
 		accent: 'bg-amber-500',
+		wash: 'oklch(0.79 0.12 72)',
 		icon: HammerIcon
 	},
 	'Learning Landscape': {
 		label: 'Learning Landscape',
 		pill: 'bg-emerald-500/15 text-emerald-800',
 		accent: 'bg-emerald-500',
+		wash: 'oklch(0.71 0.1 162)',
 		icon: BookOpenIcon
 	},
 	Playground: {
 		label: 'Playground',
 		pill: 'bg-sky-500/15 text-sky-800',
 		accent: 'bg-sky-500',
+		wash: 'oklch(0.7 0.1 237)',
 		icon: ShapesIcon
 	},
 	Spotlight: {
 		label: 'Spotlight',
 		pill: 'bg-fuchsia-500/15 text-fuchsia-800',
 		accent: 'bg-fuchsia-500',
+		wash: 'oklch(0.7 0.13 328)',
 		icon: SpotlightIcon
 	},
 	'TAG Committee': {
 		label: 'TAG Committee',
 		pill: 'bg-indigo-500/15 text-indigo-800',
 		accent: 'bg-indigo-500',
+		wash: 'oklch(0.64 0.11 277)',
 		icon: UsersThreeIcon
 	},
 	Wellbeing: {
 		label: 'Wellbeing',
 		pill: 'bg-rose-500/15 text-rose-800',
 		accent: 'bg-rose-500',
+		wash: 'oklch(0.7 0.13 14)',
 		icon: HeartIcon
 	}
 };
@@ -82,6 +95,7 @@ export const PROGRAM_AREA_FALLBACK: ProgramAreaMeta = {
 	label: 'DIY', // unused; label read from the raw tag at call site
 	pill: 'bg-gray-800/10 text-gray-800',
 	accent: 'bg-gray-400',
+	wash: 'oklch(0.72 0 0)',
 	icon: CircleIcon
 };
 
