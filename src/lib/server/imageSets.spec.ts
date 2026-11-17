@@ -8,7 +8,7 @@ await vi.hoisted(async () => {
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
 vi.mock('$env/dynamic/private', () => ({ env: process.env }));
-// Record storage deletes and cache purges instead of calling R2 and Netlify.
+// Record storage deletes and cache purges instead of calling R2 and Vercel.
 const deleteScan = vi.hoisted(() => vi.fn(async (_key: string) => {}));
 vi.mock('./scans', async (importOriginal) => ({
 	...(await importOriginal<typeof import('./scans')>()),

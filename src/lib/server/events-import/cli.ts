@@ -10,7 +10,7 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql';
 import type { SeedData } from '../db/seed-core';
 import { user } from '../db/schema';
-import { purgeArchiveCache } from './purge';
+import { purgeArchiveCache, vercelProject } from './purge';
 import type { PageMoved } from './restore-core';
 import type { RawEvent } from './squarespace';
 import { loadRawEvents } from './verbatim';
@@ -68,8 +68,9 @@ export function printMoved(list: PageMoved[]) {
 /**
  * Connect to DATABASE_URL with the same guards as events:import: writing to a
  * remote database needs IMPORT_CONFIRM=1, and (unless `purge` is off) the
- * NETLIFY_AUTH_TOKEN the site cache refresh needs, checked before anything is
- * written. `--as` resolves to the keeper the writes are attributed to.
+ * VERCEL_TOKEN and linked project the site cache refresh needs (./purge),
+ * checked before anything is written. `--as` resolves to the keeper the writes
+ * are attributed to.
  */
 export async function openArchiveDb(options: { apply: boolean; purge: boolean; as?: string }) {
 	const url = process.env.DATABASE_URL;
@@ -81,13 +82,16 @@ export async function openArchiveDb(options: { apply: boolean; purge: boolean; a
 				`Dry-run first (drop --apply), then re-run with IMPORT_CONFIRM=1.`
 		);
 	}
-	const netlifyToken = process.env.NETLIFY_AUTH_TOKEN;
+	const vercelToken = process.env.VERCEL_TOKEN;
 	const purge = isRemote && options.purge;
-	if (options.apply && purge && !netlifyToken) {
-		throw new Error(
-			'Writing to a live database needs NETLIFY_AUTH_TOKEN to refresh the site cache ' +
-				'afterwards (or --no-purge to let it expire on its own within a day).'
-		);
+	if (options.apply && purge) {
+		if (!vercelToken) {
+			throw new Error(
+				'Writing to a live database needs VERCEL_TOKEN to refresh the site cache ' +
+					'afterwards (or --no-purge to let it expire on its own within a day).'
+			);
+		}
+		vercelProject();
 	}
 
 	const client = createClient({ url, authToken: process.env.DATABASE_AUTH_TOKEN });
@@ -106,7 +110,7 @@ export async function openArchiveDb(options: { apply: boolean; purge: boolean; a
 	async function refreshSite(what: string) {
 		if (!purge) return;
 		try {
-			await purgeArchiveCache(netlifyToken!);
+			await purgeArchiveCache(vercelToken!);
 			console.log(`Purged the site cache; ${what} live now.`);
 		} catch (err) {
 			console.error(

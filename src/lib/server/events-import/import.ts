@@ -16,8 +16,9 @@
  * review queue (/keeper/settings/review/events) and reach the public site as an
  * admin approves each one — approving also refreshes the site's cached dataset.
  * --publish skips the queue: the events go public at once, and the script then
- * purges the site's `archive` cache tag itself, which needs NETLIFY_AUTH_TOKEN
- * (and NETLIFY_SITE_ID or NETLIFY_SITE_SLUG; the slug defaults to tag-archive).
+ * purges the site's `archive` cache tag itself, which needs VERCEL_TOKEN and the
+ * linked Vercel project (`vercel link`, or VERCEL_PROJECT_ID and VERCEL_ORG_ID;
+ * see ./purge).
  *
  * Options:
  *   --file <path>        entries to import (default temp/events-import/events.json)
@@ -35,7 +36,7 @@ import { drizzle } from 'drizzle-orm/libsql';
 import { loadSeedData, type EventSource } from '../db/seed-core';
 import { user } from '../db/schema';
 import { applyImport, planImport, type ImportEvent, type SkipReason } from './import-core';
-import { purgeArchiveCache } from './purge';
+import { purgeArchiveCache, vercelProject } from './purge';
 import { DEFAULT_TIME_ZONE, formatDate } from './squarespace';
 import { loadRawEvents, verbatimMismatches } from './verbatim';
 import { EVENTS_FILE, SEED_PATH, canonicalEvent, eventsFileSchema, formatSeed } from './workspace';
@@ -63,9 +64,12 @@ if (args.apply && isRemote && process.env.IMPORT_CONFIRM !== '1') {
 
 // Check the purge credentials before writing anything, so --publish can't
 // leave events public behind a stale cached dataset.
-const netlifyToken = process.env.NETLIFY_AUTH_TOKEN;
-if (args.apply && args.publish && !netlifyToken) {
-	throw new Error('--publish needs NETLIFY_AUTH_TOKEN to refresh the site cache afterwards.');
+const vercelToken = process.env.VERCEL_TOKEN;
+if (args.apply && args.publish) {
+	if (!vercelToken) {
+		throw new Error('--publish needs VERCEL_TOKEN to refresh the site cache afterwards.');
+	}
+	vercelProject();
 }
 
 const parsed = eventsFileSchema.safeParse(JSON.parse(readFileSync(args.file, 'utf-8')));
@@ -160,7 +164,7 @@ try {
 		);
 		if (summary.events > 0 && args.publish) {
 			try {
-				await purgeArchiveCache(netlifyToken!);
+				await purgeArchiveCache(vercelToken!);
 				console.log('Purged the site cache; the events are live now.');
 			} catch (err) {
 				// The events are already in; only the cached public dataset is stale.

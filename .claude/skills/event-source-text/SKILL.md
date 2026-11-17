@@ -100,7 +100,7 @@ pnpm events:fetch --all                        # every event's page (~25 min, re
 pnpm events:restore --seed                     # dry run against seed-data.json
 pnpm events:restore --seed --apply             # rewrite it
 DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' pnpm events:restore --db     # dry run
-DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' IMPORT_CONFIRM=1 NETLIFY_AUTH_TOKEN='…' \
+DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' IMPORT_CONFIRM=1 VERCEL_TOKEN='…' \
   pnpm events:restore --db --apply --as you@example.com
 ```
 

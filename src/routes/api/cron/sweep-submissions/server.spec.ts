@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({ env: { BETTER_AUTH_SECRET: 'test-secret' } }));
+const env = vi.hoisted(() => ({ CRON_SECRET: 'test-cron-secret' as string | undefined }));
+vi.mock('$env/dynamic/private', () => ({ env }));
 
 // The steps themselves are covered in $lib/server/uploads.spec.ts; here they
 // only record that, and in what order, the route runs them.
@@ -19,8 +20,8 @@ const pruneRateLimits = vi.hoisted(() => vi.fn<(olderThanMs: number) => Promise<
 vi.mock('$lib/server/uploads', () => sweeps);
 vi.mock('$lib/server/rateLimit', () => ({ pruneRateLimits }));
 
-const { cronToken } = await import('$lib/server/signing');
-const { POST } = await import('./+server');
+const { GET } = await import('./+server');
+const BEARER = 'Bearer test-cron-secret';
 
 async function call(authorization?: string) {
 	const headers = authorization ? { authorization } : undefined;
@@ -32,7 +33,7 @@ async function call(authorization?: string) {
 	};
 	try {
 		// The handler reads only the request.
-		return { response: await POST(event as never) };
+		return { response: await GET(event as never) };
 	} catch (thrown) {
 		return { thrown: thrown as { status?: number } };
 	}
@@ -40,6 +41,7 @@ async function call(authorization?: string) {
 
 beforeEach(() => {
 	calls.length = 0;
+	env.CRON_SECRET = 'test-cron-secret';
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 	pruneRateLimits.mockImplementation(recorded('counters', 4));
 	sweeps.sweepUnattachedImages.mockImplementation(recorded('unattachedImages', 1));
@@ -47,9 +49,18 @@ beforeEach(() => {
 	sweeps.sweepOrphanObjects.mockImplementation(recorded('orphanObjects', 3));
 });
 
-describe('POST /api/cron/sweep-submissions', () => {
+describe('GET /api/cron/sweep-submissions', () => {
 	it('refuses a caller without the cron bearer, running nothing', async () => {
-		for (const authorization of [undefined, 'Bearer nope', `Bearer ${cronToken()}x`]) {
+		for (const authorization of [undefined, 'Bearer nope', `${BEARER}x`, 'test-cron-secret']) {
+			const { thrown } = await call(authorization);
+			expect(thrown?.status).toBe(401);
+		}
+		expect(calls).toEqual([]);
+	});
+
+	it('refuses everyone while CRON_SECRET is unset, even an empty bearer', async () => {
+		env.CRON_SECRET = undefined;
+		for (const authorization of [undefined, 'Bearer ', 'Bearer undefined']) {
 			const { thrown } = await call(authorization);
 			expect(thrown?.status).toBe(401);
 		}
@@ -57,7 +68,7 @@ describe('POST /api/cron/sweep-submissions', () => {
 	});
 
 	it('runs every step, unattached rows before the object sweeps, and reports each count', async () => {
-		const { response } = await call(`Bearer ${cronToken()}`);
+		const { response } = await call(BEARER);
 		expect(response?.status).toBe(200);
 		expect(await response?.json()).toEqual({
 			images: 2,
@@ -70,7 +81,7 @@ describe('POST /api/cron/sweep-submissions', () => {
 
 	it('keeps going past a failing step, reporting it as null with a 500', async () => {
 		sweeps.sweepUnattachedImages.mockRejectedValueOnce(new Error('database is locked'));
-		const { response } = await call(`Bearer ${cronToken()}`);
+		const { response } = await call(BEARER);
 		expect(response?.status).toBe(500);
 		expect(await response?.json()).toEqual({
 			images: 2,

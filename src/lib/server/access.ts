@@ -64,7 +64,7 @@ export type RequestShape = {
 
 /**
  * Whether a response to this request may carry a new pass cookie: only when
- * the CDN can never cache it. Netlify caches GET and HEAD alone, so any write
+ * the CDN can never cache it. Vercel's CDN caches GET and HEAD alone, so any write
  * qualifies; of the reads, a page view, a SvelteKit data load and an enhanced
  * action are rendered per visitor and never cached. A bare `fetch` of an
  * endpoint — `GET /api/dataset`, cached at the edge for everyone — is not.

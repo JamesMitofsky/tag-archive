@@ -17,7 +17,7 @@
  * And a live database (production keeps its own data, edited by keepers):
  *
  *   DATABASE_URL=libsql://… DATABASE_AUTH_TOKEN=… pnpm events:restore --db
- *   DATABASE_URL=libsql://… DATABASE_AUTH_TOKEN=… IMPORT_CONFIRM=1 NETLIFY_AUTH_TOKEN=… \
+ *   DATABASE_URL=libsql://… DATABASE_AUTH_TOKEN=… IMPORT_CONFIRM=1 VERCEL_TOKEN=… \
  *     pnpm events:restore --db --apply --as you@example.com
  *
  * In --db mode a field is restored only while it still holds what the
