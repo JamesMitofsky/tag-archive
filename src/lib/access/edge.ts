@@ -1,4 +1,5 @@
 import { accessDecision, LOCKED_PATH } from './gate.ts';
+import { unlockUrl } from './key.server.ts';
 import { PASS_COOKIE, verifyPass } from './pass.ts';
 
 /**
@@ -34,10 +35,12 @@ export async function gateRequest(
 	if (await verifyPass(secret ?? '', cookie(PASS_COOKIE), now)) return undefined;
 
 	const headers = { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' };
-	if (decision === 'redirect') {
+	if (decision === 'unlock' || decision === 'redirect') {
+		// The key rides in the Location; keep it out of any Referer from here on.
+		const location = decision === 'unlock' ? unlockUrl(url) : LOCKED_PATH;
 		return new Response(null, {
 			status: 303,
-			headers: { ...headers, location: LOCKED_PATH }
+			headers: { ...headers, 'referrer-policy': 'no-referrer', location }
 		});
 	}
 	return Response.json(

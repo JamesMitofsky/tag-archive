@@ -47,7 +47,7 @@ More detail (individual services, Drizzle Studio, prod storage) is below.
 The schema is `src/lib/server/db/schema.ts` (migrations in `drizzle/`); column
 names below are as SQLite and Drizzle Studio show them. Every archive table
 carries audit columns (`created_at` / `updated_at`, `created_by` / `updated_by`);
-only the bookkeeping tables `rate_limit` and `nfc_tag` don't. `artefact`,
+only the bookkeeping tables `rate_limit`, `nfc_tag` and `remote_key` don't. `artefact`,
 `event`, `series` and `image_set` also carry `proposed_addition`: true on a row
 anyone but an admin created, until an admin vets it in the review queue, and
 kept off the public site until then.
@@ -402,7 +402,7 @@ The pass is checked twice, from one rule (`src/lib/access/gate.ts`):
   under `vite dev`, which doesn't run edge functions.
 
 Without a pass, a page view lands on `/locked`; anything else gets a 401. Always
-open: `/t`, `/locked`, the sign-in endpoints (`/api/auth/*`), the cron endpoint,
+open: `/t`, `/locked`, `/unlock`, the sign-in endpoints (`/api/auth/*`), the cron endpoint,
 and the app bundles and decor the locked page is drawn with.
 
 **The door bypasses the tag.** Any page opens without a pass when its URL carries
@@ -418,6 +418,36 @@ is never locked out for being away. The signed-in area
 (`/keeper/*`) stays open at the gate so a keeper whose pass has lapsed still
 reaches SvelteKit, where their session renews it; anyone without a session is
 sent back to `/keeper`.
+
+**Unlock keys open it from anywhere, for a while.** Any page also opens when its
+URL carries `?whoislisteningwiththevoiceofthegarden=<key>` and `<key>` is a row
+of the `remote_key` table that hasn't expired, so you can hand one person a link
+like `https://<site>/?whoislisteningwiththevoiceofthegarden=tobyshorin` and have
+it close by itself. To hand one out, add a row in Drizzle Studio (or any SQL
+shell):
+
+```sql
+INSERT INTO remote_key (unlock_key, expires_at) VALUES ('tobyshorin', '2026-12-31');
+```
+
+- `unlock_key` matches in any case (ASCII letters), so `TobyShorin` opens it too,
+  and two keys differing only in case are refused.
+- `expires_at` is an ISO date or date-time. A bare date (`2026-12-31`) keeps the
+  key working through the end of that day, UTC; a date-time
+  (`2026-12-31 18:00`, or `2026-12-31T18:00:00+01:00` with an offset) is the
+  moment it stops, UTC unless it says otherwise. Anything SQLite can't read as a
+  date is refused on insert, so a typo can't leave a key that never closes.
+- To close a key early, delete its row or move `expires_at` into the past.
+
+The edge can't read the database, so it never lets a key through to the page:
+it redirects the navigation to `/unlock?key=…&to=<page>`
+(`src/routes/unlock/+server.ts`, `src/lib/access/key.server.ts`), which checks
+the key (`src/lib/server/remoteKeys.ts`), hands out a pass and an upload draft as
+a tap would, and goes on to the page without the key. An unknown key and an
+expired one both land on `/locked` with the same message, and `/unlock` allows 20
+tries per IP per hour, since keys made of names can be guessed. A pass a key
+handed out slides like any other, so a visitor whose key expires keeps the site
+until it has been off their screen for 20 minutes.
 
 **Keys.** `NFC_SDM_META_KEY` and `NFC_SDM_FILE_KEY` (32 hex characters each) are
 the AES-128 keys written onto the tag. They are their own env vars, not derived
