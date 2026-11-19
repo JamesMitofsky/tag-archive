@@ -14,14 +14,14 @@
  *    production, and the only gate under `vite dev`, where the middleware
  *    doesn't run.
  *
- * Imports nothing but its siblings, by relative path, so the middleware bundle
- * can load it. Server and middleware only: the browser gets LOCKED_PATH from
+ * Imports nothing but its siblings, by relative path with a .js extension, so
+ * the middleware bundle can load it (see middleware.ts). Server and middleware only: the browser gets LOCKED_PATH from
  * ./paths.
  */
 
-import { opensDoor } from './door.server.ts';
-import { carriesKey, UNLOCK_PATH } from './key.server.ts';
-import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.ts';
+import { opensDoor } from './door.server.js';
+import { carriesKey, UNLOCK_PATH } from './key.server.js';
+import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.js';
 
 export { LOCKED_PATH };
 
