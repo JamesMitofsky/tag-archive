@@ -24,6 +24,7 @@
 import { inArray, like, or, sql } from 'drizzle-orm';
 import { DATABASE_URL } from '$app/env/private';
 import { exifTiff, type ExifOptions } from '#lib/testing/exifJpeg.ts';
+import { placeholderFromRGBA } from '#lib/images/placeholder.ts';
 import type { ImageSetData } from '#lib/validation/imageSet.ts';
 import { db } from '.';
 import { image, imageSet, imageSetContact, user } from './schema';
@@ -229,7 +230,8 @@ async function upload(photo: DemoPhoto, name: string, owner: UploadOwner): Promi
 	const keys = imageKeys(owner.kind === 'keeper' ? '' : owner.prefix, 'image/png');
 	await putObject(keys.originalKey, encodePng(pixels, exifFor(photo)), 'image/png');
 	await putObject(keys.displayKey, await encodeWebp(pixels), 'image/webp');
-	const finalized = await finalizeImage({ ...keys, name }, owner);
+	const placeholder = placeholderFromRGBA(pixels.data, pixels.width, pixels.height);
+	const finalized = await finalizeImage({ ...keys, name, placeholder }, owner);
 	return finalized.id;
 }
 

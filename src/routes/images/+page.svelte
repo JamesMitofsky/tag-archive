@@ -126,9 +126,12 @@
      rest of the pile is out as cards of their own, and slides back under it
      when the set is put away. -->
 {#snippet stack(item: PublicImageSet, _isOpen: boolean, spilled: boolean)}
+	<!-- Spilled, it is one of the open set's prints, and takes clicks only on
+	     the print like the rest of them (`hit`). -->
 	<ImageStack
 		images={spilled ? item.images.slice(0, 1) : item.images}
 		alt={spilled ? photos(item)[0].alt : imageSetLabel(item)}
+		hit={spilled}
 	/>
 {/snippet}
 
@@ -145,12 +148,14 @@
 				height={image.height}
 				alt={image.alt}
 				sizes="90vw"
+				placeholder={image.placeholder}
 				loading="eager"
 				class="w-[min(100cqw,100cqh*var(--photo-ratio))] rounded-[2px] shadow-2xl"
 			/>
 		</div>
 	{:else}
-		<ImageStack images={[image]} alt={image.alt} />
+		<!-- Only the print takes the click: beside it is sky, which puts the set away. -->
+		<ImageStack images={[image]} alt={image.alt} hit />
 	{/if}
 {/snippet}
 

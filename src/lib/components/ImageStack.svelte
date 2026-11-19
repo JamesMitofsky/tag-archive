@@ -5,8 +5,11 @@
 	is opened. A set of one is just the print, with no pile.
 
 	Purely a picture: it takes no pointer input of its own, so whatever it sits
-	in (a card's button) stays the single click target. The prints under the
-	top one are decorative; the top one carries the set's name as its alt text.
+	in (a card's button) stays the single click target. With `hit`, the top
+	print is marked as the part of that card that takes clicks (`data-card-hit`,
+	see CardCloud), so a click on the empty margin beside it goes past the card.
+	The prints under the top one are decorative; the top one carries the set's
+	name as its alt text.
 
 	Fills its parent, and fits each print inside it on both axes.
 -->
@@ -23,7 +26,8 @@
 	import type { PublicImage } from '#lib/images/types.ts';
 	import Photograph from '#lib/components/Photograph.svelte';
 
-	type StackImage = Pick<PublicImage, 'id' | 'url' | 'width' | 'height'>;
+	type StackImage = Pick<PublicImage, 'id' | 'url' | 'width' | 'height'> &
+		Partial<Pick<PublicImage, 'placeholder'>>;
 
 	interface Props {
 		/** In display order; the first is the print on top. */
@@ -32,9 +36,11 @@
 		alt: string;
 		/** Display width of the top print, for its srcset. */
 		sizes?: string;
+		/** Mark the top print as the card's click target (see the header comment). */
+		hit?: boolean;
 	}
 
-	let { images, alt, sizes = PRINT_SIZES }: Props = $props();
+	let { images, alt, sizes = PRINT_SIZES, hit = false }: Props = $props();
 
 	/**
 	 * How each print under the top one lies, nearest the top first. Turned in
@@ -90,6 +96,7 @@
 				alt=""
 				aria-hidden="true"
 				{sizes}
+				placeholder={image.placeholder}
 				class="{PRINT} {pose} rounded-[2px] shadow-md"
 			/>
 		{/each}
@@ -100,6 +107,8 @@
 				height={top.height}
 				{alt}
 				{sizes}
+				placeholder={top.placeholder}
+				data-card-hit={hit || undefined}
 				class="{PRINT} rounded-[2px] shadow-lg"
 			/>
 		{/if}

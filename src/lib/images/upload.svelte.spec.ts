@@ -10,6 +10,7 @@ import {
 	textFile
 } from '#lib/testing/images.ts';
 import { UNREADABLE_PHOTO } from './decode';
+import { parsePlaceholder } from './placeholder';
 import {
 	createLimiter,
 	putWithProgress,
@@ -71,8 +72,16 @@ describe('uploadImage', () => {
 		]);
 
 		expect(server.finalizing).toEqual([
-			{ originalKey: grant.originalKey, displayKey: grant.displayKey, name: 'IMG_0001.PNG' }
+			{
+				originalKey: grant.originalKey,
+				displayKey: grant.displayKey,
+				name: 'IMG_0001.PNG',
+				placeholder: expect.any(String)
+			}
 		]);
+		// A blur of the photograph, made from the same pixels as the display copy.
+		const { placeholder } = server.finalizing[0] as { placeholder: string };
+		expect(parsePlaceholder(placeholder)).toBe(placeholder);
 		expect(image.id).toBe(server.idOf('IMG_0001.PNG'));
 
 		expect(stages[0]).toBe('reading');
