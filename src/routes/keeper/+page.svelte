@@ -11,6 +11,7 @@
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import HeadphonesIcon from 'phosphor-svelte/lib/HeadphonesIcon';
 	import { createEmailSuite, parseEmailForm } from '$lib/validation/auth';
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
@@ -18,6 +19,9 @@
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// Signed in at all: a keeper, or a listener (see $lib/roles), who gets no tools.
+	const signedIn = $derived(!!data.user || !!data.listener);
 
 	// Signed-out flow: which step the last action left us on.
 	const authStep = $derived(form && 'step' in form && form.step === 'otp' ? 'otp' : 'email');
@@ -168,7 +172,7 @@
 			<div>
 				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">Cloud Keeper</h1>
 			</div>
-			{#if data.user}
+			{#if signedIn}
 				<a
 					href="/keeper/settings"
 					aria-label="Settings"
@@ -183,9 +187,9 @@
 		<!-- Grid-stack the signed-out/signed-in views so they cross-fly on the OTP
 		     success swap, matching the route transitions (same pathname = no layout key). -->
 		<div class="view-swap">
-			{#key !!data.user}
+			{#key signedIn}
 				<div class="view" in:fly={{ x: 20, duration: 250 }} out:fly={{ x: -20, duration: 250 }}>
-					{#if !data.user}
+					{#if !signedIn}
 						<!-- Sign-in floats on the sky as a frosted glass panel, like the searchbar. -->
 						<section>
 							<!-- Grid-stack the step swap so the incoming/outgoing views overlap
@@ -335,6 +339,23 @@
 								<p class="mt-4 text-sm text-red-700" role="alert">{authError}</p>
 							{/if}
 						</section>
+					{:else if data.listener}
+						<!-- A listener has no keeper tools; their account opens the archive. -->
+						<nav class="mt-6 space-y-3">
+							<a
+								href="/"
+								class="flex items-center gap-3 rounded-lg border border-white/40 bg-white/25 p-4 text-gray-800 shadow-sm backdrop-blur-md transition hover:bg-white/40"
+							>
+								<HeadphonesIcon size={24} class="shrink-0 text-gray-700" />
+								<span class="min-w-0 flex-1">
+									<span class="block font-medium text-gray-900">Open the Archive</span>
+									<span class="block text-sm text-gray-600">
+										You’re signed in as a listener, so the Archive opens for you wherever you are.
+									</span>
+								</span>
+								<CaretRightIcon size={18} class="shrink-0 text-gray-400" />
+							</a>
+						</nav>
 					{:else}
 						<!-- Hub: the archive views live on their own sub-routes. -->
 						<nav class="mt-6 space-y-3">

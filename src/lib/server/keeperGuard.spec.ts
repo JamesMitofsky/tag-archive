@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anonymousKeeperAccess, isKeeperArea } from './keeperGuard';
+import { anonymousKeeperAccess, isKeeperArea, listenerKeeperAccess } from './keeperGuard';
 
 const req = (overrides: Partial<Parameters<typeof anonymousKeeperAccess>[0]>) =>
 	anonymousKeeperAccess({
@@ -48,5 +48,43 @@ describe('anonymousKeeperAccess', () => {
 		expect(req({ pathname: '/keeper/events/data', accept: '*/*' })).toBe('refuse');
 		expect(req({ pathname: '/keeper/scans', method: 'POST', accept: '*/*' })).toBe('refuse');
 		expect(req({ pathname: '/keeper/scans', method: 'DELETE', accept: '*/*' })).toBe('refuse');
+	});
+});
+
+describe('listenerKeeperAccess', () => {
+	const listener = (overrides: Partial<Parameters<typeof listenerKeeperAccess>[0]>) =>
+		listenerKeeperAccess({
+			pathname: '/keeper/artefacts',
+			method: 'GET',
+			isDataRequest: false,
+			accept: 'text/html',
+			isEnhancedAction: false,
+			...overrides
+		});
+
+	it('opens the hub and their settings, sign-out included', () => {
+		expect(listener({ pathname: '/keeper' })).toBe('allow');
+		expect(listener({ pathname: '/keeper/settings' })).toBe('allow');
+		expect(listener({ pathname: '/keeper/settings/' })).toBe('allow');
+		expect(listener({ pathname: '/keeper/settings/__data.json', isDataRequest: true })).toBe(
+			'allow'
+		);
+		expect(listener({ pathname: '/keeper/settings', method: 'POST', isEnhancedAction: true })).toBe(
+			'allow'
+		);
+	});
+
+	it('sends every keeper tool back to the hub', () => {
+		expect(listener({})).toBe('redirect');
+		expect(listener({ pathname: '/keeper/settings/accounts' })).toBe('redirect');
+		expect(listener({ pathname: '/keeper/settings/keys' })).toBe('redirect');
+		expect(listener({ pathname: '/keeper/settings-x' })).toBe('redirect');
+		expect(
+			listener({ pathname: '/keeper/settings/accounts', method: 'POST', isEnhancedAction: true })
+		).toBe('redirect');
+	});
+
+	it('refuses a bare fetch into the keeper area', () => {
+		expect(listener({ method: 'POST', accept: '*/*' })).toBe('refuse');
 	});
 });

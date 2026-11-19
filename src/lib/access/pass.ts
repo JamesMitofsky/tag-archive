@@ -3,7 +3,8 @@
  * by tapping the garden's NFC tag (kind `t`, see src/routes/t) or by coming
  * through the door (kind `d`, see ./door.server and hooks.server.ts) or by
  * bringing an unlock key (kind `r`, see ./key.server and src/routes/unlock); a
- * signed-in keeper is issued one automatically (kind `k`, see hooks.server.ts).
+ * signed-in account is issued one automatically (kind `k` for a keeper, `l`
+ * for a listener, see $lib/roles and hooks.server.ts).
  * The kind records where a pass came from; every kind opens the same site.
  *
  * A pass is good for PASS_TTL_MS from the moment it was minted, and it slides:
@@ -27,7 +28,7 @@ export const PASS_COOKIE = 'tag_pass';
 /** How long the site stays open after the visitor was last seen on it. */
 export const PASS_TTL_MS = 20 * 60 * 1000;
 
-export type PassKind = 't' | 'd' | 'r' | 'k';
+export type PassKind = 't' | 'd' | 'r' | 'k' | 'l';
 /**
  * `issuedAt` is when this token was minted: the tap, or the latest presence
  * beat that re-minted it. So on a pass that has slid, it reads as "last seen".
@@ -102,7 +103,7 @@ export async function verifyPass(
 	const [, kind, issued, expires, sig] = parts;
 	const issuedAt = Number(issued);
 	const expiresAt = Number(expires);
-	if (kind !== 't' && kind !== 'd' && kind !== 'r' && kind !== 'k') return null;
+	if (kind !== 't' && kind !== 'd' && kind !== 'r' && kind !== 'k' && kind !== 'l') return null;
 	if (!Number.isSafeInteger(issuedAt) || !Number.isSafeInteger(expiresAt)) return null;
 
 	const pass: Pass = { kind, issuedAt, expiresAt };

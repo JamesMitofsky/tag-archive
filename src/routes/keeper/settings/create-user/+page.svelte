@@ -8,6 +8,7 @@
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { createNewUserSuite, parseCreateUserForm } from '$lib/validation/auth';
 	import { createValidator } from '$lib/validation/client.svelte';
+	import { ROLE_META, roleLabel } from '$lib/roles';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -29,12 +30,6 @@
 		if (target?.name) validator.touch(target.name);
 		revalidate();
 	}
-
-	// Human-friendly labels + one-line descriptions for each assignable role.
-	const roleMeta: Record<string, { label: string; blurb: string }> = {
-		contributor: { label: 'Contributor', blurb: 'Submits entries as proposed additions.' },
-		admin: { label: 'Admin', blurb: 'Full access: edit, vet, and manage accounts.' }
-	};
 
 	const fieldClass =
 		'mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none';
@@ -65,9 +60,7 @@
 					<p class="mt-2 text-sm text-green-800">
 						<span class="font-medium">{form.created.name}</span> ({form.created.email}) can now sign
 						in with an email code as
-						<span class="font-medium"
-							>{roleMeta[form.created.role]?.label ?? form.created.role}</span
-						>.
+						<span class="font-medium">{roleLabel(form.created.role)}</span>.
 					</p>
 				</div>
 				<div class="mt-6 flex gap-3">
@@ -155,9 +148,9 @@
 									/>
 									<span class="min-w-0">
 										<span class="block text-sm font-medium text-gray-900"
-											>{roleMeta[role]?.label ?? role}</span
+											>{ROLE_META[role].label}</span
 										>
-										<span class="block text-sm text-gray-600">{roleMeta[role]?.blurb ?? ''}</span>
+										<span class="block text-sm text-gray-600">{ROLE_META[role].blurb}</span>
 									</span>
 								</label>
 							{/each}
