@@ -31,7 +31,6 @@
 	// parent can block submit until every image is finalized.
 	let {
 		onChange,
-		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		pending = $bindable(false),
 		initial = [],
 		label,

@@ -65,9 +65,9 @@
 					<p class="mt-2 text-sm text-green-800">
 						<span class="font-medium">{form.created.name}</span> ({form.created.email}) can now sign
 						in with an email code as
-						<span class="font-medium"
-							>{roleMeta[form.created.role]?.label ?? form.created.role}</span
-						>.
+						<span class="font-medium">
+							{roleMeta[form.created.role]?.label ?? form.created.role}
+						</span>.
 					</p>
 				</div>
 				<div class="mt-6 flex gap-3">
@@ -154,9 +154,9 @@
 										class="mt-0.5 accent-[#14120f]"
 									/>
 									<span class="min-w-0">
-										<span class="block text-sm font-medium text-gray-900"
-											>{roleMeta[role]?.label ?? role}</span
-										>
+										<span class="block text-sm font-medium text-gray-900">
+											{roleMeta[role]?.label ?? role}
+										</span>
 										<span class="block text-sm text-gray-600">{roleMeta[role]?.blurb ?? ''}</span>
 									</span>
 								</label>

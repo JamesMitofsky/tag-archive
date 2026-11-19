@@ -30,9 +30,7 @@
 	// a set saved past either would quietly leave those photographs out.
 	let {
 		onChange,
-		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		pending = $bindable(false),
-		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		failed = $bindable(0),
 		initial = [],
 		label,
@@ -551,9 +549,9 @@
 								>
 									<WarningIcon size={12} class="shrink-0" />
 									<!-- The locked message is said once, above. -->
-									<span class="truncate"
-										>{tile.locked ? 'Not uploaded' : tile.error || 'Failed'}</span
-									>
+									<span class="truncate">
+										{tile.locked ? 'Not uploaded' : tile.error || 'Failed'}
+									</span>
 								</div>
 							{/if}
 

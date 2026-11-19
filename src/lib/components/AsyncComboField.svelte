@@ -224,9 +224,9 @@
 									{#if item}
 										<span class="truncate">{item.name}</span>
 										{#if item.date}
-											<span class="ms-auto shrink-0 text-xs text-muted-foreground"
-												>{formatDateShort(item.date)}</span
-											>
+											<span class="ms-auto shrink-0 text-xs text-muted-foreground">
+												{formatDateShort(item.date)}
+											</span>
 										{/if}
 									{:else}
 										<span class="h-3 w-32 animate-pulse rounded bg-muted"></span>

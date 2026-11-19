@@ -15,7 +15,6 @@
 		onChange,
 		onConfirm,
 		focusHandle = false,
-		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		failed = $bindable(false)
 	}: {
 		/** The un-cropped original, in its own pixel space. */
