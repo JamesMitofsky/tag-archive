@@ -2,6 +2,7 @@ import { and, desc, eq, exists, getTableColumns, inArray, like, or, sql } from '
 import { client, db } from './index';
 import { purgeArchiveCache } from '../cache';
 import { deleteUnreferencedImages } from '../uploads';
+import { featureImagesWhere, publicFeatureImage } from '../eventFeatures';
 import { stampInsert, stampUpdate } from './audit';
 import {
 	artefact,
@@ -211,12 +212,15 @@ export type PublicDataset = {
  *    an artefact's, and each photograph as a whitelist of fields (see
  *    `PublicImage`). An image row also holds the original's URL, its parsed
  *    metadata and its exact capture time, any of which can carry GPS or
- *    device details — so its columns are picked one by one, never spread.
+ *    device details — so its columns are picked one by one, never spread;
+ *  - an event's feature image: only while the photograph's set, or the
+ *    artefact the page belongs to, is itself vetted, and only as the URL and
+ *    size that render it — the photograph's display copy, never its original.
  */
 export async function loadPublicDataset(): Promise<PublicDataset> {
 	const vettedEvent = and(eq(artefact.eventId, event.id), eq(event.proposedAddition, false));
 	const vettedSetEvent = and(eq(imageSet.eventId, event.id), eq(event.proposedAddition, false));
-	const [artefactRows, eventRows, personRows, setRows, imageRows] = await Promise.all([
+	const [artefactRows, eventRows, personRows, setRows, imageRows, features] = await Promise.all([
 		db
 			.select({ ...getTableColumns(artefact), event: event.title })
 			.from(artefact)
@@ -275,7 +279,9 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 			.from(image)
 			.innerJoin(imageSet, eq(image.setId, imageSet.id))
 			.where(eq(imageSet.proposedAddition, false))
-			.orderBy(image.setId, image.position, image.id)
+			.orderBy(image.setId, image.position, image.id),
+		// Vetted events' feature images, each only while its own source is vetted.
+		featureImagesWhere(eq(event.proposedAddition, false), { vettedOnly: true })
 	]);
 
 	const [artefacts, eventsWithHosts] = await Promise.all([
@@ -290,7 +296,9 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 		location: e.location,
 		description: e.description,
 		hosts: e.hosts,
-		url: e.url
+		url: e.url,
+		// Rendering fields only: which row it came from stays with the keepers.
+		featureImage: features.has(e.id) ? publicFeatureImage(features.get(e.id)!) : null
 	}));
 
 	const imagesBySet = new Map<number, PublicImage[]>();
