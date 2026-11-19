@@ -41,6 +41,7 @@
 	import { reducedMotion } from '#lib/transitions.svelte.ts';
 	import { claimOpening } from '#lib/access/opening.svelte.ts';
 	import { shuffled } from '#lib/utils.ts';
+	import Drawing from '#lib/components/Drawing.svelte';
 
 	/** Makes every card a packet (see the header comment). */
 	interface Packet {
@@ -263,6 +264,7 @@
 		selected = null; // a new query resets any open page
 		morphId = null; // ...and a slot in the previous result set is nowhere to return to
 		spill = null; // ...and the packet put away last may not even be among the matches
+		rejoining = false; // ...and the cards about to arrive are a new cloud's
 		zOrder = {};
 		zTop = 0;
 		if (!trimmed) {
@@ -468,7 +470,7 @@
 		const home = spill.id;
 		return placed.map((p) =>
 			p.item.kind === 'top' && p.item.id === home
-				? { ...p, enterStyle: `--ex:0px;--ey:0px;--edelay:${PACKET_RETURN_DELAY}s` }
+				? { ...p, arrivalStyle: `--ex:0px;--ey:0px;--edelay:${PACKET_RETURN_DELAY}s` }
 				: p
 		);
 	});
@@ -481,6 +483,25 @@
 	/** An opened card's height over width (see `Packet.openRatio`); unset is A4. */
 	function openRatio(e: Entry): number | undefined {
 		return e.kind === 'inner' ? packet?.openRatio?.(e.value) : undefined;
+	}
+
+	/**
+	 * A page has been opened since this cloud appeared, so its other cards have
+	 * scattered off-screen at least once. Any card mounting from then on is coming
+	 * BACK from that edge, and must not replay the cloud's first arrival (a
+	 * packet's spill, say), which would bring it in from somewhere the reader
+	 * never saw it go. Cleared whenever a new cloud appears: a search, or a move
+	 * between levels.
+	 */
+	let rejoining = false;
+
+	/**
+	 * How a card flies in, decided once, when it mounts (read untracked in the
+	 * markup). Fixing it there means flipping `rejoining` can never retarget a
+	 * card already in flight, only the next one to arrive.
+	 */
+	function entranceStyle(p: Placed<Entry>): string {
+		return (!rejoining && p.arrivalStyle) || p.enterStyle;
 	}
 
 	/**
@@ -523,6 +544,7 @@
 			selected = null;
 			morphId = null;
 			exiting = false;
+			rejoining = false;
 			zOrder = {};
 			zTop = 0;
 			reveal();
@@ -701,6 +723,7 @@
 		const cell = (ev.currentTarget as HTMLElement).closest<HTMLElement>('[data-cell]');
 		originBox = cell ? slotBox(cell) : null;
 		originScrollY = window.scrollY;
+		rejoining = true;
 		// Set BEFORE `selected`: the grid card is about to be torn down, and its
 		// fly-out reads this to know it should bow out instantly and let the morph
 		// carry it instead.
@@ -912,21 +935,21 @@
 							/>
 						</svg>
 					{:else}
-						<svg
-							class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 text-gray-700 opacity-55"
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke-width="1.5"
-							stroke="currentColor"
+						<!-- The hand-drawn magnifier, in the nav icons' pencil. The wrapper
+						     holds the dimming because `Drawing` owns its image's opacity
+						     for the load fade; 0.8 matches the handwriting mark beside it. -->
+						<span
+							class="pointer-events-none absolute top-1/2 left-4 z-10 flex size-6 -translate-y-1/2 opacity-80"
 							aria-hidden="true"
 						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="m21 21-4.3-4.3m1.8-4.7a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
+							<Drawing
+								src="/drawing/icons/search.webp"
+								alt=""
+								width="142"
+								height="144"
+								class="size-full object-contain"
 							/>
-						</svg>
+						</span>
 					{/if}
 					<input
 						type="search"
@@ -969,12 +992,13 @@
 				easing: cubicIn
 			}}
 		>
-			<!-- entrance: CSS keyframe flies the card in from off-screen, once.
+			<!-- entrance: CSS keyframe flies the card in, once, from wherever
+			     `entranceStyle` says it is arriving from (off-screen as a rule).
 			     Dropped while this card is the open one: the class carries both an
 			     animation and `will-change: transform`, and either makes this div the
 			     containing block for fixed descendants — which would anchor the
 			     opened page to this wrapper instead of the viewport. -->
-			<div class:enter={!isSel && flyIn} style={p.enterStyle}>
+			<div class:enter={!isSel && flyIn} style={untrack(() => entranceStyle(p))}>
 				{@render pageBody(p, isSel)}
 			</div>
 		</div>

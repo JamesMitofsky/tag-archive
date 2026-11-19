@@ -21,6 +21,7 @@ import {
 	artefact,
 	artefactProvenance,
 	event,
+	eventFeatureImage,
 	eventHost,
 	image,
 	imageSet,
@@ -195,7 +196,9 @@ export async function seedArchive<S extends Record<string, unknown>>(
 
 	// Clean slate. Children before parents: the join tables reference their two
 	// sides; artefact + event reference their parents (event → series, joins → person);
-	// image sets reference events, and their images and contact rows reference them.
+	// image sets reference events, and their images and contact rows reference them;
+	// a feature image references an event and a photograph or artefact.
+	await db.delete(eventFeatureImage);
 	await db.delete(image);
 	await db.delete(imageSetContact);
 	await db.delete(imageSet);

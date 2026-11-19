@@ -211,19 +211,19 @@ describe('spillFrom', () => {
 		for (const c of spilled) {
 			expect(c.dx + (c.homeX ?? NaN)).toBeCloseTo(origin.x, 6);
 			expect(c.dy + (c.homeY ?? NaN)).toBeCloseTo(origin.y, 6);
-			expect(c.enterStyle).toContain(`--ex:${(origin.x - c.dx).toFixed(0)}px`);
-			expect(c.enterStyle).toContain(`--ey:${(origin.y - c.dy).toFixed(0)}px`);
+			expect(c.arrivalStyle).toContain(`--ex:${(origin.x - c.dx).toFixed(0)}px`);
+			expect(c.arrivalStyle).toContain(`--ey:${(origin.y - c.dy).toFixed(0)}px`);
 		}
 	});
 
-	it('keeps where each card rests, and where it scatters to', () => {
-		expect(spilled.map((c) => [c.dx, c.dy, c.offX, c.offY, c.style])).toEqual(
-			placed.map((c) => [c.dx, c.dy, c.offX, c.offY, c.style])
+	it('keeps where each card rests, and where it scatters to and returns from', () => {
+		expect(spilled.map((c) => [c.dx, c.dy, c.offX, c.offY, c.enterStyle, c.style])).toEqual(
+			placed.map((c) => [c.dx, c.dy, c.offX, c.offY, c.enterStyle, c.style])
 		);
 	});
 
 	it('lets the cards out one after another, in order', () => {
-		const delays = spilled.map((c) => Number(/--edelay:([\d.]+)s/.exec(c.enterStyle)?.[1]));
+		const delays = spilled.map((c) => Number(/--edelay:([\d.]+)s/.exec(c.arrivalStyle ?? '')?.[1]));
 		for (let i = 1; i < delays.length; i++) expect(delays[i]).toBeGreaterThan(delays[i - 1]);
 	});
 });

@@ -108,6 +108,25 @@ Image rows are written when an upload is _finalized_, before any set exists, so
 still filling in, until it attaches them on save. Ones left unattached for a day
 are swept with their objects.
 
+**Feature images.** An event can feature one image the archive already holds,
+a photograph or one page of an artefact, chosen on the form that adds the event
+or, by an admin, on its edit page. `event_feature_image` holds the choice, one row per event (no row, no
+feature image):
+
+| Column              | Notes                                                                 |
+| ------------------- | --------------------------------------------------------------------- |
+| `event_id`          | Integer PK, the event (deleted with it)                               |
+| `image_id`          | The photograph (`image`); deleted with it, and so with its set        |
+| `artefact_id`       | Or the artefact (`artefact`); deleted with it                         |
+| `artefact_file_url` | The featured page: one of that artefact's `file_urls`, exactly stored |
+
+A CHECK keeps each row to exactly one source. A page dropped from the artefact,
+or a photograph let go of by its set, leaves the row behind, so readers resolve
+it against its source every time and show nothing when it no longer resolves
+(`src/lib/server/eventFeatures.ts`). The public dataset publishes an event's
+feature image only while its source is vetted too, and only as the URL and size
+that render it.
+
 Seed data lives in `src/lib/data/seed-data.json` (parsed from the original
 exports): artefacts, events, series and people. Editing the archive's seed =
 edit that file and re-seed.

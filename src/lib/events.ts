@@ -1,3 +1,5 @@
+import type { FeatureImage } from '#lib/featureImage.ts';
+
 /**
  * A U Street community event, normalised from the static source export
  * (src/lib/data/seed-data.json). Loaded + searched server-side only
@@ -14,4 +16,10 @@ export interface EventItem {
 	// Event hosts/organisers (mirrors artefact provenance on the archive page).
 	hosts: string[];
 	url: string | null;
+	/**
+	 * The photograph or artefact page the event features (see
+	 * #lib/server/eventFeatures), null when it has none. Optional because a
+	 * blob cached before feature images existed arrives without it.
+	 */
+	featureImage?: FeatureImage | null;
 }

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "51cb46f6-3703-415d-9c8d-f2f039f20433",
+  "id": "dfbe5793-7524-4c55-b428-807351bba21a",
   "prevId": "4554d495-7c2e-43d0-ab19-a32190a5768e",
   "tables": {
     "artefact": {
@@ -479,6 +479,160 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "event_feature_image": {
+      "name": "event_feature_image",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "image_id": {
+          "name": "image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "artefact_id": {
+          "name": "artefact_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "artefact_file_url": {
+          "name": "artefact_file_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "event_feature_image_image_id_idx": {
+          "name": "event_feature_image_image_id_idx",
+          "columns": [
+            "image_id"
+          ],
+          "isUnique": false
+        },
+        "event_feature_image_artefact_id_idx": {
+          "name": "event_feature_image_artefact_id_idx",
+          "columns": [
+            "artefact_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "event_feature_image_event_id_event_id_fk": {
+          "name": "event_feature_image_event_id_event_id_fk",
+          "tableFrom": "event_feature_image",
+          "tableTo": "event",
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "event_feature_image_image_id_image_id_fk": {
+          "name": "event_feature_image_image_id_image_id_fk",
+          "tableFrom": "event_feature_image",
+          "tableTo": "image",
+          "columnsFrom": [
+            "image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "event_feature_image_artefact_id_artefact_id_fk": {
+          "name": "event_feature_image_artefact_id_artefact_id_fk",
+          "tableFrom": "event_feature_image",
+          "tableTo": "artefact",
+          "columnsFrom": [
+            "artefact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "event_feature_image_created_by_user_id_fk": {
+          "name": "event_feature_image_created_by_user_id_fk",
+          "tableFrom": "event_feature_image",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "event_feature_image_updated_by_user_id_fk": {
+          "name": "event_feature_image_updated_by_user_id_fk",
+          "tableFrom": "event_feature_image",
+          "tableTo": "user",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "event_feature_image_source_check": {
+          "name": "event_feature_image_source_check",
+          "value": "(\"event_feature_image\".\"image_id\" IS NOT NULL AND \"event_feature_image\".\"artefact_id\" IS NULL AND \"event_feature_image\".\"artefact_file_url\" IS NULL) OR (\"event_feature_image\".\"image_id\" IS NULL AND \"event_feature_image\".\"artefact_id\" IS NOT NULL AND \"event_feature_image\".\"artefact_file_url\" IS NOT NULL)"
+        }
+      }
+    },
     "event_host": {
       "name": "event_host",
       "columns": {
@@ -681,13 +835,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "placeholder": {
-          "name": "placeholder",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "captured_at": {
