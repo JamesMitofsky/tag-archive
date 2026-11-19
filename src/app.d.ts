@@ -29,6 +29,11 @@ declare global {
 			immersive?: string;
 			/** Which of those entries this is, from 0. */
 			immersiveStep?: number;
+			/**
+			 * On /images: the image set opened on this entry, or null on one where a
+			 * set opened from a link was put away (see that page).
+			 */
+			imageSet?: number | null;
 		}
 		// interface Platform {}
 	}

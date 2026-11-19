@@ -8,6 +8,12 @@
 	The placement maths lives in `$lib/cloudLayout` — pure and unit-tested,
 	because it is the part that must not silently regress on desktop.
 
+	Cards can also be PACKETS (`packet`): opening one doesn't grow it into a page
+	but spills what it holds across the sky as a cloud of its own, in the
+	searchbar's place a plate naming it, and each of those cards then opens as a
+	page in turn. Putting the packet away gathers its cards back into it and
+	brings the first cloud back exactly as it was, search and all.
+
 	Layout in one paragraph: the searchbar sits in the middle of the viewport
 	when there is room for a row of cards both above and below it, and is pushed
 	to the top when there isn't (a phone). The cloud then fills whichever region
@@ -15,8 +21,8 @@
 	comparing measured space against the measured card, so it holds for any
 	orientation and any text size.
 -->
-<script lang="ts" generics="T extends { id: number }">
-	import { onMount, untrack, type Snippet } from 'svelte';
+<script lang="ts" generics="T extends { id: number }, C extends { id: number }">
+	import { onMount, tick, untrack, type Snippet } from 'svelte';
 	import { createWindowVirtualizer } from '@tanstack/svelte-virtual';
 	import { get } from 'svelte/store';
 	import { fade, fly } from 'svelte/transition';
@@ -25,6 +31,7 @@
 		A4,
 		measureCloud,
 		placeCloud,
+		spillFrom,
 		type FieldInput,
 		type Placed,
 		type Rect
@@ -33,6 +40,31 @@
 	import { reducedMotion } from '$lib/transitions.svelte';
 	import { claimOpening } from '$lib/access/opening.svelte';
 	import { shuffled } from '$lib/utils';
+
+	/** Makes every card a packet (see the header comment). */
+	interface Packet {
+		/**
+		 * The open packet's id, or null for none. Controlled, so the caller can keep
+		 * it in history: back then puts the packet away, and a link can open one.
+		 * An id that matches nothing in the dataset counts as none.
+		 */
+		open: number | null;
+		/** Asks to open a packet (its id) or to put the open one away (null). */
+		onchange: (id: number | null) => void;
+		/** What a packet holds, in display order. All of it is shown: no cap. */
+		contents: (item: T) => C[];
+		/** One of those, closed or open: the `card` of the packet's own cloud. */
+		card: Snippet<[C, boolean]>;
+		/** Names the open packet, on the plate that stands in for the searchbar. */
+		heading: Snippet<[T]>;
+		/**
+		 * Height over width of an opened content card, when it should open to a
+		 * shape of its own (a photograph) rather than to a sheet of A4.
+		 */
+		openRatio?: (item: C) => number;
+		/** The accessible name of the plate's button that puts the packet away. */
+		closeLabel?: string;
+	}
 
 	interface Props {
 		// Fetches the full list once (the cached dataset blob); searched in-memory after.
@@ -48,9 +80,35 @@
 		placeholderMark?: Snippet;
 		ariaLabel?: string;
 		placeholder?: string;
+		packet?: Packet;
 	}
 
-	let { load, filter, card, placeholderMark, ariaLabel = 'Search', placeholder }: Props = $props();
+	let {
+		load,
+		filter,
+		card,
+		placeholderMark,
+		ariaLabel = 'Search',
+		placeholder,
+		packet
+	}: Props = $props();
+
+	/**
+	 * A card in whichever cloud is showing: one of the searched items, or one of
+	 * an open packet's contents. The two come from different tables, so their ids
+	 * can collide; `key` can't, and is what every keyed block uses, so a packet
+	 * and a photograph that share an id are never taken for the same card.
+	 */
+	type Entry = { id: number; key: string } & (
+		{ kind: 'top'; value: T } | { kind: 'inner'; value: C }
+	);
+	const topEntry = (value: T): Entry => ({ id: value.id, key: `t${value.id}`, kind: 'top', value });
+	const innerEntry = (value: C): Entry => ({
+		id: value.id,
+		key: `i${value.id}`,
+		kind: 'inner',
+		value
+	});
 
 	// The whole dataset, fetched once; searches run against it in memory. `loading`
 	// is that one initial fetch — not a per-search state (local filtering is instant).
@@ -72,8 +130,10 @@
 	// Click a floating page to open it: it glides to dead-center and grows to fill
 	// the viewport while every other page flies out. Holds the open item's id.
 	let selected = $state<number | null>(null);
-	let inputEl: HTMLInputElement | null = null;
+	let inputEl = $state<HTMLInputElement | null>(null);
 	let barEl = $state<HTMLElement | null>(null);
+	/** The open packet's close button, which takes focus when the packet opens. */
+	let closeEl = $state<HTMLButtonElement | null>(null);
 
 	// Persistent hover stacking: hovering a page grabs the next z-index and KEEPS
 	// it, so a card the user pulled forward stays forward until a new search resets
@@ -87,20 +147,26 @@
 		zOrder = { ...zOrder, [id]: ++zTop };
 	}
 
-	// Escape closes the open page. When nothing is open and the bar is empty, any
-	// printable keystroke should land in the search input — focus it mid-keydown so
-	// the char routes there.
+	// Escape closes the open page, and then the open packet. When nothing is open
+	// and the bar is empty, any printable keystroke should land in the search
+	// input — focus it mid-keydown so the char routes there.
 	function handleWindowKey(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
 			// A focused `<input type="search">` clears itself on Escape. When a page is
 			// open, Escape means "close it" — swallow the key so the query survives.
 			// With nothing open, let the native clear happen as usual.
-			if (selected === null) return;
-			e.preventDefault();
-			closeCard();
+			if (selected !== null) {
+				e.preventDefault();
+				closeCard();
+			} else if (openPacket && !e.repeat) {
+				// One level per press: a held key mustn't close the page and then the
+				// packet under it.
+				e.preventDefault();
+				packet?.onchange(null);
+			}
 			return;
 		}
-		if (selected !== null || query !== '') return;
+		if (selected !== null || openPacket || query !== '') return;
 		if (e.ctrlKey || e.metaKey || e.altKey) return;
 		if (e.key.length !== 1) return; // ignore Shift/Tab/arrows/etc.
 		if (document.activeElement === inputEl) return;
@@ -156,6 +222,7 @@
 		const trimmed = q.trim();
 		selected = null; // a new query resets any open page
 		morphId = null; // ...and a slot in the previous result set is nowhere to return to
+		spill = null; // ...and the packet put away last may not even be among the matches
 		zOrder = {};
 		zTop = 0;
 		if (!trimmed) {
@@ -323,21 +390,123 @@
 
 	// -------------------------------------------------------------------- layout
 
-	let layout = $derived(measureCloud(field));
+	/** The open packet, looked up in the whole dataset rather than the matches,
+	 *  so a link to one opens it whatever the search box holds. */
+	let openPacket = $derived.by(() => {
+		const id = packet?.open ?? null;
+		return id === null ? null : (allItems.find((item) => item.id === id) ?? null);
+	});
+
+	/**
+	 * Where the open packet stood in the cloud when it was opened, so its contents
+	 * spill out of that spot and gather back into it (see `spillFrom`). Null when
+	 * there is no such spot: a packet opened from a link, or from the stacked grid,
+	 * where CSS rather than these offsets decides where a card is.
+	 */
+	let spill = $state<{ id: number; x: number; y: number } | null>(null);
+
 	/**
 	 * What the layout is actually showing. With no query both layouts browse
 	 * `browseOrder` — the archive, shuffled. The grid gets all of it (it scrolls,
 	 * so there is somewhere to put it); the cloud takes the `cap` prefix below, so
 	 * the sky opens on a random handful of pages that invites a click, and a
-	 * reload deals a different handful.
+	 * reload deals a different handful. An open packet shows everything it holds,
+	 * in its own order.
 	 */
-	let visible = $derived(held ? [] : searched ? results : browseOrder);
-	let floating = $derived(placeCloud(visible.slice(0, layout.cap), field, layout));
+	let visible = $derived.by((): Entry[] => {
+		if (held) return [];
+		if (openPacket && packet) return packet.contents(openPacket).map(innerEntry);
+		return (searched ? results : browseOrder).map(topEntry);
+	});
+	let layout = $derived(measureCloud(field, openPacket ? visible.length : undefined));
+	let floating = $derived.by(() => {
+		const placed = placeCloud(visible.slice(0, layout.cap), field, layout);
+		if (layout.mode !== 'surround' || !spill) return placed;
+		if (openPacket) return openPacket.id === spill.id ? spillFrom(placed, spill) : placed;
+		// Just put away: the packet fades back in where it stood while its contents
+		// gather into it, rather than flying in from off-screen with everything else.
+		const home = spill.id;
+		return placed.map((p) =>
+			p.item.kind === 'top' && p.item.id === home
+				? { ...p, enterStyle: `--ex:0px;--ey:0px;--edelay:${PACKET_RETURN_DELAY}s` }
+				: p
+		);
+	});
 	// Open a page and the rest scatter: only the selected card stays mounted, so
 	// every other one plays its off-screen fly-out.
 	let shown = $derived(
 		selected === null ? floating : floating.filter((p) => p.item.id === selected)
 	);
+
+	/** An opened card's height over width (see `Packet.openRatio`); unset is A4. */
+	function openRatio(e: Entry): number | undefined {
+		return e.kind === 'inner' ? packet?.openRatio?.(e.value) : undefined;
+	}
+
+	/**
+	 * How long a packet put away waits before fading back in: about as long as
+	 * its contents take to gather into its spot, so it reappears as they arrive.
+	 */
+	const PACKET_RETURN_DELAY = 0.3;
+
+	/**
+	 * Where a dismissed card flies to. Off-screen (`offX`/`offY`) as a rule; but a
+	 * packet being opened fades where it stands, since its contents are about to
+	 * pour out of that very spot, and a packet's contents being put away gather
+	 * back into it (`homeX`/`homeY`). Read when the card's exit STARTS, so the
+	 * packet state it consults is already the new one.
+	 */
+	function exitTo(p: Placed<Entry>): { x: number; y: number } {
+		if (p.item.kind === 'top' && openPacket?.id === p.item.id) return { x: 0, y: 0 };
+		if (p.item.kind === 'inner' && !openPacket && p.homeX !== undefined) {
+			return { x: p.homeX, y: p.homeY ?? 0 };
+		}
+		return { x: p.offX, y: p.offY };
+	}
+
+	// Moving between the two clouds. `.pre`, so it runs before the DOM changes:
+	// the scroll it saves must be the grid's, not one the browser has clamped to a
+	// shorter list.
+	let level: number | null = null;
+	let topScroll = 0;
+	/** A packet has been open, so the searchbar has had its first-paint fade. */
+	let leftPacket = $state(false);
+	$effect.pre(() => {
+		const now = openPacket?.id ?? null;
+		untrack(() => {
+			if (now === level) return;
+			const from = level;
+			if (from === null) topScroll = window.scrollY;
+			else leftPacket = true;
+			level = now;
+			// Whatever was open, or on its way home, belonged to the other cloud.
+			selected = null;
+			morphId = null;
+			exiting = false;
+			zOrder = {};
+			zTop = 0;
+			reveal();
+			void tick().then(() => settleLevel(now, from));
+		});
+	});
+
+	/**
+	 * After the swap: put the stacked grid's scroll back where this cloud had it,
+	 * the top for a packet just opened and wherever the reader was for the cloud
+	 * they left, and hand focus to what replaced the control that had it.
+	 */
+	function settleLevel(now: number | null, from: number | null) {
+		// A frame later, once the grid has its new height and can be scrolled
+		// that far.
+		requestAnimationFrame(() => {
+			if (layout.mode === 'grid') window.scrollTo(0, now === null ? topScroll : 0);
+			const target =
+				now === null
+					? document.querySelector<HTMLElement>(`[data-key="t${from}"] button`)
+					: closeEl;
+			target?.focus({ preventScroll: true });
+		});
+	}
 
 	$effect(() => {
 		const q = query;
@@ -353,7 +522,7 @@
 
 	/** Cards chunked into rows — the grid virtualises by ROW, not by card. */
 	let rows = $derived.by(() => {
-		const out: Placed<T>[][] = [];
+		const out: Placed<Entry>[][] = [];
 		for (let i = 0; i < floating.length; i += layout.cols) {
 			out.push(floating.slice(i, i + layout.cols));
 		}
@@ -374,7 +543,7 @@
 	 * re-reads its props the whole time — reading `.offX` off null threw, which
 	 * aborted the outro and left the card stranded on screen, impossible to close.
 	 */
-	let lastOpenCard = $state<Placed<T> | null>(null);
+	let lastOpenCard = $state<Placed<Entry> | null>(null);
 	$effect(() => {
 		if (openCard) lastOpenCard = openCard;
 	});
@@ -480,8 +649,15 @@
 	}
 
 	/** Open a page, recording the slot it grew out of (the stacked layout only —
-	 *  the surround layout has no slots, and glides the card in place instead). */
-	function openPage(id: number, ev: Event) {
+	 *  the surround layout has no slots, and glides the card in place instead).
+	 *  A packet doesn't open as a page: it asks to be opened as a cloud. */
+	function openPage(p: Placed<Entry>, ev: Event) {
+		const id = p.item.id;
+		if (packet && p.item.kind === 'top') {
+			spill = layout.mode === 'surround' ? { id, x: p.dx, y: p.dy } : null;
+			packet.onchange(id);
+			return;
+		}
 		const cell = (ev.currentTarget as HTMLElement).closest<HTMLElement>('[data-cell]');
 		originBox = cell ? slotBox(cell) : null;
 		originScrollY = window.scrollY;
@@ -623,86 +799,127 @@
 		     costs the most where there is least to go round — capped at the 24rem it
 		     takes on a wide screen. -->
 		<div bind:this={barEl} class="pointer-events-auto relative w-full md:max-w-[min(24rem,34vw)]">
-			<!-- Fades in on load. Applied to the wrapper, not the input, so the field and
-			     its icon come up as a single composited layer (and so it doesn't collide
-			     with the searchbar's own opacity transition on the parent). -->
-			<div class="load-fade relative">
-				{#if loading && query.trim().length > 0}
-					<svg
-						class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 animate-spin text-gray-700"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						aria-hidden="true"
+			{#if openPacket && packet}
+				<!-- The open packet's plate, in the searchbar's place and glass: the
+				     arrow stands where the magnifier did, so the field reads as having
+				     turned into the packet rather than as a new panel arriving. The
+				     cloud is laid out around this box exactly as it was around the bar. -->
+				<div
+					in:fade={{ duration: reducedMotion() ? 0 : 250 }}
+					class="relative rounded-lg border border-white/40 bg-white/25 py-3 pr-4 pl-12 text-gray-800 shadow-sm backdrop-blur-md"
+				>
+					<button
+						type="button"
+						bind:this={closeEl}
+						onclick={() => packet.onchange(null)}
+						aria-label={packet.closeLabel ?? 'Back'}
+						class="absolute top-2 left-2 flex size-8 cursor-pointer touch-manipulation items-center justify-center rounded-md text-gray-700 transition-colors hover:bg-white/30 focus-visible:ring-1 focus-visible:ring-white/70 focus-visible:outline-none"
 					>
-						<circle
-							class="opacity-25"
-							cx="12"
-							cy="12"
-							r="9"
+						<svg
+							class="size-5"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke-width="1.5"
 							stroke="currentColor"
-							stroke-width="2"
-						/>
-						<path
-							class="opacity-75"
-							fill="currentColor"
-							d="M12 3a9 9 0 0 1 9 9h-2a7 7 0 0 0-7-7V3Z"
-						/>
-					</svg>
-				{:else}
-					<svg
-						class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 text-gray-700 opacity-55"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="1.5"
-						stroke="currentColor"
-						aria-hidden="true"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="m21 21-4.3-4.3m1.8-4.7a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
-						/>
-					</svg>
-				{/if}
-				<input
-					type="search"
-					bind:this={inputEl}
-					bind:value={query}
-					aria-label={ariaLabel}
-					{placeholder}
-					class="w-full rounded-lg border border-white/40 bg-white/25 py-3 pr-4 pl-12 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:ring-1 focus:ring-white/50 focus:outline-none"
-				/>
-				<!-- Route mark, standing in for placeholder text: same slot as the
+							aria-hidden="true"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+							/>
+						</svg>
+					</button>
+					{@render packet.heading(openPacket)}
+				</div>
+			{:else}
+				<!-- Fades in on load. Applied to the wrapper, not the input, so the field and
+			     its icon come up as a single composited layer (and so it doesn't collide
+			     with the searchbar's own opacity transition on the parent). Coming back
+			     from a packet it is the plate's quicker fade instead: the slow first-paint
+			     one would leave a hole where the field was for a second or two. -->
+				<div
+					class="relative"
+					class:load-fade={!leftPacket}
+					in:fade={{ duration: reducedMotion() ? 0 : 250 }}
+				>
+					{#if loading && query.trim().length > 0}
+						<svg
+							class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 animate-spin text-gray-700"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							aria-hidden="true"
+						>
+							<circle
+								class="opacity-25"
+								cx="12"
+								cy="12"
+								r="9"
+								stroke="currentColor"
+								stroke-width="2"
+							/>
+							<path
+								class="opacity-75"
+								fill="currentColor"
+								d="M12 3a9 9 0 0 1 9 9h-2a7 7 0 0 0-7-7V3Z"
+							/>
+						</svg>
+					{:else}
+						<svg
+							class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 text-gray-700 opacity-55"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke-width="1.5"
+							stroke="currentColor"
+							aria-hidden="true"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="m21 21-4.3-4.3m1.8-4.7a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
+							/>
+						</svg>
+					{/if}
+					<input
+						type="search"
+						bind:this={inputEl}
+						bind:value={query}
+						aria-label={ariaLabel}
+						{placeholder}
+						class="w-full rounded-lg border border-white/40 bg-white/25 py-3 pr-4 pl-12 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:ring-1 focus:ring-white/50 focus:outline-none"
+					/>
+					<!-- Route mark, standing in for placeholder text: same slot as the
 				     placeholder (after the icon, vertically centred) and it fades out
 				     the moment there is a query. Decorative, and never clickable — a
 				     tap here must reach the input underneath. -->
-				{#if placeholderMark}
-					<div
-						class="mark pointer-events-none absolute inset-y-0 left-12 flex items-center"
-						class:typed={query !== ''}
-						aria-hidden="true"
-					>
-						{@render placeholderMark()}
-					</div>
-				{/if}
-			</div>
+					{#if placeholderMark}
+						<div
+							class="mark pointer-events-none absolute inset-y-0 left-12 flex items-center"
+							class:typed={query !== ''}
+							aria-hidden="true"
+						>
+							{@render placeholderMark()}
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	</div>
 
 	<!-- One card, in either layout: the fly-out wrapper, the fly-in wrapper, and
 	     the drifting page itself. Only the POSITIONING differs between modes, so
 	     everything from here inwards is shared. -->
-	{#snippet page(p: Placed<T>, isSel: boolean, flyIn: boolean = true)}
+	{#snippet page(p: Placed<Entry>, isSel: boolean, flyIn: boolean = true)}
 		<!-- exit: |global so cards fly out even when the whole block unmounts
 		     (e.g. the search is cleared), not just on per-item removal. A card on
 		     the morph layer is the exception: it is already being drawn elsewhere,
 		     so scattering this copy too would show the same card in two places. -->
 		<div
 			out:fly|global={{
-				x: p.offX,
-				y: p.offY,
+				...exitTo(p),
 				duration: reducedMotion() || p.item.id === morphId ? 0 : 450,
 				easing: cubicIn
 			}}
@@ -721,7 +938,7 @@
 	<!-- The card itself, without the entrance/exit scaffolding around it. Split out
 	     because the morph layer renders this directly: the opened page travels
 	     under its own transform rather than being flown anywhere. -->
-	{#snippet pageBody(p: Placed<T>, isSel: boolean, boxed: boolean = false)}
+	{#snippet pageBody(p: Placed<Entry>, isSel: boolean, boxed: boolean = false)}
 		<!-- drift while idle; the open page stops drifting and grows instead.
 		     `boxed` means the card is travelling: its parent owns the size, and this
 		     just fills it. -->
@@ -733,23 +950,34 @@
 			class:selected={isSel && !boxed}
 			class:paused={selected !== null && !isSel}
 			style={p.style}
+			style:--open-ratio={openRatio(p.item)}
+			data-key={p.item.key}
 		>
 			{#if isSel}
 				<!-- Open page: plain container so text is selectable and a
 				     second click inside does nothing (no re-close). -->
 				<div class="block h-full w-full text-left select-text">
-					{@render card(p.item, isSel)}
+					{@render cardBody(p.item, isSel)}
 				</div>
 			{:else}
 				<button
 					type="button"
-					onclick={(ev) => openPage(p.item.id, ev)}
+					onclick={(ev) => openPage(p, ev)}
 					class="block h-full w-full cursor-pointer touch-manipulation text-left transition-transform focus-visible:outline-none"
 				>
-					{@render card(p.item, isSel)}
+					{@render cardBody(p.item, isSel)}
 				</button>
 			{/if}
 		</div>
+	{/snippet}
+
+	<!-- A card's contents, from whichever caller snippet draws its kind. -->
+	{#snippet cardBody(e: Entry, isSel: boolean)}
+		{#if e.kind === 'inner'}
+			{@render packet?.card(e.value, isSel)}
+		{:else}
+			{@render card(e.value, isSel)}
+		{/if}
 	{/snippet}
 
 	<!-- Backdrop: only while a page is open. Sits above everything except the
@@ -806,7 +1034,7 @@
 							     stay measurable for the whole journey, which `display: none`
 							     would not be, and it must not paint underneath the card still
 							     travelling towards it. -->
-							{#each rows[vrow.index] ?? [] as p (p.item.id)}
+							{#each rows[vrow.index] ?? [] as p (p.item.key)}
 								<div data-cell={p.item.id} class:landing={p.item.id === onLayer}>
 									{@render page(p, false, revealing)}
 								</div>
@@ -828,7 +1056,12 @@
 			     and a single element cannot hold both. -->
 			{#if openCard}
 				<div bind:this={morphLayer} class="morph-layer">
-					<div class="morph-box" in:morph|global out:morph|global>
+					<div
+						class="morph-box"
+						style:--open-ratio={openRatio((lastOpenCard ?? openCard).item)}
+						in:morph|global
+						out:morph|global
+					>
 						{@render pageBody(lastOpenCard ?? openCard, true, true)}
 					</div>
 				</div>
@@ -844,7 +1077,7 @@
 				{#if selected !== null}
 					{@render backdrop()}
 				{/if}
-				{#each shown as p (p.item.id)}
+				{#each shown as p (p.item.key)}
 					{@const isSel = selected === p.item.id}
 					<!-- anchor: scattered position within the field, or the VIEWPORT's dead
 					     centre when open — not the field's. Glides between the two via the
@@ -929,8 +1162,8 @@
 		top: 50%;
 		left: 50%;
 		translate: -50% -50%;
-		width: min(90vw, 90vh * 210 / 297);
-		height: min(90vh, 90vw * 297 / 210);
+		width: min(90vw, 90vh / var(--open-ratio, calc(297 / 210)));
+		height: min(90vh, 90vw * var(--open-ratio, calc(297 / 210)));
 	}
 
 	/* A card whose parent owns its size. */
@@ -954,10 +1187,11 @@
 	}
 
 	/* Open page: blow up to fill the viewport (keeps A4 ratio, capped by both
-	   axes) and stop drifting so it sits square in the center. */
+	   axes) and stop drifting so it sits square in the center. A card that opens
+	   to a shape of its own (a photograph) sets `--open-ratio`, height over width. */
 	.selected {
-		width: min(90vw, 90vh * 210 / 297);
-		height: min(90vh, 90vw * 297 / 210);
+		width: min(90vw, 90vh / var(--open-ratio, calc(297 / 210)));
+		height: min(90vh, 90vw * var(--open-ratio, calc(297 / 210)));
 		animation: none;
 		z-index: 50;
 	}
