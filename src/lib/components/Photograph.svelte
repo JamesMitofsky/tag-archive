@@ -46,6 +46,26 @@
 	 */
 	let settledSrc = $state<string | null>(null);
 	const loaded = $derived(settledSrc === src);
+
+	/**
+	 * A print whose pixels are already to hand shows at once, with no skeleton
+	 * and no fade. The fade is for a photograph arriving over the network; one
+	 * the page is already showing elsewhere (an image set's pile, say, whose
+	 * prints are about to spill out as cards of their own) would otherwise blink
+	 * out and fade back in, which reads as a different picture taking its place.
+	 *
+	 * Taking the transition off in the same change as the opacity is what makes
+	 * that hold. Clearing the skeleton early is not enough on its own: anything
+	 * in the same update that reads layout (a neighbor's exit animation does)
+	 * has the browser settle the print at opacity 0 first, and the change to 1
+	 * after it would then fade like any other.
+	 */
+	let readySrc = $state<string | null>(null);
+	function settleIfReady(img: HTMLImageElement) {
+		if (!img.complete || img.naturalWidth === 0) return;
+		readySrc = src;
+		settledSrc = src;
+	}
 </script>
 
 <div
@@ -63,10 +83,12 @@
 		{sizes}
 		{loading}
 		class={cn(
-			'absolute inset-0 h-full w-full object-cover transition-opacity duration-300 motion-reduce:transition-none',
+			'absolute inset-0 h-full w-full object-cover',
+			readySrc !== src && 'transition-opacity duration-300 motion-reduce:transition-none',
 			loaded ? 'opacity-100' : 'opacity-0'
 		)}
 		onload={() => (settledSrc = src)}
 		onerror={() => (settledSrc = src)}
+		{@attach settleIfReady}
 	/>
 </div>

@@ -398,21 +398,75 @@ export function placeCloud<T extends { id: number }>(
 	const slots = pickSlots(freeSlots(f, layout.cardW, layout.cardH, availX, availY), n);
 
 	return items.map((item, idx) => {
-		const rnd = mulberry32(item.id * 2654435761 + 1);
 		const k = rankOf[idx];
-		const slot = slots[k] ?? { x: 0, y: 0 };
-		const dx = slot.x;
-		const dy = slot.y;
-
-		// Fly in from, and out to, whichever edge the card faces — scaled to the
-		// field, so a phone doesn't fling a card four screen-widths away.
-		const offX = Math.sign(dx || 1) * (0.6 + rnd() * 0.4) * f.fieldW;
-		const offY = Math.sign(dy || 1) * (0.55 + rnd() * 0.45) * f.fieldH;
-		const enterDelay = (Math.min(k, 12) * 0.05).toFixed(2); // staggered cascade
-		const enterStyle = `--ex:${offX.toFixed(0)}px;--ey:${offY.toFixed(0)}px;--edelay:${enterDelay}s`;
-
-		return { item, dx, dy, offX, offY, enterStyle, style: driftStyle(rnd) };
+		return placeAt(item, slots[k] ?? { x: 0, y: 0 }, f, item.id, k);
 	});
+}
+
+/**
+ * One card of the surround layout, standing at `at`. Its motion (where it flies
+ * from and to, and how it drifts) is drawn from `seed`, which is the card's own
+ * id as a rule; `pinAt` passes another one to keep a card looking the same while
+ * it changes identity.
+ */
+function placeAt<T>(
+	item: T,
+	at: { x: number; y: number },
+	f: FieldInput,
+	seed: number,
+	rank: number
+): Placed<T> {
+	const rnd = mulberry32(seed * 2654435761 + 1);
+	const dx = at.x;
+	const dy = at.y;
+
+	// Fly in from, and out to, whichever edge the card faces — scaled to the
+	// field, so a phone doesn't fling a card four screen-widths away.
+	const offX = Math.sign(dx || 1) * (0.6 + rnd() * 0.4) * f.fieldW;
+	const offY = Math.sign(dy || 1) * (0.55 + rnd() * 0.45) * f.fieldH;
+	const enterDelay = (Math.min(rank, 12) * 0.05).toFixed(2); // staggered cascade
+	const enterStyle = `--ex:${offX.toFixed(0)}px;--ey:${offY.toFixed(0)}px;--edelay:${enterDelay}s`;
+
+	return { item, dx, dy, offX, offY, enterStyle, style: driftStyle(rnd) };
+}
+
+/**
+ * A surround card held at a given spot rather than given a slot: an open
+ * packet's face, which stays exactly where the packet stood (see CardCloud).
+ *
+ * `seed` is the id of the card it stands in for, and it decides the drift, so
+ * that a card taking over another's element carries on the very same float:
+ * swapping drift parameters mid-animation would make it jump.
+ */
+export function pinAt<T>(
+	item: T,
+	at: { x: number; y: number },
+	f: FieldInput,
+	seed: number
+): Placed<T> {
+	return placeAt(item, at, f, seed, 0);
+}
+
+/**
+ * The box a card centred at `at` sweeps as it drifts and tilts, in viewport
+ * coordinates: a no-go zone that keeps the rest of a cloud off a pinned card.
+ * Only meaningful for the surround layout, where the field is the viewport.
+ */
+export function sweptRect(
+	f: FieldInput,
+	at: { x: number; y: number },
+	cardW: number,
+	cardH: number
+): Rect {
+	const m = cardMargin(cardW, cardH);
+	const halfX = m.x - EDGE_PAD;
+	const halfY = m.y - EDGE_PAD;
+	return {
+		left: f.fieldW / 2 + at.x - halfX,
+		top: f.fieldH / 2 + at.y - halfY,
+		width: 2 * halfX,
+		height: 2 * halfY
+	};
 }
 
 /**
@@ -470,6 +524,12 @@ const SPILL_STAGGER_MAX = 24;
  * out of it across the sky, and `homeX`/`homeY` send each one back INTO it when
  * the packet is put away. `origin` is a centre offset, like a card's `dx`/`dy`.
  *
+ * Nothing fades on the way. The cards are coming out from under the packet's
+ * face, which stays put (see CardCloud), so they are fully there the whole time:
+ * hidden while they are behind it, and seen as they clear its edge. A card
+ * fading in would read as one materialising beside the packet instead
+ * (`--eo` is the opacity the entrance starts from).
+ *
  * The spill goes in `arrivalStyle`, not `enterStyle`. It describes the moment
  * the packet opens and nothing after it: a card that scatters off-screen while a
  * neighbor is open (`offX`/`offY`, left alone here) has to come back from that
@@ -484,7 +544,7 @@ export function spillFrom<T>(placed: Placed<T>[], origin: { x: number; y: number
 			...p,
 			homeX,
 			homeY,
-			arrivalStyle: `--ex:${homeX.toFixed(0)}px;--ey:${homeY.toFixed(0)}px;--edelay:${delay}s`
+			arrivalStyle: `--ex:${homeX.toFixed(0)}px;--ey:${homeY.toFixed(0)}px;--edelay:${delay}s;--eo:1`
 		};
 	});
 }

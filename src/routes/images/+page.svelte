@@ -7,7 +7,7 @@
 	import { loadImageSets } from '#lib/dataset.ts';
 	import { filterImageSets } from '#lib/search.ts';
 	import CardCloud from '#lib/components/CardCloud.svelte';
-	import ImageStack from '#lib/components/ImageStack.svelte';
+	import ImageStack, { PRINT_SIZES } from '#lib/components/ImageStack.svelte';
 	import Photograph from '#lib/components/Photograph.svelte';
 	import Drawing from '#lib/components/Drawing.svelte';
 
@@ -47,6 +47,19 @@
 		}
 	}
 
+	/**
+	 * Sets the reader has reached for (pointer over, or focus), whose
+	 * photographs are fetched ahead of opening. Opening spills every photograph
+	 * out from under the set's top print, and one still loading would slide out
+	 * as a blank and fade in. The pile only ever draws its first three, so for a
+	 * larger set the rest would otherwise first be asked for at that moment.
+	 * Kept for the life of the page, so the browser keeps them to hand.
+	 */
+	let warmed = $state<PublicImageSet[]>([]);
+	function warm(set: PublicImageSet) {
+		if (!warmed.some((s) => s.id === set.id)) warmed.push(set);
+	}
+
 	function photos(set: PublicImageSet): SetPhoto[] {
 		const label = imageSetLabel(set);
 		const n = set.images.length;
@@ -70,9 +83,28 @@
 		card: photo,
 		heading,
 		openRatio: (image) => image.height / image.width,
-		closeLabel: 'Back to all images'
+		closeLabel: 'Back to all images',
+		warm
 	}}
 />
+
+<!-- The warmed sets' photographs, fetched off-screen through the same
+     component and `sizes` as a loose print in an open set, so the browser picks
+     the very same file for both. -->
+<div class="pointer-events-none fixed top-0 -left-[9999px] w-12" aria-hidden="true">
+	{#each warmed as set (set.id)}
+		{#each set.images as image (image.id)}
+			<Photograph
+				src={image.url}
+				width={image.width}
+				height={image.height}
+				alt=""
+				sizes={PRINT_SIZES}
+				loading="eager"
+			/>
+		{/each}
+	{/each}
+</div>
 
 {#snippet placeholderMark()}
 	<!-- h-8, a step taller than the others: the tall capital leaves the lowercase
@@ -89,9 +121,15 @@
 
 <!-- No sheet of paper here, unlike the other clouds: a set is its photographs.
      Closed, it floats as a pile of prints; opened, the pile spills across the
-     sky and every photograph floats on its own. -->
-{#snippet stack(item: PublicImageSet)}
-	<ImageStack images={item.images} alt={imageSetLabel(item)} />
+     sky and every photograph floats on its own. While it is spilled (`spilled`)
+     the pile's own card stays where it was, as its first photograph alone: the
+     rest of the pile is out as cards of their own, and slides back under it
+     when the set is put away. -->
+{#snippet stack(item: PublicImageSet, _isOpen: boolean, spilled: boolean)}
+	<ImageStack
+		images={spilled ? item.images.slice(0, 1) : item.images}
+		alt={spilled ? photos(item)[0].alt : imageSetLabel(item)}
+	/>
 {/snippet}
 
 <!-- One photograph of the open set: a lone print, and opened, the print alone
