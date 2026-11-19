@@ -188,9 +188,13 @@ img {
 
 /* Every error / status message speaks in the friendly hand, without each call
    site having to remember `font-friendly`. Keyed off role="alert" because that
-   is the attribute these messages already need for screen readers. */
+   is the attribute these messages already need for screen readers.
+   The weight is set to light because Chalkboard SE's regular face has heavy
+   strokes that read as bold beside Nunito body text; on macOS, 300 selects
+   Chalkboard SE Light. */
 [role='alert'] {
 	font-family: var(--font-friendly);
+	font-weight: 300;
 }
 
 /* Map the theme tokens to Tailwind color + radius utilities so components
