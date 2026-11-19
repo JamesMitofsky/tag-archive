@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import middleware, { config } from '../../../middleware';
 import { DOOR_PARAM, KEEPER_DOOR_URL, opensDoor, withoutDoor } from './door.server';
@@ -558,5 +561,58 @@ describe('gateRequest (edge)', () => {
 		expect(
 			await gateRequest(request(`${UNLOCK_PATH}?key=tobyshorin&to=/`), () => undefined, SECRET)
 		).toBeUndefined();
+	});
+});
+
+describe('middleware as Vercel builds it', () => {
+	// Vercel builds middleware.ts outside Vite: it compiles each file of the
+	// gate on its own, with the project's tsconfig, and ships it as .js, leaving
+	// import paths as written. Node then loads those paths as they are, so each
+	// relative import must name the shipped .js file of a .ts source. A .ts or
+	// extensionless path names a file the deployment does not have, and every
+	// request fails with MIDDLEWARE_INVOCATION_FAILED (see middleware.ts).
+	// This walks the gate's relative imports through the same per-file compile.
+	const root = path.resolve(import.meta.dirname, '../../..');
+	const { config: raw } = ts.readConfigFile(path.join(root, 'tsconfig.json'), ts.sys.readFile);
+	const { options } = ts.parseJsonConfigFileContent(raw, ts.sys, root);
+
+	const relativeImports = (code: string) =>
+		ts
+			.preProcessFile(code, true, true)
+			.importedFiles.map((file) => file.fileName)
+			.filter((name) => name.startsWith('./') || name.startsWith('../'));
+
+	it('imports every file of the gate by the .js name it ships under', () => {
+		const seen = new Set<string>();
+		const queue = [path.join(root, 'middleware.ts')];
+		while (queue.length > 0) {
+			const file = queue.pop()!;
+			if (seen.has(file)) continue;
+			seen.add(file);
+
+			const { outputText } = ts.transpileModule(readFileSync(file, 'utf8'), {
+				compilerOptions: options,
+				fileName: file
+			});
+			for (const specifier of relativeImports(outputText)) {
+				const where = `${path.relative(root, file)} imports ${specifier}`;
+				expect(specifier, where).toMatch(/\.js$/);
+				const source = path.resolve(path.dirname(file), specifier.replace(/\.js$/, '.ts'));
+				expect(existsSync(source), `${where}, but there is no ${path.relative(root, source)}`).toBe(
+					true
+				);
+				queue.push(source);
+			}
+		}
+		// The walk covered the whole gate, not just the entry file.
+		expect([...seen].map((file) => path.relative(root, file)).sort()).toEqual([
+			'middleware.ts',
+			'src/lib/access/door.server.ts',
+			'src/lib/access/edge.ts',
+			'src/lib/access/gate.ts',
+			'src/lib/access/key.server.ts',
+			'src/lib/access/pass.ts',
+			'src/lib/access/paths.ts'
+		]);
 	});
 });
