@@ -40,6 +40,7 @@
 	import { reducedMotion } from '#lib/transitions.svelte.ts';
 	import { claimOpening } from '#lib/access/opening.svelte.ts';
 	import { shuffled } from '#lib/utils.ts';
+	import Drawing from '#lib/components/Drawing.svelte';
 
 	/** Makes every card a packet (see the header comment). */
 	interface Packet {
@@ -867,21 +868,21 @@
 							/>
 						</svg>
 					{:else}
-						<svg
-							class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 text-gray-700 opacity-55"
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke-width="1.5"
-							stroke="currentColor"
+						<!-- The hand-drawn magnifier, in the nav icons' pencil. The wrapper
+						     holds the dimming because `Drawing` owns its image's opacity
+						     for the load fade; 0.8 matches the handwriting mark beside it. -->
+						<span
+							class="pointer-events-none absolute top-1/2 left-4 z-10 flex size-6 -translate-y-1/2 opacity-80"
 							aria-hidden="true"
 						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="m21 21-4.3-4.3m1.8-4.7a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
+							<Drawing
+								src="/drawing/icons/search.webp"
+								alt=""
+								width="142"
+								height="144"
+								class="size-full object-contain"
 							/>
-						</svg>
+						</span>
 					{/if}
 					<input
 						type="search"
