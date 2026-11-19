@@ -74,6 +74,19 @@
 	export function useWhole() {
 		editor?.setCorners(fullFrameCorners(image.width, image.height));
 	}
+
+	/** Put the quad where the caller says, as when going back to the edges found. */
+	export function setCorners(next: CornerPoints) {
+		editor?.setCorners(next);
+	}
 </script>
 
-<div bind:this={container} class="relative h-full w-full overflow-hidden"></div>
+<!-- scanic draws the photo 12px inside its container, so a corner on the
+     photo's edge would sit 12px from the edge of a phone's screen: half its
+     44px touch target cut off, and inside the strip where iOS and Android take
+     a drag for the system back gesture. The padding moves the corners inboard;
+     it is on a wrapper so that the clip is at the wrapper's edge, and a
+     corner's touch target can spill into the padding rather than be cut by it. -->
+<div class="h-full w-full overflow-hidden px-4 py-2.5">
+	<div bind:this={container} class="relative h-full w-full"></div>
+</div>

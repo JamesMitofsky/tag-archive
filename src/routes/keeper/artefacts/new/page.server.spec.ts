@@ -88,6 +88,22 @@ describe('/keeper/artefacts/new createArtefact', () => {
 		expect(isActionFailure(result) && result.status).toBe(401);
 	});
 
+	it('answers a failed save as a failed submit, with the form echoed back to keep', async () => {
+		const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+		// A session whose user row is gone: the insert's foreign key refuses it.
+		const ghost = { id: 'no-such-user', role: 'admin', email: 'ghost@example.org' };
+
+		const result = await create(filled, ghost);
+
+		// Not thrown: thrown, it would put the error page where the form was.
+		expect(isActionFailure(result) && result.status).toBe(500);
+		expect(isActionFailure(result) && result.data).toMatchObject({
+			values: { artefact: 'Garden program', fileUrls: ['https://bucket.test/a.webp'] }
+		});
+		expect(logged).toHaveBeenCalled();
+		logged.mockRestore();
+	});
+
 	it('requires a location, echoing what was typed', async () => {
 		const result = await create({ ...filled, location: '' }, ADMIN);
 		expect(isActionFailure(result) && result.status).toBe(400);

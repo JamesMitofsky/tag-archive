@@ -79,10 +79,21 @@ export const actions: Actions = {
 			if (!own) return fail(400, { artefactError: 'Those images could not be attached.' });
 		}
 
-		const id = await createArtefact(data, {
-			userId: locals.user?.id ?? null,
-			role: locals.user?.role ?? null
-		});
+		let id: number;
+		try {
+			id = await createArtefact(data, {
+				userId: locals.user?.id ?? null,
+				role: locals.user?.role ?? null
+			});
+		} catch (error) {
+			// Thrown, this would replace the form with the error page, and every
+			// field and uploaded page with it. Answer as a failed submit instead.
+			console.error('createArtefact failed', error);
+			return fail(500, {
+				artefactError: 'The artefact could not be saved. Nothing here is lost: try again.',
+				values: echoArtefactForm(form, data)
+			});
+		}
 
 		// Keepers land on the new artefact, flagged as just created so they're shown
 		// the archive number to write on the physical item; the public get a

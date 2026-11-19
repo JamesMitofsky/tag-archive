@@ -37,10 +37,22 @@ export const actions: Actions = {
 
 		// Vetted when an admin adds it, a proposed addition otherwise (see
 		// `isProposedAddition`), exactly as from /contribute.
-		const id = await createArtefact(data, {
-			userId: locals.user.id,
-			role: locals.user.role ?? null
-		});
+		let id: number;
+		try {
+			id = await createArtefact(data, {
+				userId: locals.user.id,
+				role: locals.user.role ?? null
+			});
+		} catch (error) {
+			// Thrown, this would replace the form with the error page, and every
+			// field and uploaded page with it. Answer as a failed submit instead,
+			// so the form stays as it was and the keeper can press the button again.
+			console.error('createArtefact failed', error);
+			return fail(500, {
+				artefactError: 'The artefact could not be saved. Nothing here is lost: try again.',
+				values: echoArtefactForm(form, data)
+			});
+		}
 
 		// Land on the new artefact, flagged as just created so the page shows the
 		// archive number to write on the physical item.

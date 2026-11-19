@@ -109,6 +109,12 @@
 		calendarPlaceholder = new CalendarDate(year, month, 1);
 	}
 
+	/**
+	 * Closed on a pick. A popover left open over a phone's form needs a tap
+	 * outside it to dismiss, and that tap lands on whatever is underneath.
+	 */
+	let open = $state(false);
+
 	function choosePrecision(next: DatePrecision) {
 		precision = next;
 		undated = false;
@@ -140,7 +146,7 @@
 			<span class="text-red-600" title="Required" aria-label="required">*</span>
 		{/if}
 	</span>
-	<Popover.Root>
+	<Popover.Root bind:open>
 		<Popover.Trigger>
 			{#snippet child({ props })}
 				<!-- Trigger props first: they carry a `class` key, which would otherwise
@@ -210,6 +216,7 @@
 						month = next.month;
 						day = next.day;
 						picked = true;
+						open = false;
 					}}
 				/>
 			{:else if precision === 'month'}
@@ -246,6 +253,7 @@
 								onclick={() => {
 									setMonth(year, index + 1);
 									picked = true;
+									open = false;
 								}}
 							>
 								{monthName.slice(0, 3)}
@@ -289,6 +297,7 @@
 								onclick={() => {
 									setMonth(option, month);
 									picked = true;
+									open = false;
 								}}
 							>
 								{option}

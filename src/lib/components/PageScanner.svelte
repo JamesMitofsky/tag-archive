@@ -28,20 +28,30 @@
 	} from '#lib/scanner/image.ts';
 	import { MAX_SCAN_BYTES, SCAN_TOO_LARGE } from '#lib/scanner/limits.ts';
 	import { createSerialQueue } from '#lib/scanner/serial.ts';
+	import { decodeImage } from '#lib/images/decode.ts';
+	import { sniffImageType } from '#lib/imageType.ts';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import type { ScanPage } from '#lib/scanner/types.ts';
 
 	// Emits the current list of uploaded image URLs (display order) so the parent form
-	// can store them. `pending` (bindable) is true while an upload is in flight, so the
-	// parent can block submit until every image is finalized.
+	// can store them. `pending` (bindable) is true while an upload is in flight and
+	// `failed` (bindable) counts pages whose upload failed, so the parent can hold
+	// the submit until every page shown is one the artefact will actually keep.
+	// `busy` (bindable) is true while a camera run holds photos that are not pages
+	// yet, which a leave guard reading only the form's fields would never see.
 	let {
 		onChange,
 		pending = $bindable(false),
+		failed = $bindable(0),
+		busy = $bindable(false),
 		initial = [],
 		label,
 		required = false
 	}: {
 		onChange?: (urls: string[]) => void;
 		pending?: boolean;
+		failed?: number;
+		busy?: boolean;
 		/** Pre-existing scan URLs to seed the list with (edit flow). */
 		initial?: string[];
 		/** Section label shown above the scanner, styled like the other form fields'. */
@@ -174,14 +184,55 @@
 		}
 	}
 
+	/** How long a removed page can be put back. */
+	const UNDO_MS = 6000;
+	/**
+	 * The finished page removed last, with where it stood. Remove is a small
+	 * button beside others on a touch screen, and a page costs a scan and a crop
+	 * to get back, so its upload is only deleted once the tap has gone unanswered.
+	 */
+	let removed = $state<{ page: ScanPage; index: number } | null>(null);
+	let removedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	/** The removed page is gone for good: let its preview and its upload go. */
+	function forgetRemoved() {
+		const gone = removed;
+		removed = null;
+		clearTimeout(removedTimer);
+		if (!gone) return;
+		releaseObjectUrl(gone.page.previewUrl);
+		void discardUpload(gone.page.url);
+	}
+
 	async function removeById(id: string) {
-		const target = pages.find((p) => p.id === id);
+		const index = pages.findIndex((p) => p.id === id);
+		if (index < 0) return;
+		const target = pages[index];
+		// One page at a time: an earlier removal's grace ends here.
+		forgetRemoved();
 		pages = pages.filter((p) => p.id !== id);
 		// A run still working on it finds its claim gone and cleans up after itself.
 		claims.delete(id);
-		releaseObjectUrl(target?.previewUrl);
 		emit();
-		await discardUpload(target?.url);
+		if (target.status === 'done') {
+			removed = { page: target, index };
+			removedTimer = setTimeout(forgetRemoved, UNDO_MS);
+			return;
+		}
+		// Still uploading, or failed: its run was just cut loose, so there is
+		// nothing whole to put back.
+		releaseObjectUrl(target.previewUrl);
+		await discardUpload(target.url);
+	}
+
+	function undoRemove() {
+		const back = removed;
+		if (!back) return;
+		removed = null;
+		clearTimeout(removedTimer);
+		const index = Math.min(back.index, pages.length);
+		pages = [...pages.slice(0, index), back.page, ...pages.slice(index)];
+		emit();
 	}
 
 	/** Swap a page with its neighbour. Order is whatever this array says it is. */
@@ -214,6 +265,12 @@
 	/** Per shot: the corners as the user left them in the review. */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read imperatively, never rendered
 	const edits = new Map<string, CornerPoints>();
+	/**
+	 * Per shot: its encoded original on its own, apart from `prepared`, so a
+	 * photo whose page-finding failed still has its pixels to retry from.
+	 */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read imperatively, never rendered
+	const originals = new Map<string, Promise<Blob>>();
 	/** Full-size image work, one photo at a time. */
 	const heavy = createSerialQueue();
 
@@ -230,6 +287,7 @@
 		const original = keepOriginal(frame);
 		// Rethrown by the task below; this only stops it counting as unhandled first.
 		original.catch(() => {});
+		originals.set(id, original);
 		// Queued now, so photos are prepared in the order they were shot.
 		const task = heavy.run(async () => prepareShot(id, await original));
 		// Failures surface where the photo is used (the review, the upload).
@@ -278,14 +336,26 @@
 		if (!ready) return null;
 		const image = await fileToCanvas(ready.blob);
 		if (!image) return null;
-		return { image, corners: edits.get(id) ?? ready.detected, detected: !!ready.detected };
+		return { image, corners: edits.get(id) ?? ready.detected, found: ready.detected };
 	}
 
 	function discardShot(id: string) {
 		prepared.delete(id);
 		edits.delete(id);
+		originals.delete(id);
 		shots = shots.filter((s) => s.id !== id);
 		if (shots.length === 0) stage = 'camera';
+	}
+
+	/** Abandon the run: every photo goes, and the camera is there to start over or close. */
+	function discardRun() {
+		for (const shot of shots) {
+			prepared.delete(shot.id);
+			edits.delete(shot.id);
+			originals.delete(shot.id);
+		}
+		shots = [];
+		stage = 'camera';
 	}
 
 	/** Back from the first photo, to shoot more. */
@@ -325,10 +395,12 @@
 
 	/** Crop a finished shot as the review left it, then upload it as the claimed page. */
 	async function commitShot(claim: Claim, shot: Shot) {
+		// As far as they are known if this fails early, for Retry to start from.
+		let corners = edits.get(shot.id) ?? null;
 		try {
 			const ready = await prepared.get(shot.id);
 			if (!ready) throw new Error('Image processing failed');
-			const corners = edits.get(shot.id) ?? ready.detected;
+			corners = edits.get(shot.id) ?? ready.detected;
 			const rendered = await heavy.run(async () => {
 				// Removed while it waited: no point cropping it.
 				if (!claim.holds()) return null;
@@ -344,13 +416,22 @@
 			// The upload runs outside the queue, so the next photo's crop overlaps it.
 			if (rendered) await commitPage(claim, rendered, ready.blob, shot.fileName);
 		} catch (e) {
+			// The photo itself usually survives whatever failed (finding the page,
+			// a canvas the browser refused): keep it on the page, so Retry and the
+			// crop editor have something to work from and nothing needs reshooting.
+			const original = await originals.get(shot.id)?.catch(() => undefined);
+			const page = pages.find((p) => p.id === shot.id);
 			claim.update({
 				status: 'error',
-				error: e instanceof Error ? e.message : 'Image processing failed'
+				error: e instanceof Error ? e.message : 'Image processing failed',
+				sending: false,
+				sourceBlob: page?.sourceBlob ?? original,
+				corners: page?.corners ?? corners ?? undefined
 			});
 		} finally {
 			prepared.delete(shot.id);
 			edits.delete(shot.id);
+			originals.delete(shot.id);
 		}
 	}
 
@@ -399,19 +480,20 @@
 		await processUpload(claim, encoded, fileName, previewUrl);
 	}
 
-	/** Crop (when we have a quad), encode, keep the original, upload. */
-	async function finalizePage(
-		claim: Claim,
-		source: HTMLCanvasElement,
-		corners: CornerPoints | null,
-		fileName: string,
-		/** The original, when it is already encoded. */
-		original?: Blob
-	) {
-		const rendered = await cropAndEncode(source, corners);
-		// The un-cropped original rides along as a blob so the crop stays editable.
-		const kept = original ?? (await encodeImage(source)) ?? undefined;
-		await commitPage(claim, rendered, kept, fileName);
+	/**
+	 * A picked photo as a canvas, or null if this browser can't open it. Through
+	 * the photograph uploader's decoder rather than `fileToCanvas`: iPhones shoot
+	 * HEIC, which only Safari decodes natively, and that decoder converts it
+	 * (loading the converter only then, and giving up on one that stalls rather
+	 * than holding the queue), and turns the photo upright from its EXIF tag.
+	 */
+	async function pickedToCanvas(file: Blob): Promise<HTMLCanvasElement | null> {
+		try {
+			const head = new Uint8Array(await file.slice(0, 32).arrayBuffer());
+			return await decodeImage(file, sniffImageType(head));
+		} catch {
+			return null;
+		}
 	}
 
 	/** Optimistically render picked photo(s), then crop, encode and upload each. */
@@ -431,21 +513,40 @@
 
 			void (async () => {
 				try {
-					const source = await fileToCanvas(file);
-					if (!source) {
-						// Undecodable in this browser (e.g. HEIC): upload it untouched.
+					// One photo at a time, like the camera's: a phone photo decodes to
+					// a canvas tens of megabytes large, and several picked at once and
+					// decoded side by side run past what iOS Safari allows.
+					const rendered = await heavy.run(async () => {
+						// Removed while it waited its turn.
+						if (!claim.holds()) return null;
+						const source = await pickedToCanvas(file);
+						if (!source) return 'undecodable' as const;
+						try {
+							// Same detection as the camera path; the crop stays editable from
+							// the filmstrip, so an over-eager quad is one tap from undone.
+							const detected = await detectCorners(source);
+							const corners = detected ? refineDetection(source, detected) : null;
+							const page = await cropAndEncode(source, corners);
+							// The un-cropped original rides along as a blob so the crop stays editable.
+							const original = (await encodeImage(source)) ?? undefined;
+							return { page, original };
+						} finally {
+							releaseCanvas(source);
+						}
+					}, 'background');
+					if (!rendered) return;
+					if (rendered === 'undecodable') {
+						// Not an image this browser can open at all: upload it untouched.
 						await processUpload(claim, file, file.name, trackObjectUrl(file));
 						return;
 					}
-					// Same detection as the camera path; the crop stays editable from
-					// the filmstrip, so an over-eager quad is one tap from undone.
-					const detected = await detectCorners(source);
-					const corners = detected ? refineDetection(source, detected) : null;
-					await finalizePage(claim, source, corners, fileName);
+					// The upload runs outside the queue, so the next photo's crop overlaps it.
+					await commitPage(claim, rendered.page, rendered.original, fileName);
 				} catch (e) {
 					claim.update({
 						status: 'error',
-						error: e instanceof Error ? e.message : 'Image processing failed'
+						error: e instanceof Error ? e.message : 'Image processing failed',
+						sending: false
 					});
 				}
 			})();
@@ -479,13 +580,15 @@
 		} catch (e) {
 			claim.update({
 				status: 'error',
-				error: e instanceof Error ? e.message : 'Image processing failed'
+				error: e instanceof Error ? e.message : 'Image processing failed',
+				sending: false
 			});
 		}
 	}
 
 	/** Push one image to R2 and hand its URL back to the form. */
 	async function processUpload(claim: Claim, file: Blob, fileName: string, previewUrl: string) {
+		claim.update({ sending: true });
 		try {
 			// Past the platform's body limit the route never sees the request, and
 			// the answer is a bare 413 page; say why here instead.
@@ -511,12 +614,47 @@
 				fileName: result.fileName,
 				previewUrl,
 				status: 'done',
-				error: undefined
+				error: undefined,
+				sending: false,
+				failedUpload: undefined
 			});
 			emit();
 			if (replaced && replaced !== result.url) await discardUpload(replaced);
 		} catch (e) {
-			claim.update({ status: 'error', error: e instanceof Error ? e.message : 'Upload failed' });
+			// The encoded page stays with it: a dropped connection is the usual
+			// cause on a phone, and Retry should cost one tap, not a new scan.
+			claim.update({
+				status: 'error',
+				error: e instanceof Error ? e.message : 'Upload failed',
+				sending: false,
+				failedUpload: { file, fileName, previewUrl }
+			});
+		}
+	}
+
+	/** A page going back to work: cropping, turning or sending again. */
+	const WORKING = {
+		status: 'uploading',
+		error: undefined,
+		sending: false,
+		failedUpload: undefined
+	} as const;
+
+	/**
+	 * Try a failed page again: the same bytes if it was the upload that failed,
+	 * else a fresh render from its original.
+	 */
+	function retryById(id: string) {
+		const page = pages.find((p) => p.id === id);
+		if (!page || page.status !== 'error') return;
+		const { failedUpload, sourceBlob } = page;
+		if (!failedUpload && !sourceBlob) return;
+		const claim = claimPage(id);
+		updateItem(id, WORKING);
+		if (failedUpload) {
+			void processUpload(claim, failedUpload.file, failedUpload.fileName, failedUpload.previewUrl);
+		} else if (sourceBlob) {
+			void renderPage(claim, sourceBlob, page.corners ?? null, page.turns ?? 0, page.fileName);
 		}
 	}
 
@@ -527,6 +665,12 @@
 	 * from an earlier tap never opens the editor over whatever came after it.
 	 */
 	let adjustRequest = 0;
+	/**
+	 * The page is being reopened for the crop editor. The view opens on the tap
+	 * with a spinner rather than once the photo has decoded: a second or two of
+	 * nothing reads as a missed tap, and invites another.
+	 */
+	let adjustLoading = $state(false);
 
 	async function adjustById(id: string) {
 		const page = pages.find((p) => p.id === id);
@@ -534,13 +678,16 @@
 		if (!source) return;
 		const request = ++adjustRequest;
 		const turns = page.turns ?? 0;
+		adjustLoading = true;
 		const decoded = await fileToCanvas(source);
 		const width = decoded?.width ?? 0;
 		const height = decoded?.height ?? 0;
 		// Drawn the way the page is turned, so it is cropped the way it is read.
 		const image = decoded && turns ? rotateQuarterTurns(decoded, turns) : decoded;
 		if (image !== decoded) releaseCanvas(decoded);
+		// Canceled, or overtaken by the camera: whoever did that cleared the spinner.
 		if (request !== adjustRequest) return releaseCanvas(image);
+		adjustLoading = false;
 		if (!image) {
 			error = 'Could not reopen that page for cropping.';
 			return;
@@ -550,6 +697,11 @@
 	}
 
 	function cancelAdjust() {
+		// Backed out while the photo was still decoding: drop that request.
+		if (adjustLoading) {
+			adjustRequest += 1;
+			adjustLoading = false;
+		}
 		const open = adjusting;
 		adjusting = null;
 		// After the editor drawing it has been torn down.
@@ -571,7 +723,7 @@
 		// corners were drawn on a photo the page no longer holds.
 		if (!page || page.sourceBlob !== open.source) return;
 		const claim = claimPage(open.id);
-		updateItem(open.id, { status: 'uploading', error: undefined });
+		updateItem(open.id, WORKING);
 		emit();
 		void renderPage(claim, open.source, crop, page.turns ?? 0, page.fileName);
 	}
@@ -646,7 +798,7 @@
 		const original = page.sourceBlob!;
 		const turns = ((page.turns ?? 0) + 1) % 4;
 		const claim = claimPage(id);
-		updateItem(id, { turns, status: 'uploading', error: undefined });
+		updateItem(id, { turns, ...WORKING });
 		emit();
 		error = '';
 		void renderPage(claim, original, page.corners ?? null, turns, page.fileName);
@@ -654,6 +806,7 @@
 
 	function openCamera() {
 		adjustRequest += 1;
+		adjustLoading = false;
 		error = '';
 		stage = 'camera';
 		// The live view no longer touches scanic, so start loading it now, while
@@ -661,14 +814,22 @@
 		void getScanner();
 	}
 
-	// Block submit while any upload is in flight.
+	// Block submit while any upload is in flight, or has failed: a failed page is
+	// still on screen, and saving without it would drop it without a word.
 	$effect(() => {
 		pending = pages.some((p) => p.status === 'uploading');
+		failed = pages.filter((p) => p.status === 'error').length;
+	});
+
+	$effect(() => {
+		busy = shots.length > 0;
 	});
 
 	$effect(() => {
 		// Don't leave optimistic previews holding onto picked files.
 		return () => {
+			// A page removed moments ago is not coming back now.
+			forgetRemoved();
 			for (const url of objectUrls) URL.revokeObjectURL(url);
 			objectUrls.length = 0;
 		};
@@ -690,14 +851,14 @@
 				<button
 					type="button"
 					onclick={() => openCamera()}
-					class="inline-flex items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+					class="inline-flex min-h-11 items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
 				>
 					<CameraIcon size={16} />
 					{pages.length > 0 ? 'Scan more pages' : 'Scan pages'}
 				</button>
 			{/if}
 			<label
-				class="inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+				class="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
 			>
 				<ImageSquareIcon size={16} /> Add from photos
 				<input type="file" accept="image/*" multiple onchange={onFiles} class="sr-only" />
@@ -708,17 +869,21 @@
 			<FieldError message={error} class="mt-2" />
 		{/if}
 
-		{#if pages.some((p) => p.status === 'error')}
+		{#if removed}
+			<!-- Kept apart from the tiles, which reflow as the page leaves: the
+			     way back stays where it appeared. -->
 			<div
-				class="mt-3 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-700"
-				role="alert"
+				class="mt-3 flex items-center justify-between gap-3 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700"
+				role="status"
 			>
-				<p class="font-medium">One or more image uploads failed:</p>
-				<ul class="mt-1 list-inside list-disc space-y-0.5">
-					{#each pages.filter((p) => p.status === 'error') as errItem (errItem.id)}
-						<li>{errItem.fileName}: {errItem.error || 'Upload error'}</li>
-					{/each}
-				</ul>
+				<span>Page {removed.index + 1} removed.</span>
+				<button
+					type="button"
+					onclick={undoRemove}
+					class="min-h-11 px-2 font-medium text-gray-900 underline underline-offset-2"
+				>
+					Undo
+				</button>
 			</div>
 		{/if}
 
@@ -728,6 +893,7 @@
 			onRemove={removeById}
 			onAdjust={adjustById}
 			onRotate={rotateById}
+			onRetry={retryById}
 		/>
 	</div>
 </div>
@@ -759,14 +925,20 @@
 			load={loadShot}
 			onChange={(id, corners) => edits.set(id, corners)}
 			onDiscard={discardShot}
+			onDiscardAll={discardRun}
 			onBack={backToCamera}
 			onFinish={finishRun}
 		/>
 	{/if}
 </ImmersiveView>
 
-<ImmersiveView open={!!adjusting} title="Adjust crop" onClose={cancelAdjust}>
-	{#if adjusting}
+<ImmersiveView open={!!adjusting || adjustLoading} title="Adjust crop" onClose={cancelAdjust}>
+	{#if adjustLoading}
+		<div class="flex h-full flex-col items-center justify-center gap-3 text-sm text-white/80">
+			<CircleNotchIcon size={28} class="animate-spin" />
+			<span role="status">Opening the page…</span>
+		</div>
+	{:else if adjusting}
 		<!-- Keyed: the editor reads its image and corners once, when it mounts. -->
 		{#key adjusting}
 			<CornerAdjuster
