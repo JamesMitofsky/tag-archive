@@ -224,6 +224,7 @@
 		selected = null; // a new query resets any open page
 		morphId = null; // ...and a slot in the previous result set is nowhere to return to
 		spill = null; // ...and the packet put away last may not even be among the matches
+		rejoining = false; // ...and the cards about to arrive are a new cloud's
 		zOrder = {};
 		zTop = 0;
 		if (!trimmed) {
@@ -429,7 +430,7 @@
 		const home = spill.id;
 		return placed.map((p) =>
 			p.item.kind === 'top' && p.item.id === home
-				? { ...p, enterStyle: `--ex:0px;--ey:0px;--edelay:${PACKET_RETURN_DELAY}s` }
+				? { ...p, arrivalStyle: `--ex:0px;--ey:0px;--edelay:${PACKET_RETURN_DELAY}s` }
 				: p
 		);
 	});
@@ -442,6 +443,25 @@
 	/** An opened card's height over width (see `Packet.openRatio`); unset is A4. */
 	function openRatio(e: Entry): number | undefined {
 		return e.kind === 'inner' ? packet?.openRatio?.(e.value) : undefined;
+	}
+
+	/**
+	 * A page has been opened since this cloud appeared, so its other cards have
+	 * scattered off-screen at least once. Any card mounting from then on is coming
+	 * BACK from that edge, and must not replay the cloud's first arrival (a
+	 * packet's spill, say), which would bring it in from somewhere the reader
+	 * never saw it go. Cleared whenever a new cloud appears: a search, or a move
+	 * between levels.
+	 */
+	let rejoining = false;
+
+	/**
+	 * How a card flies in, decided once, when it mounts (read untracked in the
+	 * markup). Fixing it there means flipping `rejoining` can never retarget a
+	 * card already in flight, only the next one to arrive.
+	 */
+	function entranceStyle(p: Placed<Entry>): string {
+		return (!rejoining && p.arrivalStyle) || p.enterStyle;
 	}
 
 	/**
@@ -484,6 +504,7 @@
 			selected = null;
 			morphId = null;
 			exiting = false;
+			rejoining = false;
 			zOrder = {};
 			zTop = 0;
 			reveal();
@@ -662,6 +683,7 @@
 		const cell = (ev.currentTarget as HTMLElement).closest<HTMLElement>('[data-cell]');
 		originBox = cell ? slotBox(cell) : null;
 		originScrollY = window.scrollY;
+		rejoining = true;
 		// Set BEFORE `selected`: the grid card is about to be torn down, and its
 		// fly-out reads this to know it should bow out instantly and let the morph
 		// carry it instead.
@@ -925,12 +947,13 @@
 				easing: cubicIn
 			}}
 		>
-			<!-- entrance: CSS keyframe flies the card in from off-screen, once.
+			<!-- entrance: CSS keyframe flies the card in, once, from wherever
+			     `entranceStyle` says it is arriving from (off-screen as a rule).
 			     Dropped while this card is the open one: the class carries both an
 			     animation and `will-change: transform`, and either makes this div the
 			     containing block for fixed descendants — which would anchor the
 			     opened page to this wrapper instead of the viewport. -->
-			<div class:enter={!isSel && flyIn} style={p.enterStyle}>
+			<div class:enter={!isSel && flyIn} style={untrack(() => entranceStyle(p))}>
 				{@render pageBody(p, isSel)}
 			</div>
 		</div>
