@@ -5,7 +5,7 @@ await vi.hoisted(async () => {
 	useTestDatabaseUrl();
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 
 const NOW = Date.parse('2026-10-02T12:00:00Z');
 const HOURS = 60 * 60 * 1000;

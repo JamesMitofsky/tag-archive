@@ -13,9 +13,9 @@
 	it grows.
 -->
 <script lang="ts">
-	import type { PublicImage } from '$lib/images/types';
-	import { withoutTitleLine } from '$lib/images/label';
-	import Photograph from '$lib/components/Photograph.svelte';
+	import type { PublicImage } from '#lib/images/types.ts';
+	import { withoutTitleLine } from '#lib/images/label.ts';
+	import Photograph from '#lib/components/Photograph.svelte';
 
 	type GalleryImage = Pick<PublicImage, 'id' | 'url' | 'width' | 'height'>;
 

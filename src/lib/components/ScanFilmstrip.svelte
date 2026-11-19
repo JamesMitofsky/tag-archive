@@ -6,7 +6,7 @@
 	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
-	import type { ScanPage } from '$lib/scanner/types';
+	import type { ScanPage } from '#lib/scanner/types.ts';
 
 	// Ordered page list. Reordering is move-left/move-right rather than drag and
 	// drop: no new dependency, identical behaviour on touch and desktop, and

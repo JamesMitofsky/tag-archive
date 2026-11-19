@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { RESEND_API_KEY, RESEND_FROM } from '$app/env/private';
 import { render } from 'svelte/server';
 import type { Component } from 'svelte';
 import { siteOrigin } from './origin';
@@ -10,7 +10,7 @@ import { otpEmailSubject, accountCreatedEmailSubject } from './emails/subjects';
  * server console so the auth flows stay testable against seeded accounts in
  * local dev. We deliberately do NOT gate on NODE_ENV — a serverless host only
  * guarantees it at build time, not inside the function runtime where
- * $env/dynamic/private reads, so relying on it once silently downgraded prod to
+ * $app/env/private reads, so relying on it once silently downgraded prod to
  * console-logging.
  *
  * Note: Resend's free tier only delivers to the account owner until a domain is
@@ -28,7 +28,7 @@ async function sendEmail(opts: {
 	logTag: string;
 	logLine: string;
 }): Promise<void> {
-	if (!env.RESEND_API_KEY) {
+	if (!RESEND_API_KEY) {
 		console.info(`[${opts.logTag}] ${opts.logLine}`);
 		return;
 	}
@@ -36,11 +36,11 @@ async function sendEmail(opts: {
 	const res = await fetch('https://api.resend.com/emails', {
 		method: 'POST',
 		headers: {
-			Authorization: `Bearer ${env.RESEND_API_KEY}`,
+			Authorization: `Bearer ${RESEND_API_KEY}`,
 			'Content-Type': 'application/json'
 		},
 		body: JSON.stringify({
-			from: env.RESEND_FROM || 'TAG Archive <onboarding@resend.dev>',
+			from: RESEND_FROM || 'TAG Archive <onboarding@resend.dev>',
 			to: [opts.to],
 			subject: opts.subject,
 			html: opts.html,
@@ -73,7 +73,7 @@ function renderEmail<P extends Record<string, unknown>>(component: Component<P>,
 /**
  * Absolute URL to the handwritten wordmark header served from static/. Email
  * clients can't resolve relative paths, so it's fully-qualified via the
- * site's origin, the same base better-auth uses (see $lib/server/origin).
+ * site's origin, the same base better-auth uses (see #lib/server/origin).
  */
 function logoUrl(): string {
 	const origin = (siteOrigin() ?? '').replace(/\/$/, '');

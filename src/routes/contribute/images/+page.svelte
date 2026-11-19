@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { latchedSubmission } from '$lib/forms/submission.svelte';
+	import { latchedSubmission } from '#lib/forms/submission.svelte.ts';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import AsyncComboField from '$lib/components/AsyncComboField.svelte';
-	import ImageUploader from '$lib/components/ImageUploader.svelte';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { createImageSetSuite, parseImageSetForm } from '$lib/validation/imageSet';
-	import { createValidator } from '$lib/validation/client.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
-	import SubmittedThanks from '$lib/components/SubmittedThanks.svelte';
+	import AsyncComboField from '#lib/components/AsyncComboField.svelte';
+	import ImageUploader from '#lib/components/ImageUploader.svelte';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { createImageSetSuite, parseImageSetForm } from '#lib/validation/imageSet.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
+	import SubmittedThanks from '#lib/components/SubmittedThanks.svelte';
 	import type { ImageSetFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 

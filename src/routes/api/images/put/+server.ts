@@ -1,10 +1,10 @@
 import { error } from '@sveltejs/kit';
-import { readCapped } from '$lib/server/imageUploads';
-import { putObject, usesUploadProxy, verifyProxyPut } from '$lib/server/scans';
+import { readCapped } from '#lib/server/imageUploads.ts';
+import { putObject, usesUploadProxy, verifyProxyPut } from '#lib/server/scans.ts';
 import type { RequestHandler } from './$types';
 
 // Local dev only: the upload proxy (see `usesUploadProxy` in
-// $lib/server/scans). The browser PUTs here instead of straight to the store,
+// #lib/server/scans). The browser PUTs here instead of straight to the store,
 // and this stands in for the store's presigned URL by holding the PUT to the
 // same terms: the HMAC in the query string, minted by /api/images/upload-url
 // after its own checks, binds the key, type, exact size and expiry. Like a

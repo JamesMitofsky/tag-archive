@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';

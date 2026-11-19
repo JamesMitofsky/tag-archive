@@ -1,12 +1,12 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
-	import KeeperList from '$lib/components/KeeperList.svelte';
-	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import KeeperList from '#lib/components/KeeperList.svelte';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
 	import ImageSquareIcon from 'phosphor-svelte/lib/ImageSquareIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
-	import { imageSetLabel, withoutTitleLine } from '$lib/images/label';
-	import { morphVar } from '$lib/transitions.svelte';
+	import { imageSetLabel, withoutTitleLine } from '#lib/images/label.ts';
+	import { morphVar } from '#lib/transitions.svelte.ts';
 	import { formatSetMeta } from './format';
 	import type { PageData } from './$types';
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
-	import * as Command from '$lib/components/ui/command';
+	import * as Command from '#lib/components/ui/command/index.ts';
 
 	// Searchable single-select that also accepts a typed-in custom value. The search
 	// box is visible from the start (no trigger to click); focusing it drops the option

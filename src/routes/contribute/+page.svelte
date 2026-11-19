@@ -1,22 +1,22 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { latchedSubmission } from '$lib/forms/submission.svelte';
+	import { latchedSubmission } from '#lib/forms/submission.svelte.ts';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
-	import DateField from '$lib/components/DateField.svelte';
-	import ComboField from '$lib/components/ComboField.svelte';
-	import AsyncComboField from '$lib/components/AsyncComboField.svelte';
-	import TagsField from '$lib/components/TagsField.svelte';
-	import PageScanner from '$lib/components/PageScanner.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
-	import { createValidator } from '$lib/validation/client.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
-	import SubmittedThanks from '$lib/components/SubmittedThanks.svelte';
+	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '#lib/programAreas.ts';
+	import DateField from '#lib/components/DateField.svelte';
+	import ComboField from '#lib/components/ComboField.svelte';
+	import AsyncComboField from '#lib/components/AsyncComboField.svelte';
+	import TagsField from '#lib/components/TagsField.svelte';
+	import PageScanner from '#lib/components/PageScanner.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { createArtefactSuite, parseArtefactForm } from '#lib/validation/artefact.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
+	import SubmittedThanks from '#lib/components/SubmittedThanks.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -27,9 +27,9 @@
 	// thank-you — with an optional side path to leave contact details.
 	//
 	// Anonymous visitors may upload and submit after tapping the garden's NFC tag
-	// (the draft session, see $lib/server/drafts) for as long as their access
+	// (the draft session, see #lib/server/drafts) for as long as their access
 	// pass stays open — it drifts shut once the site has been off their screen
-	// for a while (see $lib/access/pass). Once it has, the server refuses with a
+	// for a while (see #lib/access/pass). Once it has, the server refuses with a
 	// "tap the tag again" message — shown in place, so nothing typed or scanned
 	// is lost, and a fresh tap resumes the same draft.
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import ArrowsMergeIcon from 'phosphor-svelte/lib/ArrowsMergeIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';

@@ -1,5 +1,5 @@
-import { readDateField } from '$lib/partialDate';
-import { PROGRAM_AREAS } from '$lib/programAreas';
+import { readDateField } from '#lib/partialDate.ts';
+import { PROGRAM_AREAS } from '#lib/programAreas.ts';
 import { check, defineSuite, isHttpUrl, isPartialDate, maxLen, splitList, str } from './helpers';
 
 /** Normalised artefact form values — validated, then used for the DB write. */

@@ -10,21 +10,22 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 	process.env.ORIGIN = 'http://localhost:5173';
 	process.env.BETTER_AUTH_SECRET = 'test-secret-that-is-long-enough-for-better-auth-0123456789';
 });
 
-// SvelteKit only populates $env/dynamic/private inside a running server.
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+// SvelteKit fills $app/env/private when the Vite config loads, before this file sets
+// the variables, so the spec hands the module the live process.env instead.
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 
 // The emails' contents are someone else's test; capture what would be sent.
 const sent = vi.hoisted(() => ({
 	otps: new Map<string, string>(),
 	links: new Map<string, string>()
 }));
-vi.mock('$lib/server/email', () => ({
+vi.mock('#lib/server/email.ts', () => ({
 	sendOtpEmail: async (email: string, otp: string) => void sent.otps.set(email, otp),
 	sendAccountCreatedEmail: async (email: string, url: string) => void sent.links.set(email, url)
 }));
@@ -38,10 +39,10 @@ vi.mock('$app/server', () => ({
 	})
 }));
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { db } = await import('$lib/server/db');
-const { user } = await import('$lib/server/db/auth.schema');
-const { auth } = await import('$lib/server/auth');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { db } = await import('#lib/server/db/index.ts');
+const { user } = await import('#lib/server/db/auth.schema.ts');
+const { auth } = await import('#lib/server/auth.ts');
 
 beforeAll(migrateTestDatabase);
 

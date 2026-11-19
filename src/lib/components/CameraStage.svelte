@@ -2,8 +2,8 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import { dev } from '$app/environment';
-	import { MAX_DIM, fitWithin } from '$lib/scanner/image';
+	import { dev } from '$app/env';
+	import { MAX_DIM, fitWithin } from '#lib/scanner/image.ts';
 
 	// Live camera stage. Fills whatever box it is given (the immersive view hands
 	// it the viewport); the video letterboxes inside on black so the frame never
@@ -18,17 +18,18 @@
 		shotCount = 0,
 		latestPreview,
 		replacingPage
-	}: {
+
 		/** The frame as shot, capped at MAX_DIM on its longest edge. */
-		onCapture: (frame: HTMLCanvasElement) => void;
 		/** The exit button: closes the camera, or moves on once something was shot. */
+		/** Photos taken since the camera opened. */
+		/** Thumbnail of the most recent photo, shown in the tray as capture feedback. */
+		/** Retake mode: the 1-based page the next shot replaces. */
+	}: {
+		onCapture: (frame: HTMLCanvasElement) => void;
 		onDone: () => void;
 		onError: (message: string) => void;
-		/** Photos taken since the camera opened. */
 		shotCount?: number;
-		/** Thumbnail of the most recent photo, shown in the tray as capture feedback. */
 		latestPreview?: string;
-		/** Retake mode: the 1-based page the next shot replaces. */
 		replacingPage?: number;
 	} = $props();
 

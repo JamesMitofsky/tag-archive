@@ -1,9 +1,9 @@
 import { error, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { attachProvenance } from '$lib/server/db/queries';
-import { artefact, event } from '$lib/server/db/schema';
-import { idSchema } from '$lib/schemas';
+import { db } from '#lib/server/db/index.ts';
+import { attachProvenance } from '#lib/server/db/queries.ts';
+import { artefact, event } from '#lib/server/db/schema.ts';
+import { idSchema } from '#lib/schemas.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {

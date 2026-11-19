@@ -2,9 +2,9 @@ import { page } from 'vitest/browser';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import ImageUploader from './ImageUploader.svelte';
-import { sniffImageType } from '$lib/imageType';
-import { bytesOf, canvasPhoto, dimensionsOf, fakeImageServer } from '$lib/testing/images';
-import { simulateWebKitCanvas } from '$lib/testing/scanner';
+import { sniffImageType } from '#lib/imageType.ts';
+import { bytesOf, canvasPhoto, dimensionsOf, fakeImageServer } from '#lib/testing/images.ts';
+import { simulateWebKitCanvas } from '#lib/testing/scanner.ts';
 
 // The iPhone path: WebKit canvases can't encode WebP and silently return PNG.
 // Its own file so the once-per-page encode-type probe only ever sees a WebKit

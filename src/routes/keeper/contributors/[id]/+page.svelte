@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { formatArtefactDate, formatDate } from '$lib/formatDate';
+	import { formatArtefactDate, formatDate } from '#lib/formatDate.ts';
 	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
-	import { programAreaMeta } from '$lib/programAreas';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import { programAreaMeta } from '#lib/programAreas.ts';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';

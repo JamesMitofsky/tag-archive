@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import type { CornerPoints, Point, Scanner } from 'scanic';
 import { downscale } from './image';
 import { refineCorners, toLuma } from './refine';

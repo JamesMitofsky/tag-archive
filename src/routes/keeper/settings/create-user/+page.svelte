@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
 	import UserPlusIcon from 'phosphor-svelte/lib/UserPlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import { createNewUserSuite, parseCreateUserForm } from '$lib/validation/auth';
-	import { createValidator } from '$lib/validation/client.svelte';
+	import { createNewUserSuite, parseCreateUserForm } from '#lib/validation/auth.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

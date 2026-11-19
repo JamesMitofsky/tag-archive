@@ -2,7 +2,7 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
-import { paintedCanvas } from '$lib/testing/scanner';
+import { paintedCanvas } from '#lib/testing/scanner.ts';
 
 // Rendered without a running app: stand in for what SvelteKit would provide.
 vi.mock('$app/forms', () => ({ enhance: () => ({ destroy() {} }) }));

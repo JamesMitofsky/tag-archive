@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog as DialogPrimitive } from 'bits-ui';
 	import { afterNavigate } from '$app/navigation';
-	import Drawing from '$lib/components/Drawing.svelte';
+	import Drawing from '#lib/components/Drawing.svelte';
 
 	type NavLink = {
 		href: string;
@@ -24,7 +24,7 @@
 		{ href: '/images', label: 'Images', src: '/drawing/text/nav-images.webp', text: 'Images' },
 		// The cloud keeper mark opens the contribution form. Sign-in lives at
 		// /keeper, deliberately unlinked: only admins sign in, and they keep its
-		// door link (see $lib/access/door.server).
+		// door link (see #lib/access/door.server).
 		{
 			href: '/contribute',
 			label: 'Cloud Keeper — add to the archive',

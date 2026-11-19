@@ -18,13 +18,13 @@
  * `demo-…`), then seeds afresh. Local-only: refuses unless storage is the
  * local store and the database is not remote.
  *
- * Needs SvelteKit's `$env` and `$lib`, so it runs inside Vite rather than
+ * Needs SvelteKit's `$env` and `#lib`, so it runs inside Vite rather than
  * under tsx: `pnpm db:seed:photographs` (scripts/seed-photographs.mjs).
  */
 import { inArray, like, or, sql } from 'drizzle-orm';
-import { env } from '$env/dynamic/private';
-import { exifTiff, type ExifOptions } from '$lib/testing/exifJpeg';
-import type { ImageSetData } from '$lib/validation/imageSet';
+import { DATABASE_URL } from '$app/env/private';
+import { exifTiff, type ExifOptions } from '#lib/testing/exifJpeg.ts';
+import type { ImageSetData } from '#lib/validation/imageSet.ts';
 import { db } from '.';
 import { image, imageSet, imageSetContact, user } from './schema';
 import { encodePng, encodeWebp, paint, type Scene } from './demoPhotos';
@@ -91,7 +91,14 @@ const SETS: DemoSet[] = [
 		photos: (e) => {
 			const day = e?.date ?? SPRING_DAY;
 			return [
-				{ palette: 'midday', seed: 11, taken: `${day} 17:42`, camera: 0, gps: true },
+				{
+					palette: 'midday',
+					seed: 11,
+					taken: `${day} 17:42`,
+					camera: 0,
+					gps: true
+				},
+
 				{
 					palette: 'midday',
 					seed: 12,
@@ -157,7 +164,14 @@ const SETS: DemoSet[] = [
 		description: 'Walking past on my way home and had to stop.',
 		contact: { name: 'Demo Visitor', email: 'visitor@example.com' },
 		photos: () => [
-			{ palette: 'dawn', seed: 61, taken: `${addDays(SPRING_DAY, 9)} 06:51`, camera: 1, gps: true },
+			{
+				palette: 'dawn',
+				seed: 61,
+				taken: `${addDays(SPRING_DAY, 9)} 06:51`,
+				camera: 1,
+				gps: true
+			},
+
 			{
 				palette: 'midday',
 				seed: 62,
@@ -248,7 +262,7 @@ function whoIs(who: DemoSet['who']): { actor: Actor; owner: UploadOwner } {
 }
 
 export async function seedPhotographs(): Promise<void> {
-	const url = env.DATABASE_URL ?? '';
+	const url = DATABASE_URL ?? '';
 	if (url.startsWith('libsql://') || url.startsWith('https://')) {
 		throw new Error(`Refusing to seed photographs into a remote database (${url}). Local-only.`);
 	}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fullFrameCorners, type CornerPoints } from '$lib/scanner/detect';
+	import { fullFrameCorners, type CornerPoints } from '#lib/scanner/detect.ts';
 	import type { CornerEditor } from 'scanic';
 
 	// scanic's imperative corner editor, mounted into a box that fills its parent.

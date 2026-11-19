@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { canvasPhoto, heicLike, sidewaysJpeg, textFile } from '$lib/testing/images';
+import { canvasPhoto, heicLike, sidewaysJpeg, textFile } from '#lib/testing/images.ts';
 import { decodeImage, HEIC_STALLED, HEIC_TIMEOUT_MS, UNREADABLE_PHOTO } from './decode';
 
 // Chromium has no HEIC decoder, which is exactly the case the libheif fallback

@@ -1,5 +1,4 @@
-import { json } from '@sveltejs/kit';
-import { loadPublicDataset } from '$lib/server/db/queries';
+import { loadPublicDataset } from '#lib/server/db/queries.ts';
 import type { RequestHandler } from './$types';
 
 /**
@@ -8,7 +7,7 @@ import type { RequestHandler } from './$types';
  * The dataset is small, so client components fetch this once and search it client-side.
  *
  * Cached in Vercel's CDN with a single `archive` tag; every keeper write purges
- * that tag (see `$lib/server/cache`). The day-long lifetime is a self-healing
+ * that tag (see `#lib/server/cache.ts`). The day-long lifetime is a self-healing
  * backstop in case a purge is ever missed — freshness normally comes from the
  * purge, not the TTL. `Vercel-CDN-Cache-Control` speaks to Vercel's CDN alone,
  * so browsers never keep a copy a purge can't reach. The access gate runs in
@@ -21,5 +20,5 @@ const CACHE_HEADERS = {
 };
 
 export const GET: RequestHandler = async () => {
-	return json(await loadPublicDataset(), { headers: CACHE_HEADERS });
+	return Response.json(await loadPublicDataset(), { headers: CACHE_HEADERS });
 };

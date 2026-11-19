@@ -1,10 +1,10 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
-	import KeeperList from '$lib/components/KeeperList.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import KeeperList from '#lib/components/KeeperList.svelte';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
-	import { morphVar } from '$lib/transitions.svelte';
+	import { morphVar } from '#lib/transitions.svelte.ts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

@@ -1,15 +1,15 @@
-import { env } from '$env/dynamic/private';
+import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { betterAuth } from 'better-auth/minimal';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { admin, emailOTP, magicLink } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
-import { db } from '$lib/server/db';
-import { siteOrigin } from '$lib/server/origin';
+import { db } from '#lib/server/db/index.ts';
+import { siteOrigin } from '#lib/server/origin.ts';
 
 export const auth = betterAuth({
 	baseURL: siteOrigin(),
-	secret: env.BETTER_AUTH_SECRET,
+	secret: BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
 	session: {
 		// Read the session from a short-lived signed cookie instead of hitting the
@@ -31,7 +31,7 @@ export const auth = betterAuth({
 				// Imported lazily so `better-auth generate` can load this config
 				// without the Node ESM loader traversing OtpEmail.svelte (which it
 				// can't parse — ERR_UNKNOWN_FILE_EXTENSION on ".svelte").
-				const { sendOtpEmail } = await import('$lib/server/email');
+				const { sendOtpEmail } = await import('#lib/server/email.ts');
 				return sendOtpEmail(email, otp);
 			}
 		}),
@@ -49,7 +49,7 @@ export const auth = betterAuth({
 				// Account creation is the only caller of signInMagicLink, so this
 				// callback *is* the account-created notification. Lazy import keeps
 				// `.svelte` out of the module graph the better-auth CLI traverses.
-				const { sendAccountCreatedEmail } = await import('$lib/server/email');
+				const { sendAccountCreatedEmail } = await import('#lib/server/email.ts');
 				return sendAccountCreatedEmail(email, url);
 			}
 		}),

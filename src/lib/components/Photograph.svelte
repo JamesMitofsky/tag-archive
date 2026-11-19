@@ -12,9 +12,9 @@
 -->
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
-	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
-	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
-	import { cn } from '$lib/utils';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
+	import Skeleton from '#lib/components/ui/skeleton/skeleton.svelte';
+	import { cn } from '#lib/utils.ts';
 
 	interface Props extends Omit<HTMLAttributes<HTMLDivElement>, 'class'> {
 		src: string;

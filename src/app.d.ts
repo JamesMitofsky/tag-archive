@@ -1,4 +1,4 @@
-import type { auth } from '$lib/server/auth';
+import type { auth } from '#lib/server/auth.ts';
 
 // Inferred from the configured instance so plugin fields (e.g. user.role from
 // the admin plugin) are typed on locals.
@@ -11,8 +11,8 @@ declare global {
 		interface Locals {
 			user?: AuthSession['user'];
 			session?: AuthSession['session'];
-			/** The visitor's access pass, when they hold one (see $lib/access/pass). */
-			pass?: import('$lib/access/pass').Pass;
+			/** The visitor's access pass, when they hold one (see #lib/access/pass). */
+			pass?: import('#lib/access/pass.ts').Pass;
 		}
 
 		// interface Error {}

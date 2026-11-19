@@ -5,7 +5,7 @@ await vi.hoisted(async () => {
 	useTestDatabaseUrl();
 	process.env.BETTER_AUTH_SECRET = 'test-secret';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 
 const { migrateTestDatabase } = await import('./db/testing');
 const { consume, pruneRateLimits } = await import('./rateLimit');

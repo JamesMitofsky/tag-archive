@@ -19,10 +19,10 @@ import { event, image, imageSet, imageSetContact } from './db/schema';
 import type { Image, ImageSet, ImageSetWithMeta } from './db/schema';
 import { deleteImageObjects, ownsImage, type UploadOwner } from './imageUploads';
 import type { Actor } from './artefacts';
-import { isFullDate, isPartialDate } from '$lib/partialDate';
-import { MAX_IMAGES_PER_SET, type ImageSetData } from '$lib/validation/imageSet';
+import { isFullDate, isPartialDate } from '#lib/partialDate.ts';
+import { MAX_IMAGES_PER_SET, type ImageSetData } from '#lib/validation/imageSet.ts';
 
-export { MAX_IMAGES_PER_SET } from '$lib/validation/imageSet';
+export { MAX_IMAGES_PER_SET } from '#lib/validation/imageSet.ts';
 
 /**
  * Image sets: photographs saved together, with an optional description and

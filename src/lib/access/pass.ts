@@ -18,7 +18,7 @@
  * it by relative path.
  *
  * The HMAC key is derived from BETTER_AUTH_SECRET exactly as
- * $lib/server/signing derives its purpose keys (purpose `access`), so the two
+ * #lib/server/signing derives its purpose keys (purpose `access`), so the two
  * can never disagree about a signature; pass.spec.ts holds them together.
  */
 

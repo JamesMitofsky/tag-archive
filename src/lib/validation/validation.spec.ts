@@ -5,7 +5,7 @@ import { createSeriesSuite, parseSeriesForm } from './series';
 import { createRenameSuite, parseRenameForm } from './contributor';
 import { createEmailSuite, createOtpSuite, parseEmailForm } from './auth';
 import { summary } from './helpers';
-import { UNDATED } from '$lib/partialDate';
+import { UNDATED } from '#lib/partialDate.ts';
 
 /** Build a FormData from a plain record; array values become repeated fields. */
 function fd(entries: Record<string, string | string[]>): FormData {

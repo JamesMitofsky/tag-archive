@@ -8,7 +8,7 @@ import {
 	pickedPhoto,
 	shootAndCrop,
 	simulateWebKitCanvas
-} from '$lib/testing/scanner';
+} from '#lib/testing/scanner.ts';
 
 // The iPhone path: WebKit canvases can't encode WebP and silently return PNG.
 // Its own file so the once-per-page encode-type probe only ever sees a WebKit

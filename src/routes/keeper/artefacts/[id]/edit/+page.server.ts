@@ -1,13 +1,13 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { purgeArchiveCache } from '$lib/server/cache';
-import { attachProvenance, resolveEventId, resolvePersonIds } from '$lib/server/db/queries';
-import { stampInsert, stampUpdate } from '$lib/server/db/audit';
-import { artefact, artefactProvenance, event } from '$lib/server/db/schema';
-import { idSchema } from '$lib/schemas';
-import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
-import { summary } from '$lib/validation/helpers';
+import { db } from '#lib/server/db/index.ts';
+import { purgeArchiveCache } from '#lib/server/cache.ts';
+import { attachProvenance, resolveEventId, resolvePersonIds } from '#lib/server/db/queries.ts';
+import { stampInsert, stampUpdate } from '#lib/server/db/audit.ts';
+import { artefact, artefactProvenance, event } from '#lib/server/db/schema.ts';
+import { idSchema } from '#lib/schemas.ts';
+import { createArtefactSuite, parseArtefactForm } from '#lib/validation/artefact.ts';
+import { summary } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Raw (unvalidated) edit-form values echoed back so a failed submit keeps input. */

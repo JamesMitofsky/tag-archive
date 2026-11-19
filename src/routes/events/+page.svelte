@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { EventItem } from '$lib/events';
-	import { formatDate } from '$lib/formatDate';
-	import { loadEvents } from '$lib/dataset';
-	import { filterEvents } from '$lib/search';
-	import CardCloud from '$lib/components/CardCloud.svelte';
-	import CardSheet from '$lib/components/CardSheet.svelte';
-	import Drawing from '$lib/components/Drawing.svelte';
+	import type { EventItem } from '#lib/events.ts';
+	import { formatDate } from '#lib/formatDate.ts';
+	import { loadEvents } from '#lib/dataset.ts';
+	import { filterEvents } from '#lib/search.ts';
+	import CardCloud from '#lib/components/CardCloud.svelte';
+	import CardSheet from '#lib/components/CardSheet.svelte';
+	import Drawing from '#lib/components/Drawing.svelte';
 </script>
 
 <CardCloud

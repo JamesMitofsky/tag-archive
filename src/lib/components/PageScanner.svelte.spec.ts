@@ -9,7 +9,7 @@ import {
 	pickedPhoto,
 	shootAndCrop,
 	widthOf
-} from '$lib/testing/scanner';
+} from '#lib/testing/scanner.ts';
 
 // Chromium encodes WebP. The WebKit (iPhone) path, which can't, is covered in
 // PageScanner.webkit.svelte.spec.ts.

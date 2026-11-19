@@ -31,7 +31,7 @@ export const PRESENCE_INTERVAL_MS = 4 * 60 * 1000;
  * Where a lapsed pass must NOT send the visitor to the locked page. Under
  * /contribute the form's own action refuses with "tap again" and keeps what
  * was typed; under /keeper a 401 means a lapsed keeper session, which the
- * keeper guard handles on the next navigation (see $lib/server/keeperGuard).
+ * keeper guard handles on the next navigation (see #lib/server/keeperGuard).
  */
 export const KEEPS_WORK_WHEN_LOCKED = [CONTRIBUTE_PATH, KEEPER_PATH];
 

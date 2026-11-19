@@ -4,10 +4,10 @@
 	import { createVirtualizer } from '@tanstack/svelte-virtual';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import { formatDateShort } from '$lib/formatDate';
-	import { loadEvents } from '$lib/dataset';
-	import { filterAndSortEvents } from '$lib/search';
-	import type { EventItem } from '$lib/events';
+	import { formatDateShort } from '#lib/formatDate.ts';
+	import { loadEvents } from '#lib/dataset.ts';
+	import { filterAndSortEvents } from '#lib/search.ts';
+	import type { EventItem } from '#lib/events.ts';
 
 	// Searchable single-select for event titles backed by the local dataset.
 	// Filtered in-memory and sorted by date proximity to `date` (if provided).

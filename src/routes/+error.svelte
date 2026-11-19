@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 
 	// 404 gets a friendlier line; any other error hides its raw message. A 401
-	// means the visitor's tap has lapsed mid-visit (see $lib/access/gate).
+	// means the visitor's tap has lapsed mid-visit (see #lib/access/gate).
 	let subtitle = $derived(
 		page.status === 404
 			? 'this page has drifted off...'

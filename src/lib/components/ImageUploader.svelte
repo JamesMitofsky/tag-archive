@@ -7,7 +7,7 @@
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { UploadedImage } from '$lib/images/types';
+	import type { UploadedImage } from '#lib/images/types.ts';
 	import {
 		createLimiter,
 		deleteUploaded,
@@ -17,12 +17,12 @@
 		uploadImage,
 		UploadError,
 		type UploadStage
-	} from '$lib/images/upload';
-	import { createSerialQueue } from '$lib/scanner/serial';
-	import { MAX_IMAGES_PER_SET } from '$lib/validation/imageSet';
+	} from '#lib/images/upload.ts';
+	import { createSerialQueue } from '#lib/scanner/serial.ts';
+	import { MAX_IMAGES_PER_SET } from '#lib/validation/imageSet.ts';
 
 	// Photographs for an image set: picked or dropped, each uploaded as it
-	// arrives (see $lib/images/upload). Emits the ids of the uploaded ones in
+	// arrives (see #lib/images/upload). Emits the ids of the uploaded ones in
 	// display order, for the parent form to submit as hidden `imageIds` fields.
 	// `pending` (bindable) is true while any is still uploading, and `failed`
 	// (bindable) counts the ones that failed and wait to be tried again or

@@ -2,7 +2,7 @@ import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import DateField from './DateField.svelte';
-import { UNDATED } from '$lib/partialDate';
+import { UNDATED } from '#lib/partialDate.ts';
 
 /** The hidden input is what a native POST actually submits. */
 function submittedValue(name = 'date'): string {

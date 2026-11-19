@@ -1,9 +1,9 @@
+import type { SubmitFunction } from '$app/forms';
 import { page } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
-import type { SubmitFunction } from '@sveltejs/kit';
-import { canvasPhoto, fakeImageServer } from '$lib/testing/images';
+import { canvasPhoto, fakeImageServer } from '#lib/testing/images.ts';
 
 // Rendered without a running app: stand in for what SvelteKit would provide,
 // keeping hold of what the page hands `use:enhance` for its own form.
@@ -20,7 +20,7 @@ vi.mock('$app/navigation', () => ({
 	goto: vi.fn()
 }));
 // The event combobox loads the public dataset; nothing to pick from here.
-vi.mock('$lib/dataset', () => ({ loadEvents: async () => [] }));
+vi.mock('#lib/dataset.ts', () => ({ loadEvents: async () => [] }));
 
 const { default: ImagesPage } = await import('./+page.svelte');
 type Props = ComponentProps<typeof ImagesPage>;

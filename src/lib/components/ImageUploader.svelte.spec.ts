@@ -2,10 +2,16 @@ import { page } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import ImageUploader from './ImageUploader.svelte';
-import { sniffImageType } from '$lib/imageType';
-import type { UploadedImage } from '$lib/images/types';
-import { bytesOf, canvasPhoto, dimensionsOf, fakeImageServer, textFile } from '$lib/testing/images';
-import { paintedCanvas } from '$lib/testing/scanner';
+import { sniffImageType } from '#lib/imageType.ts';
+import type { UploadedImage } from '#lib/images/types.ts';
+import {
+	bytesOf,
+	canvasPhoto,
+	dimensionsOf,
+	fakeImageServer,
+	textFile
+} from '#lib/testing/images.ts';
+import { paintedCanvas } from '#lib/testing/scanner.ts';
 
 // Chromium encodes WebP natively. The WebKit (iPhone) path, which can't, is
 // covered in ImageUploader.webkit.svelte.spec.ts.

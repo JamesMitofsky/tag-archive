@@ -4,11 +4,11 @@
  * the response, so visiting several downloads it at most once.
  */
 import { goto } from '$app/navigation';
-import { LOCKED_PATH } from '$lib/access/paths';
-import { sendBeat } from '$lib/access/presence';
-import type { ArtefactWithEvent } from '$lib/server/db/schema';
-import type { EventItem } from '$lib/events';
-import type { PublicImageSet } from '$lib/images/types';
+import { LOCKED_PATH } from '#lib/access/paths.ts';
+import { sendBeat } from '#lib/access/presence.ts';
+import type { ArtefactWithEvent } from '#lib/server/db/schema.ts';
+import type { EventItem } from '#lib/events.ts';
+import type { PublicImageSet } from '#lib/images/types.ts';
 
 type Dataset = {
 	artefacts: ArtefactWithEvent[];
@@ -28,7 +28,7 @@ async function fetchDataset(): Promise<Partial<Dataset>> {
 	if (res.status === 401) {
 		// The gate turned us away: the pass lapsed while the tab was away, or a
 		// keeper's ran out between visits. One beat settles which — it hands a
-		// signed-in keeper a new pass (see $lib/server/access) and does nothing for
+		// signed-in keeper a new pass (see #lib/server/access) and does nothing for
 		// anyone else — so try once more, and if the archive really has drifted
 		// shut, show the locked page rather than an empty cloud.
 		await sendBeat().catch(() => {});

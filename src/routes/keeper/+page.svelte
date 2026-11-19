@@ -11,10 +11,10 @@
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
-	import { createEmailSuite, parseEmailForm } from '$lib/validation/auth';
-	import { createValidator } from '$lib/validation/client.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import Confetti from '$lib/components/Confetti.svelte';
+	import { createEmailSuite, parseEmailForm } from '#lib/validation/auth.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import Confetti from '#lib/components/Confetti.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

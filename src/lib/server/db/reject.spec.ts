@@ -6,7 +6,7 @@ await vi.hoisted(async () => {
 	useTestDatabaseUrl();
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 // Record storage deletes instead of calling R2.
 const deleteScan = vi.hoisted(() => vi.fn(async (_key: string) => {}));
 vi.mock('../scans', async (importOriginal) => ({

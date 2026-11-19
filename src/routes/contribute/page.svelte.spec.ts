@@ -16,7 +16,7 @@ vi.mock('$app/navigation', () => ({
 }));
 vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/contribute'), state: {} } }));
 // The comboboxes load the public dataset; nothing to pick from here.
-vi.mock('$lib/dataset', () => ({ loadEvents: async () => [], loadPeople: async () => [] }));
+vi.mock('#lib/dataset.ts', () => ({ loadEvents: async () => [], loadPeople: async () => [] }));
 
 const { default: ContributePage } = await import('./+page.svelte');
 type Props = ComponentProps<typeof ContributePage>;

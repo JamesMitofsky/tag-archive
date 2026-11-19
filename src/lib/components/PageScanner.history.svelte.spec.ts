@@ -3,12 +3,12 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import PageScanner from './PageScanner.svelte';
 import { pushState } from '$app/navigation';
-import { page as appPage } from '$lib/testing/shallow-routing.svelte';
+import { page as appPage } from '#lib/testing/shallow-routing.svelte.ts';
 
 // The back gesture, through real history entries: a router stand-in replaces
 // SvelteKit's, which won't run outside an app.
 vi.mock('$app/navigation', async () => {
-	const nav = await import('$lib/testing/shallow-routing.svelte');
+	const nav = await import('#lib/testing/shallow-routing.svelte.ts');
 	return {
 		pushState: vi.fn(nav.pushState),
 		onNavigate: nav.onNavigate,
@@ -16,7 +16,7 @@ vi.mock('$app/navigation', async () => {
 	};
 });
 vi.mock('$app/state', async () => {
-	const { page } = await import('$lib/testing/shallow-routing.svelte');
+	const { page } = await import('#lib/testing/shallow-routing.svelte.ts');
 	return { page };
 });
 

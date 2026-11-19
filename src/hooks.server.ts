@@ -1,12 +1,12 @@
-import { error, redirect, type Handle } from '@sveltejs/kit';
-import { sequence } from '@sveltejs/kit/hooks';
-import { building } from '$app/environment';
-import { withoutDoor } from '$lib/access/door.server';
-import { accessDecision, isDoorNavigation, LOCKED_PATH } from '$lib/access/gate';
-import { auth } from '$lib/server/auth';
-import { issuePass, keeperPass, readPass } from '$lib/server/access';
-import { issueDraft } from '$lib/server/drafts';
-import { anonymousKeeperAccess } from '$lib/server/keeperGuard';
+import { error, redirect } from '@sveltejs/kit';
+import { sequence, type Handle } from '@sveltejs/kit/hooks';
+import { building } from '$app/env';
+import { withoutDoor } from '#lib/access/door.server.ts';
+import { accessDecision, isDoorNavigation, LOCKED_PATH } from '#lib/access/gate.ts';
+import { auth } from '#lib/server/auth.ts';
+import { issuePass, keeperPass, readPass } from '#lib/server/access.ts';
+import { issueDraft } from '#lib/server/drafts.ts';
+import { anonymousKeeperAccess } from '#lib/server/keeperGuard.ts';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
@@ -28,7 +28,7 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 
-// The site-wide access gate (see $lib/access/gate): the site opens to holders
+// The site-wide access gate (see #lib/access/gate): the site opens to holders
 // of an access pass — earned by tapping the garden's NFC tag or coming through
 // the door, or handed to a signed-in keeper — and kept alive by the presence
 // beat while the site is on screen (src/routes/api/presence). In production the
@@ -45,13 +45,13 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 	};
 
 	// Reading a pass costs one HMAC; a signed-in keeper without one is handed one
-	// here (never on a response the CDN might cache, see $lib/server/access).
+	// here (never on a response the CDN might cache, see #lib/server/access).
 	let pass = await readPass(event.cookies);
 	if (event.locals.user) pass = await keeperPass(event.cookies, pass, request);
 
 	const gateRequest = { ...request, pathname: event.url.pathname, search: event.url.search };
 
-	// Through the door (see $lib/access/door.server), on any page: let the
+	// Through the door (see #lib/access/door.server), on any page: let the
 	// visitor in as a tap would — a pass, and a draft so /contribute works —
 	// then send them on to the same URL without the phrase, so the next click
 	// still finds the site open and the phrase leaves the address bar. Someone
@@ -79,7 +79,7 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 	throw error(401, 'Visit the Cube to open the Archive');
 };
 
-// The keeper sign-in gate (see $lib/server/keeperGuard): anonymous requests into
+// The keeper sign-in gate (see #lib/server/keeperGuard): anonymous requests into
 // /keeper/* never reach route code.
 const guardKeeper: Handle = async ({ event, resolve }) => {
 	if (event.locals.user) return resolve(event);

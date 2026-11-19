@@ -1,6 +1,6 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
-	import ReviewActions from '$lib/components/ReviewActions.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import ReviewActions from '#lib/components/ReviewActions.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
