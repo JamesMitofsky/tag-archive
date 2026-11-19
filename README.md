@@ -103,6 +103,13 @@ line, else "N photographs"). Three tables:
 `image_set_contact` — a public submitter's optional name and email for a set,
 the twin of `submission_contact`; never published.
 
+`icloud_asset` — one row per item copied in from an iCloud Shared Album (see
+[From an iCloud Shared Album](#from-an-icloud-shared-album)), keyed by Apple's
+`guid` for it. A row means "done": the next sync skips it. `image_id` goes NULL
+when a keeper deletes the photograph's set, and the row stays so the photograph
+isn't copied back. Videos carry `video_url` / `poster_url` instead. It also
+keeps the album's `contributor`, `caption` and `posted_at`; never published.
+
 Image rows are written when an upload is _finalized_, before any set exists, so
 **unattached rows** (`set_id` NULL) are normal: they belong to a form someone is
 still filling in, until it attaches them on save. Ones left unattached for a day
@@ -362,6 +369,50 @@ save and delete, and either is refused once the set has changed since the page
 was opened (another admin's save, an approval). Saving from an out-of-date page
 would otherwise overwrite fields nobody re-read and delete photographs added in
 the meantime.
+
+#### From an iCloud Shared Album
+
+`pnpm images:icloud` copies a Shared Album (one shared as a **Public Website**)
+into the archive: photographs become image sets, videos are kept in the bucket.
+Apple has no API for Shared Albums, so this calls the two private endpoints
+the album's own web page uses (`src/lib/server/icloud/sharedAlbum.ts`). They
+can change without notice; every answer is schema-checked, so a change stops
+the run with what moved rather than importing garbage.
+
+```sh
+# The link's token is the album's only access control: keep it in .env, not in a commit.
+echo "ICLOUD_ALBUM_URL='https://www.icloud.com/sharedalbum/#…'" >> .env
+
+pnpm images:icloud                                         # dry run: what it would copy
+pnpm images:icloud --apply --as you@example.com --limit 3  # copy 3 sets and 3 videos
+pnpm images:icloud --apply --as you@example.com            # everything still missing
+```
+
+- **Photographs** go through the same code as an upload: the largest copy
+  Apple keeps becomes the original, a WebP display copy is made with sharp
+  (`./displayCopy`, a devDependency only this script loads), and
+  `finalizeImage` reads both back, checks them and parses the EXIF, so capture
+  dates work as for any upload. One set per album upload (what one person
+  posted at once), split evenly when larger than a set may hold
+  (`./plan`). Sets wait in the review queue unless `--publish` (admins only;
+  against the live database it needs `VERCEL_TOKEN` to refresh the cache).
+- **Videos** (largest rendition, 720p, and its poster frame) land under
+  `videos/<guid>/` and in `icloud_asset`. No page shows them yet, and no sweep
+  touches `videos/`. `--no-videos` leaves them out.
+- **Re-runnable.** It copies only items with no `icloud_asset` row. A photo's
+  bucket keys derive from Apple's guid, so a run cut short picks up its own
+  image rows instead of uploading twice; a set is only made once all its
+  photographs copied. Deleting or rejecting an imported set is permanent: the
+  sync won't bring it back.
+- **What "original" means here:** Apple's largest Shared Album copy, about
+  2048 px on its long edge, not the camera file. Shared Albums never keep
+  more. Its EXIF (camera, capture time, offset) survives; location usually
+  doesn't.
+- **Live archive:** export the production `DATABASE_URL`,
+  `DATABASE_AUTH_TOKEN`, `BETTER_AUTH_SECRET` and `R2_*`, leave `S3_ENDPOINT`
+  unset, and add `IMPORT_CONFIRM=1`. The script refuses a live database with
+  the local store, or the reverse, since the rows would name files the site
+  can't reach.
 
 #### Sweeps
 

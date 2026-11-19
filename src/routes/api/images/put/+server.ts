@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { readCapped } from '$lib/server/imageUploads';
+import { readCapped } from '$lib/server/streams';
 import { putObject, usesUploadProxy, verifyProxyPut } from '$lib/server/scans';
 import type { RequestHandler } from './$types';
 
