@@ -154,7 +154,15 @@ export interface Placed<T> {
 	 */
 	homeX?: number;
 	homeY?: number;
+	/** Flies the card in from `offX`/`offY`: any arrival, as a rule. */
 	enterStyle: string;
+	/**
+	 * Replaces `enterStyle` for the cloud's FIRST arrival only, when that comes
+	 * from somewhere other than off-screen (see `spillFrom`). A card rejoining
+	 * later, after a neighbor it scattered for is closed, comes back from where
+	 * it scattered to, which is `enterStyle`.
+	 */
+	arrivalStyle?: string;
 	style: string;
 }
 
@@ -462,8 +470,10 @@ const SPILL_STAGGER_MAX = 24;
  * out of it across the sky, and `homeX`/`homeY` send each one back INTO it when
  * the packet is put away. `origin` is a centre offset, like a card's `dx`/`dy`.
  *
- * Leaves `offX`/`offY` alone: those are where a card scatters to while one of
- * its neighbours is open, and that still wants to be off-screen.
+ * The spill goes in `arrivalStyle`, not `enterStyle`. It describes the moment
+ * the packet opens and nothing after it: a card that scatters off-screen while a
+ * neighbor is open (`offX`/`offY`, left alone here) has to come back from that
+ * same edge, or it would be seen leaving one way and returning from the middle.
  */
 export function spillFrom<T>(placed: Placed<T>[], origin: { x: number; y: number }): Placed<T>[] {
 	return placed.map((p, k) => {
@@ -474,7 +484,7 @@ export function spillFrom<T>(placed: Placed<T>[], origin: { x: number; y: number
 			...p,
 			homeX,
 			homeY,
-			enterStyle: `--ex:${homeX.toFixed(0)}px;--ey:${homeY.toFixed(0)}px;--edelay:${delay}s`
+			arrivalStyle: `--ex:${homeX.toFixed(0)}px;--ey:${homeY.toFixed(0)}px;--edelay:${delay}s`
 		};
 	});
 }
