@@ -63,13 +63,26 @@ AFTER="$(node scripts/row-counts.mjs)"
 # A migration can apply cleanly and still lose data (a table rebuild whose
 # DROP TABLE cascades into a child table). Every table that existed before must
 # still hold exactly as many rows; tables a migration adds are fine.
+#
+# The one exception is a table a pending migration means to remove, declared in
+# that migration's own file, so the intent is reviewed where it is written:
+#   -- migrate-test: drops <table>
+# It allows only that table's disappearance, never a changed row count in a
+# table that survives, and a declared table that is still there fails too.
 echo "[migrate-test] checking row counts survived"
+INTENDED="$(for f in drizzle/*.sql; do
+	[ -e "$WORKTREE/$f" ] || sed -n 's/^-- migrate-test: drops \([A-Za-z0-9_]*\)$/\1/p' "$f"
+done | LC_ALL=C sort -u)"
 LOST="$(LC_ALL=C join -t $'\t' <(echo "$BEFORE") <(echo "$AFTER") | awk -F'\t' '$2 != $3 { print "  " $1 ": " $2 " -> " $3 }')"
-MISSING="$(LC_ALL=C join -t $'\t' -v 1 <(echo "$BEFORE") <(echo "$AFTER") | awk -F'\t' '{ print "  " $1 ": dropped" }')"
-if [ -n "$LOST$MISSING" ]; then
+DROPPED="$(LC_ALL=C join -t $'\t' -v 1 <(echo "$BEFORE") <(echo "$AFTER") | cut -f1 | LC_ALL=C sort)"
+MISSING="$(LC_ALL=C comm -23 <(echo "$DROPPED" | sed '/^$/d') <(echo "$INTENDED" | sed '/^$/d') | awk '{ print "  " $1 ": dropped" }')"
+KEPT="$(LC_ALL=C comm -13 <(echo "$DROPPED" | sed '/^$/d') <(echo "$INTENDED" | sed '/^$/d') | awk '{ print "  " $1 ": declared dropped, still there" }')"
+if [ -n "$LOST$MISSING$KEPT" ]; then
 	echo "[migrate-test] FAIL: pending migrations changed existing data:"
 	[ -n "$LOST" ] && echo "$LOST"
 	[ -n "$MISSING" ] && echo "$MISSING"
+	[ -n "$KEPT" ] && echo "$KEPT"
 	exit 1
 fi
+[ -n "$INTENDED" ] && echo "[migrate-test] dropped as declared: $(echo "$INTENDED" | paste -sd ' ' -)"
 echo "[migrate-test] OK: $(echo "$BEFORE" | wc -l | tr -d ' ') tables, row counts unchanged"
