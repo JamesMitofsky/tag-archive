@@ -340,6 +340,11 @@ export const image = sqliteTable(
 		bytes: integer('bytes').notNull(),
 		width: integer('width').notNull(),
 		height: integer('height').notNull(),
+		// The photograph's ThumbHash, base64 (see #lib/images/placeholder): the
+		// blur a print shows while its pixels load. NULL when the uploader's
+		// browser couldn't make one, or for a row not yet backfilled
+		// (scripts/backfill-placeholders.ts).
+		placeholder: text('placeholder'),
 		// Wall-clock capture time `YYYY-MM-DDTHH:MM:SS` (or `YYYY-MM-DD` when the
 		// photo only records a day, as some XMP dates do) from the photo's own
 		// metadata, as the camera recorded it (no time zone applied), or NULL.

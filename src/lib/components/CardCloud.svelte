@@ -11,7 +11,8 @@
 	Cards can also be PACKETS (`packet`): opening one doesn't grow it into a page
 	but spills what it holds across the sky as a cloud of its own, in the
 	searchbar's place a plate naming it, and each of those cards then opens as a
-	page in turn. Putting the packet away gathers its cards back into it and
+	page in turn. Putting the packet away (the plate's arrow, Escape, back, or a
+	click on the sky between its cards) gathers its cards back into it and
 	brings the first cloud back exactly as it was, search and all.
 
 	Layout in one paragraph: the searchbar sits in the middle of the viewport
@@ -54,7 +55,11 @@
 		onchange: (id: number | null) => void;
 		/** What a packet holds, in display order. All of it is shown: no cap. */
 		contents: (item: T) => C[];
-		/** One of those, closed or open: the `card` of the packet's own cloud. */
+		/**
+		 * One of those, closed or open: the `card` of the packet's own cloud. A
+		 * card that doesn't fill its box can mark the part that does with
+		 * `data-card-hit`, and only that part then takes clicks (see `.page:has`).
+		 */
 		card: Snippet<[C, boolean]>;
 		/** Names the open packet, on the plate that stands in for the searchbar. */
 		heading: Snippet<[T]>;
@@ -172,6 +177,41 @@
 		if (e.key.length !== 1) return; // ignore Shift/Tab/arrows/etc.
 		if (document.activeElement === inputEl) return;
 		inputEl?.focus();
+	}
+
+	/**
+	 * What counts as doing something when clicked. A click on none of these is a
+	 * click on the sky. Cards are buttons, so they are in here too, and so is
+	 * anything in the chrome (the home mark, the nav) or a toast.
+	 */
+	const INTERACTIVE =
+		'a, button, input, select, textarea, label, summary, [role="button"], [contenteditable], [tabindex]';
+
+	/** Whether a pointer event landed on the sky: no control under it, and not the plate. */
+	function onSky(target: EventTarget | null): boolean {
+		if (!(target instanceof Element)) return false;
+		return !barEl?.contains(target) && !target.closest(INTERACTIVE);
+	}
+
+	/** The last primary press began on the sky (see `handleWindowClick`). */
+	let pressedSky = false;
+
+	function handleWindowPointerDown(e: PointerEvent) {
+		pressedSky = e.isPrimary && e.button === 0 && onSky(e.target);
+	}
+
+	// A click on the sky puts the open packet away, as the plate's arrow does.
+	// The press has to have begun there too: a drag that merely ENDS on the sky
+	// (a text selection begun on the plate, say) is dispatched as a click on the
+	// two ends' common ancestor, which can look like sky. With a page open the
+	// backdrop takes the click instead and closes only the page, one level per
+	// click, as Escape does.
+	function handleWindowClick(e: MouseEvent) {
+		const pressed = pressedSky;
+		pressedSky = false;
+		if (!pressed || e.button !== 0 || e.defaultPrevented) return;
+		if (!openPacket || selected !== null || !onSky(e.target)) return;
+		packet?.onchange(null);
 	}
 
 	let debounce: ReturnType<typeof setTimeout>;
@@ -800,7 +840,12 @@
 	}
 </script>
 
-<svelte:window onkeydown={handleWindowKey} onresize={schedule} />
+<svelte:window
+	onkeydown={handleWindowKey}
+	onpointerdown={handleWindowPointerDown}
+	onclick={handleWindowClick}
+	onresize={schedule}
+/>
 
 <main class="relative min-h-dvh overflow-hidden p-4">
 	<!-- Searchbar (with the handwriting mark inside it). Centred on the viewport when the cloud can
@@ -894,14 +939,14 @@
 						     holds the dimming because `Drawing` owns its image's opacity
 						     for the load fade; 0.8 matches the handwriting mark beside it. -->
 						<span
-							class="pointer-events-none absolute top-1/2 left-4 z-10 flex size-6 -translate-y-1/2 opacity-80"
+							class="pointer-events-none absolute top-1/2 left-4 z-10 flex size-5 -translate-y-1/2 opacity-80"
 							aria-hidden="true"
 						>
 							<Drawing
 								src="/drawing/icons/search.webp"
 								alt=""
-								width="142"
-								height="144"
+								width="130"
+								height="132"
 								class="size-full object-contain"
 							/>
 						</span>
@@ -1152,6 +1197,17 @@
 		width: 100%;
 		height: auto;
 		aspect-ratio: 210 / 297;
+	}
+
+	/* A card that marks part of itself `data-card-hit` (a photograph, fitted
+	   inside an A4 box it doesn't fill) takes clicks only there. The rest of its
+	   box lets them through to the sky, which puts an open packet away, so a
+	   click beside a photograph reads as a click beside it, not on it. */
+	.page:has(:global([data-card-hit])) {
+		pointer-events: none;
+	}
+	.page :global([data-card-hit]) {
+		pointer-events: auto;
 	}
 
 	/* Freeze background pages' drift while one is open — keeps the compositor from
