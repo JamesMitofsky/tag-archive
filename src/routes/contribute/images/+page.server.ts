@@ -91,7 +91,7 @@ export const actions: Actions = {
 		if (!created.ok) return fail(400, { imageSetError: created.message, values });
 
 		// Keepers land on the new set, flagged as just created; the public get a
-		// thank-you instead.
+		// one-line confirmation instead.
 		if (signedIn) throw redirect(303, `/keeper/images/${created.id}?created`);
 		return { submitted: { id: created.id } };
 	}

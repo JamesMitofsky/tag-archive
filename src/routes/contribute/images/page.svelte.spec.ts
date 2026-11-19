@@ -103,18 +103,18 @@ describe('/contribute/images', () => {
 		]);
 	});
 
-	it('thanks the contributor in place of the form, with no contact form', async () => {
+	it('confirms the submission in one line in place of the form, with no contact form', async () => {
 		const { apply } = renderPage();
 		await apply({ submitted: { id: 5 } });
 
-		await expect.element(page.getByRole('heading', { name: 'Thank you' })).toHaveFocus();
 		await expect
-			.element(page.getByText(/Your photographs are with the keepers/))
-			.toBeInTheDocument();
+			.element(page.getByRole('heading', { name: 'Photographs sent for review' }))
+			.toHaveFocus();
 		await expect
 			.element(page.getByRole('link', { name: 'Add another' }))
 			.toHaveAttribute('href', '/contribute/images');
 		expect(document.querySelector('form')).toBeNull();
-		expect(document.body.textContent).not.toMatch(/name or email/i);
+		// Only what happened: no thank-you copy, no contact form.
+		expect(document.body.textContent).not.toMatch(/thank you|with the keepers|name or email/i);
 	});
 });
