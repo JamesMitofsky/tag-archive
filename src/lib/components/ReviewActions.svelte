@@ -16,12 +16,29 @@
 	const iconOnly = $derived(variant === 'icon');
 	const iconSize = $derived(iconOnly ? 16 : 15);
 
+	// Labeled: a filled primary Approve beside an outlined Reject. Icon: approve
+	// stacked over reject, both outlined (secondary) but tinted in their own color.
+	// The approve icon uses a darker shade of the brand green (#8cb369 is only
+	// 2.4:1 on white; #5a8a38 clears the 3:1 minimum for icons).
+	const base =
+		'inline-flex items-center gap-1.5 rounded-full text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50';
+	const approveClass = $derived(
+		iconOnly
+			? 'border border-[#5a8a38]/40 bg-[#8cb369]/10 p-[5px] text-[#5a8a38] hover:border-[#5a8a38] hover:bg-[#8cb369]/25'
+			: 'bg-[#8cb369] px-3.5 py-1.5 text-white shadow-sm hover:bg-[#7aa259]'
+	);
+	const rejectClass = $derived(
+		iconOnly
+			? 'border border-[#bc4b51]/40 bg-[#bc4b51]/5 p-[5px] text-[#bc4b51] hover:border-[#bc4b51] hover:bg-[#bc4b51]/15'
+			: 'border border-gray-300 px-3.5 py-1.5 text-gray-700 hover:border-[#bc4b51] hover:text-[#bc4b51]'
+	);
+
 	// Guard double-submits while the action is in flight.
 	let approving = $state(false);
 	let rejecting = $state(false);
 </script>
 
-<div class="flex items-center gap-2 {iconOnly ? '' : 'mt-4'} {className}">
+<div class="flex {iconOnly ? 'flex-col gap-1.5' : 'mt-4 items-center gap-2'} {className}">
 	<form
 		method="POST"
 		action="?/approve"
@@ -40,8 +57,7 @@
 			aria-busy={approving}
 			aria-label={iconOnly ? 'Approve' : undefined}
 			title={iconOnly ? 'Approve' : undefined}
-			class="inline-flex items-center gap-1.5 rounded-full bg-[#8cb369] text-sm font-medium text-white shadow-sm transition hover:bg-[#7aa259] disabled:cursor-not-allowed disabled:opacity-50
-			{iconOnly ? 'p-1.5' : 'px-3.5 py-1.5'}"
+			class="{base} {approveClass}"
 		>
 			{#if approving}
 				<CircleNotchIcon size={iconSize} class="shrink-0 animate-spin" />
@@ -75,8 +91,7 @@
 			aria-busy={rejecting}
 			aria-label={iconOnly ? 'Reject' : undefined}
 			title={iconOnly ? 'Reject' : undefined}
-			class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 text-sm font-medium text-gray-700 transition hover:border-[#bc4b51] hover:text-[#bc4b51] disabled:cursor-not-allowed disabled:opacity-50
-			{iconOnly ? 'bg-white p-[5px]' : 'px-3.5 py-1.5'}"
+			class="{base} {rejectClass}"
 		>
 			{#if rejecting}
 				<CircleNotchIcon size={iconSize} class="shrink-0 animate-spin" />

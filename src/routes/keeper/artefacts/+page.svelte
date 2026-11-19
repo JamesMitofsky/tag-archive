@@ -118,8 +118,9 @@
 								class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
 								{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
 							>
+								<!-- Text in one column beside the badge and buttons, so the stacked buttons don't push the description down. -->
 								<div class="flex items-start justify-between gap-3">
-									<div class="min-w-0">
+									<div class="min-w-0 flex-1">
 										<!-- Stretched link: the ::after overlay makes the whole card open the artefact page. -->
 										<h3 class="font-medium break-words">
 											<a
@@ -137,6 +138,34 @@
 											· {formatArtefactDate(item.date)}{#if item.event}
 												· {item.event}{/if}
 										</p>
+										{#if item.description}
+											<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
+												{item.description}
+											</p>
+										{/if}
+										{#if item.programArea.length > 0 || item.provenance.length > 0}
+											<div
+												style:view-transition-name={morphVar('artefact', item.id, 'tags')}
+												class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5"
+											>
+												{#each item.programArea as area (area)}
+													{@const Icon = programAreaMeta(area).icon}
+													<span
+														class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs {programAreaMeta(
+															area
+														).pill}"
+													>
+														<Icon size={13} weight="fill" />
+														{area}
+													</span>
+												{/each}
+												{#if item.provenance.length > 0}
+													<span class="text-sm text-gray-500">
+														{item.provenance.join(', ')}
+													</span>
+												{/if}
+											</div>
+										{/if}
 									</div>
 									{#if item.proposedAddition}
 										<!-- Sits above the stretched link (z-[1]) so the buttons take the click. -->
@@ -153,34 +182,6 @@
 										</div>
 									{/if}
 								</div>
-								{#if item.description}
-									<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
-										{item.description}
-									</p>
-								{/if}
-								{#if item.programArea.length > 0 || item.provenance.length > 0}
-									<div
-										style:view-transition-name={morphVar('artefact', item.id, 'tags')}
-										class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5"
-									>
-										{#each item.programArea as area (area)}
-											{@const Icon = programAreaMeta(area).icon}
-											<span
-												class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs {programAreaMeta(
-													area
-												).pill}"
-											>
-												<Icon size={13} weight="fill" />
-												{area}
-											</span>
-										{/each}
-										{#if item.provenance.length > 0}
-											<span class="text-sm text-gray-500">
-												{item.provenance.join(', ')}
-											</span>
-										{/if}
-									</div>
-								{/if}
 							</article>
 						</div>
 					{/snippet}
