@@ -206,7 +206,10 @@
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<header class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">Cloud Keeper</h1>
+				<!-- Signed out, the page asks; signed in, it names the hub. -->
+				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
+					{signedIn ? 'Cloud Keeper' : 'Are you a Cloud Keeper?'}
+				</h1>
 			</div>
 			{#if signedIn}
 				<a
