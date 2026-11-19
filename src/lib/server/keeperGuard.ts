@@ -3,8 +3,8 @@
  * hooks.server.ts instead of by a `locals.user` check repeated in every load,
  * action, and endpoint. Those per-route checks stay, but only as type narrowing
  * and defense in depth: forgetting one is no longer a hole. The one exception is
- * /keeper itself, the sign-in page, which the access gate opens to visitors
- * without a pass only through the door (see #lib/access/door.server).
+ * /keeper itself, the sign-in page, which is open to everyone, pass or no pass
+ * (see #lib/access/gate).
  */
 
 /** True for the sign-in page, the only /keeper path open without a session. */

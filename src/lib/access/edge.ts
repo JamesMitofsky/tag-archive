@@ -57,7 +57,7 @@ export async function gateRequest(
 	if (decision === 'open') return undefined;
 
 	// No secret means no pass can be checked: everything but the open paths stays
-	// locked (fail closed), and the keeper sign-in still works.
+	// locked (fail closed), and the keeper sign-in, an open path, still works.
 	if (!secret) console.error('[access-gate] BETTER_AUTH_SECRET is not set');
 	if (await verifyPass(secret ?? '', cookie(PASS_COOKIE), now)) return undefined;
 
