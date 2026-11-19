@@ -10,6 +10,7 @@
 	every photograph. An event still being created has no id and nothing linked.
 -->
 <script module lang="ts">
+	import FieldError from '#lib/components/FieldError.svelte';
 	import type { FeatureCandidate } from '#lib/featureImage.ts';
 
 	/** The current choice, with the label of what it came from. */
@@ -145,7 +146,7 @@
 		</button>
 	{/if}
 	{#if error}
-		<p class="mt-1 text-xs text-red-600" role="alert">{error}</p>
+		<FieldError message={error} />
 	{/if}
 </div>
 
@@ -189,9 +190,10 @@
 			</label>
 
 			{#if searchFailed}
-				<p class="py-4 text-sm text-red-600" role="alert">
-					Couldn't search the archive. Check the connection and try again.
-				</p>
+				<FieldError
+					class="mt-0 py-4"
+					message="Couldn't search the archive. Check the connection and try again."
+				/>
 			{:else if results === null}
 				<p class="flex items-center gap-2 py-4 text-sm text-gray-500">
 					<CircleNotchIcon size={16} class="animate-spin" /> Loading…

@@ -29,7 +29,7 @@ export function parseEventForm(fd: FormData): EventData {
 export function createEventSuite() {
 	return defineSuite<EventData>((data) => {
 		const title = data.title ?? '';
-		check('title', 'Title is required', title.length > 0);
+		check('title', 'Title required', title.length > 0);
 		check('title', 'Keep the title under 200 characters', title.length <= 200);
 
 		maxLen('series', data.series ?? '', 200, 'series');

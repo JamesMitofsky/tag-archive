@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FieldError from '#lib/components/FieldError.svelte';
 	import CameraIcon from 'phosphor-svelte/lib/CameraIcon';
 	import ImageSquareIcon from 'phosphor-svelte/lib/ImageSquareIcon';
 	import CameraStage from './CameraStage.svelte';
@@ -704,7 +705,7 @@
 		</div>
 
 		{#if error}
-			<p class="mt-2 text-xs text-red-600" role="alert">{error}</p>
+			<FieldError message={error} class="mt-2" />
 		{/if}
 
 		{#if pages.some((p) => p.status === 'error')}

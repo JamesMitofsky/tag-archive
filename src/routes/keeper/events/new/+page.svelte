@@ -240,7 +240,7 @@
 				</div>
 
 				{#if eventError && Object.keys(errors).length === 0}
-					<p class="font-friendly text-sm text-red-600" role="alert">{eventError}</p>
+					<FieldError message={eventError} class="mt-0" />
 				{/if}
 
 				<button
