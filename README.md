@@ -660,10 +660,14 @@ The site runs on Vercel (`@sveltejs/adapter-vercel`, configured in
   the checklist, plus `CRON_SECRET`: a random string of at least 16 characters,
   which Vercel sends as the daily sweep's bearer. Without it the sweep refuses to
   run.
-- **Node 24**, pinned once by `engines.node` in `package.json`. Vercel builds
-  with it (it overrides the project's Node.js setting), the adapter gives the
-  functions the same version it built with, and the GitHub workflows read it via
-  `node-version-file`. To upgrade, change that one line.
+- **Node 24 or later**, set as a floor by `engines.node` (`>=24`) in
+  `package.json`. Vercel resolves that range to the newest major it offers (26.x
+  today) and moves up on its own when it adds one; the range overrides the
+  project's Node.js setting. The adapter gives the functions the same version it
+  built with, and the GitHub workflows install the newest LTS to match. Locally,
+  `engine-strict` in `.npmrc` makes `pnpm install` refuse anything below 24. To
+  hold production on one major instead, set `engines.node` to that major (e.g.
+  `26.x`).
 - **The daily sweep** runs once a day, at some point in the hour after midnight
   UTC (the Hobby plan's cron precision). Run it by hand with
   `curl -H "Authorization: Bearer $CRON_SECRET" https://<site>/api/cron/sweep-submissions`.
