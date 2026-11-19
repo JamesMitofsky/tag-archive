@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { enhance } from '$app/forms';
 	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
@@ -11,6 +11,7 @@
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
 	import HeadphonesIcon from 'phosphor-svelte/lib/HeadphonesIcon';
 	import { createEmailSuite, parseEmailForm } from '#lib/validation/auth.ts';
 	import { createValidator } from '#lib/validation/client.svelte.ts';
@@ -85,6 +86,39 @@
 		await tick();
 		otpForm?.requestSubmit();
 	}
+
+	// Resend: a sent code holds off another for `resendIn` seconds, which every
+	// sendOtp result names (the server holds the same line, see
+	// #lib/server/otpResendCooldown). The countdown is drawn only once the page
+	// is hydrated: without JS nothing would tick it down, so the button stays
+	// usable and the server's refusal says how long is left.
+	let hydrated = $state(false);
+	onMount(() => (hydrated = true));
+	let resendReadyAt = $state(0);
+	let clock = $state(Date.now());
+	let resendPending = $state(false);
+	// True after a resend lands, until the next attempt at either form.
+	let resent = $state(false);
+	const resendWait = $derived(Math.max(0, Math.ceil((resendReadyAt - clock) / 1000)));
+
+	// Before the DOM updates, so the code step never draws the button usable for
+	// a frame. Only results that name a wait move it: a wrong code leaves it be.
+	$effect.pre(() => {
+		if (form && 'resendIn' in form && typeof form.resendIn === 'number') {
+			resendReadyAt = Date.now() + form.resendIn * 1000;
+			clock = Date.now();
+		}
+	});
+
+	// Tick only while there is a wait to count down.
+	$effect(() => {
+		if (authStep !== 'otp' || resendReadyAt <= Date.now()) return;
+		const timer = setInterval(() => {
+			clock = Date.now();
+			if (clock >= resendReadyAt) clearInterval(timer);
+		}, 250);
+		return () => clearInterval(timer);
+	});
 
 	function handleOtpInput(i: number, event: Event) {
 		const el = event.target as HTMLInputElement;
@@ -164,6 +198,8 @@
 
 <svelte:head>
 	<title>Cloud Keeper · TAG Archive</title>
+	<!-- Open to everyone (see #lib/access/gate) but deliberately unlinked. -->
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
@@ -229,7 +265,7 @@
 													type="email"
 													required
 													autocomplete="off"
-													placeholder="you@email.community"
+													placeholder="keeper@cube.local"
 													value={authEmail}
 													class="min-w-0 flex-1 {glassInput}"
 												/>
@@ -260,6 +296,7 @@
 												bind:this={otpForm}
 												use:enhance={() => {
 													otpPending = true;
+													resent = false;
 													return async ({ result, update }) => {
 														const positive =
 															result.type === 'redirect' || result.type === 'success';
@@ -329,6 +366,54 @@
 															class="h-5 w-5 animate-spin rounded-full border-2 border-gray-500 border-t-transparent"
 														></div>
 													</div>
+												{/if}
+											</form>
+											<form
+												method="POST"
+												action="?/sendOtp"
+												use:enhance={() => {
+													resendPending = true;
+													resent = false;
+													return async ({ result, update }) => {
+														await update();
+														resendPending = false;
+														if (result.type !== 'success') return;
+														// A fresh code: clear the old digits and start again from box one.
+														resent = true;
+														otpDigits = ['', '', '', '', '', ''];
+														focusOtp(0);
+													};
+												}}
+												class="mt-5 flex flex-col items-center gap-1"
+											>
+												<input type="hidden" name="email" value={authEmail} />
+												<button
+													type="submit"
+													disabled={resendPending ||
+														otpPending ||
+														otpCelebrating ||
+														(hydrated && resendWait > 0)}
+													aria-busy={resendPending}
+													class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 transition hover:bg-white/25 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
+												>
+													{#if resendPending}
+														<CircleNotchIcon size={16} class="shrink-0 animate-spin" />
+														Sending a new code
+													{:else}
+														<ArrowClockwiseIcon size={16} class="shrink-0" />
+														{#if hydrated && resendWait > 0}
+															<span>
+																Resend code in <span class="tabular-nums">{resendWait}s</span>
+															</span>
+														{:else}
+															Resend code
+														{/if}
+													{/if}
+												</button>
+												{#if resent}
+													<p class="text-sm text-gray-700" role="status">
+														A new code is on its way. Earlier codes no longer work.
+													</p>
 												{/if}
 											</form>
 										{/if}

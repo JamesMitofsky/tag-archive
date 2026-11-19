@@ -6,6 +6,7 @@ import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { db } from '#lib/server/db/index.ts';
 import { siteOrigin } from '#lib/server/origin.ts';
+import { otpResendCooldown } from '#lib/server/otpResendCooldown.ts';
 
 export const auth = betterAuth({
 	baseURL: siteOrigin(),
@@ -35,6 +36,8 @@ export const auth = betterAuth({
 				return sendOtpEmail(email, otp);
 			}
 		}),
+		// A sent code holds off another for 30 seconds, by any route in.
+		otpResendCooldown(),
 		magicLink({
 			// One-click sign-in embedded in the account-created email. Long-lived
 			// (7 days) so a newly-invited user can act on the email at their leisure;

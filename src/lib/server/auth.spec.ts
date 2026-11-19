@@ -4,9 +4,10 @@
  * make (src/routes/keeper/+page.server.ts and settings/create-user), so a
  * better-auth upgrade that changes their behavior fails here first: OTP sign-in,
  * an admin creating a keeper with the app's own `contributor` role, and the
- * account-created magic link.
+ * account-created magic link. Also the 30-second wait between sign-in codes
+ * (#lib/server/otpResendCooldown), which rides on better-auth's hook pipeline.
  */
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 
 await vi.hoisted(async () => {
@@ -43,6 +44,7 @@ const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
 const { db } = await import('#lib/server/db/index.ts');
 const { user } = await import('#lib/server/db/auth.schema.ts');
 const { auth } = await import('#lib/server/auth.ts');
+const { cooldownRetryAfter } = await import('#lib/server/otpResendCooldown.ts');
 
 beforeAll(migrateTestDatabase);
 
@@ -111,5 +113,70 @@ describe('auth flows', () => {
 				headers: signedInHeaders()
 			})
 		).rejects.toThrow();
+	});
+});
+
+describe('the wait between sign-in codes', () => {
+	const send = (email: string) =>
+		auth.api.sendVerificationOTP({ body: { email, type: 'sign-in' } });
+	const signIn = (email: string, otp: string) =>
+		auth.api.signInEmailOTP({ body: { email, otp }, headers: new Headers({ origin: ORIGIN }) });
+	/** The cooldown's seconds left if `promise` was refused by it, else null. */
+	const refusal = (promise: Promise<unknown>) => promise.then(() => null, cooldownRetryAfter);
+
+	// Only the clock is faked, so the database driver's own timers run as normal.
+	beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: Date.now() }));
+	afterEach(() => vi.useRealTimers());
+	const wait = (seconds: number) => vi.setSystemTime(Date.now() + seconds * 1000);
+
+	it('turns away a second code for 30 seconds, without sending it', async () => {
+		await send('again@example.com');
+		const first = sent.otps.get('again@example.com');
+
+		wait(10);
+		expect(await refusal(send('again@example.com'))).toBe(20);
+		expect(sent.otps.get('again@example.com')).toBe(first);
+
+		wait(21);
+		await send('again@example.com');
+		const second = sent.otps.get('again@example.com');
+		expect(second).toMatch(/^\d{6}$/);
+		expect(second).not.toBe(first);
+		// The new code replaces the old one.
+		if (first !== second) await expect(signIn('again@example.com', first!)).rejects.toThrow();
+		expect((await signIn('again@example.com', second!)).user.email).toBe('again@example.com');
+	});
+
+	it('keeps each email to its own wait', async () => {
+		await send('one@example.com');
+		await expect(send('two@example.com')).resolves.toBeTruthy();
+		expect(await refusal(send('ONE@example.com'))).toBe(30);
+	});
+
+	it('is not restarted by a wrong guess', async () => {
+		await send('typo@example.com');
+		wait(25);
+		await expect(signIn('typo@example.com', '000000')).rejects.toThrow();
+		wait(6);
+		expect(await refusal(send('typo@example.com'))).toBeNull();
+	});
+
+	it('ends with a successful sign-in', async () => {
+		await send('quick@example.com');
+		await signIn('quick@example.com', sent.otps.get('quick@example.com')!);
+		expect(await refusal(send('quick@example.com'))).toBeNull();
+	});
+
+	it('holds over the public endpoint too, not only the server call', async () => {
+		await send('http@example.com');
+		const res = await auth.handler(
+			new Request(`${ORIGIN}/api/auth/email-otp/send-verification-otp`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json', origin: ORIGIN },
+				body: JSON.stringify({ email: 'http@example.com', type: 'sign-in' })
+			})
+		);
+		expect(res.status).toBe(429);
+		expect(res.headers.get('retry-after')).toBe('30');
 	});
 });
