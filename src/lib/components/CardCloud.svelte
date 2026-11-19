@@ -894,14 +894,14 @@
 						     holds the dimming because `Drawing` owns its image's opacity
 						     for the load fade; 0.8 matches the handwriting mark beside it. -->
 						<span
-							class="pointer-events-none absolute top-1/2 left-4 z-10 flex size-6 -translate-y-1/2 opacity-80"
+							class="pointer-events-none absolute top-1/2 left-4 z-10 flex size-5 -translate-y-1/2 opacity-80"
 							aria-hidden="true"
 						>
 							<Drawing
 								src="/drawing/icons/search.webp"
 								alt=""
-								width="142"
-								height="144"
+								width="130"
+								height="132"
 								class="size-full object-contain"
 							/>
 						</span>
