@@ -10,7 +10,7 @@ import { keyOpens } from '$lib/server/remoteKeys';
 import type { RequestHandler } from './$types';
 
 // Where a navigation carrying `?whoislisteningwiththevoiceofthegarden=<key>`
-// is sent (see $lib/access/key.server): the edge and hooks.server.ts can't
+// is sent (see $lib/access/key.server): the middleware and hooks.server.ts can't
 // check a key, so they redirect here with `key` and `to`, the page it was for.
 // An unexpired key opens the site as a tap does (/t) — a pass, and a draft so
 // /contribute works — and goes on to `to`. Always answers with a redirect, so

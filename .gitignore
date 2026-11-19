@@ -3,7 +3,6 @@ node_modules
 # Output
 .output
 .vercel
-.netlify
 .wrangler
 /.svelte-kit
 /build
@@ -30,6 +29,9 @@ storybook-static
 *.db
 *.db-shm
 *.db-wal
+
+# events-import pipeline workspace (raw pages, curations, events.json)
+/temp/events-import/
 
 # throwaway worktree used by scripts/migrate-test.sh
 .migrate-base/

@@ -21,16 +21,9 @@
 			text: 'Artefacts'
 		},
 		{ href: '/events', label: 'Events', src: '/drawing/text/nav-events.webp', text: 'Events' },
-		{ href: '/images', label: 'Images', src: '/drawing/text/nav-images.webp', text: 'Images' },
-		// The cloud keeper mark opens the contribution form. Sign-in lives at
-		// /keeper, deliberately unlinked: only admins sign in, and they keep its
-		// door link (see $lib/access/door.server).
-		{
-			href: '/contribute',
-			label: 'Cloud Keeper — add to the archive',
-			src: '/drawing/text/cloud-keeper-btn.webp',
-			text: 'Cloud Keeper'
-		}
+		{ href: '/images', label: 'Images', src: '/drawing/text/nav-images.webp', text: 'Images' }
+		// Sign-in lives at /keeper, deliberately unlinked: only admins sign in, and
+		// they keep its door link (see $lib/access/door.server).
 	];
 
 	/**

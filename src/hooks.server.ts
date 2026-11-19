@@ -33,8 +33,8 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 // of an access pass — earned by tapping the garden's NFC tag or coming through
 // the door, or handed to a signed-in keeper — and kept alive by the presence
 // beat while the site is on screen (src/routes/api/presence). In production the
-// edge function has already turned pass-less requests away; this is the same rule again for everything that
-// reaches SvelteKit, and the only gate under `vite dev`.
+// middleware has already turned pass-less requests away; this is the same rule
+// again for everything that reaches SvelteKit, and the only gate under `vite dev`.
 const guardAccess: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
 
@@ -67,8 +67,8 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 	}
 
 	// With an unlock key (see $lib/access/key.server), on any page: only
-	// /unlock checks it against the database, so send the visitor there (the edge
-	// already has, for a page view; this catches data loads, and everything under
+	// /unlock checks it against the database, so send the visitor there (the
+	// middleware already has, for a page view; this catches data loads, and everything under
 	// `vite dev`). Someone already holding a pass only loses the key.
 	if (isKeyNavigation(gateRequest)) {
 		throw redirect(303, pass ? withoutKey(event.url) : unlockUrl(event.url));

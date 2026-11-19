@@ -6,17 +6,18 @@
  * row of the `remote_key` table ($lib/server/remoteKeys).
  *
  * Unlike the door (./door.server), whose phrase is fixed and can be checked
- * anywhere, a key can only be checked against the database, which the edge
- * gate (./edge) can't reach. So a navigation carrying a key is not opened at
- * the edge: it is sent to UNLOCK_PATH (src/routes/unlock), a SvelteKit route
+ * anywhere, a key can only be checked against the database, which the
+ * middleware gate (./edge, bundled apart from SvelteKit and importing only its
+ * siblings) doesn't reach. So a navigation carrying a key is not opened there:
+ * it is sent to UNLOCK_PATH (src/routes/unlock), a SvelteKit route
  * that checks the key, hands out a pass and an upload draft as a tap would,
  * and sends the visitor on to the page they asked for, without the key. Letting
  * the request through to its own path instead would open static files (scans,
  * audio), which the CDN answers without ever asking SvelteKit, to any value at
  * all.
  *
- * Server-only, like the door, and imports nothing, so the edge bundle can load
- * it by relative path through ./gate.
+ * Server-only, like the door, and imports nothing, so the middleware bundle can
+ * load it by relative path through ./gate.
  */
 
 export const KEY_PARAM = 'whoislisteningwiththevoiceofthegarden';
