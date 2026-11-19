@@ -57,6 +57,17 @@ describe('morphBox', () => {
 			expect(b.height / b.width).toBeCloseTo(A4, 6);
 		}
 	});
+
+	it('lands exactly on a destination of another shape', () => {
+		// A landscape photograph opening out of an A4 slot: the far end must be the
+		// photograph's own box, or the last frame would jump to it.
+		const photo: Box = { left: 20, top: 300, width: 350, height: 262.5 };
+		near(morphBox(slot, photo, 0), slot);
+		near(morphBox(slot, photo, 1), photo);
+		const half = morphBox(slot, photo, 0.5);
+		expect(half.width).toBeCloseTo(Math.sqrt(slot.width * photo.width), 6);
+		expect(half.height).toBeCloseTo(Math.sqrt(slot.height * photo.height), 6);
+	});
 });
 
 describe('morphProgress', () => {
