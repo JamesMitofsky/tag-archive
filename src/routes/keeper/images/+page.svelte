@@ -66,7 +66,7 @@
 				<BackButton class="mt-2" />
 			</div>
 			<a
-				href="/contribute/images"
+				href="/keeper/images/new"
 				aria-label="Add photographs"
 				title="Add photographs"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"

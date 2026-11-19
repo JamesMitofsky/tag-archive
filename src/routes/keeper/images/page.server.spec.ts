@@ -146,11 +146,11 @@ describe('/keeper/images/[id]', () => {
 });
 
 describe('/keeper/images/add', () => {
-	it('sends keepers to the shared photograph form for good', async () => {
+	it('sends old links on to the keeper photograph form for good', async () => {
 		const result = await run(add.load, {});
 		expect(isRedirect(result) && result).toMatchObject({
 			status: 308,
-			location: '/contribute/images'
+			location: '/keeper/images/new'
 		});
 	});
 });

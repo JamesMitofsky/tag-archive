@@ -6,22 +6,13 @@ import { attachProvenance, resolveEventId, resolvePersonIds } from '#lib/server/
 import { stampInsert, stampUpdate } from '#lib/server/db/audit.ts';
 import { artefact, artefactProvenance, event } from '#lib/server/db/schema.ts';
 import { idSchema } from '#lib/schemas.ts';
-import { createArtefactSuite, parseArtefactForm } from '#lib/validation/artefact.ts';
+import {
+	echoArtefactForm,
+	createArtefactSuite,
+	parseArtefactForm
+} from '#lib/validation/artefact.ts';
 import { summary } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
-
-/** Raw (unvalidated) edit-form values echoed back so a failed submit keeps input. */
-export type ArtefactFormValues = {
-	artefact: string;
-	event: string;
-	date: string;
-	description: string;
-	location: string;
-	fileUrls: string[];
-	/** Comma-separated in the form; kept raw so a failed submit doesn't lose it. */
-	provenance: string;
-	programArea: string[];
-};
 
 /** Empty string → null, for the artefact's nullable columns. */
 const nullIfEmpty = (value: string) => (value === '' ? null : value);
@@ -70,16 +61,7 @@ export const actions: Actions = {
 			return fail(400, {
 				artefactError: summary(result),
 				errors: result.getErrors(),
-				values: {
-					artefact: String(form.get('artefact') ?? ''),
-					event: String(form.get('event') ?? ''),
-					date: String(form.get('date') ?? ''),
-					description: String(form.get('description') ?? ''),
-					location: String(form.get('location') ?? ''),
-					fileUrls: data.fileUrls,
-					provenance: String(form.get('provenance') ?? ''),
-					programArea: data.programArea
-				}
+				values: echoArtefactForm(form, data)
 			});
 		}
 
