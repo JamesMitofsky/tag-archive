@@ -23,7 +23,7 @@ describe('artefact suite', () => {
 	it('requires a title', () => {
 		const r = run(parseArtefactForm(fd({ artefact: '   ', date: '2021-07-01' })));
 		expect(r.isValid()).toBe(false);
-		expect(r.getErrors('artefact')).toContain('Title is required');
+		expect(r.getErrors('artefact')).toContain('Title required');
 	});
 
 	it('requires a date to be chosen — an empty field is not "undated"', () => {
@@ -159,7 +159,7 @@ describe('series suite', () => {
 
 	it('requires a name', () => {
 		const r = run(parseSeriesForm(fd({ name: '' })));
-		expect(r.getErrors('name')).toContain('Name is required');
+		expect(r.getErrors('name')).toContain('Name required');
 	});
 
 	it('rejects an unknown default weekday', () => {
@@ -178,7 +178,7 @@ describe('contributor rename suite', () => {
 
 	it('requires a name', () => {
 		const r = run(parseRenameForm(fd({ name: '   ' })));
-		expect(r.getErrors('name')).toContain('Name is required');
+		expect(r.getErrors('name')).toContain('Name required');
 	});
 
 	it('accepts a valid name', () => {
@@ -225,6 +225,6 @@ describe('parsers', () => {
 describe('summary', () => {
 	it('returns the first field error message', () => {
 		const r = createSeriesSuite()(parseSeriesForm(fd({ name: '' })));
-		expect(summary(r)).toBe('Name is required');
+		expect(summary(r)).toBe('Name required');
 	});
 });

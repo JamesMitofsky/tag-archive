@@ -43,7 +43,7 @@ export type ArtefactSuiteOptions = {
 export function createArtefactSuite({ requireLocation = true }: ArtefactSuiteOptions = {}) {
 	return defineSuite<ArtefactData>((data) => {
 		const title = data.artefact ?? '';
-		check('artefact', 'Title is required', title.length > 0);
+		check('artefact', 'Title required', title.length > 0);
 		check('artefact', 'Keep the title under 200 characters', title.length <= 200);
 
 		maxLen('event', data.event ?? '', 200, 'event');
@@ -61,7 +61,7 @@ export function createArtefactSuite({ requireLocation = true }: ArtefactSuiteOpt
 		maxLen('description', data.description ?? '', 2000, 'description');
 		check(
 			'location',
-			'Archival storage location is required',
+			'Archival storage location required',
 			!requireLocation || (data.location ?? '').trim().length > 0
 		);
 		maxLen('location', data.location ?? '', 200, 'location');

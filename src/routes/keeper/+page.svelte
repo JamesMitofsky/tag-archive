@@ -336,7 +336,7 @@
 								{/key}
 							</div>
 							{#if authError && Object.keys(errors).length === 0}
-								<p class="mt-4 text-sm text-red-700" role="alert">{authError}</p>
+								<FieldError message={authError} class="mt-4" />
 							{/if}
 						</section>
 					{:else if data.listener}

@@ -159,7 +159,7 @@
 					</div>
 
 					{#if formError}
-						<p class="text-sm text-red-600" role="alert">{formError}</p>
+						<FieldError message={formError} class="mt-0" />
 					{/if}
 
 					<button

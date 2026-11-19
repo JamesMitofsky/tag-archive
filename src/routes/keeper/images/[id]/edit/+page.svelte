@@ -235,7 +235,7 @@
 				</div>
 
 				{#if setError && Object.keys(errors).length === 0}
-					<p class="font-friendly text-sm text-red-600" role="alert">{setError}</p>
+					<FieldError message={setError} class="mt-0" />
 				{/if}
 
 				{#if failedUploads > 0}

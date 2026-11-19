@@ -235,9 +235,9 @@
 			<h2 class="text-lg font-semibold tracking-tight">Keys</h2>
 
 			{#if missing}
-				<p class="mt-3 text-sm text-red-600" role="alert">
+				<FieldError class="mt-3">
 					“{missing}” no longer exists. Someone may have removed it already.
-				</p>
+				</FieldError>
 			{/if}
 
 			{#if data.keys.length === 0}
