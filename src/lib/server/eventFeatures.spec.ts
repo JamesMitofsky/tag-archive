@@ -104,7 +104,7 @@ describe('setFeatureImage', () => {
 			width: 2560,
 			height: 1920,
 			ref: { kind: 'image', imageId: imageIds[1] },
-			source: { kind: 'image', setId, label: 'Evening light' }
+			source: { kind: 'image', setId, label: 'Evening light', proposed: false }
 		});
 		expect(await storedRow(eventId)).toMatchObject({ createdBy: ADMIN, updatedBy: ADMIN });
 	});
@@ -120,7 +120,7 @@ describe('setFeatureImage', () => {
 			width: null,
 			height: null,
 			ref: { kind: 'artefact', artefactId, url },
-			source: { kind: 'artefact', artefactId, label: 'Flyer' }
+			source: { kind: 'artefact', artefactId, label: 'Flyer', proposed: false }
 		});
 	});
 
@@ -226,7 +226,7 @@ describe('the stored choice', () => {
 		const { imageIds } = await newSet(1, { proposedAddition: true });
 		await setFeatureImage(eventId, { kind: 'image', imageId: imageIds[0] }, ADMIN);
 
-		expect(await loadFeatureImage(eventId, { vettedOnly: false })).not.toBeNull();
+		expect((await loadFeatureImage(eventId, { vettedOnly: false }))?.source.proposed).toBe(true);
 		expect(await loadFeatureImage(eventId, { vettedOnly: true })).toBeNull();
 	});
 

@@ -98,7 +98,8 @@ export async function featureImagesWhere(
 						event: row.setEvent,
 						description: row.setDescription,
 						count: Number(row.setCount)
-					})
+					}),
+					proposed: row.setProposed === true
 				}
 			});
 		} else if (row.artefactId !== null && row.artefactFileUrl !== null) {
@@ -112,7 +113,12 @@ export async function featureImagesWhere(
 				width: null,
 				height: null,
 				ref: { kind: 'artefact', artefactId: row.artefactId, url },
-				source: { kind: 'artefact', artefactId: row.artefactId, label: row.artefactTitle }
+				source: {
+					kind: 'artefact',
+					artefactId: row.artefactId,
+					label: row.artefactTitle,
+					proposed: row.artefactProposed === true
+				}
 			});
 		}
 	}

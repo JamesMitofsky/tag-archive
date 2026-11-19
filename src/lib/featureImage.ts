@@ -22,9 +22,16 @@ export type FeatureImage = {
 /** A feature image with what it came from, for keeper pages that link back to it. */
 export type FeatureImageWithSource = FeatureImage & {
 	ref: FeatureRef;
-	source:
+	source: (
 		| { kind: 'image'; setId: number; label: string }
-		| { kind: 'artefact'; artefactId: number; label: string };
+		| { kind: 'artefact'; artefactId: number; label: string }
+	) & {
+		/**
+		 * The set or artefact is itself still awaiting review: the image shows
+		 * publicly only once that is approved too, whatever happens to the event.
+		 */
+		proposed: boolean;
+	};
 };
 
 /**
