@@ -14,9 +14,13 @@
 	import PublicNav from '#lib/components/PublicNav.svelte';
 	import TapToast from '#lib/components/TapToast.svelte';
 	import Presence from '#lib/access/Presence.svelte';
-	import { KEEPER_PATH, LOCKED_PATH } from '#lib/access/paths.ts';
+	import { INSTALLATION_PATH, isUnder, KEEPER_PATH, LOCKED_PATH } from '#lib/access/paths.ts';
 
 	let { children } = $props();
+
+	// The installation's projector and iPad pages are the whole screen: no home
+	// mark, nav or toasts over them.
+	const installation = $derived(isUnder(page.url.pathname, INSTALLATION_PATH));
 
 	// Shared-element morph for keeper list ↔ item navigations. Setting morph.name
 	// makes the matching card (shell + title/meta/tags) reactively carry its
@@ -59,22 +63,26 @@
      top of the document rather than the viewport, so it scrolls away with the
      page like any in-flow header; pages reserve its band with `pt-chrome`. From
      md up the page rarely scrolls and the mark stays pinned. -->
-<a
-	href="/"
-	aria-label="Home"
-	data-cloud-block
-	style="--fade-delay: 120ms"
-	class="load-fade absolute top-3 left-3 z-40 touch-manipulation p-2 transition-opacity duration-100 hover:opacity-70 md:fixed"
->
-	<Drawing src="/drawing/text/tag-archive.webp" alt="Home" class="w-44 max-w-[32vw]" />
-</a>
+{#if !installation}
+	<a
+		href="/"
+		aria-label="Home"
+		data-cloud-block
+		style="--fade-delay: 120ms"
+		class="load-fade absolute top-3 left-3 z-40 touch-manipulation p-2 transition-opacity duration-100 hover:opacity-70 md:fixed"
+	>
+		<Drawing src="/drawing/text/tag-archive.webp" alt="Home" class="w-44 max-w-[32vw]" />
+	</a>
+{/if}
 
 <!-- No nav on the locked page: every link would lead straight back to it. -->
-{#if !page.url.pathname.startsWith(KEEPER_PATH) && page.url.pathname !== LOCKED_PATH}
+{#if !page.url.pathname.startsWith(KEEPER_PATH) && page.url.pathname !== LOCKED_PATH && !installation}
 	<PublicNav />
 {/if}
 
-<TapToast />
+{#if !installation}
+	<TapToast />
+{/if}
 
 <!-- Keeps the pass alive while the site is on screen. Not on the locked page,
      where there is no pass to keep. -->
