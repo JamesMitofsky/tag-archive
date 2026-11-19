@@ -6,6 +6,7 @@ import {
 	fakeCamera,
 	fakeServer,
 	openCamera,
+	paintedCanvas,
 	pickedPhoto,
 	shootAndCrop,
 	widthOf
@@ -19,6 +20,23 @@ const URLS = ['https://example.com/scan1.jpg', 'https://example.com/scan2.jpg'];
 afterEach(() => {
 	vi.restoreAllMocks();
 });
+
+async function sizeOf(blob: Blob) {
+	const bitmap = await createImageBitmap(blob);
+	const { width, height } = bitmap;
+	bitmap.close();
+	return { width, height };
+}
+
+/** Shoot one photo and add it uncropped: a 640×480 page uploaded as new-1. */
+async function addWholePhoto(onChange: ReturnType<typeof vi.fn>) {
+	await shootAndCrop(1);
+	await page.getByRole('button', { name: 'Use whole image' }).click();
+	await page.getByRole('button', { name: 'Add 1 page' }).click();
+	await vi.waitFor(() =>
+		expect(onChange).toHaveBeenLastCalledWith(['https://example.com/new-1.webp'])
+	);
+}
 
 describe('PageScanner.svelte', () => {
 	it('supports selecting multiple images without capture locking', async () => {
@@ -382,80 +400,6 @@ describe('PageScanner.svelte', () => {
 			expect(onChange).not.toHaveBeenCalledWith(['https://example.com/late.webp']);
 		});
 
-		it('retakes a page in place, through the crop step', async () => {
-			fakeCamera();
-			fakeServer();
-			const onChange = vi.fn();
-			render(PageScanner, { initial: URLS, onChange });
-
-			const shutter = await openCamera('Retake page 1');
-			await expect.element(page.getByText('Retaking page 1')).toBeInTheDocument();
-			await expect.element(page.getByRole('button', { name: 'Cancel retake' })).toBeInTheDocument();
-			await shutter.click();
-
-			await expect.element(page.getByText('New photo for page 1')).toBeInTheDocument();
-			await expect
-				.element(page.getByRole('button', { name: 'Retake', exact: true }))
-				.toBeInTheDocument();
-			await page.getByRole('button', { name: 'Replace page 1' }).click();
-
-			await vi.waitFor(() =>
-				expect(onChange).toHaveBeenLastCalledWith(['https://example.com/new-1.webp', URLS[1]])
-			);
-		});
-
-		it('keeps the page as it was when a retake is cancelled from the crop step', async () => {
-			fakeCamera();
-			const server = fakeServer();
-			const onChange = vi.fn();
-			render(PageScanner, { initial: URLS, onChange });
-
-			const shutter = await openCamera('Retake page 2');
-			await shutter.click();
-			await expect.element(page.getByText('New photo for page 2')).toBeInTheDocument();
-
-			// Escape there means the same as its X: cancel, not replace.
-			await userEvent.keyboard('{Escape}');
-
-			await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
-			expect(server.fetch).not.toHaveBeenCalled();
-			expect(onChange).not.toHaveBeenCalled();
-			await expect
-				.element(page.getByRole('img', { name: 'Page 2' }))
-				.toHaveAttribute('src', URLS[1]);
-		});
-
-		it('offers no re-crop of the old photo while a retake replaces it', async () => {
-			fakeCamera();
-			let finishUpload: () => void = () => {};
-			const server = fakeServer();
-			render(PageScanner, {});
-			await shootAndCrop(1);
-			await page.getByRole('button', { name: 'Add 1 page' }).click();
-			await expect
-				.element(page.getByRole('button', { name: 'Adjust crop of page 1' }))
-				.toBeInTheDocument();
-
-			// Hold the retake's upload so the page stays mid-replacement.
-			const held = new Promise<void>((resolve) => (finishUpload = resolve));
-			const respond = server.fetch.getMockImplementation()!;
-			server.fetch.mockImplementation(async (input, init) => {
-				if (init?.method !== 'DELETE') await held;
-				return respond(input, init);
-			});
-			const shutter = await openCamera('Retake page 1');
-			await shutter.click();
-			await page.getByRole('button', { name: 'Replace page 1' }).click();
-
-			await expect.element(page.getByText('Uploading...')).toBeInTheDocument();
-			expect(page.getByRole('button', { name: 'Adjust crop of page 1' }).query()).toBeNull();
-
-			finishUpload();
-			await expect
-				.element(page.getByRole('button', { name: 'Adjust crop of page 1' }))
-				.toBeInTheDocument();
-		});
-
 		it('never opens the crop editor over the camera', async () => {
 			fakeCamera();
 			fakeServer();
@@ -465,13 +409,13 @@ describe('PageScanner.svelte', () => {
 			await page.getByRole('button', { name: 'Add 1 page' }).click();
 			await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
 
-			// Adjust, then Retake before the photo has been decoded for the editor.
+			// Adjust, then open the camera before the photo has been decoded for the editor.
 			const adjust = page.getByRole('button', { name: 'Adjust crop of page 1' }).element();
-			const retake = page.getByRole('button', { name: 'Retake page 1' }).element();
+			const scanMore = page.getByRole('button', { name: 'Scan more pages' }).element();
 			(adjust as HTMLElement).click();
-			(retake as HTMLElement).click();
+			(scanMore as HTMLElement).click();
 
-			const shutter = page.getByRole('button', { name: 'Retake page', exact: true });
+			const shutter = page.getByRole('button', { name: 'Capture page' });
 			await expect.element(shutter).toBeInTheDocument();
 			await new Promise((resolve) => setTimeout(resolve, 300));
 			expect(page.getByRole('button', { name: 'Apply crop' }).query()).toBeNull();
@@ -499,6 +443,113 @@ describe('PageScanner.svelte', () => {
 			expect(await widthOf(server.uploads[1])).toBe(640);
 			// The first version is no longer referenced, so it is cleaned up.
 			expect(server.deleted).toEqual(['https://example.com/new-1.webp']);
+		});
+	});
+	describe('rotation', () => {
+		it('turns a page a quarter turn per tap, replacing its upload', async () => {
+			fakeCamera();
+			const server = fakeServer();
+			const onChange = vi.fn();
+			render(PageScanner, { onChange });
+			await addWholePhoto(onChange);
+			expect(await sizeOf(server.uploads[0])).toEqual({ width: 640, height: 480 });
+
+			await page.getByRole('button', { name: 'Rotate page 1' }).click();
+
+			await vi.waitFor(() =>
+				expect(onChange).toHaveBeenLastCalledWith(['https://example.com/new-2.webp'])
+			);
+			expect(await sizeOf(server.uploads[1])).toEqual({ width: 480, height: 640 });
+			expect(server.deleted).toEqual(['https://example.com/new-1.webp']);
+		});
+
+		it('adds up taps made before the last one lands, uploading only the last', async () => {
+			fakeCamera();
+			const server = fakeServer();
+			const onChange = vi.fn();
+			render(PageScanner, { onChange });
+			await addWholePhoto(onChange);
+
+			const rotate = page.getByRole('button', { name: 'Rotate page 1' }).element() as HTMLElement;
+			rotate.click();
+			rotate.click();
+
+			await vi.waitFor(() =>
+				expect(onChange).toHaveBeenLastCalledWith(['https://example.com/new-2.webp'])
+			);
+			// Half a turn: back to wide. The first tap's render was superseded unsent.
+			expect(server.uploads).toHaveLength(2);
+			expect(await sizeOf(server.uploads[1])).toEqual({ width: 640, height: 480 });
+		});
+
+		it('opens the crop editor on the page as turned, and keeps the turn', async () => {
+			fakeCamera();
+			const server = fakeServer();
+			const onChange = vi.fn();
+			render(PageScanner, { onChange });
+			await addWholePhoto(onChange);
+			await page.getByRole('button', { name: 'Rotate page 1' }).click();
+			await vi.waitFor(() =>
+				expect(onChange).toHaveBeenLastCalledWith(['https://example.com/new-2.webp'])
+			);
+
+			await page.getByRole('button', { name: 'Adjust crop of page 1' }).click();
+			await page.getByRole('button', { name: 'Use whole image' }).click();
+			await page.getByRole('button', { name: 'Apply crop' }).click();
+
+			await vi.waitFor(() =>
+				expect(onChange).toHaveBeenLastCalledWith(['https://example.com/new-3.webp'])
+			);
+			expect(await sizeOf(server.uploads[2])).toEqual({ width: 480, height: 640 });
+		});
+
+		it('turns a page from the server, keeping the saved image', async () => {
+			const saved = await new Promise<Blob | null>((resolve) =>
+				paintedCanvas(320, 240).toBlob(resolve, 'image/png')
+			);
+			const uploads: File[] = [];
+			const deleted: string[] = [];
+			vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+				if (init?.method === 'DELETE') {
+					deleted.push((JSON.parse(String(init.body)) as { url: string }).url);
+					return new Response(null, { status: 204 });
+				}
+				if (!init) return new Response(saved);
+				uploads.push((init.body as FormData).get('file') as File);
+				return new Response(
+					JSON.stringify({ url: 'https://example.com/turned.webp', fileName: 'turned.webp' }),
+					{ headers: { 'Content-Type': 'application/json' } }
+				);
+			});
+			const onChange = vi.fn();
+			render(PageScanner, { initial: URLS, onChange });
+
+			await page.getByRole('button', { name: 'Rotate page 2' }).click();
+
+			await vi.waitFor(() =>
+				expect(onChange).toHaveBeenLastCalledWith([URLS[0], 'https://example.com/turned.webp'])
+			);
+			expect(await sizeOf(uploads[0])).toEqual({ width: 240, height: 320 });
+			// The saved artefact still uses the old image until the form is saved.
+			expect(deleted).toEqual([]);
+		});
+
+		it('leaves a server page as it was when its image cannot be fetched', async () => {
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 404 }));
+			const onChange = vi.fn();
+			render(PageScanner, { initial: URLS, onChange });
+
+			await page.getByRole('button', { name: 'Rotate page 1' }).click();
+
+			await expect
+				.element(page.getByText('Could not load page 1 to rotate it.'))
+				.toBeInTheDocument();
+			expect(onChange).not.toHaveBeenCalled();
+			await expect
+				.element(page.getByRole('img', { name: 'Page 1' }))
+				.toHaveAttribute('src', URLS[0]);
+			// Not left spinning, which would hold the form's submit.
+			await expect.element(page.getByText('Uploading...')).not.toBeInTheDocument();
 		});
 	});
 });

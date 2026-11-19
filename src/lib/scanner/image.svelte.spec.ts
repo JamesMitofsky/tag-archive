@@ -6,6 +6,7 @@ import {
 	encodedImageType,
 	encodeImage,
 	fitWithin,
+	rotateQuarterTurns,
 	withExtension
 } from './image';
 import { paintedCanvas } from '$lib/testing/scanner';
@@ -16,6 +17,43 @@ import { paintedCanvas } from '$lib/testing/scanner';
 
 afterEach(() => {
 	vi.restoreAllMocks();
+});
+
+describe('rotateQuarterTurns', () => {
+	/** A 3×2 canvas whose top-left pixel alone is red, the rest blue. */
+	function marked() {
+		const canvas = document.createElement('canvas');
+		canvas.width = 3;
+		canvas.height = 2;
+		const ctx = canvas.getContext('2d')!;
+		ctx.fillStyle = '#00f';
+		ctx.fillRect(0, 0, 3, 2);
+		ctx.fillStyle = '#f00';
+		ctx.fillRect(0, 0, 1, 1);
+		return canvas;
+	}
+
+	/** Every pixel, as 'r' (red) or 'b' (blue), row by row. */
+	function pixels(canvas: HTMLCanvasElement) {
+		const { data } = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
+		const rows: string[] = [];
+		for (let y = 0; y < canvas.height; y++) {
+			let row = '';
+			for (let x = 0; x < canvas.width; x++)
+				row += data[(y * canvas.width + x) * 4] > 127 ? 'r' : 'b';
+			rows.push(row);
+		}
+		return rows;
+	}
+
+	it('turns counterclockwise, pixel for pixel', () => {
+		// The top-left corner goes to the bottom-left.
+		expect(pixels(rotateQuarterTurns(marked(), 1)!)).toEqual(['bb', 'bb', 'rb']);
+		expect(pixels(rotateQuarterTurns(marked(), 2)!)).toEqual(['bbb', 'bbr']);
+		expect(pixels(rotateQuarterTurns(marked(), 3)!)).toEqual(['br', 'bb', 'bb']);
+		expect(pixels(rotateQuarterTurns(marked(), 4)!)).toEqual(['rbb', 'bbb']);
+		expect(pixels(rotateQuarterTurns(marked(), -1)!)).toEqual(['br', 'bb', 'bb']);
+	});
 });
 
 describe('encode format', () => {

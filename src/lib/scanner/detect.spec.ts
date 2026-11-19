@@ -5,6 +5,7 @@ import {
 	isFullFrame,
 	isPlausibleQuad,
 	quadArea,
+	rotateCorners,
 	scaleCorners,
 	type CornerPoints
 } from './detect';
@@ -67,6 +68,34 @@ describe('scanner geometry', () => {
 
 		expect(isFullFrame(quad(640, 480, 2), 640, 480)).toBe(false);
 		expect(isFullFrame(fullFrameCorners(640, 480), 1280, 960)).toBe(false);
+	});
+
+	it('carries corners onto a page turned a quarter turn counterclockwise', () => {
+		// The top-right corner swings round to the top-left; the frame turns tall.
+		expect(rotateCorners(fullFrameCorners(640, 480), 640, 480, 1)).toEqual(
+			fullFrameCorners(480, 640)
+		);
+		const crop = {
+			topLeft: { x: 10, y: 20 },
+			topRight: { x: 600, y: 30 },
+			bottomRight: { x: 590, y: 450 },
+			bottomLeft: { x: 15, y: 440 }
+		};
+		expect(rotateCorners(crop, 640, 480, 1)).toEqual({
+			topLeft: { x: 30, y: 40 },
+			topRight: { x: 450, y: 50 },
+			bottomRight: { x: 440, y: 625 },
+			bottomLeft: { x: 20, y: 630 }
+		});
+	});
+
+	it('turns corners back with the opposite number of turns', () => {
+		const crop = quad(640, 480, 12);
+		for (const turns of [0, 1, 2, 3]) {
+			const [w, h] = turns % 2 ? [480, 640] : [640, 480];
+			expect(rotateCorners(rotateCorners(crop, 640, 480, turns), w, h, -turns)).toEqual(crop);
+		}
+		expect(rotateCorners(crop, 640, 480, 4)).toEqual(crop);
 	});
 
 	it('rejects non-finite and zero-area frames', () => {
