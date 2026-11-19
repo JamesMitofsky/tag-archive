@@ -133,7 +133,7 @@ SQLite file), then stops it:
 2. `drizzle-kit push --force` — create tables (`--force` because Conductor's shell
    is non-interactive)
 3. `pnpm db:seed` — insert rows from `src/lib/data/seed-data.json`, plus an
-   admin and a contributor test account
+   admin, a contributor and a listener test account
 
 Tables after setup: the archive's (see [Data model](#data-model)) plus Better
 Auth's `user`, `session`, `account`, `verification`.
@@ -215,8 +215,8 @@ them client-side, and upload each as WebP to `POST /api/scans`
 via `src/lib/server/scans.ts`. The stored type is sniffed from the bytes, never
 taken from the client.
 
-Anyone in the garden can contribute; only admins sign in (at `/keeper`, deliberately
-unlinked). An admin's artefact lands vetted. Anyone else's lands as a proposed
+Anyone in the garden can contribute; keepers sign in (at `/keeper`, deliberately
+unlinked; see [Access](#access) for the roles). An admin's artefact lands vetted. Anyone else's lands as a proposed
 addition, hidden from the public site until an admin approves it in the review
 queue. Anonymous writes are guarded by:
 
@@ -483,6 +483,27 @@ is never locked out for being away. The signed-in area
 (`/keeper/*`) stays open at the gate so a keeper whose pass has lapsed still
 reaches SvelteKit, where their session renews it; anyone without a session is
 sent back to `/keeper`.
+
+**Every account opens it from anywhere; the role decides the rest.** Roles live
+in `src/lib/roles.ts`:
+
+- **Admin**: a keeper with full access, accounts included.
+- **Contributor**: a keeper whose entries land as proposed additions.
+- **Listener**: signs in only so the archive opens wherever they are. A listener
+  is not a keeper: `hooks.server.ts` puts them on `locals.listener`, never
+  `locals.user`, so every keeper check turns them away, and inside `/keeper/*`
+  they reach only the hub (which links them to the archive) and their settings,
+  to sign out. They get no upload draft either, so `/contribute` treats them like
+  any visitor who has not tapped the Cube.
+
+Admins set the role when creating an account (**Settings → New account**) and
+change it later at **Settings → Accounts** (`/keeper/settings/accounts`), for
+any account but their own, so the archive always keeps an admin. Someone already
+signed in sees a new role within five minutes: better-auth's session cookie
+cache (`cookieCache.maxAge` in `src/lib/server/auth.ts`) keeps serving the old
+one until it lapses. The database holds `user.role` to these values with
+`user_role_check` (migration `0011_listener_role`), so a new role needs a
+migration as well as an entry in `src/lib/roles.ts`.
 
 **Unlock keys open it from anywhere, for a while.** Any page also opens when its
 URL carries `?whoislisteningwiththevoiceofthegarden=<key>` and `<key>` is a row
