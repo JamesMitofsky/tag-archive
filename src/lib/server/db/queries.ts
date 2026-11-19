@@ -17,6 +17,7 @@ import {
 } from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
 import type { EventItem } from '#lib/events.ts';
+import type { FeatureImage } from '#lib/featureImage.ts';
 import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
 import { isFullDate } from '#lib/partialDate.ts';
 
@@ -132,7 +133,9 @@ export async function attachHosts<T extends { id: number }>(
  * so the list can size its scrollbar and page the rest in lazily. Search mirrors
  * the old client-side filter: title, series name, description, location, date,
  * and host names (the last via an EXISTS over the host join). Ordered newest
- * first, matching the eager loader.
+ * first, matching the eager loader. Each row carries its feature image for the
+ * list's thumbnail (see ../eventFeatures), pending sources included, as keeper
+ * pages show them.
  */
 export async function searchEvents({
 	q,
@@ -142,7 +145,7 @@ export async function searchEvents({
 	q: string;
 	offset: number;
 	limit: number;
-}): Promise<{ rows: EventWithMeta[]; total: number }> {
+}): Promise<{ rows: EventListRow[]; total: number }> {
 	const term = q.trim().toLowerCase();
 	const filter = term
 		? or(
@@ -182,10 +185,25 @@ export async function searchEvents({
 			.where(filter)
 	]);
 
-	// Hosts need the slice's ids, so this stays a follow-up round-trip.
-	const rows = await attachHosts(slice);
+	// Hosts and feature images need the slice's ids, so they are one follow-up
+	// round-trip, together. Only the rendering fields of each image ride along:
+	// a thumbnail needs no source label or ids.
+	const ids = slice.map((row) => row.id);
+	const [withHosts, features] = await Promise.all([
+		attachHosts(slice),
+		ids.length === 0
+			? new Map<number, FeatureImage>()
+			: featureImagesWhere(inArray(event.id, ids), { vettedOnly: false })
+	]);
+	const rows = withHosts.map((row) => {
+		const feature = features.get(row.id);
+		return { ...row, featureImage: feature ? publicFeatureImage(feature) : null };
+	});
 	return { rows, total };
 }
+
+/** An event as the keeper list reads it: `EventWithMeta` plus its thumbnail's image. */
+export type EventListRow = EventWithMeta & { featureImage: FeatureImage | null };
 
 /** The public archive blob: everything the public pages search, client-side. */
 export type PublicDataset = {
