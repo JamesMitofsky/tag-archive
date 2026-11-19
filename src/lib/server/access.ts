@@ -72,7 +72,6 @@ export type RequestShape = {
 export function mayIssuePass(request: RequestShape): boolean {
 	const isRead = request.method === 'GET' || request.method === 'HEAD';
 	if (!isRead) return true;
-
 	return (
 		request.isDataRequest ||
 		request.isEnhancedAction ||

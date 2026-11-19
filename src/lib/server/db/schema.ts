@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+	check,
 	index,
 	integer,
 	primaryKey,
@@ -399,6 +400,44 @@ export const nfcTag = sqliteTable('nfc_tag', {
 	firstSeenAt: integer('first_seen_at', { mode: 'timestamp_ms' }).notNull(),
 	lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }).notNull()
 });
+
+/**
+ * Unlock keys: hand-entered values that open the archive from anywhere through
+ * `?whoislisteningwiththevoiceofthegarden=<unlock_key>` (see
+ * #lib/access/key.server and src/routes/unlock). A keeper adds a row to hand
+ * one out; it stops working once `expires_at` passes, and deleting the row (or
+ * moving `expires_at` into the past) closes it early.
+ *
+ * Both columns are text so they can be typed by hand in Drizzle Studio or a SQL
+ * shell. `unlock_key` matches case-insensitively (ASCII letters only, as SQLite's
+ * `lower()` folds), so two keys differing only in case are refused by the
+ * unique index. `expires_at` is an ISO 8601 date or date-time: a bare date
+ * (`2026-12-31`) keeps the key working through the end of that day, UTC; a
+ * date-time (`2026-12-31 18:00`, `2026-12-31T18:00:00+01:00`) is the exact
+ * moment it stops, UTC unless it carries an offset. The CHECK refuses anything
+ * SQLite can't read as a date, so a typo can't leave a key that never opens, or
+ * never closes.
+ */
+export const remoteKey = sqliteTable(
+	'remote_key',
+	{
+		unlockKey: text('unlock_key').primaryKey(),
+		expiresAt: text('expires_at').notNull()
+	},
+	(t) => [
+		uniqueIndex('remote_key_unlock_key_lower_idx').on(sql`lower(${t.unlockKey})`),
+		// The visitor's value is trimmed before it is looked up, so a stored key
+		// with stray spaces could never match: refuse it here instead.
+		check(
+			'remote_key_unlock_key_check',
+			sql`${t.unlockKey} <> '' AND ${t.unlockKey} = trim(${t.unlockKey})`
+		),
+		check(
+			'remote_key_expires_at_check',
+			sql`${t.expiresAt} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' AND julianday(${t.expiresAt}) IS NOT NULL`
+		)
+	]
+);
 
 // Relations power `db.query` relational loads.
 export const seriesRelations = relations(series, ({ many }) => ({

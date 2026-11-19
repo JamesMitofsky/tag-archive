@@ -16,21 +16,17 @@
 		onDone,
 		onError,
 		shotCount = 0,
-		latestPreview,
-		replacingPage
-
-		/** The frame as shot, capped at MAX_DIM on its longest edge. */
-		/** The exit button: closes the camera, or moves on once something was shot. */
-		/** Photos taken since the camera opened. */
-		/** Thumbnail of the most recent photo, shown in the tray as capture feedback. */
-		/** Retake mode: the 1-based page the next shot replaces. */
+		latestPreview
 	}: {
+		/** The frame as shot, capped at MAX_DIM on its longest edge. */
 		onCapture: (frame: HTMLCanvasElement) => void;
+		/** The exit button: closes the camera, or moves on once something was shot. */
 		onDone: () => void;
 		onError: (message: string) => void;
+		/** Photos taken since the camera opened. */
 		shotCount?: number;
+		/** Thumbnail of the most recent photo, shown in the tray as capture feedback. */
 		latestPreview?: string;
-		replacingPage?: number;
 	} = $props();
 
 	/**
@@ -59,13 +55,10 @@
 	let stream: MediaStream | null = null;
 	let stopped = false;
 
-	const replacing = $derived(replacingPage !== undefined);
 	/** With nothing shot, leaving is quitting; after that it is finishing. */
 	const finishing = $derived(shotCount > 0);
 	const photos = $derived(`${shotCount} ${shotCount === 1 ? 'photo' : 'photos'}`);
-	const exitLabel = $derived(
-		finishing ? `Done, crop ${photos}` : replacing ? 'Cancel retake' : 'Close camera'
-	);
+	const exitLabel = $derived(finishing ? `Done, crop ${photos}` : 'Close camera');
 
 	async function start() {
 		try {
@@ -143,9 +136,7 @@
 		<span aria-live="polite" class="text-white/80">
 			<!-- Photos, not pages: they aren't pages until they're cropped and kept,
 			     and the form's own pages are numbered separately. -->
-			{#if replacing}
-				Retaking page {replacingPage}
-			{:else if shotCount === 0}
+			{#if shotCount === 0}
 				No photos yet
 			{:else}
 				{photos}
@@ -185,7 +176,7 @@
 
 	<footer class="grid grid-cols-3 items-center px-6 py-5">
 		<div class="justify-self-start">
-			{#if !replacing && latestPreview}
+			{#if latestPreview}
 				{#key latestPreview}
 					<div
 						class="relative size-14 animate-in overflow-hidden rounded-md ring-2 ring-white/80 duration-300 zoom-in-75 fade-in"
@@ -208,7 +199,7 @@
 			type="button"
 			onclick={capture}
 			aria-disabled={!ready}
-			aria-label={replacing ? 'Retake page' : 'Capture page'}
+			aria-label="Capture page"
 			class="group size-18 justify-self-center rounded-full border-4 border-white p-1 transition aria-disabled:opacity-40"
 		>
 			<span class="block h-full w-full rounded-full bg-white transition group-active:scale-90"

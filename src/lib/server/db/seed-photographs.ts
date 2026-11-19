@@ -18,7 +18,7 @@
  * `demo-…`), then seeds afresh. Local-only: refuses unless storage is the
  * local store and the database is not remote.
  *
- * Needs SvelteKit's `$env` and `#lib`, so it runs inside Vite rather than
+ * Needs SvelteKit's `$app/env` and `#lib`, so it runs inside Vite rather than
  * under tsx: `pnpm db:seed:photographs` (scripts/seed-photographs.mjs).
  */
 import { inArray, like, or, sql } from 'drizzle-orm';
@@ -91,14 +91,7 @@ const SETS: DemoSet[] = [
 		photos: (e) => {
 			const day = e?.date ?? SPRING_DAY;
 			return [
-				{
-					palette: 'midday',
-					seed: 11,
-					taken: `${day} 17:42`,
-					camera: 0,
-					gps: true
-				},
-
+				{ palette: 'midday', seed: 11, taken: `${day} 17:42`, camera: 0, gps: true },
 				{
 					palette: 'midday',
 					seed: 12,
@@ -164,14 +157,7 @@ const SETS: DemoSet[] = [
 		description: 'Walking past on my way home and had to stop.',
 		contact: { name: 'Demo Visitor', email: 'visitor@example.com' },
 		photos: () => [
-			{
-				palette: 'dawn',
-				seed: 61,
-				taken: `${addDays(SPRING_DAY, 9)} 06:51`,
-				camera: 1,
-				gps: true
-			},
-
+			{ palette: 'dawn', seed: 61, taken: `${addDays(SPRING_DAY, 9)} 06:51`, camera: 1, gps: true },
 			{
 				palette: 'midday',
 				seed: 62,

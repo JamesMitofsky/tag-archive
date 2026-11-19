@@ -12,6 +12,7 @@
 		getScanner,
 		isFullFrame,
 		refineDetection,
+		rotateCorners,
 		type CornerPoints
 	} from '#lib/scanner/detect.ts';
 	import {
@@ -19,7 +20,9 @@
 		encodedExtension,
 		encodeImage,
 		fileToCanvas,
+		quarterTurns,
 		releaseCanvas,
+		rotateQuarterTurns,
 		withExtension
 	} from '#lib/scanner/image.ts';
 	import { MAX_SCAN_BYTES, SCAN_TOO_LARGE } from '#lib/scanner/limits.ts';
@@ -82,20 +85,17 @@
 	 * finishing the review turns the photos into pages and uploads them.
 	 */
 	let stage = $state<'closed' | 'camera' | 'review'>('closed');
-	/** Set while the camera is open to replace one page rather than append. */
-	let replacingId = $state<string | null>(null);
-	/** 1-based, as the page list numbers it, for the camera and crop step to name. */
-	const replacingPage = $derived.by(() => {
-		const index = replacingId ? pages.findIndex((p) => p.id === replacingId) : -1;
-		return index < 0 ? undefined : index + 1;
-	});
 	/** Open crop editor, if any. */
 	let adjusting = $state<{
 		id: string;
+		/** The original, turned as the page is, so the page is drawn upright to crop. */
 		image: HTMLCanvasElement;
+		/** In `image`'s pixel space. */
 		corners?: CornerPoints;
 		/** The original the editor was opened on. */
 		source: Blob;
+		/** How far `image` is turned from `source`. */
+		turns: number;
 	} | null>(null);
 
 	// Live camera is the primary path; the file input is the fallback
@@ -125,8 +125,8 @@
 	}
 
 	/**
-	 * Every run that writes a page's image (a finished shot, a retake, a picked
-	 * photo, a re-crop) claims the page first, and a newer claim supersedes an
+	 * Every run that writes a page's image (a finished shot, a picked photo, a
+	 * re-crop, a rotation) claims the page first, and a newer claim supersedes an
 	 * older one. A run only writes while it holds its claim, so a slow, older run
 	 * can't land on top of a newer one, or on a page removed in the meantime;
 	 * whatever such a run uploaded is deleted instead.
@@ -218,9 +218,6 @@
 
 	/** The shutter: keep the frame, find the page in it later. Nothing is uploaded yet. */
 	function onCaptured(frame: HTMLCanvasElement) {
-		// A retake is one photo; a second tap landing before the review opens is dropped.
-		if (replacingId && shots.length > 0) return releaseCanvas(frame);
-
 		const id = crypto.randomUUID();
 		const thumb = downscale(frame, frame.width, frame.height, THUMB_DIM);
 		// JPEG, not WebP: Safari can't encode WebP and would hand back a PNG many
@@ -237,8 +234,6 @@
 		// Failures surface where the photo is used (the review, the upload).
 		task.catch(() => {});
 		prepared.set(id, task);
-
-		if (replacingId) stage = 'review';
 	}
 
 	/**
@@ -292,71 +287,28 @@
 		if (shots.length === 0) stage = 'camera';
 	}
 
-	function dropShots() {
-		for (const shot of shots) {
-			prepared.delete(shot.id);
-			edits.delete(shot.id);
-		}
-		shots = [];
-	}
-
-	/** Back from the first photo: shoot more, or shoot the retake again. */
+	/** Back from the first photo, to shoot more. */
 	function backToCamera() {
-		if (replacingId) dropShots();
 		stage = 'camera';
 	}
 
 	/**
 	 * The exit button, Escape and back. With nothing shot it quits; once
 	 * something is, it moves on to cropping. Leaving the crop step keeps every
-	 * photo, which can still be removed from the page list afterwards. A retake
-	 * is the exception: leaving its crop step keeps the page as it was, since
-	 * finishing would replace it.
+	 * photo, which can still be removed from the page list afterwards.
 	 */
 	function exit() {
-		if (stage === 'review') {
-			if (replacingId) cancelRun();
-			else finishRun();
-		} else if (shots.length > 0) stage = 'review';
-		else closeRun();
-	}
-
-	function closeRun() {
-		stage = 'closed';
-		replacingId = null;
-	}
-
-	/** Drop this run's photos and close: only offered for a retake. */
-	function cancelRun() {
-		dropShots();
-		closeRun();
+		if (stage === 'review') finishRun();
+		else if (shots.length > 0) stage = 'review';
+		else stage = 'closed';
 	}
 
 	/** Turn the run's photos into pages, in the order shot, and upload them. */
 	function finishRun() {
 		const run = shots;
-		const target = replacingId ? pages.find((p) => p.id === replacingId) : undefined;
 		shots = [];
-		closeRun();
+		stage = 'closed';
 		if (run.length === 0) return;
-
-		if (target && run.length === 1) {
-			const [shot] = run;
-			const claim = claimPage(target.id);
-			updateItem(target.id, {
-				fileName: shot.fileName,
-				previewUrl: shot.thumbUrl,
-				status: 'uploading',
-				error: undefined,
-				// The old photo is being replaced: Adjust crop stays away until the
-				// new one's original lands, rather than re-cropping the old one.
-				sourceBlob: undefined,
-				corners: undefined
-			});
-			emit();
-			void commitShot(claim, shot);
-			return;
-		}
 
 		pages = [
 			...pages,
@@ -377,7 +329,7 @@
 			if (!ready) throw new Error('Image processing failed');
 			const corners = edits.get(shot.id) ?? ready.detected;
 			const rendered = await heavy.run(async () => {
-				// Removed or retaken while it waited: no point cropping it.
+				// Removed while it waited: no point cropping it.
 				if (!claim.holds()) return null;
 				const source = await fileToCanvas(ready.blob);
 				if (!source) throw new Error('Could not reopen the photo');
@@ -401,15 +353,22 @@
 		}
 	}
 
-	/** Crop (when there is a quad that isn't the whole frame) and encode for upload. */
-	async function cropAndEncode(source: HTMLCanvasElement, corners: CornerPoints | null) {
+	/**
+	 * Crop (when there is a quad that isn't the whole frame), turn the page
+	 * `turns` quarter turns clockwise, and encode it for upload.
+	 */
+	async function cropAndEncode(source: HTMLCanvasElement, corners: CornerPoints | null, turns = 0) {
 		const crop = corners && !isFullFrame(corners, source.width, source.height) ? corners : null;
 		const cropped = crop ? await dewarp(source, crop) : null;
+		const page = cropped ?? source;
+		const turned = quarterTurns(turns) ? rotateQuarterTurns(page, turns) : null;
 		try {
-			const encoded = await encodeImage(cropped ?? source);
+			if (quarterTurns(turns) && !turned) throw new Error('Failed to rotate image');
+			const encoded = await encodeImage(turned ?? page);
 			if (!encoded) throw new Error('Failed to encode image');
 			return { encoded, corners: crop };
 		} finally {
+			releaseCanvas(turned);
 			releaseCanvas(cropped);
 		}
 	}
@@ -492,6 +451,38 @@
 		}
 	}
 
+	/**
+	 * Render a page afresh from its original: crop it, turn it, upload it. What
+	 * re-cropping and rotating a page both come down to.
+	 */
+	async function renderPage(
+		claim: Claim,
+		original: Blob,
+		corners: CornerPoints | null,
+		turns: number,
+		fileName: string
+	) {
+		try {
+			const rendered = await heavy.run(async () => {
+				// Superseded or removed while it waited: no point rendering it.
+				if (!claim.holds()) return null;
+				const source = await fileToCanvas(original);
+				if (!source) throw new Error('Could not reopen the photo');
+				try {
+					return await cropAndEncode(source, corners, turns);
+				} finally {
+					releaseCanvas(source);
+				}
+			});
+			if (rendered) await commitPage(claim, rendered, original, fileName);
+		} catch (e) {
+			claim.update({
+				status: 'error',
+				error: e instanceof Error ? e.message : 'Image processing failed'
+			});
+		}
+	}
+
 	/** Push one image to R2 and hand its URL back to the form. */
 	async function processUpload(claim: Claim, file: Blob, fileName: string, previewUrl: string) {
 		try {
@@ -541,13 +532,20 @@
 		const source = page?.sourceBlob;
 		if (!source) return;
 		const request = ++adjustRequest;
-		const image = await fileToCanvas(source);
+		const turns = page.turns ?? 0;
+		const decoded = await fileToCanvas(source);
+		const width = decoded?.width ?? 0;
+		const height = decoded?.height ?? 0;
+		// Drawn the way the page is turned, so it is cropped the way it is read.
+		const image = decoded && turns ? rotateQuarterTurns(decoded, turns) : decoded;
+		if (image !== decoded) releaseCanvas(decoded);
 		if (request !== adjustRequest) return releaseCanvas(image);
 		if (!image) {
 			error = 'Could not reopen that page for cropping.';
 			return;
 		}
-		adjusting = { id, image, corners: page.corners, source };
+		const corners = page.corners && rotateCorners(page.corners, width, height, turns);
+		adjusting = { id, image, corners, source, turns };
 	}
 
 	function cancelAdjust() {
@@ -562,34 +560,99 @@
 		adjusting = null;
 		if (!open) return;
 
+		// Back into the original's own pixel space, where a page's crop is kept.
+		const crop = rotateCorners(corners, open.image.width, open.image.height, -open.turns);
+		// After the editor drawing it has been torn down.
+		setTimeout(() => releaseCanvas(open.image));
+
 		const page = pages.find((p) => p.id === open.id);
-		// Gone, or its photo replaced while the editor was open: these corners
-		// were drawn on a photo the page no longer holds.
-		if (!page || page.sourceBlob !== open.source) {
-			setTimeout(() => releaseCanvas(open.image));
-			return;
-		}
+		// Gone, or its original changed while the editor was open: these
+		// corners were drawn on a photo the page no longer holds.
+		if (!page || page.sourceBlob !== open.source) return;
 		const claim = claimPage(open.id);
 		updateItem(open.id, { status: 'uploading', error: undefined });
 		emit();
-
-		void (async () => {
-			try {
-				await finalizePage(claim, open.image, corners, page.fileName, open.source);
-			} catch (e) {
-				claim.update({
-					status: 'error',
-					error: e instanceof Error ? e.message : 'Crop failed'
-				});
-			} finally {
-				releaseCanvas(open.image);
-			}
-		})();
+		void renderPage(claim, open.source, crop, page.turns ?? 0, page.fileName);
 	}
 
-	function openCamera(replacing: string | null = null) {
+	// --- Rotation -----------------------------------------------------------
+
+	/**
+	 * Originals fetched for pages that came from the server (the edit flow),
+	 * which have only their uploaded image. Shared, so taps landing while one is
+	 * on its way wait for the same fetch.
+	 */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read imperatively, never rendered
+	const fetchedOriginals = new Map<string, Promise<Blob | null>>();
+
+	/** The uploaded image as a blob this browser can decode, or `null`. */
+	function fetchOriginal(url: string): Promise<Blob | null> {
+		let pending = fetchedOriginals.get(url);
+		if (!pending) {
+			pending = (async () => {
+				try {
+					const res = await fetch(url);
+					if (!res.ok) return null;
+					const blob = await res.blob();
+					// Undecodable here (a HEIC uploaded as picked): nothing to turn.
+					const probe = await createImageBitmap(blob);
+					probe.close();
+					return blob;
+				} catch {
+					return null;
+				}
+			})();
+			fetchedOriginals.set(url, pending);
+			// Kept only while in flight; a failure can be tried again.
+			void pending.then(() => fetchedOriginals.delete(url));
+		}
+		return pending;
+	}
+
+	/**
+	 * Turn a page a further quarter turn clockwise. Each tap claims the
+	 * page, so taps in quick succession add up and only the last one's render is
+	 * kept.
+	 */
+	async function rotateById(id: string) {
+		let page = pages.find((p) => p.id === id);
+		if (!page) return;
+
+		if (!page.sourceBlob) {
+			// A page from the server: its uploaded image becomes the original it
+			// is turned from, so every later turn still starts from those pixels.
+			const url = page.url;
+			if (!url) return;
+			// The spinner while it is fetched, so the tap visibly took. Nothing
+			// is emitted: the form keeps the page until a new image replaces it.
+			updateItem(id, { status: 'uploading' });
+			const original = await fetchOriginal(url);
+			page = pages.find((p) => p.id === id);
+			if (!page || page.url !== url) return;
+			if (!original) {
+				error = `Could not load page ${pages.indexOf(page) + 1} to rotate it.`;
+				// Still holding only its saved image, which is as good as before.
+				if (!page.sourceBlob) updateItem(id, { status: 'done' });
+				return;
+			}
+			// An earlier tap waiting on the same fetch may have set it already.
+			if (!page.sourceBlob) {
+				updateItem(id, { sourceBlob: original, corners: undefined, turns: 0 });
+				page = pages.find((p) => p.id === id)!;
+			}
+		}
+
+		const original = page.sourceBlob!;
+		const turns = ((page.turns ?? 0) + 1) % 4;
+		const claim = claimPage(id);
+		updateItem(id, { turns, status: 'uploading', error: undefined });
+		emit();
+		error = '';
+		void renderPage(claim, original, page.corners ?? null, turns, page.fileName);
+	}
+
+	function openCamera() {
 		adjustRequest += 1;
-		replacingId = replacing;
 		error = '';
 		stage = 'camera';
 		// The live view no longer touches scanic, so start loading it now, while
@@ -660,11 +723,10 @@
 
 		<ScanFilmstrip
 			{pages}
-			canRetake={canUseCamera}
 			onMove={moveById}
 			onRemove={removeById}
 			onAdjust={adjustById}
-			onRetake={openCamera}
+			onRotate={rotateById}
 		/>
 	</div>
 </div>
@@ -679,14 +741,13 @@
 <ImmersiveView
 	open={stage !== 'closed'}
 	steps={stage === 'camera' && shots.length > 0 ? 2 : 1}
-	title={stage === 'review' ? 'Crop pages' : replacingId ? 'Retake page' : 'Scan pages'}
+	title={stage === 'review' ? 'Crop pages' : 'Scan pages'}
 	onClose={exit}
 >
 	{#if stage === 'camera'}
 		<CameraStage
 			shotCount={shots.length}
 			latestPreview={shots.at(-1)?.thumbUrl}
-			{replacingPage}
 			onCapture={onCaptured}
 			onDone={exit}
 			onError={(message) => (error = message)}
@@ -695,12 +756,10 @@
 		<ScanReview
 			{shots}
 			load={loadShot}
-			{replacingPage}
 			onChange={(id, corners) => edits.set(id, corners)}
 			onDiscard={discardShot}
 			onBack={backToCamera}
 			onFinish={finishRun}
-			onCancel={cancelRun}
 		/>
 	{/if}
 </ImmersiveView>

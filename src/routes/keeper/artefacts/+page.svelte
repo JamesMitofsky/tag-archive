@@ -3,13 +3,17 @@
 	import ArtefactId from '#lib/components/ArtefactId.svelte';
 	import BackButton from '#lib/components/BackButton.svelte';
 	import KeeperList from '#lib/components/KeeperList.svelte';
+	import ReviewActions from '#lib/components/ReviewActions.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import { programAreaMeta } from '#lib/programAreas.ts';
 	import { morphVar } from '#lib/transitions.svelte.ts';
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// Only admins vet submissions; everyone else just sees the badge.
+	const canReview = $derived(data.user.role === 'admin');
 
 	// Client-side search over the loaded artefacts — every list here gets a filter.
 	let query = $state('');
@@ -80,6 +84,15 @@
 			/>
 		</div>
 
+		{#if form?.reviewError}
+			<p
+				role="alert"
+				class="mt-4 rounded-lg bg-white/80 px-4 py-2.5 text-sm text-[#bc4b51] shadow-sm ring-1 ring-[#bc4b51]/30"
+			>
+				{form.reviewError}
+			</p>
+		{/if}
+
 		<section class="mt-4">
 			{#if data.artefacts.length === 0}
 				<p
@@ -105,8 +118,9 @@
 								class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
 								{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
 							>
+								<!-- Text in one column beside the badge and buttons, so the stacked buttons don't push the description down. -->
 								<div class="flex items-start justify-between gap-3">
-									<div class="min-w-0">
+									<div class="min-w-0 flex-1">
 										<!-- Stretched link: the ::after overlay makes the whole card open the artefact page. -->
 										<h3 class="font-medium break-words">
 											<a
@@ -124,44 +138,50 @@
 											· {formatArtefactDate(item.date)}{#if item.event}
 												· {item.event}{/if}
 										</p>
-									</div>
-									{#if item.proposedAddition}
-										<!-- Contributor submission awaiting a keeper's vetting; amber flags attention. -->
-										<span
-											class="relative z-[2] shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 ring-1 ring-amber-200"
-										>
-											Proposed addition
-										</span>
-									{/if}
-								</div>
-								{#if item.description}
-									<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
-										{item.description}
-									</p>
-								{/if}
-								{#if item.programArea.length > 0 || item.provenance.length > 0}
-									<div
-										style:view-transition-name={morphVar('artefact', item.id, 'tags')}
-										class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5"
-									>
-										{#each item.programArea as area (area)}
-											{@const Icon = programAreaMeta(area).icon}
-											<span
-												class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs {programAreaMeta(
-													area
-												).pill}"
+										{#if item.description}
+											<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
+												{item.description}
+											</p>
+										{/if}
+										{#if item.programArea.length > 0 || item.provenance.length > 0}
+											<div
+												style:view-transition-name={morphVar('artefact', item.id, 'tags')}
+												class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5"
 											>
-												<Icon size={13} weight="fill" />
-												{area}
-											</span>
-										{/each}
-										{#if item.provenance.length > 0}
-											<span class="text-sm text-gray-500">
-												{item.provenance.join(', ')}
-											</span>
+												{#each item.programArea as area (area)}
+													{@const Icon = programAreaMeta(area).icon}
+													<span
+														class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs {programAreaMeta(
+															area
+														).pill}"
+													>
+														<Icon size={13} weight="fill" />
+														{area}
+													</span>
+												{/each}
+												{#if item.provenance.length > 0}
+													<span class="text-sm text-gray-500">
+														{item.provenance.join(', ')}
+													</span>
+												{/if}
+											</div>
 										{/if}
 									</div>
-								{/if}
+									{#if item.proposedAddition}
+										<!-- Sits above the stretched link (z-[1]) so the buttons take the click. -->
+										<div class="relative z-[2] flex shrink-0 flex-col items-end gap-2">
+											<!-- Contributor submission awaiting a keeper's vetting; amber flags attention. -->
+											<span
+												class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 ring-1 ring-amber-200"
+											>
+												Proposed addition
+											</span>
+											{#if canReview}
+												<ReviewActions id={item.id} variant="icon" />
+											{/if}
+										</div>
+									{/if}
+								</div>
 							</article>
 						</div>
 					{/snippet}

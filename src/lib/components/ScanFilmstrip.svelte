@@ -3,7 +3,7 @@
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import CropIcon from 'phosphor-svelte/lib/CropIcon';
-	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
 	import type { ScanPage } from '#lib/scanner/types.ts';
@@ -13,19 +13,17 @@
 	// keyboard/screen-reader accessible for free.
 	let {
 		pages,
-		canRetake = false,
 		onMove,
 		onRemove,
 		onAdjust,
-		onRetake
+		onRotate
 	}: {
 		pages: ScanPage[];
-		/** Retake needs a working camera; hidden when there isn't one. */
-		canRetake?: boolean;
 		onMove: (id: string, direction: -1 | 1) => void;
 		onRemove: (id: string) => void;
 		onAdjust: (id: string) => void;
-		onRetake: (id: string) => void;
+		/** A further quarter turn clockwise, the way the icon's arrow runs. */
+		onRotate: (id: string) => void;
 	} = $props();
 </script>
 
@@ -111,17 +109,18 @@
 						</button>
 					{/if}
 
-					{#if canRetake}
-						<button
-							type="button"
-							onclick={() => onRetake(page.id)}
-							aria-label="Retake page {index + 1}"
-							title="Retake"
-							class="rounded-sm border border-gray-300 bg-white p-2.5 text-gray-700 transition hover:bg-gray-100"
-						>
-							<ArrowCounterClockwiseIcon size={14} />
-						</button>
-					{/if}
+					<!-- Needs pixels to turn: the original, or the upload to fetch one
+					     from. A picked photo has neither until its first render lands. -->
+					<button
+						type="button"
+						onclick={() => onRotate(page.id)}
+						disabled={!page.sourceBlob && !page.url}
+						aria-label="Rotate page {index + 1}"
+						title="Rotate"
+						class="rounded-sm border border-gray-300 bg-white p-2.5 text-gray-700 transition hover:bg-gray-100 disabled:opacity-40"
+					>
+						<ArrowClockwiseIcon size={14} />
+					</button>
 				</div>
 			</div>
 		{/each}

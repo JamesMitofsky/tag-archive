@@ -17,4 +17,10 @@ export type ScanPage = {
 	sourceBlob?: Blob;
 	/** Applied crop, in `sourceBlob`'s pixel space. */
 	corners?: CornerPoints;
+	/**
+	 * Quarter turns clockwise (0–3) applied to the cropped page. Kept
+	 * apart from the original, so every rotation renders afresh from it rather
+	 * than re-encoding the last upload.
+	 */
+	turns?: number;
 };

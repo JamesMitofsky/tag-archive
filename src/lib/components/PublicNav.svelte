@@ -14,29 +14,16 @@
 	};
 
 	const links: NavLink[] = [
-		{
-			href: '/',
-			label: 'Artefacts',
-			src: '/drawing/text/nav-artefacts.webp',
-			text: 'Artefacts'
-		},
-		{ href: '/events', label: 'Events', src: '/drawing/text/nav-events.webp', text: 'Events' },
-		{ href: '/images', label: 'Images', src: '/drawing/text/nav-images.webp', text: 'Images' },
-		// The cloud keeper mark opens the contribution form. Sign-in lives at
-		// /keeper, deliberately unlinked: only admins sign in, and they keep its
-		// door link (see #lib/access/door.server).
-		{
-			href: '/contribute',
-			label: 'Cloud Keeper — add to the archive',
-			src: '/drawing/text/cloud-keeper-btn.webp',
-			text: 'Cloud Keeper'
-		}
+		{ href: '/', label: 'Artefacts', src: '/drawing/icons/artefacts.webp', text: 'Artefacts' },
+		{ href: '/events', label: 'Events', src: '/drawing/icons/events.webp', text: 'Events' },
+		{ href: '/images', label: 'Images', src: '/drawing/icons/images.webp', text: 'Images' }
+		// Sign-in lives at /keeper, deliberately unlinked: only admins sign in, and
+		// they keep its door link (see #lib/access/door.server).
 	];
 
 	/**
-	 * The typeset stand-in for a nav drawing, drawn as the same button: the ink
-	 * box every nav drawing is lettered inside, at the drawings' shared `h-10`,
-	 * with the words sized to the drawn lettering's rather than to fill the box.
+	 * The typeset stand-in for a nav icon that can't be shown: its words in an
+	 * inked box at the icons' shared `h-10`, so the link still reads as a button.
 	 */
 	const textClass = 'rounded-md border border-current px-2.5 text-xl';
 

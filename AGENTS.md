@@ -10,8 +10,8 @@ behavior, canceled, organize, gray and so on.
 
 The one exception is **artefact** / **artefacts**, which keeps its British
 spelling. It is the archive's own word for its items and runs through the
-routes (`/keeper/artefacts`), the database schema and the hand-drawn navigation
-art (`static/drawing/text/nav-artefacts.webp`), so never "correct" it to
+routes (`/keeper/artefacts`), the database schema and the hand-drawn art
+(`static/drawing/text/artefacts.webp`), so never "correct" it to
 artifact.
 
 Leave quoted archival content as it was written (event and artefact

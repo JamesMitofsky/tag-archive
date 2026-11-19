@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import middleware, { config } from '../../../middleware';
 import { DOOR_PARAM, KEEPER_DOOR_URL, opensDoor, withoutDoor } from './door.server';
 import { gateRequest, readCookie } from './edge';
-import { accessDecision, isDoorNavigation, isOpenPath, LOCKED_PATH } from './gate';
+import { accessDecision, isDoorNavigation, isKeyNavigation, isOpenPath, LOCKED_PATH } from './gate';
+import { KEY_PARAM, returnPath, UNLOCK_PATH, unlockUrl, withoutKey } from './key.server';
 import { mintPass, PASS_COOKIE } from './pass';
 
 const page = (pathname: string, method = 'GET') =>
@@ -15,6 +16,7 @@ describe('accessDecision (no pass)', () => {
 		'/t',
 		'/locked',
 		'/locked/',
+		'/unlock',
 		'/api/presence',
 		'/keeper/artefacts/3',
 		'/api/auth/sign-in/email-otp',
@@ -242,6 +244,94 @@ describe('accessDecision (no pass)', () => {
 		});
 	});
 
+	describe('unlock keys', () => {
+		const key = `?${KEY_PARAM}=tobyshorin`;
+		const at = (
+			pathname: string,
+			search: string,
+			{ method = 'GET', accept = 'text/html', isDataRequest = false, isEnhancedAction = false } = {}
+		) => accessDecision({ pathname, search, method, accept, isDataRequest, isEnhancedAction });
+
+		it.each(['/', '/events', '/events/3', '/keeper', '/artefacts/TAG-001.jpg'])(
+			'sends a page view of %s to be unlocked, whatever the key, never straight through',
+			(path) => {
+				// The key is unchecked here, and the path may be a static file the CDN
+				// would serve without asking SvelteKit: opening it would open the file.
+				expect(at(path, key)).toBe('unlock');
+				expect(at(path, `?${KEY_PARAM}=anything`, { method: 'HEAD' })).toBe('unlock');
+				expect(at(path, `?${KEY_PARAM}=`)).toBe('unlock');
+				expect(at(path, `?q=clouds&${key.slice(1)}`)).toBe('unlock');
+			}
+		);
+
+		it('lets a data load on to SvelteKit, which always answers it', () => {
+			const load = { accept: '*/*', isDataRequest: true };
+			expect(at('/events/__data.json', `${key}&x-sveltekit-invalidated=01`, load)).toBe('open');
+		});
+
+		it('opens no fetch, file or write, and reads the parameter name exactly', () => {
+			expect(at('/api/dataset', key, { accept: '*/*' })).toBe('refuse');
+			expect(at('/artefacts/TAG-001.jpg', key, { accept: 'image/*' })).toBe('refuse');
+			expect(at('/events', key, { method: 'POST' })).toBe('refuse');
+			expect(at('/events', `?${KEY_PARAM.toUpperCase()}=tobyshorin`)).toBe('redirect');
+		});
+
+		it('names exactly the requests hooks.server.ts sends on to /unlock', () => {
+			const request = (search: string, extra = {}) => ({
+				pathname: '/events',
+				search,
+				method: 'GET',
+				accept: 'text/html',
+				isDataRequest: false,
+				...extra
+			});
+			expect(isKeyNavigation(request(key))).toBe(true);
+			expect(isKeyNavigation(request(key, { accept: '*/*', isDataRequest: true }))).toBe(true);
+			expect(isKeyNavigation(request(''))).toBe(false);
+			expect(isKeyNavigation(request(key, { accept: 'application/json' }))).toBe(false);
+			expect(isKeyNavigation(request(key, { method: 'POST' }))).toBe(false);
+		});
+
+		it('sends the key and the page it was for to /unlock, which reads neither as a key', () => {
+			const unlock = (path: string) => unlockUrl(new URL(path, 'https://archive.test'));
+			const read = (path: string) => new URL(unlock(path), 'https://archive.test');
+
+			const url = read(`/events?q=clouds&${KEY_PARAM}=Toby%20Shorin&page=2`);
+			expect(url.pathname).toBe(UNLOCK_PATH);
+			expect(url.searchParams.get('key')).toBe('Toby Shorin');
+			expect(url.searchParams.get('to')).toBe('/events?q=clouds&page=2');
+			// /unlock itself must not look like a key navigation, or it would loop.
+			expect(url.searchParams.has(KEY_PARAM)).toBe(false);
+
+			expect(read(`/${key}`).searchParams.get('to')).toBe('/');
+			const load = read(`/events/__data.json${key}&x-sveltekit-invalidated=01`);
+			expect(load.searchParams.get('to')).toBe('/events');
+		});
+
+		it('leads a visitor already holding a pass on to the same URL without the key', () => {
+			const strip = (path: string) => withoutKey(new URL(path, 'https://archive.test'));
+			expect(strip(`/events/3${key}`)).toBe('/events/3');
+			expect(strip(`/events?q=clouds&${key.slice(1)}#map`)).toBe('/events?q=clouds#map');
+		});
+
+		it('only ever returns to a path on this site', () => {
+			const origin = 'https://archive.test';
+			expect(returnPath('/events?q=clouds', origin)).toBe('/events?q=clouds');
+			expect(returnPath(`/events?${KEY_PARAM}=again`, origin)).toBe('/events');
+			for (const to of [
+				null,
+				'',
+				'events',
+				'//evil.test/x',
+				'/\\evil.test/x',
+				'https://evil.test/x',
+				'javascript:alert(1)'
+			]) {
+				expect(returnPath(to, origin), String(to)).toBe('/');
+			}
+		});
+	});
+
 	it('is not fooled by look-alike paths', () => {
 		expect(isOpenPath('/keeperx')).toBe(false);
 		expect(isOpenPath('/keeper')).toBe(false);
@@ -441,5 +531,32 @@ describe('gateRequest (edge)', () => {
 			SECRET
 		);
 		expect(fetched?.status).toBe(401);
+	});
+
+	it('sends a page view carrying a key to /unlock, uncacheably and without a referrer', async () => {
+		const res = await gateRequest(
+			request(`/artefacts/TAG-001.jpg?${KEY_PARAM}=tobyshorin`),
+			() => undefined,
+			SECRET
+		);
+		expect(res?.status).toBe(303);
+		const location = new URL(res?.headers.get('location') ?? '', 'https://archive.test');
+		expect(location.pathname).toBe(UNLOCK_PATH);
+		expect(location.searchParams.get('to')).toBe('/artefacts/TAG-001.jpg');
+		expect(res?.headers.get('cache-control')).toBe('no-store');
+		expect(res?.headers.get('referrer-policy')).toBe('no-referrer');
+	});
+
+	it('lets a key through for a visitor already holding a pass', async () => {
+		const { token } = await mintPass(SECRET, 'r');
+		expect(
+			await gateRequest(request(`/events?${KEY_PARAM}=tobyshorin`), () => token, SECRET)
+		).toBeUndefined();
+	});
+
+	it('leaves /unlock itself open', async () => {
+		expect(
+			await gateRequest(request(`${UNLOCK_PATH}?key=tobyshorin&to=/`), () => undefined, SECRET)
+		).toBeUndefined();
 	});
 });

@@ -2,7 +2,13 @@ import { error, redirect } from '@sveltejs/kit';
 import { sequence, type Handle } from '@sveltejs/kit/hooks';
 import { building } from '$app/env';
 import { withoutDoor } from '#lib/access/door.server.ts';
-import { accessDecision, isDoorNavigation, LOCKED_PATH } from '#lib/access/gate.ts';
+import {
+	accessDecision,
+	isDoorNavigation,
+	isKeyNavigation,
+	LOCKED_PATH
+} from '#lib/access/gate.ts';
+import { unlockUrl, withoutKey } from '#lib/access/key.server.ts';
 import { auth } from '#lib/server/auth.ts';
 import { issuePass, keeperPass, readPass } from '#lib/server/access.ts';
 import { issueDraft } from '#lib/server/drafts.ts';
@@ -63,6 +69,14 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 			issueDraft(event.cookies);
 		}
 		throw redirect(303, withoutDoor(event.url));
+	}
+
+	// With an unlock key (see #lib/access/key.server), on any page: only
+	// /unlock checks it against the database, so send the visitor there (the
+	// middleware already has, for a page view; this catches data loads, and everything under
+	// `vite dev`). Someone already holding a pass only loses the key.
+	if (isKeyNavigation(gateRequest)) {
+		throw redirect(303, pass ? withoutKey(event.url) : unlockUrl(event.url));
 	}
 
 	event.locals.pass = pass ?? undefined;

@@ -25,11 +25,10 @@
 		component: ScanFilmstrip,
 		tags: ['autodocs'],
 		args: {
-			canRetake: true,
 			onMove: fn(),
 			onRemove: fn(),
 			onAdjust: fn(),
-			onRetake: fn()
+			onRotate: fn()
 		}
 	});
 </script>
