@@ -13,6 +13,15 @@
 
 	Fills its parent, and fits each print inside it on both axes.
 -->
+<script lang="ts" module>
+	/**
+	 * The display width a print asks for, for its srcset. Anything fetching a
+	 * photograph ahead of being shown as a print must ask for this same width, or
+	 * the browser picks another file and the print still loads from scratch.
+	 */
+	export const PRINT_SIZES = '192px';
+</script>
+
 <script lang="ts">
 	import type { PublicImage } from '#lib/images/types.ts';
 	import Photograph from '#lib/components/Photograph.svelte';
@@ -31,7 +40,7 @@
 		hit?: boolean;
 	}
 
-	let { images, alt, sizes = '192px', hit = false }: Props = $props();
+	let { images, alt, sizes = PRINT_SIZES, hit = false }: Props = $props();
 
 	/**
 	 * How each print under the top one lies, nearest the top first. Turned in
@@ -65,17 +74,28 @@
      inside it; a lone print needs only room for its shadow. Padding lives on
      this outer box, not the container, because `cq` units measure the
      container's content box and padding there would shrink the unit itself. -->
-<div class={['pointer-events-none h-full w-full', under.length ? 'p-[9%]' : 'p-[4%]']}>
+<!-- The inset eases between the two, rather than snapping, for a pile that
+     becomes a lone print in place: an image set opening in the cloud keeps its
+     top print where it was while the rest slide out from under it. -->
+<div
+	class={[
+		'pointer-events-none h-full w-full transition-[padding] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+		under.length ? 'p-[9%]' : 'p-[4%]'
+	]}
+>
 	<div class="[container-type:size] grid h-full w-full place-items-center">
 		{#each under as { image, pose } (image.id)}
-			<!-- Mostly hidden under the top print, so it asks for a smaller raster. -->
+			<!-- Mostly hidden under the top print, but asks for the same raster as
+			     the top print all the same: when the set opens, this very photograph
+			     slides out as a print of its own, and it must arrive already loaded
+			     rather than as a blank that fades in. -->
 			<Photograph
 				src={image.url}
 				width={image.width}
 				height={image.height}
 				alt=""
 				aria-hidden="true"
-				sizes="128px"
+				{sizes}
 				placeholder={image.placeholder}
 				class="{PRINT} {pose} rounded-[2px] shadow-md"
 			/>

@@ -5,8 +5,10 @@ import {
 	CAP_MIN,
 	cardMargin,
 	measureCloud,
+	pinAt,
 	placeCloud,
 	spillFrom,
+	sweptRect,
 	type FieldInput,
 	type Rect
 } from './cloudLayout';
@@ -225,6 +227,48 @@ describe('spillFrom', () => {
 	it('lets the cards out one after another, in order', () => {
 		const delays = spilled.map((c) => Number(/--edelay:([\d.]+)s/.exec(c.arrivalStyle ?? '')?.[1]));
 		for (let i = 1; i < delays.length; i++) expect(delays[i]).toBeGreaterThan(delays[i - 1]);
+	});
+
+	it('brings them out from under the packet without fading them in', () => {
+		for (const c of spilled) expect(c.arrivalStyle).toContain('--eo:1');
+		// Only the spill: a card arriving from off-screen still fades in.
+		for (const c of spilled) expect(c.enterStyle).not.toContain('--eo');
+	});
+});
+
+describe('pinAt', () => {
+	const f = wide(1440, 900);
+	const layout = measureCloud(f);
+	const placed = placeCloud(items(layout.cap), f, layout);
+	const packet = placed[3];
+
+	it('holds a card exactly where the packet stood, floating as the packet did', () => {
+		// The face takes over the packet's element, so a different drift would make
+		// it jump the moment the packet opens.
+		const pinned = pinAt({ id: 999 }, { x: packet.dx, y: packet.dy }, f, packet.item.id);
+		expect([pinned.dx, pinned.dy]).toEqual([packet.dx, packet.dy]);
+		expect(pinned.style).toBe(packet.style);
+		expect(pinned.item).toEqual({ id: 999 });
+	});
+});
+
+describe('sweptRect', () => {
+	it('keeps the rest of a packet off its pinned face', () => {
+		const f = wide(1440, 900);
+		const base = measureCloud(f);
+		const [packet] = placeCloud(items(base.cap), f, base);
+		const at = { x: packet.dx, y: packet.dy };
+		const zone = sweptRect(f, at, base.cardW, base.cardH);
+		const inner = { ...f, blocks: [...(f.blocks ?? []), zone] };
+		const layout = measureCloud(inner, 12);
+		const m = cardMargin(layout.cardW, layout.cardH);
+		const faceM = cardMargin(base.cardW, base.cardH);
+		for (const c of placeCloud(items(12), inner, layout)) {
+			// Swept boxes, drift and tilt included, never meet.
+			const apartX = Math.abs(c.dx - at.x) >= m.x + faceM.x - 4;
+			const apartY = Math.abs(c.dy - at.y) >= m.y + faceM.y - 4;
+			expect(apartX || apartY).toBe(true);
+		}
 	});
 });
 

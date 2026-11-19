@@ -15,6 +15,12 @@
 	click on the sky between its cards) gathers its cards back into it and
 	brings the first cloud back exactly as it was, search and all.
 
+	The packet's first card is its FACE, the one the closed packet shows on top.
+	Opened in the surround layout, the face never moves: it is the packet's own
+	element, held at the packet's spot, and the rest slide out from behind it
+	and later back in under it. Nothing fades on either trip, because nothing
+	appears or disappears: every card is either in view or tucked behind the face.
+
 	Layout in one paragraph: the searchbar sits in the middle of the viewport
 	when there is room for a row of cards both above and below it, and is pushed
 	to the top when there isn't (a phone). The cloud then fills whichever region
@@ -31,8 +37,10 @@
 	import {
 		A4,
 		measureCloud,
+		pinAt,
 		placeCloud,
 		spillFrom,
+		sweptRect,
 		type FieldInput,
 		type Placed,
 		type Rect
@@ -53,7 +61,10 @@
 		open: number | null;
 		/** Asks to open a packet (its id) or to put the open one away (null). */
 		onchange: (id: number | null) => void;
-		/** What a packet holds, in display order. All of it is shown: no cap. */
+		/**
+		 * What a packet holds, in display order. All of it is shown: no cap. The
+		 * first is the packet's face, the one `card` draws on top of the pile.
+		 */
 		contents: (item: T) => C[];
 		/**
 		 * One of those, closed or open: the `card` of the packet's own cloud. A
@@ -70,6 +81,12 @@
 		openRatio?: (item: C) => number;
 		/** The accessible name of the plate's button that puts the packet away. */
 		closeLabel?: string;
+		/**
+		 * A packet looks about to be opened: the pointer is over it, or it has
+		 * focus. A chance to fetch what it holds before the spill, since a card that
+		 * is still loading as it slides out from under the face arrives blank.
+		 */
+		warm?: (item: T) => void;
 	}
 
 	interface Props {
@@ -80,7 +97,10 @@
 		// Renders one card's contents (event/date/tags — whatever the data has). The
 		// second argument says whether this card is the OPEN one, which is a ~3x size
 		// difference — enough that images want a different `sizes` for each state.
-		card: Snippet<[T, boolean]>;
+		// The third is for packets only: the packet is open, or its contents are
+		// still on their way back into it, so it should draw its face alone, since
+		// everything else it holds is out in the sky as cards of its own.
+		card: Snippet<[T, boolean, boolean]>;
 		// Optional route-specific mark drawn INSIDE the field, where the placeholder
 		// text would sit. Fades away as soon as the user types (see `.mark` below).
 		placeholderMark?: Snippet;
@@ -106,7 +126,9 @@
 	 * and a photograph that share an id are never taken for the same card.
 	 */
 	type Entry = { id: number; key: string } & (
-		{ kind: 'top'; value: T } | { kind: 'inner'; value: C }
+		| { kind: 'top'; value: T }
+		/** `face`: this is the open packet's face, standing in for `face` itself. */
+		| { kind: 'inner'; value: C; face?: T }
 	);
 	const topEntry = (value: T): Entry => ({ id: value.id, key: `t${value.id}`, kind: 'top', value });
 	const innerEntry = (value: C): Entry => ({
@@ -134,8 +156,8 @@
 	let searched = $state(false);
 
 	// Click a floating page to open it: it glides to dead-center and grows to fill
-	// the viewport while every other page flies out. Holds the open item's id.
-	let selected = $state<number | null>(null);
+	// the viewport while every other page flies out. Holds the open entry's key.
+	let selected = $state<string | null>(null);
 	let inputEl = $state<HTMLInputElement | null>(null);
 	let barEl = $state<HTMLElement | null>(null);
 	/** The open packet's close button, which takes focus when the packet opens. */
@@ -146,11 +168,16 @@
 	// the order. Later hovers grab higher values, layering on top of earlier ones.
 	// Touch has no hover, which is why the layout below sizes and caps the cloud so
 	// that a phone never depends on being able to pull a buried card forward.
-	let zOrder = $state<Record<number, number>>({});
+	let zOrder = $state<Record<string, number>>({});
 	let zTop = 0;
-	function bringForward(id: number) {
-		if (zOrder[id] === zTop) return; // already frontmost
-		zOrder = { ...zOrder, [id]: ++zTop };
+	function bringForward(key: string) {
+		if (zOrder[key] === zTop) return; // already frontmost
+		zOrder = { ...zOrder, [key]: ++zTop };
+	}
+
+	/** See `Packet.warm`. */
+	function warm(e: Entry) {
+		if (e.kind === 'top') packet?.warm?.(e.value);
 	}
 
 	// Escape closes the open page, and then the open packet. When nothing is open
@@ -460,24 +487,47 @@
 		if (openPacket && packet) return packet.contents(openPacket).map(innerEntry);
 		return (searched ? results : browseOrder).map(topEntry);
 	});
-	let layout = $derived(measureCloud(field, openPacket ? visible.length : undefined));
+	/**
+	 * The spot the open packet's face is held at: where the packet itself stood.
+	 * Only when the packet was opened from the surround cloud and that is still
+	 * the layout, since the stacked grid has no spot to hold.
+	 */
+	let face = $derived(
+		openPacket && spill?.id === openPacket.id && field.fullViewport && visible.length ? spill : null
+	);
+	/**
+	 * The field the open packet's other cards are placed in: the usual one, with
+	 * the face's spot taken out of it like any other no-go zone. The zone is the
+	 * box a card of the FIRST cloud's size sweeps, since that is what the face
+	 * is as it opens; the packet's own cloud never has larger cards than that.
+	 */
+	let innerField = $derived.by((): FieldInput => {
+		if (!face) return field;
+		const base = measureCloud(field);
+		return {
+			...field,
+			blocks: [...(field.blocks ?? []), sweptRect(field, face, base.cardW, base.cardH)]
+		};
+	});
+	let layout = $derived(
+		measureCloud(innerField, openPacket ? visible.length - (face ? 1 : 0) : undefined)
+	);
 	let floating = $derived.by(() => {
-		const placed = placeCloud(visible.slice(0, layout.cap), field, layout);
-		if (layout.mode !== 'surround' || !spill) return placed;
-		if (openPacket) return openPacket.id === spill.id ? spillFrom(placed, spill) : placed;
-		// Just put away: the packet fades back in where it stood while its contents
-		// gather into it, rather than flying in from off-screen with everything else.
-		const home = spill.id;
-		return placed.map((p) =>
-			p.item.kind === 'top' && p.item.id === home
-				? { ...p, arrivalStyle: `--ex:0px;--ey:0px;--edelay:${PACKET_RETURN_DELAY}s` }
-				: p
-		);
+		if (!face || !openPacket) return placeCloud(visible.slice(0, layout.cap), field, layout);
+		const [first, ...rest] = visible;
+		if (first.kind !== 'inner') return placeCloud(visible, field, layout);
+		// The face takes over the packet's element (its key) and its float (the
+		// packet's id seeds the drift), so the picture on that spot never changes.
+		const faceEntry: Entry = { ...first, key: `t${openPacket.id}`, face: openPacket };
+		return [
+			pinAt(faceEntry, face, field, openPacket.id),
+			...spillFrom(placeCloud(rest.slice(0, layout.cap), innerField, layout), face)
+		];
 	});
 	// Open a page and the rest scatter: only the selected card stays mounted, so
 	// every other one plays its off-screen fly-out.
 	let shown = $derived(
-		selected === null ? floating : floating.filter((p) => p.item.id === selected)
+		selected === null ? floating : floating.filter((p) => p.item.key === selected)
 	);
 
 	/** An opened card's height over width (see `Packet.openRatio`); unset is A4. */
@@ -504,25 +554,38 @@
 		return (!rejoining && p.arrivalStyle) || p.enterStyle;
 	}
 
-	/**
-	 * How long a packet put away waits before fading back in: about as long as
-	 * its contents take to gather into its spot, so it reappears as they arrive.
-	 */
-	const PACKET_RETURN_DELAY = 0.3;
+	/** How long a dismissed card takes to leave, in ms. */
+	const EXIT_MS = 450;
 
 	/**
-	 * Where a dismissed card flies to. Off-screen (`offX`/`offY`) as a rule; but a
-	 * packet being opened fades where it stands, since its contents are about to
-	 * pour out of that very spot, and a packet's contents being put away gather
-	 * back into it (`homeX`/`homeY`). Read when the card's exit STARTS, so the
-	 * packet state it consults is already the new one.
+	 * Where a dismissed card flies to, and the opacity it ends at. Off-screen
+	 * (`offX`/`offY`), fading, as a rule. A packet's contents being put away
+	 * gather back under its face (`homeX`/`homeY`) instead, at full opacity: they
+	 * are not leaving the sky but tucking in behind a card that stays. A packet
+	 * opened from the stacked grid, which has no face held in place, fades where
+	 * it stands. Read when the card's exit STARTS, so the packet state it
+	 * consults is already the new one.
 	 */
-	function exitTo(p: Placed<Entry>): { x: number; y: number } {
-		if (p.item.kind === 'top' && openPacket?.id === p.item.id) return { x: 0, y: 0 };
+	function exitTo(p: Placed<Entry>): { x: number; y: number; opacity: number } {
+		if (p.item.kind === 'top' && openPacket?.id === p.item.id) return { x: 0, y: 0, opacity: 0 };
 		if (p.item.kind === 'inner' && !openPacket && p.homeX !== undefined) {
-			return { x: p.homeX, y: p.homeY ?? 0 };
+			return { x: p.homeX, y: p.homeY ?? 0, opacity: 1 };
 		}
-		return { x: p.offX, y: p.offY };
+		return { x: p.offX, y: p.offY, opacity: 0 };
+	}
+
+	/**
+	 * The packet whose contents are still gathering back into it, so that it
+	 * keeps drawing its face alone until they are all tucked away. Its pile is
+	 * those very cards: drawing it as they set off would show each one twice.
+	 */
+	let gathering = $state<number | null>(null);
+	let gatherTimer: ReturnType<typeof setTimeout>;
+
+	/** The packet a card stands for when its `card` should draw the face alone. */
+	function faceOf(e: Entry): T | null {
+		if (e.kind === 'inner') return e.face ?? null;
+		return gathering === e.id ? e.value : null;
 	}
 
 	// Moving between the two clouds. `.pre`, so it runs before the DOM changes:
@@ -547,6 +610,17 @@
 			rejoining = false;
 			zOrder = {};
 			zTop = 0;
+			// The packet's face sits on top of everything sliding out from under it,
+			// and of everything sliding back. Same key either way: it is one element.
+			const home = spill && (spill.id === now || spill.id === from) ? spill.id : null;
+			const held = home !== null && field.fullViewport;
+			if (held) bringForward(`t${home}`);
+			clearTimeout(gatherTimer);
+			gathering = null;
+			if (held && now === null) {
+				gathering = home;
+				gatherTimer = setTimeout(() => (gathering = null), reducedMotion() ? 0 : EXIT_MS);
+			}
 			reveal();
 			void tick().then(() => settleLevel(now, from));
 		});
@@ -597,7 +671,7 @@
 	 * survives opening and closing a card.
 	 */
 	let openCard = $derived(
-		selected === null ? null : (floating.find((p) => p.item.id === selected) ?? null)
+		selected === null ? null : (floating.find((p) => p.item.key === selected) ?? null)
 	);
 	/**
 	 * The open page, held through its own exit. `openCard` drops to null the moment
@@ -663,7 +737,7 @@
 	 * the way out or fly back in on the way home, because it is travelling under
 	 * its own steam. Cleared when the exit morph lands, and by a new search.
 	 */
-	let morphId = $state<number | null>(null);
+	let morphId = $state<string | null>(null);
 	/** Its slot when the page was opened, and the scroll that was measured at. */
 	let originBox: Box | null = null;
 	let originScrollY = 0;
@@ -727,9 +801,9 @@
 		// Set BEFORE `selected`: the grid card is about to be torn down, and its
 		// fly-out reads this to know it should bow out instantly and let the morph
 		// carry it instead.
-		morphId = id;
+		morphId = p.item.key;
 		exiting = false;
-		selected = id;
+		selected = p.item.key;
 	}
 
 	// The morph's transform is computed once and handed to the compositor, so it
@@ -988,7 +1062,7 @@
 		<div
 			out:fly|global={{
 				...exitTo(p),
-				duration: reducedMotion() || p.item.id === morphId ? 0 : 450,
+				duration: reducedMotion() || p.item.key === morphId ? 0 : EXIT_MS,
 				easing: cubicIn
 			}}
 		>
@@ -1040,12 +1114,17 @@
 		</div>
 	{/snippet}
 
-	<!-- A card's contents, from whichever caller snippet draws its kind. -->
+	<!-- A card's contents, from whichever caller snippet draws its kind. A packet's
+	     face is drawn by the packet's own snippet, from the same render site as
+	     the closed packet, so the very same picture carries on through opening
+	     and putting away; only once it is opened as a page does it become one of
+	     the packet's cards. -->
 	{#snippet cardBody(e: Entry, isSel: boolean)}
-		{#if e.kind === 'inner'}
+		{@const packetFace = isSel ? null : faceOf(e)}
+		{#if e.kind === 'inner' && !packetFace}
 			{@render packet?.card(e.value, isSel)}
 		{:else}
-			{@render card(e.value, isSel)}
+			{@render card(packetFace ?? (e.value as T), isSel, packetFace !== null)}
 		{/if}
 	{/snippet}
 
@@ -1104,7 +1183,7 @@
 							     would not be, and it must not paint underneath the card still
 							     travelling towards it. -->
 							{#each rows[vrow.index] ?? [] as p (p.item.key)}
-								<div data-cell={p.item.id} class:landing={p.item.id === onLayer}>
+								<div data-cell={p.item.key} class:landing={p.item.key === onLayer}>
 									{@render page(p, false, revealing)}
 								</div>
 							{/each}
@@ -1147,7 +1226,7 @@
 					{@render backdrop()}
 				{/if}
 				{#each shown as p (p.item.key)}
-					{@const isSel = selected === p.item.id}
+					{@const isSel = selected === p.item.key}
 					<!-- anchor: scattered position within the field, or the VIEWPORT's dead
 					     centre when open — not the field's. Glides between the two via the
 					     CSS transition on left/top. Persistent hover stacking raises
@@ -1156,8 +1235,12 @@
 						class="card-anchor"
 						style="left: calc(50% + {isSel ? 0 : p.dx}px); top: calc(50% + {isSel
 							? 0
-							: fieldOffsetY + p.dy}px); z-index: {isSel ? 50 : (zOrder[p.item.id] ?? 0)}"
-						onpointerenter={() => bringForward(p.item.id)}
+							: fieldOffsetY + p.dy}px); z-index: {isSel ? 50 : (zOrder[p.item.key] ?? 0)}"
+						onpointerenter={() => {
+							bringForward(p.item.key);
+							warm(p.item);
+						}}
+						onfocusin={() => warm(p.item)}
 					>
 						<!-- The card that was just closed must NOT fly in. It never left:
 						     it stayed mounted through the whole open, and the anchor's
@@ -1165,7 +1248,7 @@
 						     already carrying it back to the exact spot it grew from. Handing
 						     it the entrance as well threw it off-screen first, so the one
 						     card the reader was looking at rejoined like a stranger. -->
-						{@render page(p, isSel, p.item.id !== morphId)}
+						{@render page(p, isSel, p.item.key !== morphId)}
 					</div>
 				{/each}
 			</div>
@@ -1314,10 +1397,12 @@
 		will-change: transform, opacity;
 	}
 
+	/* `--eo` is the opacity a card arrives from: 0, so it fades in, unless it is
+	   coming out from under a packet's face (see `spillFrom`). */
 	@keyframes flyin {
 		from {
 			transform: translate(var(--ex, 0), var(--ey, 0));
-			opacity: 0;
+			opacity: var(--eo, 0);
 		}
 		to {
 			transform: translate(0, 0);
