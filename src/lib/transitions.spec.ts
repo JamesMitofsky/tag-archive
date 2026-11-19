@@ -23,6 +23,8 @@ describe('morphNameForPair', () => {
 		expect(morphNameForPair('/keeper/images', '/keeper/images/new')).toBeNull();
 		expect(morphNameForPair('/keeper/images/new', '/keeper/images')).toBeNull();
 		expect(morphNameForPair('/keeper/artefacts', '/keeper/artefacts/new')).toBeNull();
+		expect(morphNameForPair('/keeper/events', '/keeper/events/new')).toBeNull();
+		expect(morphNameForPair('/keeper/series/new', '/keeper/series')).toBeNull();
 		expect(morphNameForPair('/keeper/artefacts/new', '/keeper/artefacts')).toBeNull();
 		expect(morphNameForPair('/keeper/images', '/keeper/images/7/edit')).toBeNull();
 		expect(morphNameForPair('/keeper/images/7/edit', '/keeper/images/7')).toBeNull();

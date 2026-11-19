@@ -22,11 +22,11 @@ function stripTrailingSlash(path: string): string {
 function detailName(path: string): string | null {
 	const p = stripTrailingSlash(path);
 
-	// Event detail: /keeper/events/{id} (id ≠ add).
+	// Event detail: /keeper/events/{id} (id ≠ new, or add, its old name).
 	const event = p.match(/^\/keeper\/events\/([^/]+)$/);
 	if (event) {
 		const id = event[1];
-		return id === 'add' ? null : morphName('event', id);
+		return id === 'new' || id === 'add' ? null : morphName('event', id);
 	}
 
 	// Artefact detail: /keeper/artefacts/{id} (id ≠ new, or add, its old name).
@@ -36,11 +36,11 @@ function detailName(path: string): string | null {
 		return id === 'new' || id === 'add' ? null : morphName('artefact', id);
 	}
 
-	// Series detail: /keeper/series/{id} (id ≠ add).
+	// Series detail: /keeper/series/{id} (id ≠ new, or add, its old name).
 	const series = p.match(/^\/keeper\/series\/([^/]+)$/);
 	if (series) {
 		const id = series[1];
-		return id === 'add' ? null : morphName('series', id);
+		return id === 'new' || id === 'add' ? null : morphName('series', id);
 	}
 
 	// Image set detail: /keeper/images/{id} (id ≠ new, or add, its old name).
