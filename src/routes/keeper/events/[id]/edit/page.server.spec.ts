@@ -82,3 +82,84 @@ describe('deleteEvent', () => {
 		expect(await db.select().from(event).where(eq(event.id, id))).toHaveLength(1);
 	});
 });
+
+const { eventFeatureImage } = await import('#lib/server/db/schema.ts');
+
+async function updateEvent(id: number, as: typeof ADMIN, fields: Record<string, string>) {
+	const body = new FormData();
+	for (const [key, value] of Object.entries(fields)) body.set(key, value);
+	const request = {
+		params: { id: String(id) },
+		locals: { user: as },
+		request: new Request('http://localhost/', { method: 'POST', body })
+	};
+	try {
+		// The action reads only these fields of the RequestEvent.
+		return await actions.updateEvent(request as never);
+	} catch (thrown) {
+		if (isRedirect(thrown)) return thrown;
+		throw thrown;
+	}
+}
+
+describe('updateEvent feature image', () => {
+	const fields = { title: 'Renamed', date: '2024-08-01' };
+
+	async function setup() {
+		const [{ id }] = await db
+			.insert(event)
+			.values({ title: 'Lantern Walk', date: '2024-08-01' })
+			.returning({ id: event.id });
+		const url = 'https://bucket.test/submissions/lantern.webp';
+		const [{ id: artefactId }] = await db
+			.insert(artefact)
+			.values({ artefact: 'Lantern map', date: '2024', fileUrls: [url] })
+			.returning({ id: artefact.id });
+		return { id, artefactId, url };
+	}
+
+	const featureOf = async (id: number) =>
+		db.select().from(eventFeatureImage).where(eq(eventFeatureImage.eventId, id));
+
+	it('saves the chosen image with the rest of the event', async () => {
+		const { id, artefactId, url } = await setup();
+		const result = await updateEvent(id, ADMIN, {
+			...fields,
+			featureImage: `artefact:${artefactId}:${url}`
+		});
+		expect(isRedirect(result) && result.location).toBe(`/keeper/events/${id}`);
+		expect(await featureOf(id)).toEqual([
+			expect.objectContaining({ artefactId, artefactFileUrl: url, updatedBy: ADMIN.id })
+		]);
+
+		// An empty field clears it again.
+		await updateEvent(id, ADMIN, { ...fields, featureImage: '' });
+		expect(await featureOf(id)).toEqual([]);
+	});
+
+	it('refuses an image that is not there, and saves none of the edit', async () => {
+		const { id, artefactId } = await setup();
+		for (const featureImage of [
+			`artefact:${artefactId}:https://bucket.test/submissions/gone.webp`,
+			'image:999999',
+			'not a ref'
+		]) {
+			const result = await updateEvent(id, ADMIN, { ...fields, featureImage });
+			expect(isActionFailure(result) && result.status, featureImage).toBe(400);
+			expect(isActionFailure(result) && result.data).toMatchObject({
+				errors: { featureImage: [expect.any(String)] },
+				values: { featureImage }
+			});
+		}
+		const [row] = await db.select().from(event).where(eq(event.id, id));
+		expect(row.title).toBe('Lantern Walk');
+		expect(await featureOf(id)).toEqual([]);
+	});
+
+	it('leaves the choice alone when the form has no feature image field', async () => {
+		const { id, artefactId, url } = await setup();
+		await updateEvent(id, ADMIN, { ...fields, featureImage: `artefact:${artefactId}:${url}` });
+		await updateEvent(id, ADMIN, fields);
+		expect(await featureOf(id)).toHaveLength(1);
+	});
+});
