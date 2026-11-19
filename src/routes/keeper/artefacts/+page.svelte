@@ -3,13 +3,17 @@
 	import ArtefactId from '$lib/components/ArtefactId.svelte';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import KeeperList from '$lib/components/KeeperList.svelte';
+	import ReviewActions from '$lib/components/ReviewActions.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import { programAreaMeta } from '$lib/programAreas';
 	import { morphVar } from '$lib/transitions.svelte';
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// Only admins vet submissions; everyone else just sees the badge.
+	const canReview = $derived(data.user.role === 'admin');
 
 	// Client-side search over the loaded artefacts — every list here gets a filter.
 	let query = $state('');
@@ -80,6 +84,15 @@
 			/>
 		</div>
 
+		{#if form?.reviewError}
+			<p
+				role="alert"
+				class="mt-4 rounded-lg bg-white/80 px-4 py-2.5 text-sm text-[#bc4b51] shadow-sm ring-1 ring-[#bc4b51]/30"
+			>
+				{form.reviewError}
+			</p>
+		{/if}
+
 		<section class="mt-4">
 			{#if data.artefacts.length === 0}
 				<p
@@ -126,12 +139,18 @@
 										</p>
 									</div>
 									{#if item.proposedAddition}
-										<!-- Contributor submission awaiting a keeper's vetting; amber flags attention. -->
-										<span
-											class="relative z-[2] shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 ring-1 ring-amber-200"
-										>
-											Proposed addition
-										</span>
+										<!-- Sits above the stretched link (z-[1]) so the buttons take the click. -->
+										<div class="relative z-[2] flex shrink-0 flex-col items-end gap-2">
+											<!-- Contributor submission awaiting a keeper's vetting; amber flags attention. -->
+											<span
+												class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 ring-1 ring-amber-200"
+											>
+												Proposed addition
+											</span>
+											{#if canReview}
+												<ReviewActions id={item.id} variant="icon" />
+											{/if}
+										</div>
 									{/if}
 								</div>
 								{#if item.description}

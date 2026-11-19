@@ -3,7 +3,8 @@ import { desc, eq, getTableColumns } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { attachProvenance } from '$lib/server/db/queries';
 import { artefact, event } from '$lib/server/db/schema';
-import type { PageServerLoad } from './$types';
+import { reviewActions } from '$lib/server/reviewActions';
+import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// This view is signed-in only; the keeper page owns the sign-in flow.
@@ -23,3 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		artefacts
 	};
 };
+
+// Admins can vet a proposed addition straight from its card, without a trip to
+// the review queue. The actions refuse anyone else.
+export const actions: Actions = reviewActions('artefact', 'artefact');
