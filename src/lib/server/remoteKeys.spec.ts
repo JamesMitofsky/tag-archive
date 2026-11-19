@@ -70,3 +70,45 @@ describe('the remote_key table', () => {
 		await expect(insert('TOBYSHORIN', '2026-12-31')).rejects.toThrow();
 	});
 });
+
+describe('managing keys', async () => {
+	const { createKey, deleteKey, endKey, listKeys, setKeyExpiry } = await import('./remoteKeys');
+	const now = at('2026-11-18T12:00:00Z');
+
+	it('creates a key once, and refuses one differing only in case', async () => {
+		expect(await createKey('managed', '2026-11-25')).toBe('created');
+		expect(await createKey('MANAGED', '2026-12-25')).toBe('taken');
+		expect(await keyOpens('managed', now)).toBe(true);
+	});
+
+	it('lists every key with when it ends and whether it is open, latest-closing first', async () => {
+		await createKey('long-gone', '2020-01-01');
+		const rows = await listKeys(now);
+		const managed = rows.find((row) => row.key === 'managed');
+		expect(managed).toMatchObject({ expiresAt: '2026-11-25', open: true });
+		// A bare date runs through the end of that day, UTC.
+		expect(managed?.endsAt).toBe(Date.parse('2026-11-26T00:00:00Z'));
+		expect(rows.find((row) => row.key === 'long-gone')?.open).toBe(false);
+		const ends = rows.map((row) => row.endsAt);
+		expect(ends).toEqual([...ends].sort((a, b) => b - a));
+	});
+
+	it('moves an expiry, reopening a closed key', async () => {
+		expect(await setKeyExpiry('long-gone', '2026-12-01')).toBe(true);
+		expect(await keyOpens('long-gone', now)).toBe(true);
+		expect(await setKeyExpiry('no-such-key', '2026-12-01')).toBe(false);
+	});
+
+	it('closes a key at this moment, keeping its row', async () => {
+		const closing = new Date();
+		expect(await endKey('long-gone', closing)).toBe(true);
+		expect(await keyOpens('long-gone', new Date(closing.getTime() + 1000))).toBe(false);
+		expect((await listKeys()).some((row) => row.key === 'long-gone')).toBe(true);
+	});
+
+	it('deletes a key', async () => {
+		expect(await deleteKey('managed')).toBe(true);
+		expect(await keyOpens('managed', now)).toBe(false);
+		expect(await deleteKey('managed')).toBe(false);
+	});
+});

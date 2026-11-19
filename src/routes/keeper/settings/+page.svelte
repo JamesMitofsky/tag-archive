@@ -7,6 +7,7 @@
 	import UserPlusIcon from 'phosphor-svelte/lib/UserPlusIcon';
 	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
+	import KeyIcon from 'phosphor-svelte/lib/KeyIcon';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -82,6 +83,16 @@
 						<span class="flex items-center gap-2">
 							<UsersIcon size={18} />
 							Contributors
+						</span>
+						<ArrowRightIcon size={18} class="text-gray-400" />
+					</a>
+					<a
+						href="/keeper/settings/keys"
+						class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-4 py-3 text-sm text-gray-800 transition hover:bg-gray-50"
+					>
+						<span class="flex items-center gap-2">
+							<KeyIcon size={18} />
+							Unlock keys
 						</span>
 						<ArrowRightIcon size={18} class="text-gray-400" />
 					</a>

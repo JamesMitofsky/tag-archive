@@ -488,8 +488,11 @@ sent back to `/keeper`.
 URL carries `?whoislisteningwiththevoiceofthegarden=<key>` and `<key>` is a row
 of the `remote_key` table that hasn't expired, so you can hand one person a link
 like `https://<site>/?whoislisteningwiththevoiceofthegarden=tobyshorin` and have
-it close by itself. To hand one out, add a row in Drizzle Studio (or any SQL
-shell):
+it close by itself. Admins hand them out at **Settings → Unlock keys**
+(`/keeper/settings/keys`): pick a key, and a date it stays open through (a week
+from today unless you change it), and copy the link. The same page moves a key's
+date, closes it now, or deletes it. A key can also be added by hand in Drizzle
+Studio or any SQL shell:
 
 ```sql
 INSERT INTO remote_key (unlock_key, expires_at) VALUES ('tobyshorin', '2026-12-31');
