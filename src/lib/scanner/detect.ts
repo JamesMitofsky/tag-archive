@@ -131,7 +131,7 @@ export function scaleCorners(corners: CornerPoints, sx: number, sy: number): Cor
 
 /**
  * `corners` of a width×height image, carried onto that image turned `turns`
- * quarter turns counterclockwise (as `rotateQuarterTurns` turns it). Each
+ * quarter turns clockwise (as `rotateQuarterTurns` turns it). Each
  * corner is renamed for where it lands, so `topLeft` is still the top-left
  * corner of the turned image. Turning back is `-turns` on the turned size.
  */
@@ -145,14 +145,14 @@ export function rotateCorners(
 	let w = width;
 	let h = height;
 	for (let i = 0; i < quarterTurns(turns); i++) {
-		// One counterclockwise quarter turn: (x, y) → (y, w − x), and the
-		// top-right corner becomes the top-left.
-		const turn = (p: Point): Point => ({ x: p.y, y: w - p.x });
+		// One clockwise quarter turn: (x, y) → (h − y, x), and the
+		// bottom-left corner becomes the top-left.
+		const turn = (p: Point): Point => ({ x: h - p.y, y: p.x });
 		turned = {
-			topLeft: turn(turned.topRight),
-			topRight: turn(turned.bottomRight),
-			bottomRight: turn(turned.bottomLeft),
-			bottomLeft: turn(turned.topLeft)
+			topLeft: turn(turned.bottomLeft),
+			topRight: turn(turned.topLeft),
+			bottomRight: turn(turned.topRight),
+			bottomLeft: turn(turned.bottomRight)
 		};
 		[w, h] = [h, w];
 	}

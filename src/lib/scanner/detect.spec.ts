@@ -70,8 +70,8 @@ describe('scanner geometry', () => {
 		expect(isFullFrame(fullFrameCorners(640, 480), 1280, 960)).toBe(false);
 	});
 
-	it('carries corners onto a page turned a quarter turn counterclockwise', () => {
-		// The top-right corner swings round to the top-left; the frame turns tall.
+	it('carries corners onto a page turned a quarter turn clockwise', () => {
+		// The bottom-left corner swings round to the top-left; the frame turns tall.
 		expect(rotateCorners(fullFrameCorners(640, 480), 640, 480, 1)).toEqual(
 			fullFrameCorners(480, 640)
 		);
@@ -82,10 +82,10 @@ describe('scanner geometry', () => {
 			bottomLeft: { x: 15, y: 440 }
 		};
 		expect(rotateCorners(crop, 640, 480, 1)).toEqual({
-			topLeft: { x: 30, y: 40 },
-			topRight: { x: 450, y: 50 },
-			bottomRight: { x: 440, y: 625 },
-			bottomLeft: { x: 20, y: 630 }
+			topLeft: { x: 40, y: 15 },
+			topRight: { x: 460, y: 10 },
+			bottomRight: { x: 450, y: 600 },
+			bottomLeft: { x: 30, y: 590 }
 		});
 	});
 

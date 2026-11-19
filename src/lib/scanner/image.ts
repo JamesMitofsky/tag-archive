@@ -151,7 +151,7 @@ export function quarterTurns(turns: number): 0 | 1 | 2 | 3 {
 }
 
 /**
- * A copy of `source` turned `turns` quarter turns counterclockwise. The
+ * A copy of `source` turned `turns` quarter turns clockwise. The
  * transform maps whole pixels onto whole pixels, so nothing is resampled and
  * four turns give back the original exactly. `null` if no 2D context was had.
  */
@@ -169,9 +169,9 @@ export function rotateQuarterTurns(
 	if (!ctx) return null;
 	// Exact integer matrices (x' = a·x + c·y + e, y' = b·x + d·y + f) rather
 	// than ctx.rotate, whose cos(π/2) is 6e-17 and not 0.
-	if (quarter === 1) ctx.setTransform(0, -1, 1, 0, 0, width);
+	if (quarter === 1) ctx.setTransform(0, 1, -1, 0, height, 0);
 	else if (quarter === 2) ctx.setTransform(-1, 0, 0, -1, width, height);
-	else if (quarter === 3) ctx.setTransform(0, 1, -1, 0, height, 0);
+	else if (quarter === 3) ctx.setTransform(0, -1, 1, 0, 0, width);
 	ctx.drawImage(source, 0, 0);
 	return canvas;
 }

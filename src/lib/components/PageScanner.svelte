@@ -356,7 +356,7 @@
 
 	/**
 	 * Crop (when there is a quad that isn't the whole frame), turn the page
-	 * `turns` quarter turns counterclockwise, and encode it for upload.
+	 * `turns` quarter turns clockwise, and encode it for upload.
 	 */
 	async function cropAndEncode(source: HTMLCanvasElement, corners: CornerPoints | null, turns = 0) {
 		const crop = corners && !isFullFrame(corners, source.width, source.height) ? corners : null;
@@ -611,7 +611,7 @@
 	}
 
 	/**
-	 * Turn a page a further quarter turn counterclockwise. Each tap claims the
+	 * Turn a page a further quarter turn clockwise. Each tap claims the
 	 * page, so taps in quick succession add up and only the last one's render is
 	 * kept.
 	 */

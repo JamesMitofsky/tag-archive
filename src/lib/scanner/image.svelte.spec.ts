@@ -46,13 +46,13 @@ describe('rotateQuarterTurns', () => {
 		return rows;
 	}
 
-	it('turns counterclockwise, pixel for pixel', () => {
-		// The top-left corner goes to the bottom-left.
-		expect(pixels(rotateQuarterTurns(marked(), 1)!)).toEqual(['bb', 'bb', 'rb']);
+	it('turns clockwise, pixel for pixel', () => {
+		// The top-left corner goes to the top-right.
+		expect(pixels(rotateQuarterTurns(marked(), 1)!)).toEqual(['br', 'bb', 'bb']);
 		expect(pixels(rotateQuarterTurns(marked(), 2)!)).toEqual(['bbb', 'bbr']);
-		expect(pixels(rotateQuarterTurns(marked(), 3)!)).toEqual(['br', 'bb', 'bb']);
+		expect(pixels(rotateQuarterTurns(marked(), 3)!)).toEqual(['bb', 'bb', 'rb']);
 		expect(pixels(rotateQuarterTurns(marked(), 4)!)).toEqual(['rbb', 'bbb']);
-		expect(pixels(rotateQuarterTurns(marked(), -1)!)).toEqual(['br', 'bb', 'bb']);
+		expect(pixels(rotateQuarterTurns(marked(), -1)!)).toEqual(['bb', 'bb', 'rb']);
 	});
 });
 

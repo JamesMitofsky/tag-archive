@@ -3,7 +3,7 @@
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import CropIcon from 'phosphor-svelte/lib/CropIcon';
-	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
 	import type { ScanPage } from '$lib/scanner/types';
@@ -22,7 +22,7 @@
 		onMove: (id: string, direction: -1 | 1) => void;
 		onRemove: (id: string) => void;
 		onAdjust: (id: string) => void;
-		/** A further quarter turn counterclockwise, the way the icon's arrow runs. */
+		/** A further quarter turn clockwise, the way the icon's arrow runs. */
 		onRotate: (id: string) => void;
 	} = $props();
 </script>
@@ -119,7 +119,7 @@
 						title="Rotate"
 						class="rounded-sm border border-gray-300 bg-white p-2.5 text-gray-700 transition hover:bg-gray-100 disabled:opacity-40"
 					>
-						<ArrowCounterClockwiseIcon size={14} />
+						<ArrowClockwiseIcon size={14} />
 					</button>
 				</div>
 			</div>
