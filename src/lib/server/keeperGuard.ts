@@ -43,3 +43,21 @@ export function anonymousKeeperAccess(request: {
 	if (request.method === 'POST' && (request.isEnhancedAction || acceptsHtml)) return 'redirect';
 	return 'refuse';
 }
+
+/** The keeper pages a signed-in listener may open: their settings, to sign out. */
+const LISTENER_PAGES = new Set(['/keeper/settings']);
+
+/**
+ * What the hook does with a signed-in listener's request (see #lib/roles): the
+ * same as for an anonymous one, except that their settings page opens too. A
+ * listener sent to /keeper lands on the hub, which tells them what they can do.
+ * A `refuse` here means the account is signed in but may not, so the hook
+ * answers it 403 rather than the anonymous 401.
+ */
+export function listenerKeeperAccess(
+	request: Parameters<typeof anonymousKeeperAccess>[0]
+): 'allow' | 'redirect' | 'refuse' {
+	const route = request.pathname.replace(/\/__data\.json$/, '').replace(/\/+$/, '');
+	if (LISTENER_PAGES.has(route)) return 'allow';
+	return anonymousKeeperAccess(request);
+}

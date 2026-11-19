@@ -16,8 +16,8 @@ import {
  *
  * A pass is set on a response in exactly three places: the tap (src/routes/t),
  * the presence beat (src/routes/api/presence, the only place a pass SLIDES),
- * and `keeperPass` below, which hands a signed-in keeper a pass when they hold
- * none. Nothing else sets one, and `keeperPass` refuses to on a response the
+ * and `sessionPass` below, which hands a signed-in account a pass when it holds
+ * none. Nothing else sets one, and `sessionPass` refuses to on a response the
  * CDN might cache (see `mayIssuePass`): a `Set-Cookie` stored at the edge
  * would hand one visitor's pass to everyone who fetched the same URL.
  */
@@ -80,20 +80,21 @@ export function mayIssuePass(request: RequestShape): boolean {
 }
 
 /**
- * A signed-in keeper's pass: their session is the real credential, so a keeper
- * who holds no valid pass is handed one — on any request whose response the CDN
- * cannot cache — and is never locked out for being away. Keeping it topped up
- * is the presence beat's job, the same as for everyone else; a keeper's bare
- * fetch without a pass gets the gate's 401 like anyone's, and the next beat
- * (a POST) mends it.
+ * A signed-in account's pass: the session is the real credential, so an account
+ * that holds no valid pass is handed one, of `kind` (`k` for a keeper, `l` for
+ * a listener, see #lib/roles), on any request whose response the CDN cannot
+ * cache, and is never locked out for being away. Keeping it topped up is the
+ * presence beat's job, the same as for everyone else; a bare fetch without a
+ * pass gets the gate's 401 like anyone's, and the next beat (a POST) mends it.
  */
-export async function keeperPass(
+export async function sessionPass(
 	cookies: Cookies,
 	current: Pass | null,
 	request: RequestShape,
+	kind: Extract<PassKind, 'k' | 'l'>,
 	now = Date.now()
 ): Promise<Pass | null> {
 	if (current) return current;
 	if (!mayIssuePass(request)) return null;
-	return issuePass(cookies, 'k', now);
+	return issuePass(cookies, kind, now);
 }

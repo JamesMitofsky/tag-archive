@@ -12,8 +12,11 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	// The keeper page is the sign-in gateway + hub; the archive lists live on the
 	// artefacts/events/series sub-routes.
+	// A listener (see #lib/roles) is signed in but no keeper: the hub shows them
+	// where the archive is instead of the keeper tools.
 	return {
-		user: locals.user ? { email: locals.user.email, role: locals.user.role } : null
+		user: locals.user ? { email: locals.user.email, role: locals.user.role } : null,
+		listener: locals.listener ? { email: locals.listener.email } : null
 	};
 };
 

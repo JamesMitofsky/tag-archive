@@ -7,7 +7,7 @@ vi.mock('$app/env/private', async () =>
 vi.mock('$app/env', () => ({ dev: false, building: false }));
 
 const { PASS_COOKIE, PASS_TTL_MS, mintPass, verifyPass } = await import('#lib/access/pass.ts');
-const { issuePass, keeperPass, mayIssuePass, readPass, touchPass } = await import('./access');
+const { issuePass, mayIssuePass, readPass, sessionPass, touchPass } = await import('./access');
 
 const SECRET = 'test-secret';
 
@@ -71,32 +71,39 @@ describe('mayIssuePass', () => {
 	});
 });
 
-describe('keeperPass', () => {
+describe('sessionPass', () => {
 	it('leaves a valid pass alone: sliding is the presence beat’s job', async () => {
 		const { cookies, token } = jar((await mintPass(SECRET, 't', 0)).token);
 		const before = token();
 		const current = await readPass(cookies, 1);
-		expect(await keeperPass(cookies, current, pageView, 1)).toEqual(current);
+		expect(await sessionPass(cookies, current, pageView, 'k', 1)).toEqual(current);
 		expect(token()).toBe(before);
 	});
 
 	it('hands a keeper without a pass a fresh one, on a page view', async () => {
 		const { cookies, token } = jar();
-		const pass = await keeperPass(cookies, null, pageView, 5_000);
+		const pass = await sessionPass(cookies, null, pageView, 'k', 5_000);
 		expect(pass).toEqual({ kind: 'k', issuedAt: 5_000, expiresAt: 5_000 + PASS_TTL_MS });
 		expect(await verifyPass(SECRET, token(), 5_000)).toEqual(pass);
 	});
 
 	it('hands one out on a POST too — the presence beat is how a lapsed keeper recovers', async () => {
 		const { cookies } = jar();
-		expect(await keeperPass(cookies, null, { ...bareFetch, method: 'POST' })).toMatchObject({
+		expect(await sessionPass(cookies, null, { ...bareFetch, method: 'POST' }, 'k')).toMatchObject({
 			kind: 'k'
 		});
 	});
 
+	it('hands a listener a pass of their own kind, so it opens the archive the same way', async () => {
+		const { cookies, token } = jar();
+		const pass = await sessionPass(cookies, null, pageView, 'l', 5_000);
+		expect(pass).toEqual({ kind: 'l', issuedAt: 5_000, expiresAt: 5_000 + PASS_TTL_MS });
+		expect(await verifyPass(SECRET, token(), 5_000)).toEqual(pass);
+	});
+
 	it('never sets a cookie on a bare fetch, which the CDN might cache', async () => {
 		const { cookies, token } = jar();
-		expect(await keeperPass(cookies, null, bareFetch)).toBeNull();
+		expect(await sessionPass(cookies, null, bareFetch, 'k')).toBeNull();
 		expect(token()).toBeUndefined();
 	});
 });

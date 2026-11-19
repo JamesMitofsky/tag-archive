@@ -78,6 +78,13 @@
       "when": 1795014715110,
       "tag": "0010_remote_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1795114448686,
+      "tag": "0011_listener_role",
+      "breakpoints": true
     }
   ]
 }

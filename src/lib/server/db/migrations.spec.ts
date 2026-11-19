@@ -180,3 +180,75 @@ describe('0009_images', () => {
 		expect(await count(client, 'event')).toBe(2);
 	});
 });
+
+describe('0011_listener_role', () => {
+	let client: Client;
+	// The tables that point at `user`: a rebuild with foreign keys enforced would
+	// empty the cascading ones (session, account) as it dropped the old table.
+	const dependents = ['user', 'session', 'account', 'artefact', 'remote_key'];
+	const before = new Map<string, number>();
+
+	beforeAll(async () => {
+		client = createClient({ url: `file:${join(work, 'replay-0011.db')}` });
+		await migrateThrough(client, '0010_remote_keys');
+
+		await client.batch(
+			[
+				"INSERT INTO user (id, name, email, role) VALUES ('u1', 'Admin', 'a@example.org', 'admin'), ('u2', 'Keeper', 'c@example.org', 'contributor')",
+				"INSERT INTO session (id, expires_at, token, updated_at, user_id) VALUES ('s1', 0, 't1', 0, 'u1'), ('s2', 0, 't2', 0, 'u2')",
+				"INSERT INTO account (id, account_id, provider_id, user_id, updated_at) VALUES ('ac1', 'a', 'email', 'u1', 0)",
+				"INSERT INTO artefact (id, artefact, date, created_by, updated_by) VALUES (1, 'Program', '2024', 'u1', 'u2')",
+				"INSERT INTO remote_key (unlock_key, expires_at) VALUES ('tobyshorin', '2999-01-01')"
+			],
+			'write'
+		);
+		// Before the migration the role is still held to the two keeper roles.
+		await expect(
+			client.execute(
+				"INSERT INTO user (id, name, email, role) VALUES ('early', 'L', 'early@example.org', 'listener')"
+			)
+		).rejects.toThrow(/CHECK/);
+		for (const table of dependents) before.set(table, await count(client, table));
+
+		await migrateThrough(client, '0011_listener_role');
+	});
+
+	afterAll(() => client.close());
+
+	it('keeps every account, session and sign-in, and what they made', async () => {
+		for (const table of dependents) {
+			expect(before.get(table), table).toBeGreaterThan(0);
+			expect(await count(client, table), table).toBe(before.get(table));
+		}
+		const roles = await client.execute('SELECT id, role FROM user ORDER BY id');
+		expect(roles.rows.map((r) => [r.id, r.role])).toEqual([
+			['u1', 'admin'],
+			['u2', 'contributor']
+		]);
+	});
+
+	it('takes a listener, and no role at all, but no role the app does not know', async () => {
+		await client.execute("UPDATE user SET role = 'listener' WHERE id = 'u2'");
+		await client.execute(
+			"INSERT INTO user (id, name, email, role) VALUES ('u3', 'New', 'n@example.org', NULL)"
+		);
+		await expect(
+			client.execute("UPDATE user SET role = 'superuser' WHERE id = 'u2'")
+		).rejects.toThrow(/CHECK/);
+		const row = await client.execute("SELECT role FROM user WHERE id = 'u2'");
+		expect(row.rows[0].role).toBe('listener');
+	});
+
+	it('still refuses a second account with the same email', async () => {
+		await expect(
+			client.execute("INSERT INTO user (id, name, email) VALUES ('u4', 'Dup', 'a@example.org')")
+		).rejects.toThrow(/UNIQUE/);
+	});
+
+	it('still deletes an account’s sessions with it', async () => {
+		await client.execute("DELETE FROM user WHERE id = 'u3'");
+		await client.execute('DELETE FROM artefact WHERE id = 1');
+		await client.execute("DELETE FROM user WHERE id = 'u2'");
+		expect(await count(client, 'session')).toBe(1);
+	});
+});

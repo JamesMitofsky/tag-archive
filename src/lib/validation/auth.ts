@@ -1,12 +1,13 @@
+import { isRole, ROLES } from '#lib/roles.ts';
 import { EMAIL_RE, check, defineSuite, str } from './helpers';
 
 export type EmailData = { email: string };
 export type OtpData = { otp: string };
 
-/** Roles an admin can assign when creating an account. Mirrors the better-auth
- *  admin plugin config (`defaultRole: 'contributor'`, `adminRoles: ['admin']`). */
-export const ASSIGNABLE_ROLES = ['contributor', 'admin'] as const;
-export type Role = (typeof ASSIGNABLE_ROLES)[number];
+/** Roles an admin can assign, when creating an account or changing one (see
+ *  #lib/roles). The better-auth admin plugin's `defaultRole: 'contributor'`
+ *  and `adminRoles: ['admin']` name two of them. */
+export const ASSIGNABLE_ROLES = ROLES;
 
 export type CreateUserData = { name: string; email: string; role: string };
 
@@ -23,7 +24,7 @@ export function createNewUserSuite() {
 	return defineSuite<CreateUserData>((data) => {
 		check('name', 'Enter a name', (data.name ?? '').length > 0);
 		check('email', 'Enter a valid email address', EMAIL_RE.test(data.email ?? ''));
-		check('role', 'Pick a role', ASSIGNABLE_ROLES.includes(data.role as Role));
+		check('role', 'Pick a role', isRole(data.role));
 	});
 }
 
