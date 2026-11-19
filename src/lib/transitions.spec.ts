@@ -20,6 +20,8 @@ describe('morphNameForPair', () => {
 	it('leaves the add pages, edit pages and other lists to the plain fade', () => {
 		expect(morphNameForPair('/keeper/images', '/keeper/images/add')).toBeNull();
 		expect(morphNameForPair('/keeper/images/add', '/keeper/images')).toBeNull();
+		expect(morphNameForPair('/keeper/artefacts', '/keeper/artefacts/new')).toBeNull();
+		expect(morphNameForPair('/keeper/artefacts/new', '/keeper/artefacts')).toBeNull();
 		expect(morphNameForPair('/keeper/images', '/keeper/images/7/edit')).toBeNull();
 		expect(morphNameForPair('/keeper/images/7/edit', '/keeper/images/7')).toBeNull();
 		// Same id, wrong list: an image set never morphs out of the artefacts list.

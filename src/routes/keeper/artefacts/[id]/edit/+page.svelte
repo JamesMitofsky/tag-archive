@@ -14,11 +14,14 @@
 	import PageScanner from '$lib/components/PageScanner.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
+	import {
+		createArtefactSuite,
+		parseArtefactForm,
+		type ArtefactFormValues
+	} from '$lib/validation/artefact';
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
-	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

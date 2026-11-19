@@ -23,7 +23,7 @@ describe('getParentRoute & getRouteTitle', () => {
 			label: 'Cloud Keeper'
 		});
 
-		expect(getParentRoute('/keeper/artefacts/add')).toEqual({
+		expect(getParentRoute('/keeper/artefacts/new')).toEqual({
 			href: '/keeper/artefacts',
 			label: 'Artefacts'
 		});
@@ -108,7 +108,7 @@ describe('getParentRoute & getRouteTitle', () => {
 			label: 'Cloud Keeper'
 		});
 
-		expect(getParentRoute('/keeper/artefacts/add', '/keeper/artefacts')).toEqual({
+		expect(getParentRoute('/keeper/artefacts/new', '/keeper/artefacts')).toEqual({
 			href: '/keeper/artefacts',
 			label: 'Artefacts'
 		});

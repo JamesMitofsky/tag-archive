@@ -80,3 +80,33 @@ export function createArtefactSuite({ requireLocation = true }: ArtefactSuiteOpt
 		check('provenance', 'List at most 50 contributors', (data.provenance ?? []).length <= 50);
 	});
 }
+
+/** Raw (unvalidated) form values echoed back so a failed submit keeps input. */
+export type ArtefactFormValues = {
+	artefact: string;
+	event: string;
+	date: string;
+	description: string;
+	location: string;
+	fileUrls: string[];
+	/** Comma-separated in the form; kept raw so a failed submit doesn't lose it. */
+	provenance: string;
+	programArea: string[];
+};
+
+/**
+ * What a failed artefact submit echoes back: the fields as typed (not as
+ * normalised by `parseArtefactForm`), except the lists, which only exist parsed.
+ */
+export function echoArtefactForm(fd: FormData, data: ArtefactData): ArtefactFormValues {
+	return {
+		artefact: String(fd.get('artefact') ?? ''),
+		event: String(fd.get('event') ?? ''),
+		date: String(fd.get('date') ?? ''),
+		description: String(fd.get('description') ?? ''),
+		location: String(fd.get('location') ?? ''),
+		fileUrls: data.fileUrls,
+		provenance: String(fd.get('provenance') ?? ''),
+		programArea: data.programArea
+	};
+}

@@ -29,11 +29,11 @@ function detailName(path: string): string | null {
 		return id === 'add' ? null : morphName('event', id);
 	}
 
-	// Artefact detail: /keeper/artefacts/{id} (id ≠ add).
+	// Artefact detail: /keeper/artefacts/{id} (id ≠ new, or add, its old name).
 	const artefact = p.match(/^\/keeper\/artefacts\/([^/]+)$/);
 	if (artefact) {
 		const id = artefact[1];
-		return id === 'add' ? null : morphName('artefact', id);
+		return id === 'new' || id === 'add' ? null : morphName('artefact', id);
 	}
 
 	// Series detail: /keeper/series/{id} (id ≠ add).
