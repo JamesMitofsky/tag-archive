@@ -242,21 +242,6 @@ export const artefactProvenance = sqliteTable(
 );
 
 /**
- * How a public submitter can be reached about an artefact they contributed —
- * offered after submitting, never required. Kept out of the `artefact` table on
- * purpose: the public dataset publishes artefact rows whole, and contact
- * details must never ride along. One row per artefact; deleted with it.
- */
-export const submissionContact = sqliteTable('submission_contact', {
-	artefactId: integer('artefact_id')
-		.primaryKey()
-		.references(() => artefact.id, { onDelete: 'cascade' }),
-	name: text('name'),
-	email: text('email'),
-	...auditColumns()
-});
-
-/**
  * A set of photographs uploaded together: one or several images, with an
  * optional description and an optional event. Unlike an artefact it has no
  * title, location or program areas; its display label is derived (see
@@ -358,20 +343,6 @@ export const image = sqliteTable(
 );
 
 /**
- * How a public submitter can be reached about an image set they contributed —
- * the image-set twin of `submission_contact`, kept off the public row for the
- * same reason. One row per set; deleted with it.
- */
-export const imageSetContact = sqliteTable('image_set_contact', {
-	setId: integer('set_id')
-		.primaryKey()
-		.references(() => imageSet.id, { onDelete: 'cascade' }),
-	name: text('name'),
-	email: text('email'),
-	...auditColumns()
-});
-
-/**
  * Fixed-window request counters for anonymous writes (see
  * $lib/server/rateLimit). `key` is `<bucket>:<hashed subject>` — the subject is
  * an IP address or draft id, hashed so no raw address is stored. Each key holds
@@ -454,7 +425,6 @@ export type NewArtefact = typeof artefact.$inferInsert;
  * unlinked) and provenance re-expanded to a plain name array from the join table.
  */
 export type ArtefactWithEvent = Artefact & { event: string | null; provenance: string[] };
-export type SubmissionContact = typeof submissionContact.$inferSelect;
 /**
  * Event as the keeper list reads it: series name flattened in (null for a
  * one-off) and hosts re-expanded to a plain name array from the join table.
@@ -464,7 +434,6 @@ export type ImageSet = typeof imageSet.$inferSelect;
 export type NewImageSet = typeof imageSet.$inferInsert;
 export type Image = typeof image.$inferSelect;
 export type NewImage = typeof image.$inferInsert;
-export type ImageSetContact = typeof imageSetContact.$inferSelect;
 /**
  * Image set as the keeper views read it: linked event title flattened in (null
  * when unlinked) and its images in display order.

@@ -24,9 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.slice(0, THUMBNAILS)
 			.map((image) => ({ id: image.id, url: image.url, width: image.width, height: image.height })),
 		// An anonymous submission has no creator.
-		fromKeeper: set.createdBy !== null,
-		contactName: set.contactName,
-		contactEmail: set.contactEmail
+		fromKeeper: set.createdBy !== null
 	}));
 
 	return {

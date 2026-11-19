@@ -103,31 +103,18 @@ describe('/contribute/images', () => {
 		]);
 	});
 
-	it('keeps the thank-you, and what was typed into its contact form, through a refusal', async () => {
+	it('thanks the contributor in place of the form, with no contact form', async () => {
 		const { apply } = renderPage();
-		const submitted = { id: 5, token: 'token-5' };
-		await apply({ submitted });
-		await page.getByRole('button', { name: /Leave a name or email/ }).click();
-		await page.getByLabelText('Name').fill('Ada');
-		await page.getByLabelText('Email').fill('ada@example.org');
+		await apply({ submitted: { id: 5 } });
 
-		await apply({ contactError: 'That submission has already been reviewed.', submitted });
-
+		await expect.element(page.getByRole('heading', { name: 'Thank you' })).toHaveFocus();
 		await expect
-			.element(page.getByRole('alert'))
-			.toHaveTextContent('That submission has already been reviewed.');
-		await expect.element(page.getByLabelText('Name')).toHaveValue('Ada');
-		await expect.element(page.getByLabelText('Email')).toHaveValue('ada@example.org');
-		await expect.element(page.getByRole('heading', { name: 'Thank you' })).toBeInTheDocument();
-
-		// An expired token echoes nothing back, and still leaves the thank-you up to say so.
-		await apply({ contactError: 'That link has expired.' });
-		await expect.element(page.getByRole('alert')).toHaveTextContent('That link has expired.');
-		await expect.element(page.getByLabelText('Name')).toHaveValue('Ada');
-
-		await apply({ connected: true, submitted });
+			.element(page.getByText(/Your photographs are with the keepers/))
+			.toBeInTheDocument();
 		await expect
-			.element(page.getByRole('status'))
-			.toHaveTextContent('Thanks — a keeper may be in touch about these photographs.');
+			.element(page.getByRole('link', { name: 'Add another' }))
+			.toHaveAttribute('href', '/contribute/images');
+		expect(document.querySelector('form')).toBeNull();
+		expect(document.body.textContent).not.toMatch(/name or email/i);
 	});
 });

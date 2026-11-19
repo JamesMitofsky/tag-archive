@@ -58,10 +58,7 @@
 							<p class="mt-2 text-xs text-gray-500">
 								{item.createdBy
 									? 'From a signed-in contributor'
-									: 'From the public'}{#if item.contactName || item.contactEmail}
-									· Contact: {[item.contactName, item.contactEmail]
-										.filter(Boolean)
-										.join(', ')}{/if}{#if !item.location}
+									: 'From the public'}{#if !item.location}
 									· <span class="text-amber-700">No location yet</span>{/if}
 							</p>
 							<ReviewActions id={item.id} />

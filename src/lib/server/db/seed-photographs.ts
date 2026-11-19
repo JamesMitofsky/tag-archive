@@ -11,7 +11,7 @@
  *    single photograph, a set with no event spanning two days, and a set whose
  *    photographs carry no capture date (so it stays undated);
  *  - two sets awaiting review: one from the test contributor, one anonymous
- *    submission with contact details, as /contribute/images leaves them.
+ *    submission, as /contribute/images leaves them.
  *
  * Re-runnable: the local bucket starts empty on every dev boot, so each run
  * first removes the sets a previous run left (their photographs are named
@@ -26,7 +26,7 @@ import { env } from '$env/dynamic/private';
 import { exifTiff, type ExifOptions } from '$lib/testing/exifJpeg';
 import type { ImageSetData } from '$lib/validation/imageSet';
 import { db } from '.';
-import { image, imageSet, imageSetContact, user } from './schema';
+import { image, imageSet, user } from './schema';
 import { encodePng, encodeWebp, paint, type Scene } from './demoPhotos';
 import { submissionPrefix } from '../drafts';
 import { imageKeys } from '../imageKeys';
@@ -67,7 +67,6 @@ type DemoSet = {
 	/** Index into the events picked for the demo (see `pickEvents`); omitted for no event. */
 	event?: number;
 	photos: (event: EventDate | null) => DemoPhoto[];
-	contact?: { name: string; email: string };
 };
 
 type EventDate = { title: string; date: string };
@@ -155,7 +154,6 @@ const SETS: DemoSet[] = [
 	{
 		who: 'anonymous',
 		description: 'Walking past on my way home and had to stop.',
-		contact: { name: 'Demo Visitor', email: 'visitor@example.com' },
 		photos: () => [
 			{ palette: 'dawn', seed: 61, taken: `${addDays(SPRING_DAY, 9)} 06:51`, camera: 1, gps: true },
 			{
@@ -215,7 +213,6 @@ async function clearPreviousRun(): Promise<number> {
 	// Children before parents, as seed-core clears them.
 	await db.delete(image).where(doomedRows);
 	if (setIds.length) {
-		await db.delete(imageSetContact).where(inArray(imageSetContact.setId, setIds));
 		await db.delete(imageSet).where(inArray(imageSet.id, setIds));
 	}
 	// Usually already gone (the store is fresh each boot); a hand re-run leaves them otherwise.
@@ -289,10 +286,6 @@ export async function seedPhotographs(): Promise<void> {
 		};
 		const created = await createImageSet(data, actor, owner);
 		if (!created.ok) throw new Error(`Demo set ${i + 1} was refused: ${created.message}`);
-
-		if (set.contact) {
-			await db.insert(imageSetContact).values({ setId: created.id, ...set.contact });
-		}
 	}
 
 	const awaitingReview = SETS.filter((set) => set.who !== 'admin').length;

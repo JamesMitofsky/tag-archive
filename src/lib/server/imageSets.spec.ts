@@ -19,7 +19,7 @@ vi.mock('./cache', () => ({ purgeArchiveCache }));
 
 const { migrateTestDatabase } = await import('./db/testing');
 const { client, db } = await import('./db');
-const { event, image, imageSet, imageSetContact, user } = await import('./db/schema');
+const { event, image, imageSet, user } = await import('./db/schema');
 const { submissionPrefix } = await import('./drafts');
 const { keyFromUrl } = await import('./scans');
 const { approveProposed, countPendingReview, rejectProposed } = await import('./db/queries');
@@ -583,10 +583,9 @@ describe('updateImageSet', () => {
 });
 
 describe('deleteImageSet', () => {
-	it('removes the set, its image rows, its contact, and every stored object', async () => {
+	it('removes the set, its image rows, and every stored object', async () => {
 		const [a, b] = [await upload(byDraft), await upload(byDraft)];
 		const id = await created([a.id, b.id], asDraft());
-		await db.insert(imageSetContact).values({ setId: id, name: 'Ada', email: 'ada@example.org' });
 
 		expect(await deleteImageSet(id)).toBe(true);
 
@@ -597,9 +596,6 @@ describe('deleteImageSet', () => {
 				.from(image)
 				.where(inArray(image.id, [a.id, b.id]))
 		).toEqual([]);
-		expect(await db.select().from(imageSetContact).where(eq(imageSetContact.setId, id))).toEqual(
-			[]
-		);
 		expect(deletedKeys()).toEqual([...keysOf(a), ...keysOf(b)].sort());
 		// A set still under review was never public: nothing to purge.
 		expect(purgeArchiveCache).not.toHaveBeenCalled();
@@ -648,13 +644,12 @@ describe('the review queue', () => {
 });
 
 describe('listing', () => {
-	it('lists every set newest first (undated last), and the proposed ones with contact', async () => {
+	it('lists every set newest first (undated last), and the proposed ones apart', async () => {
 		const older = await created([(await upload(byAdmin, '2001-01-01T00:00:00')).id]);
 		const newer = await created([(await upload(byAdmin, '2030-01-01T00:00:00')).id]);
 		const undated = await created([(await upload(byAdmin)).id]);
 		const [x, y] = [await upload(byDraft), await upload(byDraft)];
 		const proposed = await created([y.id, x.id], asDraft(), { event: 'Vetted Concert' });
-		await db.insert(imageSetContact).values({ setId: proposed, name: 'Grace', email: null });
 
 		const all = await listImageSets();
 		const ids = all.map((set) => set.id);
@@ -670,8 +665,6 @@ describe('listing', () => {
 		expect(pending.every((set) => set.proposedAddition)).toBe(true);
 		expect(pending.find((set) => set.id === proposed)).toMatchObject({
 			event: 'Vetted Concert',
-			contactName: 'Grace',
-			contactEmail: null,
 			images: [expect.objectContaining({ id: y.id }), expect.objectContaining({ id: x.id })]
 		});
 		expect((await countPendingReview()).images).toBe(pending.length);

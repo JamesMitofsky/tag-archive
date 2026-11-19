@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { latchedSubmission } from '$lib/forms/submission.svelte';
+	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
@@ -16,15 +16,15 @@
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
-	import SubmittedThanks from '$lib/components/SubmittedThanks.svelte';
+	import ArchiveNumber from '$lib/components/ArchiveNumber.svelte';
 	import type { ArtefactFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	// One form for everyone. A signed-in keeper's artefact lands vetted and they
-	// go straight to it; anyone else's waits for a keeper's review, and they get a
-	// thank-you — with an optional side path to leave contact details.
+	// go straight to it; anyone else's waits for a keeper's review, and they get
+	// its archive number to write on the item.
 	//
 	// Anonymous visitors may upload and submit after tapping the garden's NFC tag
 	// (the draft session, see $lib/server/drafts) for as long as their access
@@ -33,18 +33,19 @@
 	// "tap the tag again" message — shown in place, so nothing typed or scanned
 	// is lost, and a fresh tap resumes the same draft.
 
-	// After an anonymous submit: the new artefact's id and the token that lets
-	// this visitor (and only them) attach contact details to it — held through
-	// each answer to the contact form (see latchedSubmission).
-	const submission = latchedSubmission(() => form);
-	const submitted = $derived(submission.value);
-	const connected = $derived(!!(form && 'connected' in form && form.connected));
-	const contactError = $derived(form && 'contactError' in form ? form.contactError : undefined);
-	const contactErrors = $derived(
-		form && 'contactErrors' in form && form.contactErrors
-			? (form.contactErrors as Record<string, string[]>)
-			: {}
+	// After an anonymous submit: the new artefact's id, shown in place of the
+	// form so it can be written on the physical item. Kept until a navigation
+	// ("Add another", the nav) clears `form`.
+	const submitted = $derived(
+		form && 'submitted' in form && form.submitted ? (form.submitted as { id: number }) : undefined
 	);
+	// The number replaces the submit button that had focus, so move focus to its
+	// heading, where a screen reader announces it. Runs after SvelteKit's own
+	// focus reset on a successful action, which would leave focus on the page.
+	let numberHeading = $state<HTMLHeadingElement>();
+	$effect(() => {
+		numberHeading?.focus();
+	});
 
 	// Isomorphic validation: the same vest suite runs here for live, per-field
 	// feedback and on the server as the authority. `errors` seeds field messages
@@ -162,15 +163,25 @@
 		     as the searchbar and the keeper sign-in. -->
 		<section class="rounded-2xl border border-white/40 bg-white/30 p-6 shadow-lg backdrop-blur-md">
 			{#if submitted}
-				<SubmittedThanks
-					noun="artefact"
-					anotherHref="/contribute"
-					idField="artefactId"
-					{submitted}
-					{connected}
-					{contactError}
-					{contactErrors}
-				/>
+				<ArchiveNumber id={submitted.id}>
+					<h1
+						bind:this={numberHeading}
+						tabindex="-1"
+						class="text-sm font-medium text-gray-900 outline-none"
+					>
+						Write this number on the item
+					</h1>
+				</ArchiveNumber>
+				<!-- Full reload, not client navigation: the form's state lives in this
+				     page, and the same URL would keep it. The draft session survives. -->
+				<a
+					href="/contribute"
+					data-sveltekit-reload
+					class="mt-6 flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium {inkButton}"
+				>
+					<ArrowCounterClockwiseIcon size={18} />
+					Add another
+				</a>
 			{:else}
 				<!-- Photographs have a form of their own (they become an image set,
 				     not an artefact's pages): pointed to quietly, beside the heading. -->

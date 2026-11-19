@@ -3,7 +3,7 @@ import { env } from '$env/dynamic/private';
 
 /**
  * Purpose-bound HMAC keys derived from BETTER_AUTH_SECRET, so features that
- * need to sign something (draft-session cookies, contact tokens, the cron
+ * need to sign something (draft-session cookies, upload tickets, the cron
  * bearer) don't each need their own secret — and a value signed for one purpose
  * can never be replayed as another, because each purpose gets its own key.
  *
