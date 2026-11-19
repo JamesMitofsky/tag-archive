@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { formatDate } from '$lib/formatDate';
+	import { formatDate } from '#lib/formatDate.ts';
 	import { untrack } from 'svelte';
-	import BackButton from '$lib/components/BackButton.svelte';
-	import KeeperList from '$lib/components/KeeperList.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import KeeperList from '#lib/components/KeeperList.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
-	import { morphVar } from '$lib/transitions.svelte';
+	import { morphVar } from '#lib/transitions.svelte.ts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

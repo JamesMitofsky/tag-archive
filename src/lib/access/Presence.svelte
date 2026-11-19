@@ -1,5 +1,5 @@
 <!--
-	Keeps the access pass alive while the site is on screen (see $lib/access/presence
+	Keeps the access pass alive while the site is on screen (see #lib/access/presence
 	for the why and the schedule). Mounted once in the root layout, outside the
 	per-route transition, and not on the locked page, where the visitor holds no
 	pass to keep alive.
@@ -14,8 +14,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { isUnder, KEEPS_WORK_WHEN_LOCKED, LOCKED_PATH } from '$lib/access/paths';
-	import { sendBeat, sendLeave, startPresence } from '$lib/access/presence';
+	import { isUnder, KEEPS_WORK_WHEN_LOCKED, LOCKED_PATH } from '#lib/access/paths.ts';
+	import { sendBeat, sendLeave, startPresence } from '#lib/access/presence.ts';
 
 	onMount(() => {
 		const touch = async () => {

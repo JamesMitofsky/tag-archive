@@ -1,6 +1,6 @@
 <!--
 	A shower of watercolor petals falling from the top of the screen, painted in
-	the washes of the six program areas ($lib/programAreas) so a celebration is
+	the washes of the six program areas (#lib/programAreas) so a celebration is
 	drawn from the same paint box as the rest of the archive.
 
 	It covers the viewport, clipped to it so nothing it drops can widen or
@@ -10,7 +10,7 @@
 	and not shown at all under reduced motion.
 -->
 <script lang="ts">
-	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
+	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '#lib/programAreas.ts';
 
 	let { duration = 4000 }: { duration?: number } = $props();
 

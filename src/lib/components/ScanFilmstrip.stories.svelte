@@ -2,7 +2,7 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { fn } from 'storybook/test';
 	import ScanFilmstrip from './ScanFilmstrip.svelte';
-	import type { ScanPage } from '$lib/scanner/types';
+	import type { ScanPage } from '#lib/scanner/types.ts';
 
 	/** A 3:4 page-shaped placeholder, so thumbnails size like real scans. */
 	const shot = (label: string, hue: number) =>

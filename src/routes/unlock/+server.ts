@@ -1,16 +1,16 @@
 import { redirect } from '@sveltejs/kit';
-import { dev } from '$app/environment';
-import { TAP_FLASH_COOKIE, type TapFlash } from '$lib/access/flash';
-import { LOCKED_PATH } from '$lib/access/gate';
-import { readKey, returnPath, UNLOCK_KEY_PARAM, UNLOCK_TO_PARAM } from '$lib/access/key.server';
-import { issuePass, readPass } from '$lib/server/access';
-import { issueDraft } from '$lib/server/drafts';
-import { consume, LIMITS } from '$lib/server/rateLimit';
-import { keyOpens } from '$lib/server/remoteKeys';
+import { dev } from '$app/env';
+import { TAP_FLASH_COOKIE, type TapFlash } from '#lib/access/flash.ts';
+import { LOCKED_PATH } from '#lib/access/gate.ts';
+import { readKey, returnPath, UNLOCK_KEY_PARAM, UNLOCK_TO_PARAM } from '#lib/access/key.server.ts';
+import { issuePass, readPass } from '#lib/server/access.ts';
+import { issueDraft } from '#lib/server/drafts.ts';
+import { consume, LIMITS } from '#lib/server/rateLimit.ts';
+import { keyOpens } from '#lib/server/remoteKeys.ts';
 import type { RequestHandler } from './$types';
 
 // Where a navigation carrying `?whoislisteningwiththevoiceofthegarden=<key>`
-// is sent (see $lib/access/key.server): the middleware and hooks.server.ts can't
+// is sent (see #lib/access/key.server): the middleware and hooks.server.ts can't
 // check a key, so they redirect here with `key` and `to`, the page it was for.
 // An unexpired key opens the site as a tap does (/t) — a pass, and a draft so
 // /contribute works — and goes on to `to`. Always answers with a redirect, so

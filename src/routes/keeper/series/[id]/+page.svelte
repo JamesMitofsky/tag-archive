@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { formatDate } from '$lib/formatDate';
-	import BackButton from '$lib/components/BackButton.svelte';
-	import { morphName } from '$lib/transitions.svelte';
+	import { formatDate } from '#lib/formatDate.ts';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import { morphName } from '#lib/transitions.svelte.ts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

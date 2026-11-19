@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mintPass, PASS_COOKIE } from '../../../lib/access/pass';
 
-// The whole site sits behind the access gate ($lib/access/gate): hold a pass,
+// The whole site sits behind the access gate (#lib/access/gate): hold a pass,
 // signed with the same secret the preview server runs with.
 test.beforeEach(async ({ context, baseURL }) => {
 	const secret = process.env.BETTER_AUTH_SECRET;

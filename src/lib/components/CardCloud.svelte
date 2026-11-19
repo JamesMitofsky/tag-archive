@@ -5,7 +5,7 @@
 	and how to render one card (`card` snippet), so `/` and `/events` share the
 	exact same behaviour and differ only in data.
 
-	The placement maths lives in `$lib/cloudLayout` — pure and unit-tested,
+	The placement maths lives in `#lib/cloudLayout.ts` — pure and unit-tested,
 	because it is the part that must not silently regress on desktop.
 
 	Layout in one paragraph: the searchbar sits in the middle of the viewport
@@ -28,11 +28,11 @@
 		type FieldInput,
 		type Placed,
 		type Rect
-	} from '$lib/cloudLayout';
-	import { morphBox, morphProgress, type Box } from '$lib/cardMorph';
-	import { reducedMotion } from '$lib/transitions.svelte';
-	import { claimOpening } from '$lib/access/opening.svelte';
-	import { shuffled } from '$lib/utils';
+	} from '#lib/cloudLayout.ts';
+	import { morphBox, morphProgress, type Box } from '#lib/cardMorph.ts';
+	import { reducedMotion } from '#lib/transitions.svelte.ts';
+	import { claimOpening } from '#lib/access/opening.svelte.ts';
+	import { shuffled } from '#lib/utils.ts';
 
 	interface Props {
 		// Fetches the full list once (the cached dataset blob); searched in-memory after.
@@ -128,7 +128,7 @@
 
 	/**
 	 * Just after a tap opens the Archive, the first cards wait for the "Archive
-	 * opened" toast to bow out (see $lib/access/opening). They are kept out of
+	 * opened" toast to bow out (see #lib/access/opening). They are kept out of
 	 * the DOM meanwhile rather than mounted with a longer animation delay, since
 	 * the query effect's own reveal follows the first one and anything set per
 	 * card would have to survive it. Unmounted, they all arrive, and fly in, the

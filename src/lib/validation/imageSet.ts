@@ -1,4 +1,4 @@
-import { readDateField } from '$lib/partialDate';
+import { readDateField } from '#lib/partialDate.ts';
 import { check, defineSuite, isPartialDate, maxLen, str } from './helpers';
 
 /** The most photographs one set may hold. Mirrored by the uploader's `max`. */

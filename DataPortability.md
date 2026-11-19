@@ -28,7 +28,7 @@ Everything is configured through **environment variables** — no vendor SDK is 
 
 **Where the coupling lives.**
 
-- `svelte.config.js` → `adapter()` from `@sveltejs/adapter-vercel`, with the image optimizer's widths and allowed host. It shapes the build output into Vercel Functions.
+- `vite.config.ts` → `adapter()` from `@sveltejs/adapter-vercel`, with the image optimizer's widths and allowed host. It shapes the build output into Vercel Functions.
 - `middleware.ts` → binds the access gate (`src/lib/access`, platform-free) to Vercel's Routing Middleware. Another host needs its own equivalent in front of its CDN, or the static scans and audio and the cached `/api/dataset` go ungated.
 - `vercel.json` → the sweep's Cron Job, the audio's `X-Robots-Tag` header, and production-only git deploys.
 - `src/lib/server/cache.ts` + `src/routes/api/dataset/+server.ts` → the dataset's CDN cache headers and tag purge (`Vercel-CDN-Cache-Control`, `Vercel-Cache-Tag`, `@vercel/functions`).
@@ -100,7 +100,7 @@ Everything is configured through **environment variables** — no vendor SDK is 
 2. Copy the objects: `rclone sync r2:tag-archive newremote:tag-archive` (rclone speaks S3 to both ends) or `aws s3 sync`. Keys must stay as they are: the app reads ownership and type from them (see `src/lib/server/imageKeys.ts`).
 3. Update the `R2_*` / `S3_ENDPOINT` / `R2_PUBLIC_URL` env vars to the new bucket. No code change — `aws4fetch` signs for whatever endpoint you give it.
 4. **Recreate the CORS rule** on the new bucket for the site's origins — or photograph uploads fail at their preflight while everything else looks fine. Most S3 stores take S3's `PutBucketCors` XML; `scripts/init-bucket.mjs` sends the (wide-open) local version of it, a template to narrow to the site's origins. `pnpm storage:cors` only speaks to R2.
-5. **Watch the public URL.** `R2_PUBLIC_URL` is stored/derived for serving images. After migration, confirm objects are publicly readable at the new host and that any URLs persisted in the DB still resolve — `artefact.file_urls` and `image.url` / `image.original_url` are stored absolute, so you may need a redirect or a DB update. (The daily sweeps match stored URLs to objects by key, not by full URL, so a changed base doesn't make the archive's objects look unused to them.) Also redeploy with the new `R2_PUBLIC_URL`: the build allows the image optimizer to fetch only from that host (`svelte.config.js`), so images served from the bucket stop loading on the site until it matches.
+5. **Watch the public URL.** `R2_PUBLIC_URL` is stored/derived for serving images. After migration, confirm objects are publicly readable at the new host and that any URLs persisted in the DB still resolve — `artefact.file_urls` and `image.url` / `image.original_url` are stored absolute, so you may need a redirect or a DB update. (The daily sweeps match stored URLs to objects by key, not by full URL, so a changed base doesn't make the archive's objects look unused to them.) Also redeploy with the new `R2_PUBLIC_URL`: the build allows the image optimizer to fetch only from that host (`vite.config.ts`), so images served from the bucket stop loading on the site until it matches.
 
 **Lock-in verdict:** Low. Standard S3 API + a portable object copy; the CORS rule is one small, re-creatable setting.
 

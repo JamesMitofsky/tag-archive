@@ -2,19 +2,19 @@ import type { Cookies } from '@sveltejs/kit';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 	process.env.BETTER_AUTH_SECRET = 'test-secret';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
-vi.mock('$app/environment', () => ({ dev: true, building: false }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
+vi.mock('$app/env', () => ({ dev: true, building: false }));
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { db } = await import('$lib/server/db');
-const { remoteKey } = await import('$lib/server/db/schema');
-const { TAP_FLASH_COOKIE } = await import('$lib/access/flash');
-const { LOCKED_PATH } = await import('$lib/access/gate');
-const { mintPass, PASS_COOKIE, verifyPass } = await import('$lib/access/pass');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { db } = await import('#lib/server/db/index.ts');
+const { remoteKey } = await import('#lib/server/db/schema.ts');
+const { TAP_FLASH_COOKIE } = await import('#lib/access/flash.ts');
+const { LOCKED_PATH } = await import('#lib/access/gate.ts');
+const { mintPass, PASS_COOKIE, verifyPass } = await import('#lib/access/pass.ts');
 const { GET } = await import('./+server');
 
 beforeAll(async () => {

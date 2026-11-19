@@ -36,7 +36,7 @@ export function createEventSuite() {
 
 		// A date is required for an event, and to the exact day: an event is one
 		// real happening on one day, so the vaguer forms an artefact may carry
-		// (see $lib/partialDate) are deliberately not accepted here.
+		// (see #lib/partialDate) are deliberately not accepted here.
 		check('date', 'Pick a valid date', isFullDate(data.date ?? ''));
 
 		maxLen('time', data.time ?? '', 100, 'time');

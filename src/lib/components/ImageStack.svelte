@@ -11,8 +11,8 @@
 	Fills its parent, and fits each print inside it on both axes.
 -->
 <script lang="ts">
-	import type { PublicImage } from '$lib/images/types';
-	import Photograph from '$lib/components/Photograph.svelte';
+	import type { PublicImage } from '#lib/images/types.ts';
+	import Photograph from '#lib/components/Photograph.svelte';
 
 	type StackImage = Pick<PublicImage, 'id' | 'url' | 'width' | 'height'>;
 

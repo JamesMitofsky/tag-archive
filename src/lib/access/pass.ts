@@ -4,7 +4,7 @@
  * through the door (kind `d`, see ./door.server and hooks.server.ts) or by
  * bringing an unlock key (kind `r`, see ./key.server and src/routes/unlock); a
  * signed-in account is issued one automatically (kind `k` for a keeper, `l`
- * for a listener, see $lib/roles and hooks.server.ts).
+ * for a listener, see #lib/roles and hooks.server.ts).
  * The kind records where a pass came from; every kind opens the same site.
  *
  * A pass is good for PASS_TTL_MS from the moment it was minted, and it slides:
@@ -20,7 +20,7 @@
  * it by relative path.
  *
  * The HMAC key is derived from BETTER_AUTH_SECRET exactly as
- * $lib/server/signing derives its purpose keys (purpose `access`), so the two
+ * #lib/server/signing derives its purpose keys (purpose `access`), so the two
  * can never disagree about a signature; pass.spec.ts holds them together.
  */
 

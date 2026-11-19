@@ -16,14 +16,14 @@ vi.mock('$app/state', () => ({
 	page: { url: new URL('http://localhost/keeper/images/new'), state: {} }
 }));
 // The event combobox loads the public dataset; nothing to pick from here.
-vi.mock('$lib/dataset', () => ({ loadEvents: async () => [], loadPeople: async () => [] }));
+vi.mock('#lib/dataset.ts', () => ({ loadEvents: async () => [], loadPeople: async () => [] }));
 
 const { default: NewPhotographsPage } = await import('./+page.svelte');
 type Props = ComponentProps<typeof NewPhotographsPage>;
 
 describe('/keeper/images/new', () => {
 	it('posts to its own action, holding the submit until a photograph is in', async () => {
-		render(NewPhotographsPage, { data: {}, form: null } as unknown as Props);
+		await render(NewPhotographsPage, { data: {}, form: null } as unknown as Props);
 
 		await expect
 			.element(page.getByRole('heading', { name: 'New photographs' }))

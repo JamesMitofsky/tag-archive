@@ -1,7 +1,9 @@
 import type { Cookies } from '@sveltejs/kit';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({ env: { BETTER_AUTH_SECRET: 'test-secret' } }));
+vi.mock('$app/env/private', async () =>
+	(await import('#lib/testing/env.ts')).privateEnv({ BETTER_AUTH_SECRET: 'test-secret' })
+);
 
 const { DRAFT_COOKIE, issueDraft, mintDraftToken, parseDraftToken, readDraft } =
 	await import('./drafts');
@@ -34,7 +36,7 @@ describe('draft tokens', () => {
 	});
 
 	it('keeps no clock of its own: a draft reads the same however long ago it was issued', () => {
-		// Permission to write is the access pass's question ($lib/access/pass).
+		// Permission to write is the access pass's question (#lib/access/pass).
 		const cookies = jar(mintDraftToken(undefined, 0).token);
 		expect(readDraft(cookies)?.issuedAt).toBe(0);
 	});

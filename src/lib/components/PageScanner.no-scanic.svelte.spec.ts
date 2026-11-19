@@ -45,7 +45,7 @@ it('still captures, crops and uploads when scanic is unavailable', async () => {
 	);
 	const onChange = vi.fn();
 
-	render(PageScanner, { onChange });
+	await render(PageScanner, { onChange });
 	await page.getByRole('button', { name: 'Scan pages' }).click();
 	const shutter = page.getByRole('button', { name: 'Capture page' });
 	await expect.element(shutter).not.toHaveAttribute('aria-disabled', 'true');

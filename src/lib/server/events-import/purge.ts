@@ -1,7 +1,7 @@
 /**
  * Refresh the public site's cached archive dataset after a script writes
  * public events straight to the database (keeper edits do this themselves,
- * through $lib/server/cache).
+ * through #lib/server/cache).
  *
  * The app drops the `archive` cache tag from inside a Vercel function with
  * `dangerouslyDeleteByTag`. A script on a laptop has no such context, so it

@@ -2,16 +2,17 @@
  * Test-only helpers for running server code against a real, migrated SQLite
  * database instead of mocks. Each spec file gets its own throwaway file DB.
  *
- * `$lib/server/db` reads DATABASE_URL when it is first imported, so a spec must
+ * `#lib/server/db/index.ts` reads DATABASE_URL when it is first imported, so a spec must
  * set the URL before anything imports it — from `vi.hoisted`, which runs ahead
  * of the spec's imports:
  *
  *   await vi.hoisted(async () => {
- *     const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+ *     const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
  *     useTestDatabaseUrl();
  *   });
- *   // SvelteKit only populates $env/dynamic/private inside a running server.
- *   vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+ *   // SvelteKit fills $app/env/private when the Vite config loads, before this
+ *   // file sets the variables, so hand the module the live process.env instead.
+ *   vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
  *   beforeAll(migrateTestDatabase);
  *
  * Import the modules under test dynamically after that (top-level `await

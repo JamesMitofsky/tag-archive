@@ -1,11 +1,11 @@
 import { create, test, enforce } from 'vest';
 
-// Date rules live in $lib/partialDate — the single definition of what a date
+// Date rules live in #lib/partialDate — the single definition of what a date
 // string may look like — and are re-exported so suites keep one import source.
 // `isFullDate` demands an exact day; `isPartialDate` also accepts a date known
 // only to the month or the year. Both reject impossible dates like 2026-02-31,
 // which the previous shape-only regex let through.
-export { isFullDate, isPartialDate } from '$lib/partialDate';
+export { isFullDate, isPartialDate } from '#lib/partialDate.ts';
 
 /**
  * Pragmatic email shape check — mirrors the intent of the old zod `.email()`

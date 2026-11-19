@@ -3,7 +3,7 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CornersOutIcon from 'phosphor-svelte/lib/CornersOutIcon';
 	import CornerEditorSurface from './CornerEditorSurface.svelte';
-	import type { CornerPoints } from '$lib/scanner/detect';
+	import type { CornerPoints } from '#lib/scanner/detect.ts';
 
 	// Re-crop one page: the corner editor plus Cancel / Use whole image / Apply.
 	let {

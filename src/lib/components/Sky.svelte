@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { DC, frameDistance, paintSky, skyFrame, type SkyFrame } from '$lib/sky/engine';
-	import { skyHeadScript, skyHeadStyle } from '$lib/sky/headScript';
-	import { SKY_PALETTE } from '$lib/sky/palette';
-	import { MAX_STEP_DE, nextRepaintDelay, skyClock } from '$lib/sky/schedule';
-	import { SPARKLE_PATH, STARS, starCount } from '$lib/sky/stars';
+	import { DC, frameDistance, paintSky, skyFrame, type SkyFrame } from '#lib/sky/engine.ts';
+	import { skyHeadScript, skyHeadStyle } from '#lib/sky/headScript.ts';
+	import { SKY_PALETTE } from '#lib/sky/palette.ts';
+	import { MAX_STEP_DE, nextRepaintDelay, skyClock } from '#lib/sky/schedule.ts';
+	import { SPARKLE_PATH, STARS, starCount } from '#lib/sky/stars.ts';
 
 	// Ambient sky shared across pages: a watercolor-paper backdrop coloured by the
-	// sun over Washington, DC ($lib/sky), glowing round the sun's place as it
+	// sun over Washington, DC (#lib/sky), glowing round the sun's place as it
 	// arcs across the screen; stars behind it at night; plus a few soft cloud
 	// WebP images drifting very slowly left→right, forever. Negative delays
 	// pre-spread them across the viewport so the sky looks full at load instead
@@ -17,7 +17,7 @@
 	// the sun's place, --sky-clouds and --sky-stars; see paintSky). The inline head
 	// script paints the first frame before render; from here on the sky follows
 	// the sun live, repainting only as often as the screen perceptibly changes
-	// ($lib/sky/schedule). Hidden tabs don't repaint at all; returning to one
+	// (#lib/sky/schedule). Hidden tabs don't repaint at all; returning to one
 	// (or waking the device) catches up with a short fade.
 	onMount(() => {
 		const root = document.documentElement;
@@ -98,7 +98,7 @@
 		(_, i) => `var(--sky-glow-${i}) ${((i / (SKY_PALETTE.glow.stops - 1)) * 100).toFixed(2)}%`
 	).join(', ')})`;
 
-	// As many stars as the sky's area holds ($lib/sky/stars), measured on the
+	// As many stars as the sky's area holds (#lib/sky/stars), measured on the
 	// client: none on the server, which can't know the screen, and they fade in
 	// once counted rather than a guess being drawn and then redrawn.
 	let starsWidth = $state(0);

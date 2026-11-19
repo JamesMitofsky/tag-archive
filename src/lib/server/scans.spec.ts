@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({
-	env: {
+vi.mock('$app/env/private', async () =>
+	(await import('#lib/testing/env.ts')).privateEnv({
 		R2_PUBLIC_URL: 'https://bucket.test',
 		R2_ACCESS_KEY_ID: 'id',
 		R2_SECRET_ACCESS_KEY: 'secret',
 		R2_BUCKET: 'tag-archive',
 		S3_ENDPOINT: 'http://s3.test'
-	}
-}));
+	})
+);
 
 // Two pages of ListObjectsV2, the first truncated, as R2/S3 return them.
 const pages = [

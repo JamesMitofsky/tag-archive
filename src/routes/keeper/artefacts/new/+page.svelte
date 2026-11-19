@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ArtefactCreateForm from '$lib/components/ArtefactCreateForm.svelte';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import ArtefactCreateForm from '#lib/components/ArtefactCreateForm.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

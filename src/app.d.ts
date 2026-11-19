@@ -1,4 +1,4 @@
-import type { auth } from '$lib/server/auth';
+import type { auth } from '#lib/server/auth.ts';
 
 // Inferred from the configured instance so plugin fields (e.g. user.role from
 // the admin plugin) are typed on locals.
@@ -9,7 +9,7 @@ type AuthSession = typeof auth.$Infer.Session;
 declare global {
 	namespace App {
 		interface Locals {
-			/** The signed-in keeper: an account whose role has keeper tools (see $lib/roles). */
+			/** The signed-in keeper: an account whose role has keeper tools (see #lib/roles). */
 			user?: AuthSession['user'];
 			/**
 			 * The signed-in listener: an account that only opens the archive from
@@ -18,8 +18,8 @@ declare global {
 			listener?: AuthSession['user'];
 			/** The session of whichever of the two is signed in. */
 			session?: AuthSession['session'];
-			/** The visitor's access pass, when they hold one (see $lib/access/pass). */
-			pass?: import('$lib/access/pass').Pass;
+			/** The visitor's access pass, when they hold one (see #lib/access/pass). */
+			pass?: import('#lib/access/pass.ts').Pass;
 		}
 
 		// interface Error {}

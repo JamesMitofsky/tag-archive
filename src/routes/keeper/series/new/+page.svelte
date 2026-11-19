@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { DAYS_OF_WEEK, createSeriesSuite, parseSeriesForm } from '$lib/validation/series';
-	import { createValidator } from '$lib/validation/client.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { DAYS_OF_WEEK, createSeriesSuite, parseSeriesForm } from '#lib/validation/series.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
 	import type { SeriesFormValues } from './+page.server';
 	import type { ActionData } from './$types';
 

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { latchedSubmission } from '$lib/forms/submission.svelte';
-	import ArtefactCreateForm from '$lib/components/ArtefactCreateForm.svelte';
-	import SubmittedThanks from '$lib/components/SubmittedThanks.svelte';
+	import { latchedSubmission } from '#lib/forms/submission.svelte.ts';
+	import ArtefactCreateForm from '#lib/components/ArtefactCreateForm.svelte';
+	import SubmittedThanks from '#lib/components/SubmittedThanks.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -12,9 +12,9 @@
 	// keeper who ends up here still gets theirs vetted and lands on it.
 	//
 	// Anonymous visitors may upload and submit after tapping the garden's NFC tag
-	// (the draft session, see $lib/server/drafts) for as long as their access
+	// (the draft session, see #lib/server/drafts) for as long as their access
 	// pass stays open — it drifts shut once the site has been off their screen
-	// for a while (see $lib/access/pass). Once it has, the server refuses with a
+	// for a while (see #lib/access/pass). Once it has, the server refuses with a
 	// "tap the tag again" message — shown in place, so nothing typed or scanned
 	// is lost, and a fresh tap resumes the same draft.
 

@@ -3,7 +3,7 @@
  *
  * `artefact.programArea` is a free-form JSON string array in the DB, but every
  * value seen in the source export maps to one of these six. Import from here
- * (`$lib/programAreas`) instead of hardcoding strings/colours anywhere else so
+ * (`#lib/programAreas.ts`) instead of hardcoding strings/colours anywhere else so
  * labels, ordering, and colours stay consistent across UI.
  */
 

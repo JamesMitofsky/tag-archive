@@ -1,11 +1,11 @@
 import { redirect } from '@sveltejs/kit';
-import { auth } from '$lib/server/auth';
-import { countPendingReview } from '$lib/server/db/queries';
+import { auth } from '#lib/server/auth.ts';
+import { countPendingReview } from '#lib/server/db/queries.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Settings is behind sign-in; bounce anonymous visitors to the gate. A
-	// listener (see $lib/roles) reaches it too, to see their account and sign out.
+	// listener (see #lib/roles) reaches it too, to see their account and sign out.
 	const account = locals.user ?? locals.listener;
 	if (!account) throw redirect(302, '/keeper');
 

@@ -2,8 +2,8 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import { dev } from '$app/environment';
-	import { MAX_DIM, fitWithin } from '$lib/scanner/image';
+	import { dev } from '$app/env';
+	import { MAX_DIM, fitWithin } from '#lib/scanner/image.ts';
 
 	// Live camera stage. Fills whatever box it is given (the immersive view hands
 	// it the viewport); the video letterboxes inside on black so the frame never

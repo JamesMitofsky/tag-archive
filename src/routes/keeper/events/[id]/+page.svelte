@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { formatDate } from '$lib/formatDate';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import { formatDate } from '#lib/formatDate.ts';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
-	import { morphName } from '$lib/transitions.svelte';
+	import { morphName } from '#lib/transitions.svelte.ts';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 

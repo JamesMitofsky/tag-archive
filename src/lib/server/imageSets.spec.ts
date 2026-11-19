@@ -7,7 +7,7 @@ await vi.hoisted(async () => {
 	process.env.BETTER_AUTH_SECRET = 'test-secret';
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 // Record storage deletes and cache purges instead of calling R2 and Vercel.
 const deleteScan = vi.hoisted(() => vi.fn(async (_key: string) => {}));
 vi.mock('./scans', async (importOriginal) => ({
@@ -33,7 +33,7 @@ const {
 	loadImageSet,
 	updateImageSet
 } = await import('./imageSets');
-type ImageSetData = import('$lib/validation/imageSet').ImageSetData;
+type ImageSetData = import('#lib/validation/imageSet.ts').ImageSetData;
 type UploadOwner = import('./imageUploads').UploadOwner;
 type Image = import('./db/schema').Image;
 /** Who saves a set: the actor the set is stamped with, the owner its images must belong to. */

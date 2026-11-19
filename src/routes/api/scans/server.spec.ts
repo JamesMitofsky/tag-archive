@@ -2,27 +2,27 @@ import type { Cookies } from '@sveltejs/kit';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 	process.env.BETTER_AUTH_SECRET = 'test-secret';
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 const deleteScan = vi.hoisted(() => vi.fn(async (_key: string) => {}));
-vi.mock('$lib/server/scans', async (importOriginal) => ({
-	...(await importOriginal<typeof import('$lib/server/scans')>()),
+vi.mock('#lib/server/scans.ts', async (importOriginal) => ({
+	...(await importOriginal<typeof import('#lib/server/scans.ts')>()),
 	deleteScan
 }));
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { db } = await import('$lib/server/db');
-const { artefact, image, imageSet } = await import('$lib/server/db/schema');
-const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('$lib/server/drafts');
-const { imageKeys } = await import('$lib/server/imageKeys');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { db } = await import('#lib/server/db/index.ts');
+const { artefact, image, imageSet } = await import('#lib/server/db/schema.ts');
+const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('#lib/server/drafts.ts');
+const { imageKeys } = await import('#lib/server/imageKeys.ts');
 const { DELETE, POST } = await import('./+server');
-const { MAX_SCAN_BYTES, SCAN_TOO_LARGE } = await import('$lib/scanner/limits');
+const { MAX_SCAN_BYTES, SCAN_TOO_LARGE } = await import('#lib/scanner/limits.ts');
 
-/** An open access pass, as hooks.server.ts leaves it on `locals` ($lib/access/pass). */
+/** An open access pass, as hooks.server.ts leaves it on `locals` (#lib/access/pass). */
 const OPEN_PASS = { kind: 't' as const, issuedAt: 0, expiresAt: Number.MAX_SAFE_INTEGER };
 const KEEPER = { user: { id: 'keeper-1' } };
 const url = (key: string) => `https://bucket.test/${key}`;

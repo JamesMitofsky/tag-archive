@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fullFrameCorners, type CornerPoints } from '$lib/scanner/detect';
+	import { fullFrameCorners, type CornerPoints } from '#lib/scanner/detect.ts';
 	import type { CornerEditor } from 'scanic';
 
 	// scanic's imperative corner editor, mounted into a box that fills its parent.
@@ -15,7 +15,6 @@
 		onChange,
 		onConfirm,
 		focusHandle = false,
-		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		failed = $bindable(false)
 	}: {
 		/** The un-cropped original, in its own pixel space. */

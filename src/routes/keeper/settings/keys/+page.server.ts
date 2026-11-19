@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { KEY_PARAM } from '$lib/access/key.server';
-import { createKey, deleteKey, endKey, listKeys, setKeyExpiry } from '$lib/server/remoteKeys';
-import { str } from '$lib/validation/helpers';
+import { KEY_PARAM } from '#lib/access/key.server.ts';
+import { createKey, deleteKey, endKey, listKeys, setKeyExpiry } from '#lib/server/remoteKeys.ts';
+import { str } from '#lib/validation/helpers.ts';
 import {
 	createExpirySuite,
 	createRemoteKeySuite,
@@ -9,10 +9,10 @@ import {
 	parseExpiryForm,
 	parseRemoteKeyForm,
 	utcDate
-} from '$lib/validation/remoteKey';
+} from '#lib/validation/remoteKey.ts';
 import type { Actions, PageServerLoad } from './$types';
 
-// Unlock keys (see $lib/access/key.server): admins hand them out here, each
+// Unlock keys (see #lib/access/key.server): admins hand them out here, each
 // with the date it stops opening the archive, and close them early.
 
 function requireAdmin(locals: App.Locals): void {

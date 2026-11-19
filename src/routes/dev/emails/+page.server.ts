@@ -1,9 +1,9 @@
-import { dev } from '$app/environment';
+import { dev } from '$app/env';
 import { error } from '@sveltejs/kit';
 import { render } from 'svelte/server';
-import OtpEmail from '$lib/server/emails/OtpEmail.svelte';
-import AccountCreatedEmail from '$lib/server/emails/AccountCreatedEmail.svelte';
-import { otpEmailSubject, accountCreatedEmailSubject } from '$lib/server/emails/subjects';
+import OtpEmail from '#lib/server/emails/OtpEmail.svelte';
+import AccountCreatedEmail from '#lib/server/emails/AccountCreatedEmail.svelte';
+import { otpEmailSubject, accountCreatedEmailSubject } from '#lib/server/emails/subjects.ts';
 import type { PageServerLoad } from './$types';
 
 // Dev-only email gallery: renders every template to HTML so they can be

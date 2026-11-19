@@ -1,6 +1,6 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
-	import ImageSetCreateForm from '$lib/components/ImageSetCreateForm.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import ImageSetCreateForm from '#lib/components/ImageSetCreateForm.svelte';
 	import type { ActionData } from './$types';
 
 	let { form }: { form: ActionData } = $props();

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import BackButton from '$lib/components/BackButton.svelte';
-	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
 	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
-	import { imageSetLabel, withoutTitleLine } from '$lib/images/label';
-	import { morphName } from '$lib/transitions.svelte';
+	import { imageSetLabel, withoutTitleLine } from '#lib/images/label.ts';
+	import { morphName } from '#lib/transitions.svelte.ts';
 	import { formatCapturedAt, formatFileSize, formatImageType, formatSetMeta } from '../format';
 	import type { PageData } from './$types';
 

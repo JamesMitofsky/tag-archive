@@ -1,8 +1,8 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
-	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
-	import ReviewActions from '$lib/components/ReviewActions.svelte';
-	import { imageSetLabel, withoutTitleLine } from '$lib/images/label';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
+	import ReviewActions from '#lib/components/ReviewActions.svelte';
+	import { imageSetLabel, withoutTitleLine } from '#lib/images/label.ts';
 	// The keeper image pages' own wording, so a set reads the same here.
 	import { formatSetMeta } from '../../../images/format';
 	import type { PageData } from './$types';

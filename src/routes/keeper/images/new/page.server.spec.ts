@@ -3,21 +3,20 @@ import { asc, eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 	process.env.BETTER_AUTH_SECRET = 'test-secret';
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
-vi.mock('$env/dynamic/public', () => ({ env: {} }));
-vi.mock('$lib/server/cache', () => ({ purgeArchiveCache: vi.fn(async () => {}) }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
+vi.mock('#lib/server/cache.ts', () => ({ purgeArchiveCache: vi.fn(async () => {}) }));
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { db } = await import('$lib/server/db');
-const { event, image, imageSet, user } = await import('$lib/server/db/schema');
-const { mintDraftToken, submissionPrefix } = await import('$lib/server/drafts');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { db } = await import('#lib/server/db/index.ts');
+const { event, image, imageSet, user } = await import('#lib/server/db/schema.ts');
+const { mintDraftToken, submissionPrefix } = await import('#lib/server/drafts.ts');
 const { load, actions } = await import('./+page.server');
-type Image = import('$lib/server/db/schema').Image;
+type Image = import('#lib/server/db/schema.ts').Image;
 
 const ADMIN = { id: 'admin-1', role: 'admin', email: 'admin@example.org' };
 const CONTRIBUTOR = { id: 'contributor-1', role: 'contributor', email: 'c@example.org' };

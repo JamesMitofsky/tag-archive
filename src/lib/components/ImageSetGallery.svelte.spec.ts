@@ -7,7 +7,7 @@ const photo = (id: number) => ({ id, url: `/photos/${id}.webp`, width: 1200, hei
 
 describe('ImageSetGallery.svelte', () => {
 	it('shows every photograph in the set, each numbered in its alt text', async () => {
-		render(ImageSetGallery, {
+		await render(ImageSetGallery, {
 			images: [photo(1), photo(2), photo(3)],
 			label: 'Summer Picnic',
 			description: 'Everyone brought a dish.'
@@ -23,7 +23,7 @@ describe('ImageSetGallery.svelte', () => {
 
 	it('names a lone photograph for the set alone, and never repeats the label', async () => {
 		const description = 'Picnic in the garden\nEveryone brought a dish.';
-		const { container } = render(ImageSetGallery, {
+		const { container } = await render(ImageSetGallery, {
 			images: [photo(1)],
 			label: 'Picnic in the garden',
 			description

@@ -1,12 +1,12 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { purgeArchiveCache } from '$lib/server/cache';
-import { stampInsert } from '$lib/server/db/audit';
-import { isProposedAddition } from '$lib/server/db/proposals';
-import { series } from '$lib/server/db/schema';
-import { createSeriesSuite, parseSeriesForm } from '$lib/validation/series';
-import { summary } from '$lib/validation/helpers';
+import { db } from '#lib/server/db/index.ts';
+import { purgeArchiveCache } from '#lib/server/cache.ts';
+import { stampInsert } from '#lib/server/db/audit.ts';
+import { isProposedAddition } from '#lib/server/db/proposals.ts';
+import { series } from '#lib/server/db/schema.ts';
+import { createSeriesSuite, parseSeriesForm } from '#lib/validation/series.ts';
+import { summary } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Raw (unvalidated) create-form values echoed back so a failed submit keeps input. */

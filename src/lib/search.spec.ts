@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { PublicImage, PublicImageSet } from '$lib/images/types';
+import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
 import { filterImageSets } from './search';
 
 function photo(id: number): PublicImage {

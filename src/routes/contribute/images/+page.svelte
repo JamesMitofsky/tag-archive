@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { latchedSubmission } from '$lib/forms/submission.svelte';
-	import ImageSetCreateForm from '$lib/components/ImageSetCreateForm.svelte';
-	import SubmittedThanks from '$lib/components/SubmittedThanks.svelte';
+	import { latchedSubmission } from '#lib/forms/submission.svelte.ts';
+	import ImageSetCreateForm from '#lib/components/ImageSetCreateForm.svelte';
+	import SubmittedThanks from '#lib/components/SubmittedThanks.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

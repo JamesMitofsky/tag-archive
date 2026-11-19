@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { PublicImageSet } from '$lib/images/types';
-	import { imageSetLabel } from '$lib/images/label';
-	import { loadImageSets } from '$lib/dataset';
-	import { filterImageSets } from '$lib/search';
-	import CardCloud from '$lib/components/CardCloud.svelte';
-	import ImageStack from '$lib/components/ImageStack.svelte';
-	import ImageSetGallery from '$lib/components/ImageSetGallery.svelte';
-	import Drawing from '$lib/components/Drawing.svelte';
+	import type { PublicImageSet } from '#lib/images/types.ts';
+	import { imageSetLabel } from '#lib/images/label.ts';
+	import { loadImageSets } from '#lib/dataset.ts';
+	import { filterImageSets } from '#lib/search.ts';
+	import CardCloud from '#lib/components/CardCloud.svelte';
+	import ImageStack from '#lib/components/ImageStack.svelte';
+	import ImageSetGallery from '#lib/components/ImageSetGallery.svelte';
+	import Drawing from '#lib/components/Drawing.svelte';
 </script>
 
 <CardCloud

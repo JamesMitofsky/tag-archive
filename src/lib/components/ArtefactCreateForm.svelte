@@ -3,22 +3,22 @@
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '$lib/programAreas';
-	import DateField from '$lib/components/DateField.svelte';
-	import ComboField from '$lib/components/ComboField.svelte';
-	import AsyncComboField from '$lib/components/AsyncComboField.svelte';
-	import TagsField from '$lib/components/TagsField.svelte';
-	import PageScanner from '$lib/components/PageScanner.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
+	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '#lib/programAreas.ts';
+	import DateField from '#lib/components/DateField.svelte';
+	import ComboField from '#lib/components/ComboField.svelte';
+	import AsyncComboField from '#lib/components/AsyncComboField.svelte';
+	import TagsField from '#lib/components/TagsField.svelte';
+	import PageScanner from '#lib/components/PageScanner.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
 	import {
 		createArtefactSuite,
 		parseArtefactForm,
 		type ArtefactFormValues
-	} from '$lib/validation/artefact';
-	import { createValidator } from '$lib/validation/client.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	} from '#lib/validation/artefact.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
 
 	// The new-artefact form, shared by the public /contribute page and the
 	// keeper-only /keeper/artefacts/new. Each page posts to its own

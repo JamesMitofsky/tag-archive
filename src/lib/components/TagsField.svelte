@@ -3,11 +3,11 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Input } from '$lib/components/ui/input';
+	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
 
-	import { loadPeople } from '$lib/dataset';
-	import { filterPeople } from '$lib/search';
+	import { loadPeople } from '#lib/dataset.ts';
+	import { filterPeople } from '#lib/search.ts';
 
 	type PersonResult = { id?: number; name: string };
 

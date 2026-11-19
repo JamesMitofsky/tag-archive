@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
+	import Skeleton from '#lib/components/ui/skeleton/skeleton.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
-	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
-	import { isImageUrl } from '$lib/fileType';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
+	import { isImageUrl } from '#lib/fileType.ts';
 
 	let {
 		fileUrls,

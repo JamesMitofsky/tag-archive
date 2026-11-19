@@ -5,7 +5,7 @@ import type {
 	OriginalUploadGrant,
 	OriginalUploadRequest,
 	UploadedImage
-} from '$lib/images/types';
+} from '#lib/images/types.ts';
 import { paintedCanvas } from './scanner';
 
 // Browser-mode fixtures for the photograph uploader: photos made on a canvas,

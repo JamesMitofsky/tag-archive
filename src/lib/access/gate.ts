@@ -84,7 +84,7 @@ export function isOpenPath(pathname: string): boolean {
  * Enhanced form actions on the contribution forms — /contribute and the pages
  * beneath it, such as /contribute/images — pass the gate, because those
  * actions guard themselves: an anonymous submit needs an open pass and a draft
- * session, which only a tap or the door issues (see $lib/server/drafts), and a contact
+ * session, which only a tap or the door issues (see #lib/server/drafts), and a contact
  * token only the submission's own response carries. Turning the post away
  * here instead would replace a half-filled form with the locked page when the
  * visitor's hours run out mid-entry; the action's own refusal keeps the form
@@ -186,7 +186,7 @@ function isPageView(request: GateRequest): boolean {
  * data load for one, whose URL carries the door phrase. On any path. SvelteKit
  * answers it with a pass and a redirect to the same URL without the phrase
  * (hooks.server.ts); both kinds of response are rendered per visitor, never
- * cached, so they may carry the pass cookie ($lib/server/access, mayIssuePass).
+ * cached, so they may carry the pass cookie (#lib/server/access, mayIssuePass).
  */
 export function isDoorNavigation(request: GateRequest): boolean {
 	const isRead = request.method === 'GET' || request.method === 'HEAD';

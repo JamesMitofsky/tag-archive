@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { formatArtefactDate } from '$lib/formatDate';
-	import ArtefactId from '$lib/components/ArtefactId.svelte';
-	import BackButton from '$lib/components/BackButton.svelte';
-	import KeeperList from '$lib/components/KeeperList.svelte';
-	import ReviewActions from '$lib/components/ReviewActions.svelte';
+	import { formatArtefactDate } from '#lib/formatDate.ts';
+	import ArtefactId from '#lib/components/ArtefactId.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import KeeperList from '#lib/components/KeeperList.svelte';
+	import ReviewActions from '#lib/components/ReviewActions.svelte';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
-	import { programAreaMeta } from '$lib/programAreas';
-	import { morphVar } from '$lib/transitions.svelte';
+	import { programAreaMeta } from '#lib/programAreas.ts';
+	import { morphVar } from '#lib/transitions.svelte.ts';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

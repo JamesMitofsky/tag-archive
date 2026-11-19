@@ -13,8 +13,8 @@ const photo = (id: number, width = 1200, height = 800) => ({
 });
 
 /** Renders the stack in a closed card's box (192px, A4). */
-function renderStack(images: ReturnType<typeof photo>[]) {
-	const { container } = render(ImageStack, { images, alt: 'Summer Picnic' });
+async function renderStack(images: ReturnType<typeof photo>[]) {
+	const { container } = await render(ImageStack, { images, alt: 'Summer Picnic' });
 	container.style.width = '192px';
 	container.style.height = `${192 * (297 / 210)}px`;
 	return container;
@@ -23,16 +23,16 @@ function renderStack(images: ReturnType<typeof photo>[]) {
 const prints = (container: HTMLElement) => Array.from(container.querySelectorAll('img'));
 
 describe('ImageStack.svelte', () => {
-	it('shows a set of one as a lone print, named for the set', () => {
-		const container = renderStack([photo(1)]);
+	it('shows a set of one as a lone print, named for the set', async () => {
+		const container = await renderStack([photo(1)]);
 		const imgs = prints(container);
 		expect(imgs).toHaveLength(1);
 		expect(imgs[0].alt).toBe('Summer Picnic');
 		expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
 	});
 
-	it('piles at most two of the set’s other photographs under the first', () => {
-		const container = renderStack([photo(1), photo(2), photo(3), photo(4)]);
+	it('piles at most two of the set’s other photographs under the first', async () => {
+		const container = await renderStack([photo(1), photo(2), photo(3), photo(4)]);
 		const imgs = prints(container);
 		expect(imgs.map((img) => new URL(img.src).pathname)).toEqual([
 			'/photos/3.webp',
@@ -45,9 +45,9 @@ describe('ImageStack.svelte', () => {
 		expect(hidden).toHaveLength(2);
 	});
 
-	it('sizes each print to its own photograph, inside the card on both axes', () => {
+	it('sizes each print to its own photograph, inside the card on both axes', async () => {
 		// One landscape and one tall portrait: each must keep its own shape and fit.
-		const container = renderStack([photo(1, 1200, 800), photo(2, 600, 1800)]);
+		const container = await renderStack([photo(1, 1200, 800), photo(2, 600, 1800)]);
 		const box = container.getBoundingClientRect();
 		for (const img of prints(container)) {
 			// offsetWidth/Height, not the bounding rect: they ignore the turn and

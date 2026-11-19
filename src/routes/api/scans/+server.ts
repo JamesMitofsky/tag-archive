@@ -1,10 +1,10 @@
-import { error, json } from '@sveltejs/kit';
-import { readDraft, submissionPrefix } from '$lib/server/drafts';
-import { sniffImageType } from '$lib/server/imageType';
-import { MAX_SCAN_BYTES, SCAN_TOO_LARGE } from '$lib/scanner/limits';
-import { consume, LIMITS } from '$lib/server/rateLimit';
-import { deleteScan, keyFromUrl, uploadScan } from '$lib/server/scans';
-import { referencedUrls } from '$lib/server/uploads';
+import { error } from '@sveltejs/kit';
+import { readDraft, submissionPrefix } from '#lib/server/drafts.ts';
+import { sniffImageType } from '#lib/server/imageType.ts';
+import { MAX_SCAN_BYTES, SCAN_TOO_LARGE } from '#lib/scanner/limits.ts';
+import { consume, LIMITS } from '#lib/server/rateLimit.ts';
+import { deleteScan, keyFromUrl, uploadScan } from '#lib/server/scans.ts';
+import { referencedUrls } from '#lib/server/uploads.ts';
 import type { RequestHandler } from './$types';
 
 // Image uploads for artefact scans — the write gate in front of the bucket,
@@ -13,15 +13,18 @@ import type { RequestHandler } from './$types';
 //  - a signed-in keeper: uploads land at the bucket root, as before;
 //  - an anonymous visitor on /contribute: needs an open access pass (the site
 //    has been on their screen since they tapped the garden tag, see
-//    $lib/access/pass) and a draft session (the tap, see $lib/server/drafts),
+//    #lib/access/pass) and a draft session (the tap, see #lib/server/drafts),
 //    and is rate-limited; uploads land in that draft's private
 //    `submissions/<draft>/` space.
-// Under the platform's body limit, so an oversized scan gets this route's message (see $lib/scanner/limits).
+// Under the platform's body limit, so an oversized scan gets this route's message (see #lib/scanner/limits).
 const MAX_BYTES = MAX_SCAN_BYTES;
 
 /** 401 the client recognises as "tap the tag again to keep going". */
 const locked = () =>
-	json({ message: 'Visit the Cube to open the Archive.', code: 'locked' }, { status: 401 });
+	Response.json(
+		{ message: 'Visit the Cube to open the Archive.', code: 'locked' },
+		{ status: 401 }
+	);
 
 export const POST: RequestHandler = async ({ request, locals, cookies, getClientAddress }) => {
 	let prefix = '';
@@ -53,7 +56,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies, getClient
 	if (!type) throw error(415, 'Expected a WebP, JPEG, PNG, GIF, or HEIC image');
 
 	const { key, url } = await uploadScan(bytes, type, prefix);
-	return json({ url, fileName: file.name || key });
+	return Response.json({ url, fileName: file.name || key });
 };
 
 export const DELETE: RequestHandler = async ({ request, locals, cookies }) => {
@@ -79,5 +82,5 @@ export const DELETE: RequestHandler = async ({ request, locals, cookies }) => {
 	}
 
 	await deleteScan(key);
-	return json({ success: true });
+	return Response.json({ success: true });
 };

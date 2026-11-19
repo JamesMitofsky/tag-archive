@@ -16,14 +16,17 @@ vi.mock('$app/state', () => ({
 	page: { url: new URL('http://localhost/keeper/artefacts/new'), state: {} }
 }));
 // The comboboxes load the public dataset; nothing to pick from here.
-vi.mock('$lib/dataset', () => ({ loadEvents: async () => [], loadPeople: async () => [] }));
+vi.mock('#lib/dataset.ts', () => ({ loadEvents: async () => [], loadPeople: async () => [] }));
 
 const { default: NewArtefactPage } = await import('./+page.svelte');
 type Props = ComponentProps<typeof NewArtefactPage>;
 
 describe('/keeper/artefacts/new', () => {
 	it('posts to its own action, with the storage location required', async () => {
-		render(NewArtefactPage, { data: { locations: ['Binder 3'] }, form: null } as unknown as Props);
+		await render(NewArtefactPage, {
+			data: { locations: ['Binder 3'] },
+			form: null
+		} as unknown as Props);
 
 		await expect.element(page.getByRole('heading', { name: 'New artefact' })).toBeInTheDocument();
 		const form = document.querySelector('form');

@@ -1,10 +1,12 @@
 import type { Cookies } from '@sveltejs/kit';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({ env: { BETTER_AUTH_SECRET: 'test-secret' } }));
-vi.mock('$app/environment', () => ({ dev: true, building: false }));
+vi.mock('$app/env/private', async () =>
+	(await import('#lib/testing/env.ts')).privateEnv({ BETTER_AUTH_SECRET: 'test-secret' })
+);
+vi.mock('$app/env', () => ({ dev: true, building: false }));
 
-const { PASS_COOKIE, PASS_TTL_MS, mintPass, verifyPass } = await import('$lib/access/pass');
+const { PASS_COOKIE, PASS_TTL_MS, mintPass, verifyPass } = await import('#lib/access/pass.ts');
 const { POST } = await import('./+server');
 
 const SECRET = 'test-secret';

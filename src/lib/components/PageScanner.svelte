@@ -14,7 +14,7 @@
 		refineDetection,
 		rotateCorners,
 		type CornerPoints
-	} from '$lib/scanner/detect';
+	} from '#lib/scanner/detect.ts';
 	import {
 		downscale,
 		encodedExtension,
@@ -24,17 +24,16 @@
 		releaseCanvas,
 		rotateQuarterTurns,
 		withExtension
-	} from '$lib/scanner/image';
-	import { MAX_SCAN_BYTES, SCAN_TOO_LARGE } from '$lib/scanner/limits';
-	import { createSerialQueue } from '$lib/scanner/serial';
-	import type { ScanPage } from '$lib/scanner/types';
+	} from '#lib/scanner/image.ts';
+	import { MAX_SCAN_BYTES, SCAN_TOO_LARGE } from '#lib/scanner/limits.ts';
+	import { createSerialQueue } from '#lib/scanner/serial.ts';
+	import type { ScanPage } from '#lib/scanner/types.ts';
 
 	// Emits the current list of uploaded image URLs (display order) so the parent form
 	// can store them. `pending` (bindable) is true while an upload is in flight, so the
 	// parent can block submit until every image is finalized.
 	let {
 		onChange,
-		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		pending = $bindable(false),
 		initial = [],
 		label,

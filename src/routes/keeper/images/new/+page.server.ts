@@ -1,18 +1,18 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { createImageSet } from '$lib/server/imageSets';
-import { summary } from '$lib/validation/helpers';
+import { createImageSet } from '#lib/server/imageSets.ts';
+import { summary } from '#lib/validation/helpers.ts';
 import {
 	createImageSetSuite,
 	echoImageSetCreateForm,
 	parseImageSetForm,
 	type ImageSetData
-} from '$lib/validation/imageSet';
+} from '#lib/validation/imageSet.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 // The keepers' own new-photographs form. The public submit at
 // /contribute/images, through the draft session and access pass; keepers stay
 // inside /keeper, where the hook already requires a session (see
-// $lib/server/keeperGuard). The fields are the same component; what differs is
+// #lib/server/keeperGuard). The fields are the same component; what differs is
 // who may post and where they land.
 
 export const load: PageServerLoad = ({ locals }) => {

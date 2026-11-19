@@ -1,12 +1,12 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
-import { purgeArchiveCache } from '$lib/server/cache';
-import { resolvePersonIds, resolveSeriesId } from '$lib/server/db/queries';
-import { stampInsert } from '$lib/server/db/audit';
-import { isProposedAddition } from '$lib/server/db/proposals';
-import { event, eventHost, person, series } from '$lib/server/db/schema';
-import { createEventSuite, parseEventForm } from '$lib/validation/event';
-import { summary } from '$lib/validation/helpers';
+import { db } from '#lib/server/db/index.ts';
+import { purgeArchiveCache } from '#lib/server/cache.ts';
+import { resolvePersonIds, resolveSeriesId } from '#lib/server/db/queries.ts';
+import { stampInsert } from '#lib/server/db/audit.ts';
+import { isProposedAddition } from '#lib/server/db/proposals.ts';
+import { event, eventHost, person, series } from '#lib/server/db/schema.ts';
+import { createEventSuite, parseEventForm } from '#lib/validation/event.ts';
+import { summary } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Raw (unvalidated) create-form values echoed back so a failed submit keeps input. */

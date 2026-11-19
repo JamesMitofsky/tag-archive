@@ -1,12 +1,16 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { createArtefact, knownLocations } from '$lib/server/artefacts';
-import { echoArtefactForm, createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
-import { summary } from '$lib/validation/helpers';
+import { createArtefact, knownLocations } from '#lib/server/artefacts.ts';
+import {
+	echoArtefactForm,
+	createArtefactSuite,
+	parseArtefactForm
+} from '#lib/validation/artefact.ts';
+import { summary } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 // The keepers' own new-artefact form. The public submit at /contribute, through
 // the draft session and access pass; keepers stay inside /keeper, where the
-// hook already requires a session (see $lib/server/keeperGuard). The fields are
+// hook already requires a session (see #lib/server/keeperGuard). The fields are
 // the same component; what differs is who may post and where they land.
 
 export const load: PageServerLoad = async ({ locals }) => {

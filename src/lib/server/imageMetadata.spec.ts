@@ -17,7 +17,7 @@ import {
 	pngXmpText,
 	xmpPacket,
 	type ExifJpegOptions
-} from '$lib/testing/exifJpeg';
+} from '#lib/testing/exifJpeg.ts';
 import { MAX_METADATA_JSON_BYTES, parseImageMetadata } from './imageMetadata';
 
 // exifr itself, recording what it is handed (its export can't be spied on in place).

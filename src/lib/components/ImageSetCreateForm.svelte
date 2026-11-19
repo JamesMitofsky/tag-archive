@@ -2,17 +2,17 @@
 	import { enhance } from '$app/forms';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import AsyncComboField from '$lib/components/AsyncComboField.svelte';
-	import ImageUploader from '$lib/components/ImageUploader.svelte';
-	import { Textarea } from '$lib/components/ui/textarea';
+	import AsyncComboField from '#lib/components/AsyncComboField.svelte';
+	import ImageUploader from '#lib/components/ImageUploader.svelte';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
 	import {
 		createImageSetSuite,
 		parseImageSetForm,
 		type ImageSetCreateValues
-	} from '$lib/validation/imageSet';
-	import { createValidator } from '$lib/validation/client.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	} from '#lib/validation/imageSet.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
 
 	// The new-image-set form, shared by the public /contribute/images page and
 	// the keeper-only /keeper/images/new. Each page posts to its own
