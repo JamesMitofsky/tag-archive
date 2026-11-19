@@ -85,6 +85,13 @@
       "when": 1795114448686,
       "tag": "0011_listener_role",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1795124501656,
+      "tag": "0012_image_placeholders",
+      "breakpoints": true
     }
   ]
 }

@@ -270,6 +270,7 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 				url: image.url,
 				width: image.width,
 				height: image.height,
+				placeholder: image.placeholder,
 				capturedDate: sql<string | null>`substr(${image.capturedAt}, 1, 10)`
 			})
 			.from(image)
@@ -303,6 +304,7 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 			url: row.url,
 			width: row.width,
 			height: row.height,
+			placeholder: row.placeholder,
 			capturedDate: row.capturedDate && isFullDate(row.capturedDate) ? row.capturedDate : null
 		});
 		imagesBySet.set(row.setId, list);

@@ -9,6 +9,7 @@ import { parseImageMetadata, type ParsedImageMetadata } from './imageMetadata';
 import { sniffImageType, type ImageType } from './imageType';
 import { deleteScan, fetchObject, keyFromUrl, urlForKey } from './scans';
 import { webpDimensions } from './webpDimensions';
+import { parsePlaceholder } from '#lib/images/placeholder.ts';
 import type { UploadedImage } from '#lib/images/types.ts';
 
 /**
@@ -338,7 +339,10 @@ async function readMetadata(bytes: Uint8Array): Promise<ParsedImageMetadata> {
  * Nothing the browser declared is trusted. The original must sniff as the
  * type its key names and fit MAX_ORIGINAL_BYTES; the display copy must be a
  * WebP within MAX_DISPLAY_BYTES and MAX_DISPLAY_DIM, carrying no EXIF or XMP
- * (it is the copy pages publish). Cheap checks run first —
+ * (it is the copy pages publish). The one declared thing kept is the
+ * placeholder, and only when it is a well-formed ThumbHash: it is a blur of
+ * pixels the uploader chose anyway (see #lib/images/placeholder), so there is
+ * nothing for it to misrepresent. Cheap checks run first —
  * the original's leading bytes, then the display copy — so a bad upload is
  * refused before its original is downloaded in full.
  *
@@ -417,6 +421,8 @@ export async function finalizeImage(body: unknown, owner: UploadOwner): Promise<
 			bytes: display.length,
 			width: dimensions.width,
 			height: dimensions.height,
+			// Cosmetic, so a malformed one is dropped rather than refusing the upload.
+			placeholder: parsePlaceholder(fields.placeholder),
 			capturedAt,
 			capturedOffset,
 			metadata,

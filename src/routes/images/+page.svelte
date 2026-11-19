@@ -107,12 +107,14 @@
 				height={image.height}
 				alt={image.alt}
 				sizes="90vw"
+				placeholder={image.placeholder}
 				loading="eager"
 				class="w-[min(100cqw,100cqh*var(--photo-ratio))] rounded-[2px] shadow-2xl"
 			/>
 		</div>
 	{:else}
-		<ImageStack images={[image]} alt={image.alt} />
+		<!-- Only the print takes the click: beside it is sky, which puts the set away. -->
+		<ImageStack images={[image]} alt={image.alt} hit />
 	{/if}
 {/snippet}
 

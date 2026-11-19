@@ -14,6 +14,9 @@ const { loadPublicDataset } = await import('./queries');
 const { artefact, artefactProvenance, event, eventHost, image, imageSet, person } =
 	await import('./schema');
 
+/** A well-formed ThumbHash (see #lib/images/placeholder). */
+const HASH = 'H5sGDYRliUeUV2pDZWioEFShsOr1';
+
 /** An image row carrying everything that must never be published. */
 function photo(
 	id: number,
@@ -33,6 +36,7 @@ function photo(
 		bytes: 400_000,
 		width: 2560,
 		height: 1920,
+		placeholder: id === 3 ? null : HASH,
 		capturedAt,
 		capturedOffset: '+02:00',
 		metadata: {
@@ -136,6 +140,7 @@ describe('loadPublicDataset', () => {
 				'capturedDate',
 				'height',
 				'id',
+				'placeholder',
 				'url',
 				'width'
 			]);
@@ -145,6 +150,7 @@ describe('loadPublicDataset', () => {
 			url: 'https://bucket.test/images/2/display.webp',
 			width: 2560,
 			height: 1920,
+			placeholder: HASH,
 			capturedDate: '2024-06-01'
 		});
 
@@ -159,6 +165,11 @@ describe('loadPublicDataset', () => {
 		const { images } = await loadPublicDataset();
 		const set = images.find((s) => s.id === 2);
 		expect(set?.images.map((i) => i.capturedDate)).toEqual([null]);
+	});
+
+	it('publishes a photograph that has no placeholder yet with null', async () => {
+		const { images } = await loadPublicDataset();
+		expect(images[0].images.map((i) => i.placeholder)).toEqual([HASH, null, HASH]);
 	});
 
 	it('lists photographs in display order', async () => {
