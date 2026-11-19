@@ -11,6 +11,7 @@ import {
 	type SQLWrapper
 } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
+import type { InValue } from '@libsql/client';
 import { client, db } from './db';
 import { artefact, event, eventFeatureImage, image, imageSet } from './db/schema';
 import { isImageUrl } from '$lib/fileType';
@@ -148,6 +149,38 @@ async function storedRef(eventId: number): Promise<FeatureRef | null> {
 }
 
 /**
+ * The condition under which `ref` names something that can be featured, as SQL
+ * with its arguments: a photograph that belongs to a set, or a URL that is one
+ * of that artefact's pages. Null when the ref can be refused without asking
+ * the database (a page that isn't an image).
+ */
+function sourceExists(ref: FeatureRef): { sql: string; args: InValue[] } | null {
+	if (ref.kind === 'image') {
+		return {
+			sql: 'EXISTS (SELECT 1 FROM image WHERE id = ? AND set_id IS NOT NULL)',
+			args: [ref.imageId]
+		};
+	}
+	if (!isImageUrl(ref.url)) return null;
+	return {
+		sql: 'EXISTS (SELECT 1 FROM artefact, json_each(artefact.file_urls) WHERE artefact.id = ? AND json_each.value = ?)',
+		args: [ref.artefactId, ref.url]
+	};
+}
+
+/**
+ * Whether `ref` names something that can be featured right now. For a form
+ * that must refuse a bad choice before it writes anything else (creating an
+ * event); `setFeatureImage` checks again as it writes.
+ */
+export async function canFeature(ref: FeatureRef): Promise<boolean> {
+	const exists = sourceExists(ref);
+	if (exists === null) return false;
+	const result = await client.execute({ sql: `SELECT ${exists.sql} AS ok`, args: exists.args });
+	return Number(result.rows[0]?.ok) === 1;
+}
+
+/**
  * Make `ref` the feature image of `eventId`, or clear it with null. Returns
  * false, writing nothing, when `ref` names nothing that can be featured: a
  * photograph that doesn't exist or belongs to no set, or a URL that isn't an
@@ -169,37 +202,25 @@ export async function setFeatureImage(
 	}
 	if (sameFeatureRef(await storedRef(eventId), ref)) return true;
 
-	if (ref.kind === 'artefact' && !isImageUrl(ref.url)) return false;
-
-	const now = Date.now();
-	const source =
-		ref.kind === 'image'
-			? {
-					values: [ref.imageId, null, null],
-					exists: 'EXISTS (SELECT 1 FROM image WHERE id = ? AND set_id IS NOT NULL)',
-					args: [ref.imageId]
-				}
-			: {
-					values: [null, ref.artefactId, ref.url],
-					exists:
-						'EXISTS (SELECT 1 FROM artefact, json_each(artefact.file_urls) WHERE artefact.id = ? AND json_each.value = ?)',
-					args: [ref.artefactId, ref.url]
-				};
+	const exists = sourceExists(ref);
+	if (exists === null) return false;
+	const values = ref.kind === 'image' ? [ref.imageId, null, null] : [null, ref.artefactId, ref.url];
 
 	// Raw SQL bypasses Drizzle's `$onUpdate` and defaults' audit stamps, so the
 	// row carries its timestamps (epoch ms) and actors explicitly.
+	const now = Date.now();
 	const result = await client.execute({
 		sql: `INSERT INTO event_feature_image
 				(event_id, image_id, artefact_id, artefact_file_url, created_at, updated_at, created_by, updated_by)
 			SELECT ?, ?, ?, ?, ?, ?, ?, ?
-			WHERE EXISTS (SELECT 1 FROM event WHERE id = ?) AND ${source.exists}
+			WHERE EXISTS (SELECT 1 FROM event WHERE id = ?) AND ${exists.sql}
 			ON CONFLICT (event_id) DO UPDATE SET
 				image_id = excluded.image_id,
 				artefact_id = excluded.artefact_id,
 				artefact_file_url = excluded.artefact_file_url,
 				updated_at = excluded.updated_at,
 				updated_by = excluded.updated_by`,
-		args: [eventId, ...source.values, now, now, userId, userId, eventId, ...source.args]
+		args: [eventId, ...values, now, now, userId, userId, eventId, ...exists.args]
 	});
 	return result.rowsAffected > 0;
 }
@@ -220,27 +241,31 @@ function byDateDesc(a: FeatureCandidateGroup, b: FeatureCandidateGroup): number 
 
 /**
  * The photographs and artefact pages a keeper can pick from for `eventId`,
- * grouped by the image set or artefact they belong to, newest first.
+ * grouped by the image set or artefact they belong to, newest first. A null
+ * `eventId` is an event still being created: nothing is linked to it yet.
  *
  * With `linked`, only the sources linked to that event, all of them: what the
- * picker leads with. Without it, sources linked to any other event or none,
- * narrowed by `q` (an artefact's title, description or number; a set's
+ * picker leads with. Without it, sources linked to any other event or none
+ * (every source, for a null `eventId`), narrowed by `q` (an artefact's title, description or number; a set's
  * description or event title), at most `CANDIDATE_LIMIT` of each kind.
  * Pending submissions are included and flagged: a keeper may choose one, and
  * it shows publicly once vetted (see `featureImagesWhere`).
  */
 export async function listFeatureCandidates(
-	eventId: number,
+	eventId: number | null,
 	{ linked, q = '' }: { linked: boolean; q?: string }
 ): Promise<{ groups: FeatureCandidateGroup[]; truncated: boolean }> {
+	if (linked && eventId === null) return { groups: [], truncated: false };
 	const term = q.trim().toLowerCase();
 	const pattern = `%${likeLiteral(term)}%`;
 	const contains = (column: SQLWrapper) => sql`lower(${column}) LIKE ${pattern} ESCAPE '\\'`;
 
 	const artefactWhere = and(
-		linked
-			? eq(artefact.eventId, eventId)
-			: or(isNull(artefact.eventId), ne(artefact.eventId, eventId)),
+		eventId === null
+			? undefined
+			: linked
+				? eq(artefact.eventId, eventId)
+				: or(isNull(artefact.eventId), ne(artefact.eventId, eventId)),
 		// Only artefacts with something attached; the image test itself is below.
 		sql`json_array_length(${artefact.fileUrls}) > 0`,
 		term && !linked
@@ -253,9 +278,11 @@ export async function listFeatureCandidates(
 			: undefined
 	);
 	const setWhere = and(
-		linked
-			? eq(imageSet.eventId, eventId)
-			: or(isNull(imageSet.eventId), ne(imageSet.eventId, eventId)),
+		eventId === null
+			? undefined
+			: linked
+				? eq(imageSet.eventId, eventId)
+				: or(isNull(imageSet.eventId), ne(imageSet.eventId, eventId)),
 		term && !linked ? or(contains(imageSet.description), contains(setEvent.title)) : undefined
 	);
 	const artefactQuery = db

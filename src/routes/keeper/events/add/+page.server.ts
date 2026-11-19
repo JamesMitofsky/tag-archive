@@ -4,6 +4,8 @@ import { purgeArchiveCache } from '$lib/server/cache';
 import { resolvePersonIds, resolveSeriesId } from '$lib/server/db/queries';
 import { stampInsert } from '$lib/server/db/audit';
 import { isProposedAddition } from '$lib/server/db/proposals';
+import { canFeature, setFeatureImage } from '$lib/server/eventFeatures';
+import { parseFeatureRef } from '$lib/featureImage';
 import { event, eventHost, person, series } from '$lib/server/db/schema';
 import { createEventSuite, parseEventForm } from '$lib/validation/event';
 import { summary } from '$lib/validation/helpers';
@@ -20,7 +22,13 @@ export type EventFormValues = {
 	url: string;
 	/** Comma-separated in the form; kept raw so a failed submit doesn't lose it. */
 	hosts: string;
+	/** The chosen feature image as the form carries it (see `encodeFeatureRef`); empty for none. */
+	featureImage: string;
 };
+
+/** Shown when the chosen feature image can't be saved. */
+const FEATURE_REFUSAL =
+	'That image is no longer in the archive. Choose another feature image, or remove it.';
 
 /** Empty string → null, for the event's nullable columns. */
 const nullIfEmpty = (value: string) => (value === '' ? null : value);
@@ -48,20 +56,33 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const data = parseEventForm(form);
 		const result = createEventSuite()(data);
+		const values = (): EventFormValues => ({
+			title: String(form.get('title') ?? ''),
+			series: String(form.get('series') ?? ''),
+			date: String(form.get('date') ?? ''),
+			time: String(form.get('time') ?? ''),
+			location: String(form.get('location') ?? ''),
+			description: String(form.get('description') ?? ''),
+			url: String(form.get('url') ?? ''),
+			hosts: String(form.get('hosts') ?? ''),
+			featureImage: String(form.get('featureImage') ?? '')
+		});
 		if (!result.isValid()) {
 			return fail(400, {
 				eventError: summary(result),
 				errors: result.getErrors(),
-				values: {
-					title: String(form.get('title') ?? ''),
-					series: String(form.get('series') ?? ''),
-					date: String(form.get('date') ?? ''),
-					time: String(form.get('time') ?? ''),
-					location: String(form.get('location') ?? ''),
-					description: String(form.get('description') ?? ''),
-					url: String(form.get('url') ?? ''),
-					hosts: String(form.get('hosts') ?? '')
-				}
+				values: values()
+			});
+		}
+
+		// The feature image is checked before anything is written, so a refused
+		// choice never leaves an event behind. Saved below once the event exists.
+		const featureRef = parseFeatureRef(String(form.get('featureImage') ?? ''));
+		if (featureRef === undefined || (featureRef !== null && !(await canFeature(featureRef)))) {
+			return fail(400, {
+				eventError: FEATURE_REFUSAL,
+				errors: { featureImage: [FEATURE_REFUSAL] },
+				values: values()
 			});
 		}
 
@@ -95,6 +116,11 @@ export const actions: Actions = {
 				}))
 			);
 		}
+
+		// Checked above, and checked again as it is written: only a photograph or
+		// page deleted in the moment between can make this refuse, and then the
+		// event stands without it rather than failing a create that already happened.
+		if (featureRef !== null) await setFeatureImage(created.id, featureRef, userId);
 
 		await purgeArchiveCache();
 

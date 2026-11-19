@@ -12,6 +12,9 @@
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import FeatureImagePicker, {
+		type FeatureSelection
+	} from '$lib/components/FeatureImagePicker.svelte';
 	import type { EventFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -58,6 +61,16 @@
 	// svelte-ignore state_referenced_locally
 	let date = $state(
 		form && 'values' in form && form.values ? (form.values as EventFormValues).date : ''
+	);
+
+	// The feature image: client state, so it survives a failed (enhanced) submit
+	// without an echo of its own. A no-JS failure starts it over empty.
+	let feature = $state<FeatureSelection | null>(null);
+	// The server's refusal of a choice holds only until another one is made.
+	const featureError = $derived(
+		errors.featureImage?.[0] !== undefined && (feature?.ref ?? '') === (echoed?.featureImage ?? '')
+			? errors.featureImage[0]
+			: undefined
 	);
 
 	let submitting = $state(false);
@@ -203,6 +216,14 @@
 					/>
 					<FieldError message={validator.error('description')} />
 				</div>
+
+				<FeatureImagePicker
+					name="featureImage"
+					bind:value={feature}
+					linked={[]}
+					eventId={null}
+					error={featureError}
+				/>
 
 				<div>
 					<label for="url" class="block text-sm font-medium text-gray-700">Source URL</label>

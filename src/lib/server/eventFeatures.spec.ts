@@ -11,7 +11,7 @@ vi.mock('$env/dynamic/private', () => ({ env: process.env }));
 const { client, db } = await import('./db');
 const { migrateTestDatabase } = await import('./db/testing');
 const { artefact, event, eventFeatureImage, image, imageSet, user } = await import('./db/schema');
-const { listFeatureCandidates, loadFeatureImage, setFeatureImage } =
+const { canFeature, listFeatureCandidates, loadFeatureImage, setFeatureImage } =
 	await import('./eventFeatures');
 
 const ADMIN = 'admin-1';
@@ -345,5 +345,39 @@ describe('listFeatureCandidates', () => {
 		});
 		const { groups } = await listFeatureCandidates(eventId, { linked: false, q: 'pending zine' });
 		expect(groups).toEqual([expect.objectContaining({ id: pending, proposed: true })]);
+	});
+});
+
+describe('canFeature', () => {
+	it('agrees with what setFeatureImage accepts, writing nothing', async () => {
+		const { imageIds } = await newSet(2);
+		const url = page('can.webp');
+		const artefactId = await newArtefact([url, page('can.pdf')]);
+		await db.update(image).set({ setId: null }).where(eq(image.id, imageIds[1]));
+
+		expect(await canFeature({ kind: 'image', imageId: imageIds[0] })).toBe(true);
+		expect(await canFeature({ kind: 'artefact', artefactId, url })).toBe(true);
+		expect(await canFeature({ kind: 'image', imageId: imageIds[1] })).toBe(false);
+		expect(await canFeature({ kind: 'artefact', artefactId, url: page('can.pdf') })).toBe(false);
+		expect(await canFeature({ kind: 'artefact', artefactId, url: page('nope.webp') })).toBe(false);
+	});
+});
+
+describe('listFeatureCandidates for an event still being created', () => {
+	it('lists nothing as linked, and searches every source', async () => {
+		const someEvent = await newEvent('Already linked');
+		const linkedElsewhere = await newArtefact([page('unborn.webp')], {
+			eventId: someEvent,
+			title: 'Unborn search target'
+		});
+		expect(await listFeatureCandidates(null, { linked: true })).toEqual({
+			groups: [],
+			truncated: false
+		});
+		const { groups } = await listFeatureCandidates(null, {
+			linked: false,
+			q: 'unborn search target'
+		});
+		expect(groups.map((g) => g.id)).toEqual([linkedElsewhere]);
 	});
 });

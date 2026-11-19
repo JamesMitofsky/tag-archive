@@ -109,8 +109,8 @@ still filling in, until it attaches them on save. Ones left unattached for a day
 are swept with their objects.
 
 **Feature images.** An event can feature one image the archive already holds,
-chosen by an admin on the event's edit page: a photograph, or one page of an
-artefact. `event_feature_image` holds the choice, one row per event (no row, no
+a photograph or one page of an artefact, chosen on the form that adds the event
+or, by an admin, on its edit page. `event_feature_image` holds the choice, one row per event (no row, no
 feature image):
 
 | Column              | Notes                                                                 |

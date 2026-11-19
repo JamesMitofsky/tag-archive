@@ -233,7 +233,7 @@
 					name="featureImage"
 					bind:value={feature}
 					linked={data.linkedCandidates}
-					searchUrl="/keeper/events/{data.event.id}/feature-images"
+					eventId={data.event.id}
 					error={featureError}
 				/>
 

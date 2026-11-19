@@ -5,8 +5,9 @@
 	value submits "no feature image".
 
 	The dialog leads with the artefacts and image sets linked to the event
-	(`linked`, from the page's load), then searches the rest of the archive
-	through `searchUrl` on demand, so the page never ships every photograph.
+	(`linked`, from the page's load), then searches the rest of the archive on
+	demand (src/routes/keeper/events/feature-images), so the page never ships
+	every photograph. An event still being created has no id and nothing linked.
 -->
 <script module lang="ts">
 	import type { FeatureCandidate } from '$lib/featureImage';
@@ -30,14 +31,14 @@
 		name,
 		value = $bindable(null),
 		linked,
-		searchUrl,
+		eventId,
 		error
 	}: {
 		name: string;
 		value?: FeatureSelection | null;
 		linked: FeatureCandidateGroup[];
-		/** GET endpoint answering `?q=` with `{ groups, truncated }`. */
-		searchUrl: string;
+		/** The event being edited; null on the add form, where nothing is linked yet. */
+		eventId: number | null;
 		error?: string;
 	} = $props();
 
@@ -55,7 +56,8 @@
 		searching = true;
 		searchFailed = false;
 		try {
-			const res = await fetch(`${searchUrl}?${new URLSearchParams({ q })}`);
+			const params = new URLSearchParams(eventId === null ? { q } : { q, event: String(eventId) });
+			const res = await fetch(`/keeper/events/feature-images?${params}`);
 			if (v !== version) return;
 			if (!res.ok) throw new Error(`search failed: ${res.status}`);
 			const body: { groups: FeatureCandidateGroup[]; truncated: boolean } = await res.json();
