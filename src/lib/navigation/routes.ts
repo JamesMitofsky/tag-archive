@@ -19,7 +19,7 @@ const STATIC_ROUTES: Record<string, RouteDefinition> = {
 	'/keeper/artefacts': { title: 'Artefacts', parent: '/keeper' },
 	'/keeper/artefacts/new': { title: 'Artefacts', parent: '/keeper/artefacts' },
 	'/keeper/images': { title: 'Images', parent: '/keeper' },
-	'/keeper/images/add': { title: 'Images', parent: '/keeper/images' },
+	'/keeper/images/new': { title: 'Images', parent: '/keeper/images' },
 	'/keeper/events': { title: 'Events', parent: '/keeper' },
 	'/keeper/events/add': { title: 'Events', parent: '/keeper/events' },
 	'/keeper/series': { title: 'Series', parent: '/keeper' },

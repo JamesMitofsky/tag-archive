@@ -43,7 +43,7 @@ describe('getParentRoute & getRouteTitle', () => {
 
 		expect(getParentRoute('/keeper/images')).toEqual({ href: '/keeper', label: 'Cloud Keeper' });
 		// The add route is static, so it never reads as an image set called "add".
-		expect(getParentRoute('/keeper/images/add')).toEqual({
+		expect(getParentRoute('/keeper/images/new')).toEqual({
 			href: '/keeper/images',
 			label: 'Images'
 		});

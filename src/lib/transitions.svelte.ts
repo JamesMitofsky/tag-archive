@@ -43,11 +43,11 @@ function detailName(path: string): string | null {
 		return id === 'add' ? null : morphName('series', id);
 	}
 
-	// Image set detail: /keeper/images/{id} (id ≠ add).
+	// Image set detail: /keeper/images/{id} (id ≠ new, or add, its old name).
 	const image = p.match(/^\/keeper\/images\/([^/]+)$/);
 	if (image) {
 		const id = image[1];
-		return id === 'add' ? null : morphName('image', id);
+		return id === 'new' || id === 'add' ? null : morphName('image', id);
 	}
 
 	return null;

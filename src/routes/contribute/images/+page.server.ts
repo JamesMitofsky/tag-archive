@@ -9,17 +9,11 @@ import { createContactSuite, parseContactForm } from '$lib/validation/contact';
 import { summary } from '$lib/validation/helpers';
 import {
 	createImageSetSuite,
+	echoImageSetCreateForm,
 	parseImageSetForm,
 	type ImageSetData
 } from '$lib/validation/imageSet';
 import type { Actions, PageServerLoad } from './$types';
-
-/** Raw (unvalidated) form values echoed back so a failed submit keeps input. */
-export type ImageSetFormValues = {
-	description: string;
-	event: string;
-	imageIds: number[];
-};
 
 /**
  * Proof that whoever holds it just submitted image set `id` — handed back after
@@ -75,11 +69,7 @@ export const actions: Actions = {
 			}
 		}
 
-		const values: ImageSetFormValues = {
-			description: String(form.get('description') ?? ''),
-			event: String(form.get('event') ?? ''),
-			imageIds: data.imageIds.filter((id) => Number.isSafeInteger(id))
-		};
+		const values = echoImageSetCreateForm(form, data);
 
 		const result = createImageSetSuite()(data);
 		if (!result.isValid()) {
