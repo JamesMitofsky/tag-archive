@@ -22,7 +22,7 @@ afterEach(() => {
 
 describe('PageScanner.svelte', () => {
 	it('supports selecting multiple images without capture locking', async () => {
-		render(PageScanner, {});
+		await render(PageScanner, {});
 
 		const fileInput = page.getByLabelText('Add from photos');
 		await expect.element(fileInput).toBeInTheDocument();
@@ -35,14 +35,14 @@ describe('PageScanner.svelte', () => {
 	});
 
 	it('renders initial uploaded images', async () => {
-		render(PageScanner, { initial: URLS });
+		await render(PageScanner, { initial: URLS });
 
 		const images = page.getByRole('img', { name: 'Page 1' });
 		await expect.element(images.first()).toBeInTheDocument();
 	});
 
 	it('numbers pages in order', async () => {
-		render(PageScanner, { initial: URLS });
+		await render(PageScanner, { initial: URLS });
 
 		await expect.element(page.getByRole('img', { name: 'Page 1' })).toBeInTheDocument();
 		await expect.element(page.getByRole('img', { name: 'Page 2' })).toBeInTheDocument();
@@ -50,7 +50,7 @@ describe('PageScanner.svelte', () => {
 
 	it('reorders pages and re-emits the new order', async () => {
 		const onChange = vi.fn();
-		render(PageScanner, { initial: URLS, onChange });
+		await render(PageScanner, { initial: URLS, onChange });
 
 		await page.getByRole('button', { name: 'Move page 1 later' }).click();
 
@@ -58,7 +58,7 @@ describe('PageScanner.svelte', () => {
 	});
 
 	it('disables the move buttons at each end of the strip', async () => {
-		render(PageScanner, { initial: URLS });
+		await render(PageScanner, { initial: URLS });
 
 		await expect.element(page.getByRole('button', { name: 'Move page 1 earlier' })).toBeDisabled();
 		await expect.element(page.getByRole('button', { name: 'Move page 2 later' })).toBeDisabled();
@@ -67,7 +67,7 @@ describe('PageScanner.svelte', () => {
 	it('keeps the remaining order when a page is removed', async () => {
 		const onChange = vi.fn();
 		const three = [...URLS, 'https://example.com/scan3.jpg'];
-		render(PageScanner, { initial: three, onChange });
+		await render(PageScanner, { initial: three, onChange });
 
 		await page.getByRole('button', { name: 'Remove page 2' }).click();
 
@@ -76,7 +76,7 @@ describe('PageScanner.svelte', () => {
 
 	it('uploads a picked photo as WebP, named to match', async () => {
 		const server = fakeServer();
-		render(PageScanner, {});
+		await render(PageScanner, {});
 		await page.getByLabelText('Add from photos').upload(await pickedPhoto('IMG_0042.PNG'));
 
 		await vi.waitFor(() => expect(server.uploads).toHaveLength(1));
@@ -85,7 +85,7 @@ describe('PageScanner.svelte', () => {
 	});
 
 	it('offers no crop editor for pages that have no local original', async () => {
-		render(PageScanner, { initial: URLS });
+		await render(PageScanner, { initial: URLS });
 
 		// `initial` URLs come from the server, so there is nothing to re-crop.
 		expect(document.querySelectorAll('[aria-label^="Adjust crop"]').length).toBe(0);
@@ -94,7 +94,7 @@ describe('PageScanner.svelte', () => {
 	describe('camera run', () => {
 		it('shows an X to quit until something is shot, then a check to finish', async () => {
 			fakeCamera();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			const shutter = await openCamera();
 
 			await expect.element(page.getByRole('button', { name: 'Close camera' })).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe('PageScanner.svelte', () => {
 		it('quits without a trace when nothing was shot', async () => {
 			fakeCamera();
 			const server = fakeServer();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			await openCamera();
 
 			await page.getByRole('button', { name: 'Close camera' }).click();
@@ -127,7 +127,7 @@ describe('PageScanner.svelte', () => {
 
 		it('shows no crop guide while shooting', async () => {
 			fakeCamera();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			const shutter = await openCamera();
 			await shutter.click();
 
@@ -139,7 +139,7 @@ describe('PageScanner.svelte', () => {
 		it('keeps the camera open across captures, and uploads nothing yet', async () => {
 			fakeCamera();
 			const server = fakeServer();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			const shutter = await openCamera();
 
 			await shutter.click();
@@ -153,7 +153,7 @@ describe('PageScanner.svelte', () => {
 
 		it('asks the camera for a sharp stream, in terms no camera can refuse', async () => {
 			const getUserMedia = fakeCamera();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			await openCamera();
 
 			// Asked for no size, browsers open the camera at 640×480.
@@ -169,7 +169,7 @@ describe('PageScanner.svelte', () => {
 			fakeCamera();
 			const server = fakeServer();
 			const onChange = vi.fn();
-			render(PageScanner, { onChange });
+			await render(PageScanner, { onChange });
 			await shootAndCrop(2);
 
 			await page.getByRole('button', { name: 'Next photo' }).click();
@@ -187,7 +187,7 @@ describe('PageScanner.svelte', () => {
 		it('uploads each page cropped as the crop step left it', async () => {
 			fakeCamera();
 			const server = fakeServer();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			await shootAndCrop(2);
 
 			// Photo 1 keeps the whole frame; the correction must survive a round trip.
@@ -210,7 +210,7 @@ describe('PageScanner.svelte', () => {
 		it('adds every photo at once from the first with Add all', async () => {
 			fakeCamera();
 			const server = fakeServer();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			await shootAndCrop(3);
 
 			await page.getByRole('button', { name: 'Add all 3' }).click();
@@ -221,7 +221,7 @@ describe('PageScanner.svelte', () => {
 
 		it('goes back to the camera from the first photo and keeps what was shot', async () => {
 			fakeCamera();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			await shootAndCrop(1);
 
 			await page.getByRole('button', { name: 'Back to camera' }).click();
@@ -237,7 +237,7 @@ describe('PageScanner.svelte', () => {
 		it('discards a photo, and returns to the camera when none are left', async () => {
 			fakeCamera();
 			const server = fakeServer();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			await shootAndCrop(2);
 
 			await page.getByRole('button', { name: 'Discard photo 1' }).click();
@@ -251,7 +251,7 @@ describe('PageScanner.svelte', () => {
 		it('moves on with Enter on a corner, never via Discard, and not twice at once', async () => {
 			fakeCamera();
 			const server = fakeServer();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			await shootAndCrop(2);
 			const focused: string[] = [];
 			const dialog = page.getByRole('dialog').element();
@@ -282,7 +282,7 @@ describe('PageScanner.svelte', () => {
 		it('ignores a held Enter on a corner', async () => {
 			fakeCamera();
 			const server = fakeServer();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			await shootAndCrop(3);
 
 			const corner = document.querySelector<HTMLElement>('.scanic-handle')!;
@@ -308,7 +308,7 @@ describe('PageScanner.svelte', () => {
 		it('takes a double tap on Next as one step, not a finish', async () => {
 			fakeCamera();
 			const server = fakeServer();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			await shootAndCrop(2);
 
 			const next = page.getByRole('button', { name: 'Next photo' }).element() as HTMLElement;
@@ -326,7 +326,7 @@ describe('PageScanner.svelte', () => {
 		it('never drops photos on Escape: it moves on to cropping, then finishes', async () => {
 			fakeCamera();
 			const server = fakeServer();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			const shutter = await openCamera();
 			await shutter.click();
 
@@ -369,7 +369,7 @@ describe('PageScanner.svelte', () => {
 				);
 			});
 			const onChange = vi.fn();
-			render(PageScanner, { onChange });
+			await render(PageScanner, { onChange });
 			await shootAndCrop(1);
 			await page.getByRole('button', { name: 'Add 1 page' }).click();
 			// Removed while the upload itself is in flight, not before it starts.
@@ -386,7 +386,7 @@ describe('PageScanner.svelte', () => {
 			fakeCamera();
 			fakeServer();
 			const onChange = vi.fn();
-			render(PageScanner, { initial: URLS, onChange });
+			await render(PageScanner, { initial: URLS, onChange });
 
 			const shutter = await openCamera('Retake page 1');
 			await expect.element(page.getByText('Retaking page 1')).toBeInTheDocument();
@@ -408,7 +408,7 @@ describe('PageScanner.svelte', () => {
 			fakeCamera();
 			const server = fakeServer();
 			const onChange = vi.fn();
-			render(PageScanner, { initial: URLS, onChange });
+			await render(PageScanner, { initial: URLS, onChange });
 
 			const shutter = await openCamera('Retake page 2');
 			await shutter.click();
@@ -429,7 +429,7 @@ describe('PageScanner.svelte', () => {
 			fakeCamera();
 			let finishUpload: () => void = () => {};
 			const server = fakeServer();
-			render(PageScanner, {});
+			await render(PageScanner, {});
 			await shootAndCrop(1);
 			await page.getByRole('button', { name: 'Add 1 page' }).click();
 			await expect
@@ -460,7 +460,7 @@ describe('PageScanner.svelte', () => {
 			fakeCamera();
 			fakeServer();
 			const onChange = vi.fn();
-			render(PageScanner, { onChange });
+			await render(PageScanner, { onChange });
 			await shootAndCrop(1);
 			await page.getByRole('button', { name: 'Add 1 page' }).click();
 			await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
@@ -482,7 +482,7 @@ describe('PageScanner.svelte', () => {
 			fakeCamera();
 			const server = fakeServer();
 			const onChange = vi.fn();
-			render(PageScanner, { onChange });
+			await render(PageScanner, { onChange });
 			await shootAndCrop(1);
 			await page.getByRole('button', { name: 'Add 1 page' }).click();
 			await vi.waitFor(() =>

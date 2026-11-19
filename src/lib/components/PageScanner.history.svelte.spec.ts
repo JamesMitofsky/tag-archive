@@ -69,7 +69,7 @@ afterEach(() => {
 it('closes the camera on back when nothing was shot, without leaving the page', async () => {
 	fakeCamera();
 	const href = location.href;
-	render(PageScanner, {});
+	await render(PageScanner, {});
 	await openCamera();
 	expect(onOwnEntry()).toBe(true);
 
@@ -84,7 +84,7 @@ it('moves on to cropping on back once something is shot, and finishes on the nex
 	fakeCamera();
 	fakeServer();
 	const onChange = vi.fn();
-	render(PageScanner, { onChange });
+	await render(PageScanner, { onChange });
 	const shutter = await openCamera();
 	await shutter.click();
 	await shutter.click();
@@ -101,7 +101,7 @@ it('moves on to cropping on back once something is shot, and finishes on the nex
 
 it('drops its history entry when closed from inside, so the next back is a real back', async () => {
 	fakeCamera();
-	render(PageScanner, {});
+	await render(PageScanner, {});
 	await openCamera();
 	expect(onOwnEntry()).toBe(true);
 
@@ -115,7 +115,7 @@ it('cancels a retake on back from its crop step, keeping the page', async () => 
 	fakeCamera();
 	const server = fakeServer();
 	const onChange = vi.fn();
-	render(PageScanner, { initial: URLS, onChange });
+	await render(PageScanner, { initial: URLS, onChange });
 	const shutter = await openCamera('Retake page 1');
 	await shutter.click();
 	await expect.element(page.getByText('New photo for page 1')).toBeInTheDocument();
@@ -129,7 +129,7 @@ it('cancels a retake on back from its crop step, keeping the page', async () => 
 
 it('never adds a history entry in answer to back, only to a tap', async () => {
 	fakeCamera();
-	render(PageScanner, {});
+	await render(PageScanner, {});
 	const pushes = () => vi.mocked(pushState).mock.calls.length;
 	const before = pushes();
 	const shutter = await openCamera();
@@ -150,7 +150,7 @@ it('never adds a history entry in answer to back, only to a tap', async () => {
 it('stacks the second entry again on Back to camera, a tap', async () => {
 	fakeCamera();
 	fakeServer();
-	render(PageScanner, {});
+	await render(PageScanner, {});
 	const shutter = await openCamera();
 	await shutter.click();
 	await page.getByRole('button', { name: /^Done, crop/ }).click();
@@ -167,7 +167,7 @@ it('stacks the second entry again on Back to camera, a tap', async () => {
 
 it('never stands on an entry left by an earlier open', async () => {
 	fakeCamera();
-	render(PageScanner, {});
+	await render(PageScanner, {});
 	await openCamera();
 	history.back();
 	await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
@@ -186,7 +186,7 @@ it('never stands on an entry left by an earlier open', async () => {
 
 it('takes its entries along when unmounted while open', async () => {
 	fakeCamera();
-	const { unmount } = render(PageScanner, {});
+	const { unmount } = await render(PageScanner, {});
 	await openCamera();
 	expect(onOwnEntry()).toBe(true);
 

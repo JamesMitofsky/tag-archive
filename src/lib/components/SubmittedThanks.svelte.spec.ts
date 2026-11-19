@@ -23,7 +23,7 @@ const emailField = () => page.getByLabelText('Email');
 
 describe('SubmittedThanks.svelte', () => {
 	it('thanks the contributor, with a way to leave contact details for this submission', async () => {
-		render(SubmittedThanks, thanks);
+		await render(SubmittedThanks, thanks);
 		await expect.element(page.getByRole('heading', { name: 'Thank you' })).toHaveFocus();
 		expect(contactForm()).toBeNull();
 
@@ -36,7 +36,7 @@ describe('SubmittedThanks.svelte', () => {
 	});
 
 	it('keeps the form open through a refusal, with the error and what was typed', async () => {
-		const { rerender } = render(SubmittedThanks, thanks);
+		const { rerender } = await render(SubmittedThanks, thanks);
 		await openContact();
 		await nameField().fill('Ada');
 		await emailField().fill('ada@example.org');
@@ -47,7 +47,7 @@ describe('SubmittedThanks.svelte', () => {
 
 		await expect
 			.element(page.getByRole('alert'))
-			.toHaveTextContent('That submission has already been reviewed.');
+			.toMatchTextContent('That submission has already been reviewed.');
 		await expect.element(nameField()).toHaveValue('Ada');
 		await expect.element(emailField()).toHaveValue('ada@example.org');
 		await expect.element(nameField()).toHaveFocus();
@@ -55,26 +55,26 @@ describe('SubmittedThanks.svelte', () => {
 
 	it('opens the form on a refusal it is first shown with, so the refusal is seen', async () => {
 		// As a page that renders the thank-you anew with the answer does (a no-JS post).
-		render(SubmittedThanks, {
+		await render(SubmittedThanks, {
 			...thanks,
 			contactError: 'Too many attempts — wait a little and try again.'
 		});
 
 		await expect
 			.element(page.getByRole('alert'))
-			.toHaveTextContent('Too many attempts — wait a little and try again.');
+			.toMatchTextContent('Too many attempts — wait a little and try again.');
 		await expect.element(nameField()).toHaveFocus();
 	});
 
 	it('opens the form on field errors alone, each under its field', async () => {
-		render(SubmittedThanks, {
+		await render(SubmittedThanks, {
 			...thanks,
 			contactError: 'Enter a valid email address',
 			contactErrors: { email: ['Enter a valid email address'] }
 		});
 
 		// Said once, under the field, rather than again as a summary.
-		await expect.element(page.getByRole('alert')).toHaveTextContent('Enter a valid email address');
+		await expect.element(page.getByRole('alert')).toMatchTextContent('Enter a valid email address');
 		expect(page.getByRole('alert').all()).toHaveLength(1);
 		expect(emailField().element().closest('div')?.textContent).toContain(
 			'Enter a valid email address'
@@ -82,7 +82,11 @@ describe('SubmittedThanks.svelte', () => {
 	});
 
 	it('shows the confirmation once the details are saved', async () => {
-		const { rerender } = render(SubmittedThanks, { ...thanks, noun: 'photographs', plural: true });
+		const { rerender } = await render(SubmittedThanks, {
+			...thanks,
+			noun: 'photographs',
+			plural: true
+		});
 		await openContact();
 		await nameField().fill('Ada');
 
@@ -91,7 +95,7 @@ describe('SubmittedThanks.svelte', () => {
 		const confirmation = page.getByRole('status');
 		await expect
 			.element(confirmation)
-			.toHaveTextContent('Thanks — a keeper may be in touch about these photographs.');
+			.toMatchTextContent('Thanks — a keeper may be in touch about these photographs.');
 		await expect.element(confirmation).toHaveFocus();
 		expect(contactForm()).toBeNull();
 	});

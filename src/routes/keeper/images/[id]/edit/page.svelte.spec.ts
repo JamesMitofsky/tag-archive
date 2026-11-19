@@ -84,13 +84,13 @@ async function pressEnter() {
 
 describe('/keeper/images/[id]/edit', () => {
 	it('submits the set’s photographs in order before the uploader has said a word', async () => {
-		renderEdit();
+		await renderEdit();
 		await expect.element(save()).toBeEnabled();
 		expect(submitted('imageIds')).toEqual(['7', '8', '9']);
 	});
 
 	it('follows the uploader: reordered and removed photographs are what gets saved', async () => {
-		renderEdit();
+		await renderEdit();
 		await page.getByRole('button', { name: 'Move photograph 1 later' }).click();
 		await page.getByRole('button', { name: 'Remove photograph 3' }).click();
 		await expect.poll(() => submitted('imageIds')).toEqual(['8', '7']);
@@ -104,7 +104,7 @@ describe('/keeper/images/[id]/edit', () => {
 
 	it('shows the photographs’ date read-only while it follows them, submitting none', async () => {
 		// What the photographs give now, not the stored date: they may have changed since.
-		renderEdit({ date: '2023-07-02', dateAuto: true }, '2023-07-01');
+		await renderEdit({ date: '2023-07-02', dateAuto: true }, '2023-07-01');
 		await expect.element(followsPhotographs()).toBeChecked();
 		// Shown read-only; the hidden picker after it already holds the same date.
 		await expect.element(page.getByText('July 1, 2023').first()).toBeVisible();
@@ -117,7 +117,7 @@ describe('/keeper/images/[id]/edit', () => {
 
 	it('hands the date over to the picker, seeded with what the photographs gave', async () => {
 		// The date just shown read-only, not the stored one, should they ever differ.
-		renderEdit({ date: '2023-07-02', dateAuto: true }, '2023-07-01');
+		await renderEdit({ date: '2023-07-02', dateAuto: true }, '2023-07-01');
 		await followsPhotographs().click();
 
 		await expect.element(page.getByRole('button', { name: 'July 1, 2023' })).toBeVisible();
@@ -127,13 +127,13 @@ describe('/keeper/images/[id]/edit', () => {
 	});
 
 	it('comes back from a refused save with what was typed, and says why', async () => {
-		renderEdit({}, '2023-07-02', {
+		await renderEdit({}, '2023-07-02', {
 			setError: 'That image set no longer exists.',
 			values: { description: 'Typed before saving', event: '', date: '2019-07', dateAuto: false }
 		});
 		await expect
 			.element(page.getByRole('alert'))
-			.toHaveTextContent('That image set no longer exists.');
+			.toMatchTextContent('That image set no longer exists.');
 		await expect.element(page.getByLabelText('Description')).toHaveValue('Typed before saving');
 		// The hand-set date it was sent with, not the stored one.
 		await expect.element(followsPhotographs()).not.toBeChecked();
@@ -143,13 +143,13 @@ describe('/keeper/images/[id]/edit', () => {
 	});
 
 	it('sends the version it was opened at, and keeps what was typed when the set moved on', async () => {
-		renderEdit({}, '2023-07-02', {
+		await renderEdit({}, '2023-07-02', {
 			setError: 'This set changed since you opened it — reload to see the latest.',
 			values: { description: 'Typo fixed', event: '', date: '', dateAuto: true }
 		});
 		await expect
 			.element(page.getByRole('alert'))
-			.toHaveTextContent('This set changed since you opened it — reload to see the latest.');
+			.toMatchTextContent('This set changed since you opened it — reload to see the latest.');
 		await expect.element(page.getByLabelText('Description')).toHaveValue('Typo fixed');
 		// Still the version it was opened at: only a reload brings the latest.
 		expect(submitted('version')).toEqual(['1700000000000']);
@@ -159,13 +159,13 @@ describe('/keeper/images/[id]/edit', () => {
 	it('holds the save while a photograph failed to upload, until it is removed', async () => {
 		const server = fakeImageServer();
 		server.control.locked = true;
-		renderEdit();
+		await renderEdit();
 		await expect.element(save()).toBeEnabled();
 
 		await page.getByLabelText('Add photographs').upload(await canvasPhoto('new.png'));
 		await expect
-			.element(page.getByText('1 photograph wasn’t uploaded.'))
-			.toHaveTextContent(
+			.element(page.getByText('1 photograph wasn’t uploaded.', { exact: false }))
+			.toMatchTextContent(
 				'1 photograph wasn’t uploaded. Try it again, or remove it, before saving.'
 			);
 		await expect.element(save()).toBeDisabled();
@@ -179,7 +179,7 @@ describe('/keeper/images/[id]/edit', () => {
 	});
 
 	it('opens a hand-set undated set on "No date", the override intact', async () => {
-		renderEdit({ date: null, dateAuto: false }, '2023-07-02');
+		await renderEdit({ date: null, dateAuto: false }, '2023-07-02');
 		await expect.element(followsPhotographs()).not.toBeChecked();
 		await expect.element(page.getByRole('button', { name: 'No date' })).toBeVisible();
 		expect(submitted('date')).toEqual(['undated']);

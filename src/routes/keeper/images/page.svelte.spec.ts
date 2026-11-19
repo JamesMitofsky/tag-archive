@@ -50,7 +50,7 @@ describe('/keeper/images', () => {
 	];
 
 	it('labels each set, dates it and counts its photographs', async () => {
-		renderList(sets);
+		await renderList(sets);
 		await expect
 			.element(page.getByRole('link', { name: 'Vetted Concert' }))
 			.toHaveAttribute('href', '/keeper/images/1');
@@ -62,7 +62,7 @@ describe('/keeper/images', () => {
 	});
 
 	it('filters by what a row reads as, formatted date included', async () => {
-		renderList(sets);
+		await renderList(sets);
 		await page.getByLabelText('Search images').fill('june 1, 2024');
 		await expect.element(page.getByRole('link', { name: 'Vetted Concert' })).toBeVisible();
 		await expect.element(page.getByRole('link', { name: '1 photograph' })).not.toBeInTheDocument();
@@ -74,7 +74,7 @@ describe('/keeper/images', () => {
 	it('keeps up as a search shrinks and regrows a long list', async () => {
 		// KeeperList can hand a row an index the search has just filtered away;
 		// the row must sit that frame out rather than throw.
-		renderList(
+		await renderList(
 			Array.from({ length: 60 }, (_, index) => ({
 				...sets[1],
 				id: index + 1,
@@ -97,7 +97,7 @@ describe('/keeper/images', () => {
 	});
 
 	it('says when there is nothing yet, pointing at the add button', async () => {
-		renderList([]);
+		await renderList([]);
 		await expect.element(page.getByText(/No photographs yet/)).toBeVisible();
 		await expect
 			.element(page.getByRole('link', { name: 'Add photographs' }))
@@ -142,8 +142,8 @@ describe('/keeper/images/[id]', () => {
 	}
 
 	it('titles the set by its label and prints the rest of the description', async () => {
-		renderDetail();
-		await expect.element(page.getByRole('heading', { level: 1 })).toHaveTextContent('Front row');
+		await renderDetail();
+		await expect.element(page.getByRole('heading', { level: 1 })).toMatchTextContent('Front row');
 		await expect.element(page.getByText('The band from the second song on.')).toBeVisible();
 		await expect.element(page.getByText('June 1, 2024 · 2 photographs')).toBeVisible();
 		// Only admins edit.
@@ -151,7 +151,7 @@ describe('/keeper/images/[id]', () => {
 	});
 
 	it('details each photograph: when, what file, the original and its metadata', async () => {
-		renderDetail({}, { role: 'admin' });
+		await renderDetail({}, { role: 'admin' });
 		await expect
 			.element(page.getByTitle('Edit image set'))
 			.toHaveAttribute('href', '/keeper/images/4/edit');
@@ -177,9 +177,9 @@ describe('/keeper/images/[id]', () => {
 	});
 
 	it('says a new set was added, and whether a review is still ahead', async () => {
-		renderDetail({ proposedAddition: true }, { search: '?created' });
-		await expect.element(page.getByRole('status')).toHaveTextContent(/Added to the archive/);
-		await expect.element(page.getByRole('status')).toHaveTextContent(/awaits a keeper's approval/);
+		await renderDetail({ proposedAddition: true }, { search: '?created' });
+		await expect.element(page.getByRole('status')).toMatchTextContent(/Added to the archive/);
+		await expect.element(page.getByRole('status')).toMatchTextContent(/awaits a keeper's approval/);
 		await expect.element(page.getByText('Proposed addition')).toBeVisible();
 	});
 });

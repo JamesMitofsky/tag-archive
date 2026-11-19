@@ -29,9 +29,9 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-function renderPage(form: Record<string, unknown> | null = null) {
+async function renderPage(form: Record<string, unknown> | null = null) {
 	const data = { signedIn: false, canContribute: true };
-	const rendered = render(ImagesPage, { data, form } as unknown as Props);
+	const rendered = await render(ImagesPage, { data, form } as unknown as Props);
 	return {
 		...rendered,
 		/** As SvelteKit applies an action's result: `form` cleared for a tick, then set. */
@@ -63,7 +63,7 @@ async function pressEnter() {
 describe('/contribute/images', () => {
 	it('holds the submit while any photograph failed to upload, until each is tried again or removed', async () => {
 		const server = fakeImageServer();
-		renderPage();
+		await renderPage();
 		await picker().upload(await canvasPhoto('kept.png'));
 		await expect.element(addToArchive()).toBeEnabled();
 
@@ -74,8 +74,8 @@ describe('/contribute/images', () => {
 
 		await expect.element(addToArchive()).toBeDisabled();
 		await expect
-			.element(page.getByText('2 photographs weren’t uploaded.'))
-			.toHaveTextContent(
+			.element(page.getByText('2 photographs weren’t uploaded.', { exact: false }))
+			.toMatchTextContent(
 				'2 photographs weren’t uploaded. Try them again, or remove them, before adding to the archive.'
 			);
 		expect(await pressEnter()).toHaveBeenCalled();
@@ -83,8 +83,8 @@ describe('/contribute/images', () => {
 		server.control.locked = false;
 		await page.getByRole('button', { name: 'Retry photograph 2' }).click();
 		await expect
-			.element(page.getByText('1 photograph wasn’t uploaded.'))
-			.toHaveTextContent(
+			.element(page.getByText('1 photograph wasn’t uploaded.', { exact: false }))
+			.toMatchTextContent(
 				'1 photograph wasn’t uploaded. Try it again, or remove it, before adding to the archive.'
 			);
 		await vi.waitFor(() => expect(server.finalized).toHaveLength(2));
@@ -104,7 +104,7 @@ describe('/contribute/images', () => {
 	});
 
 	it('keeps the thank-you, and what was typed into its contact form, through a refusal', async () => {
-		const { apply } = renderPage();
+		const { apply } = await renderPage();
 		const submitted = { id: 5, token: 'token-5' };
 		await apply({ submitted });
 		await page.getByRole('button', { name: /Leave a name or email/ }).click();
@@ -115,19 +115,19 @@ describe('/contribute/images', () => {
 
 		await expect
 			.element(page.getByRole('alert'))
-			.toHaveTextContent('That submission has already been reviewed.');
+			.toMatchTextContent('That submission has already been reviewed.');
 		await expect.element(page.getByLabelText('Name')).toHaveValue('Ada');
 		await expect.element(page.getByLabelText('Email')).toHaveValue('ada@example.org');
 		await expect.element(page.getByRole('heading', { name: 'Thank you' })).toBeInTheDocument();
 
 		// An expired token echoes nothing back, and still leaves the thank-you up to say so.
 		await apply({ contactError: 'That link has expired.' });
-		await expect.element(page.getByRole('alert')).toHaveTextContent('That link has expired.');
+		await expect.element(page.getByRole('alert')).toMatchTextContent('That link has expired.');
 		await expect.element(page.getByLabelText('Name')).toHaveValue('Ada');
 
 		await apply({ connected: true, submitted });
 		await expect
 			.element(page.getByRole('status'))
-			.toHaveTextContent('Thanks — a keeper may be in touch about these photographs.');
+			.toMatchTextContent('Thanks — a keeper may be in touch about these photographs.');
 	});
 });

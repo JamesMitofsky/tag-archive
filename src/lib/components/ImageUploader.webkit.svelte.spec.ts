@@ -26,7 +26,7 @@ describe('ImageUploader.svelte without a WebP encoder (WebKit)', () => {
 	it('still uploads a WebP display copy, never asking the canvas for one', async () => {
 		const server = fakeImageServer();
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 		const photo = await canvasPhoto('IMG_0042.PNG', { width: 3000, height: 2000 });
 
 		await page.getByLabelText('Add photographs').upload(photo);

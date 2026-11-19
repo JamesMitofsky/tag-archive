@@ -25,7 +25,10 @@ describe('/contribute', () => {
 	it('keeps the thank-you, and what was typed into its contact form, through a refusal', async () => {
 		const submitted = { id: 5, token: 'token-5' };
 		const data = { signedIn: false, canContribute: true, requireLocation: false, locations: [] };
-		const { rerender } = render(ContributePage, { data, form: { submitted } } as unknown as Props);
+		const { rerender } = await render(ContributePage, {
+			data,
+			form: { submitted }
+		} as unknown as Props);
 		/** As SvelteKit applies an action's result: `form` cleared for a tick, then set. */
 		const apply = async (result: Record<string, unknown>) => {
 			await rerender({ form: null } as Partial<Props>);
@@ -38,19 +41,22 @@ describe('/contribute', () => {
 
 		await expect
 			.element(page.getByRole('alert'))
-			.toHaveTextContent('Too many attempts — wait a little and try again.');
+			.toMatchTextContent('Too many attempts — wait a little and try again.');
 		await expect.element(page.getByLabelText('Name')).toHaveValue('Ada');
 
 		await apply({ connected: true, submitted });
 		await expect
 			.element(page.getByRole('status'))
-			.toHaveTextContent('Thanks — a keeper may be in touch about this artefact.');
+			.toMatchTextContent('Thanks — a keeper may be in touch about this artefact.');
 	});
 
 	it('lets go of the thank-you on a real navigation back to the form', async () => {
 		const submitted = { id: 6, token: 'token-6' };
 		const data = { signedIn: false, canContribute: true, requireLocation: false, locations: [] };
-		const { rerender } = render(ContributePage, { data, form: { submitted } } as unknown as Props);
+		const { rerender } = await render(ContributePage, {
+			data,
+			form: { submitted }
+		} as unknown as Props);
 		await expect.element(page.getByRole('heading', { name: 'Thank you' })).toBeInTheDocument();
 
 		// Applying an action's result clears `form` without navigating: still thanked.
