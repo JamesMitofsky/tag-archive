@@ -4,7 +4,7 @@
  * action, and endpoint. Those per-route checks stay, but only as type narrowing
  * and defense in depth: forgetting one is no longer a hole. The one exception is
  * /keeper itself, the sign-in page, which the access gate opens to visitors
- * without a pass only through the door (see $lib/access/door.server).
+ * without a pass only through the door (see #lib/access/door.server).
  */
 
 /** True for the sign-in page, the only /keeper path open without a session. */
@@ -48,7 +48,7 @@ export function anonymousKeeperAccess(request: {
 const LISTENER_PAGES = new Set(['/keeper/settings']);
 
 /**
- * What the hook does with a signed-in listener's request (see $lib/roles): the
+ * What the hook does with a signed-in listener's request (see #lib/roles): the
  * same as for an anonymous one, except that their settings page opens too. A
  * listener sent to /keeper lands on the hub, which tells them what they can do.
  * A `refuse` here means the account is signed in but may not, so the hook

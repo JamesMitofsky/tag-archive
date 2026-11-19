@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { pushState, replaceState } from '$app/navigation';
-	import type { PublicImage, PublicImageSet } from '$lib/images/types';
-	import { imageSetLabel, withoutTitleLine } from '$lib/images/label';
-	import { formatPartialDate } from '$lib/partialDate';
-	import { loadImageSets } from '$lib/dataset';
-	import { filterImageSets } from '$lib/search';
-	import CardCloud from '$lib/components/CardCloud.svelte';
-	import ImageStack from '$lib/components/ImageStack.svelte';
-	import Photograph from '$lib/components/Photograph.svelte';
-	import Drawing from '$lib/components/Drawing.svelte';
+	import { goto } from '$app/navigation';
+	import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
+	import { imageSetLabel, withoutTitleLine } from '#lib/images/label.ts';
+	import { formatPartialDate } from '#lib/partialDate.ts';
+	import { loadImageSets } from '#lib/dataset.ts';
+	import { filterImageSets } from '#lib/search.ts';
+	import CardCloud from '#lib/components/CardCloud.svelte';
+	import ImageStack from '#lib/components/ImageStack.svelte';
+	import Photograph from '#lib/components/Photograph.svelte';
+	import Drawing from '#lib/components/Drawing.svelte';
 
 	/** The query parameter naming the open set, so a set can be linked to. */
 	const SET_PARAM = 'set';
@@ -18,34 +18,32 @@
 	type SetPhoto = PublicImage & { alt: string };
 
 	/**
-	 * The open set. Opening one is a shallow history entry (SvelteKit's
-	 * `pushState`), so back puts it away again; its `page.state` says which set.
-	 * `page.state` starts empty on a fresh load, though, even on that same entry,
-	 * so a reload or a shared link falls back to the address it was loaded at.
-	 * (`page.url` is that address: shallow entries don't change it.)
+	 * The open set, read off the address. Opening one is a shallow navigation to
+	 * `?set=ID` (`goto` with `shallow`), so back puts it away again and the
+	 * address can be shared. `page.url` keeps the address the page was loaded
+	 * at, and `page.shallow` carries the shallow entry's own; a shared link or a
+	 * reload arrives with no shallow entry, but with the set in `page.url`.
 	 */
 	const openSet = $derived.by(() => {
-		if (page.state.imageSet !== undefined) return page.state.imageSet;
-		const raw = page.url.searchParams.get(SET_PARAM);
+		const raw = (page.shallow?.url ?? page.url).searchParams.get(SET_PARAM);
 		const id = raw === null ? NaN : Number(raw);
 		return Number.isSafeInteger(id) ? id : null;
 	});
 
 	function changeSet(id: number | null) {
+		const url = new URL(location.href);
 		if (id !== null) {
-			const url = new URL(location.href);
 			url.searchParams.set(SET_PARAM, String(id));
-			pushState(url, { ...page.state, imageSet: id });
-		} else if (typeof page.state.imageSet === 'number') {
+			void goto(url, { shallow: true, state: { ...page.state, imageSet: id } });
+		} else if (page.state.imageSet === openSet) {
 			// This entry was pushed by opening the set, so the one under it is the
 			// cloud of sets: step back onto it, as the browser's own back would.
 			history.back();
 		} else {
-			// Opened from a link: nothing of ours underneath to step back to, so put
-			// it away where it stands.
-			const url = new URL(location.href);
+			// Opened from a link or a reload: nothing of ours underneath to step back
+			// to, so put it away where it stands.
 			url.searchParams.delete(SET_PARAM);
-			replaceState(url, { ...page.state, imageSet: null });
+			void goto(url, { shallow: true, replace: true, state: {} });
 		}
 	}
 

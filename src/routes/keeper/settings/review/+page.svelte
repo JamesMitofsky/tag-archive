@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import ImagesIcon from 'phosphor-svelte/lib/ImagesIcon';

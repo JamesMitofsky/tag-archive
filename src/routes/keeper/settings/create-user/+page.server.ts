@@ -1,8 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
-import { auth } from '$lib/server/auth';
-import { KEEPER_DOOR_URL } from '$lib/access/door.server';
-import { ASSIGNABLE_ROLES, createNewUserSuite, parseCreateUserForm } from '$lib/validation/auth';
+import { auth } from '#lib/server/auth.ts';
+import { KEEPER_DOOR_URL } from '#lib/access/door.server.ts';
+import { ASSIGNABLE_ROLES, createNewUserSuite, parseCreateUserForm } from '#lib/validation/auth.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {

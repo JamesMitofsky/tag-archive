@@ -1,10 +1,10 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { isRole, ROLES } from '$lib/roles';
-import { listAccounts, setAccountRole } from '$lib/server/accounts';
-import { str } from '$lib/validation/helpers';
+import { isRole, ROLES } from '#lib/roles.ts';
+import { listAccounts, setAccountRole } from '#lib/server/accounts.ts';
+import { str } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
 
-// Accounts: admins see every account and change its role here (see $lib/roles).
+// Accounts: admins see every account and change its role here (see #lib/roles).
 
 function requireAdmin(locals: App.Locals): string {
 	// Re-checked on the action as well as the load: load guards don't protect POSTs.

@@ -1,5 +1,5 @@
-import { sniffImageType } from '$lib/imageType';
-import { ENCODE_QUALITY, encodedImageType } from '$lib/scanner/image';
+import { sniffImageType } from '#lib/imageType.ts';
+import { ENCODE_QUALITY, encodedImageType } from '#lib/scanner/image.ts';
 
 /** Why a photograph has no display copy when its pixels were fine. */
 export const UNENCODABLE_PHOTO = 'This photo could not be converted in this browser';

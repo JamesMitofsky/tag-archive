@@ -1,5 +1,5 @@
-import { error, json } from '@sveltejs/kit';
-import { searchEvents } from '$lib/server/db/queries';
+import { error } from '@sveltejs/kit';
+import { searchEvents } from '#lib/server/db/queries.ts';
 import type { RequestHandler } from './$types';
 
 // Paged, searchable feed behind the events list — the client fetches a window at
@@ -16,5 +16,5 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	);
 
 	const { rows, total } = await searchEvents({ q, offset, limit });
-	return json({ rows, total });
+	return Response.json({ rows, total });
 };

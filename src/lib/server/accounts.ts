@@ -1,5 +1,5 @@
 import { asc, eq, sql } from 'drizzle-orm';
-import type { Role } from '$lib/roles';
+import type { Role } from '#lib/roles.ts';
 import { db } from './db';
 import { user } from './db/schema';
 
@@ -39,7 +39,7 @@ export function listAccounts(): Promise<AccountRow[]> {
  *
  * The change reaches someone already signed in on their next request after
  * better-auth's session cookie cache lapses (`cookieCache.maxAge` in
- * $lib/server/auth, five minutes): until then their cached session still
+ * #lib/server/auth, five minutes): until then their cached session still
  * carries the old role.
  */
 export async function setAccountRole(

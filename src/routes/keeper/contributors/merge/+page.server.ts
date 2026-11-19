@@ -1,9 +1,9 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { mergePeople } from '$lib/server/db/queries';
-import { artefactProvenance, eventHost, person } from '$lib/server/db/schema';
-import { findDuplicateGroups } from '$lib/server/db/duplicates';
+import { db } from '#lib/server/db/index.ts';
+import { mergePeople } from '#lib/server/db/queries.ts';
+import { artefactProvenance, eventHost, person } from '#lib/server/db/schema.ts';
+import { findDuplicateGroups } from '#lib/server/db/duplicates.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {

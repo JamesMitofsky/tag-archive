@@ -4,7 +4,7 @@ await vi.hoisted(async () => {
 	const { useTestDatabaseUrl } = await import('./db/testing');
 	useTestDatabaseUrl();
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 
 const { migrateTestDatabase } = await import('./db/testing');
 const { keyOpens } = await import('./remoteKeys');

@@ -3,7 +3,7 @@
  * time and closing by itself. Any page of the site opens to a visitor without
  * an access pass when its URL carries
  * `?whoislisteningwiththevoiceofthegarden=<key>` and `<key>` is an unexpired
- * row of the `remote_key` table ($lib/server/remoteKeys).
+ * row of the `remote_key` table (#lib/server/remoteKeys).
  *
  * Unlike the door (./door.server), whose phrase is fixed and can be checked
  * anywhere, a key can only be checked against the database, which the

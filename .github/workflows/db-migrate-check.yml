@@ -33,7 +33,11 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version-file: package.json
+          # Newest LTS, which is what Vercel resolves engines.node (a floor) to.
+          # Not node-version-file: a `>=` range there can pick an odd, non-LTS
+          # major Vercel never runs. pnpm's engine-strict still enforces the floor.
+          node-version: lts/*
+          check-latest: true
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile

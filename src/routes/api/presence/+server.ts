@@ -1,15 +1,15 @@
 import { error } from '@sveltejs/kit';
-import { touchPass } from '$lib/server/access';
+import { touchPass } from '#lib/server/access.ts';
 import type { RequestHandler } from './$types';
 
 /**
  * The presence beat: the browser POSTs here while the site is on the visitor's
  * screen (every PRESENCE_INTERVAL_MS, plus once as the page goes hidden, see
- * $lib/access/presence), and each beat re-mints the access pass for another
+ * #lib/access/presence), and each beat re-mints the access pass for another
  * PASS_TTL_MS. The site therefore drifts shut that long after it was last
  * visible — a clock the server keeps, since a backgrounded mobile tab cannot.
  *
- * The gate leaves this path open ($lib/access/gate) so a signed-in keeper whose
+ * The gate leaves this path open (#lib/access/gate) so a signed-in keeper whose
  * pass has lapsed still reaches hooks.server.ts, which hands them a new one; so
  * the refusal of anyone without a pass lives here. 401 is what the client looks
  * for: it means the archive has drifted shut.

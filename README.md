@@ -263,7 +263,7 @@ same code targets two backends via env:
   (`.env.production` is **not** read by the deployed site). `R2_PUBLIC_URL` must be
   there for builds too: the build allows the image optimizer to fetch from it, and
   fails without it. Credentials are server-only
-  (`$env/dynamic/private`) — they never reach the browser.
+  (`$app/env/private`, declared in `src/env.ts`) — they never reach the browser.
 - **Local:** the run script starts a [RustFS](https://github.com/rustfs/rustfs)
   container (a maintained, S3-compatible object store) and points `S3_ENDPOINT`
   / `R2_PUBLIC_URL` at it, so dev uploads never touch the prod bucket. See below.
@@ -432,7 +432,7 @@ signed terms. It only works under `vite dev` with a local store.
 3. The display copy renders through the image optimizer: on the site, open
    `/_vercel/image?url=<the display.webp URL, percent-encoded>&w=480&q=75`. If
    that answers with an error rather than the image, check that the deploy was
-   built with `R2_PUBLIC_URL` set to the bucket's public URL (`svelte.config.js`
+   built with `R2_PUBLIC_URL` set to the bucket's public URL (`vite.config.ts`
    allows only that host), and that `w` is one of `CDN_WIDTHS`
    (`src/lib/images/cdnWidths.js`).
 4. Once the set is vetted, `/api/dataset` lists it with only `id`, `url`,
@@ -701,7 +701,7 @@ pnpm preview    # preview it
 ## Deploying
 
 The site runs on Vercel (`@sveltejs/adapter-vercel`, configured in
-`svelte.config.js`; platform settings in `vercel.json`).
+`vite.config.ts`; platform settings in `vercel.json`).
 
 - **Production only.** Vercel builds `main` and nothing else from git
   (`git.deploymentEnabled`). For a preview of a pull request, comment `/deploy`
@@ -710,14 +710,19 @@ The site runs on Vercel (`@sveltejs/adapter-vercel`, configured in
   (`src/lib/server/origin.ts`). Photograph uploads fail there unless its exact
   origin is added to the bucket's CORS rule (see [CORS](#cors)).
 - **Environment variables** go in Vercel → Project → Settings → Environment
-  Variables, for Production (and Preview, for `/deploy`). Use `.env.example` as
-  the checklist, plus `CRON_SECRET`: a random string of at least 16 characters,
+  Variables, for Production (and Preview, for `/deploy`). The server reads only
+  the variables `src/env.ts` declares, so a new one goes there too. Use
+  `.env.example` as the checklist, plus `CRON_SECRET`: a random string of at least 16 characters,
   which Vercel sends as the daily sweep's bearer. Without it the sweep refuses to
   run.
-- **Node 24**, pinned once by `engines.node` in `package.json`. Vercel builds
-  with it (it overrides the project's Node.js setting), the adapter gives the
-  functions the same version it built with, and the GitHub workflows read it via
-  `node-version-file`. To upgrade, change that one line.
+- **Node 24 or later**, set as a floor by `engines.node` (`>=24`) in
+  `package.json`. Vercel resolves that range to the newest major it offers (26.x
+  today) and moves up on its own when it adds one; the range overrides the
+  project's Node.js setting. The adapter gives the functions the same version it
+  built with, and the GitHub workflows install the newest LTS to match. Locally,
+  `engine-strict` in `.npmrc` makes `pnpm install` refuse anything below 24. To
+  hold production on one major instead, set `engines.node` to that major (e.g.
+  `26.x`).
 - **The daily sweep** runs once a day, at some point in the hour after midnight
   UTC (the Hobby plan's cron precision). Run it by hand with
   `curl -H "Authorization: Bearer $CRON_SECRET" https://<site>/api/cron/sweep-submissions`.

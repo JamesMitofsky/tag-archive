@@ -5,7 +5,7 @@ import { heicTo } from 'heic-to';
  *
  * Only Safari decodes HEIC natively, and iPhones shoot it by default, so the
  * other browsers need libheif. heic-to bundles it into a 3 MB module, which
- * is why this file exists on its own: `$lib/images/decode` imports it
+ * is why this file exists on its own: `#lib/images/decode.ts` imports it
  * dynamically, only once a HEIC file has failed to decode natively.
  *
  * libheif applies the file's rotation and mirroring (`irot`/`imir`) while

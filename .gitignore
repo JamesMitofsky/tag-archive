@@ -23,6 +23,9 @@ vite.config.ts.timestamp-*
 # Playwright
 test-results
 
+# Vitest 5 output: failure screenshots, attachments, blob/json/junit/html reports
+/.vitest/
+
 *storybook.log
 storybook-static
 # SQLite

@@ -4,11 +4,11 @@
  * mirror the substring/token rules the old server endpoints ran in SQL so results
  * match the previous behaviour exactly.
  */
-import type { ArtefactWithEvent } from '$lib/server/db/schema';
-import type { EventItem } from '$lib/events';
-import type { PublicImageSet } from '$lib/images/types';
-import { imageSetLabel } from '$lib/images/label';
-import { formatPartialDate, startOfPartialDate } from '$lib/partialDate';
+import type { ArtefactWithEvent } from '#lib/server/db/schema.ts';
+import type { EventItem } from '#lib/events.ts';
+import type { PublicImageSet } from '#lib/images/types.ts';
+import { imageSetLabel } from '#lib/images/label.ts';
+import { formatPartialDate, startOfPartialDate } from '#lib/partialDate.ts';
 
 /** Lowercased, whitespace-split, empty-dropped query tokens. */
 function tokenize(q: string): string[] {

@@ -1,6 +1,6 @@
 import { fail, type RequestEvent } from '@sveltejs/kit';
-import { approveProposed, rejectProposed, type ReviewKind } from '$lib/server/db/queries';
-import { idSchema } from '$lib/schemas';
+import { approveProposed, rejectProposed, type ReviewKind } from '#lib/server/db/queries.ts';
+import { idSchema } from '#lib/schemas.ts';
 
 /**
  * The `approve` / `reject` form actions for one kind of proposed row, gated to

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { beforeNavigate, goto } from '$app/navigation';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
 
 	// Warns before leaving a form with unsaved edits. Snapshots the form's fields on
 	// mount and compares against them lazily at navigation time, so it needs no

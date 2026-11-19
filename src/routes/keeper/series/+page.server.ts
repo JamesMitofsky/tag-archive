@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { desc, eq, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { event, series } from '$lib/server/db/schema';
+import { db } from '#lib/server/db/index.ts';
+import { event, series } from '#lib/server/db/schema.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {

@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { countPendingReview } from '$lib/server/db/queries';
+import { countPendingReview } from '#lib/server/db/queries.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {

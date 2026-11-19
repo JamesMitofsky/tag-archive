@@ -3,7 +3,7 @@ import { db } from './db';
 import { remoteKey } from './db/schema';
 
 /**
- * Unlock keys (the `remote_key` table, see $lib/access/key.server): the check
+ * Unlock keys (the `remote_key` table, see #lib/access/key.server): the check
  * /unlock makes, and what the admin page (src/routes/keeper/settings/keys)
  * lists and writes.
  */

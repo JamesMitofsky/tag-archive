@@ -29,7 +29,7 @@ const db = drizzle(client, { schema: { user, session, account, verification } })
 const summary = await seedArchive(db);
 
 // Auth reset is local-only: wipe the auth tables and reinstate one known test
-// account per role (see $lib/roles). Prod never does this (real accounts come from the OTP flow).
+// account per role (see #lib/roles). Prod never does this (real accounts come from the OTP flow).
 await db.delete(session);
 await db.delete(account);
 await db.delete(verification);

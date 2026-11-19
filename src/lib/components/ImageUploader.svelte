@@ -7,7 +7,7 @@
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { UploadedImage } from '$lib/images/types';
+	import type { UploadedImage } from '#lib/images/types.ts';
 	import {
 		createLimiter,
 		deleteUploaded,
@@ -17,12 +17,12 @@
 		uploadImage,
 		UploadError,
 		type UploadStage
-	} from '$lib/images/upload';
-	import { createSerialQueue } from '$lib/scanner/serial';
-	import { MAX_IMAGES_PER_SET } from '$lib/validation/imageSet';
+	} from '#lib/images/upload.ts';
+	import { createSerialQueue } from '#lib/scanner/serial.ts';
+	import { MAX_IMAGES_PER_SET } from '#lib/validation/imageSet.ts';
 
 	// Photographs for an image set: picked or dropped, each uploaded as it
-	// arrives (see $lib/images/upload). Emits the ids of the uploaded ones in
+	// arrives (see #lib/images/upload). Emits the ids of the uploaded ones in
 	// display order, for the parent form to submit as hidden `imageIds` fields.
 	// `pending` (bindable) is true while any is still uploading, and `failed`
 	// (bindable) counts the ones that failed and wait to be tried again or
@@ -30,9 +30,7 @@
 	// a set saved past either would quietly leave those photographs out.
 	let {
 		onChange,
-		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		pending = $bindable(false),
-		// eslint-disable-next-line no-useless-assignment -- prop default, not a dead store
 		failed = $bindable(0),
 		initial = [],
 		label,
@@ -551,9 +549,9 @@
 								>
 									<WarningIcon size={12} class="shrink-0" />
 									<!-- The locked message is said once, above. -->
-									<span class="truncate"
-										>{tile.locked ? 'Not uploaded' : tile.error || 'Failed'}</span
-									>
+									<span class="truncate">
+										{tile.locked ? 'Not uploaded' : tile.error || 'Failed'}
+									</span>
 								</div>
 							{/if}
 

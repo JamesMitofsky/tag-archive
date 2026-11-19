@@ -1,11 +1,11 @@
-import { isRole, ROLES } from '$lib/roles';
+import { isRole, ROLES } from '#lib/roles.ts';
 import { EMAIL_RE, check, defineSuite, str } from './helpers';
 
 export type EmailData = { email: string };
 export type OtpData = { otp: string };
 
 /** Roles an admin can assign, when creating an account or changing one (see
- *  $lib/roles). The better-auth admin plugin's `defaultRole: 'contributor'`
+ *  #lib/roles). The better-auth admin plugin's `defaultRole: 'contributor'`
  *  and `adminRoles: ['admin']` name two of them. */
 export const ASSIGNABLE_ROLES = ROLES;
 

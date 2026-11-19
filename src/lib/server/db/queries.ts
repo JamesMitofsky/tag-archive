@@ -15,9 +15,9 @@ import {
 	submissionContact
 } from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
-import type { EventItem } from '$lib/events';
-import type { PublicImage, PublicImageSet } from '$lib/images/types';
-import { isFullDate } from '$lib/partialDate';
+import type { EventItem } from '#lib/events.ts';
+import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
+import { isFullDate } from '#lib/partialDate.ts';
 
 /**
  * Fold one or more people into a single kept entry: every artefact/event link on

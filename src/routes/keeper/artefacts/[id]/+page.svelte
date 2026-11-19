@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { formatArtefactDate } from '$lib/formatDate';
-	import ArtefactId from '$lib/components/ArtefactId.svelte';
-	import BackButton from '$lib/components/BackButton.svelte';
-	import CopyButton from '$lib/components/CopyButton.svelte';
+	import { formatArtefactDate } from '#lib/formatDate.ts';
+	import ArtefactId from '#lib/components/ArtefactId.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import CopyButton from '#lib/components/CopyButton.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
-	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
-	import { isImageUrl } from '$lib/fileType';
-	import { programAreaMeta } from '$lib/programAreas';
-	import { morphName } from '$lib/transitions.svelte';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
+	import { isImageUrl } from '#lib/fileType.ts';
+	import { programAreaMeta } from '#lib/programAreas.ts';
+	import { morphName } from '#lib/transitions.svelte.ts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

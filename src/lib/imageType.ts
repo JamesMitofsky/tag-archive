@@ -12,7 +12,7 @@
  * Pure, so the browser runs it too: the photograph uploader sniffs a picked
  * file to declare its type before asking for an upload URL. That declaration
  * is only a request; the server sniffs whatever actually landed and refuses a
- * mismatch (see $lib/server/imageSets).
+ * mismatch (see #lib/server/imageSets).
  */
 export const IMAGE_TYPES = [
 	'image/webp',

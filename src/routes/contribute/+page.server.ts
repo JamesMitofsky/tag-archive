@@ -1,30 +1,21 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
-import { createArtefact, knownLocations } from '$lib/server/artefacts';
-import { db } from '$lib/server/db';
-import { stampInsert } from '$lib/server/db/audit';
-import { artefact, submissionContact } from '$lib/server/db/schema';
-import { readDraft, submissionPrefix } from '$lib/server/drafts';
-import { consume, LIMITS } from '$lib/server/rateLimit';
-import { keyFromUrl } from '$lib/server/scans';
-import { sign, verify } from '$lib/server/signing';
-import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
-import { createContactSuite, parseContactForm } from '$lib/validation/contact';
-import { summary } from '$lib/validation/helpers';
+import { createArtefact, knownLocations } from '#lib/server/artefacts.ts';
+import { db } from '#lib/server/db/index.ts';
+import { stampInsert } from '#lib/server/db/audit.ts';
+import { artefact, submissionContact } from '#lib/server/db/schema.ts';
+import { readDraft, submissionPrefix } from '#lib/server/drafts.ts';
+import { consume, LIMITS } from '#lib/server/rateLimit.ts';
+import { keyFromUrl } from '#lib/server/scans.ts';
+import { sign, verify } from '#lib/server/signing.ts';
+import {
+	echoArtefactForm,
+	createArtefactSuite,
+	parseArtefactForm
+} from '#lib/validation/artefact.ts';
+import { createContactSuite, parseContactForm } from '#lib/validation/contact.ts';
+import { summary } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
-
-/** Raw (unvalidated) form values echoed back so a failed submit keeps input. */
-export type ArtefactFormValues = {
-	artefact: string;
-	event: string;
-	date: string;
-	description: string;
-	location: string;
-	fileUrls: string[];
-	/** Comma-separated in the form; kept raw so a failed submit doesn't lose it. */
-	provenance: string;
-	programArea: string[];
-};
 
 /**
  * Proof that whoever holds it just submitted artefact `id` — handed back after
@@ -41,8 +32,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 		// Keepers record where the physical item is kept; the public may not know.
 		requireLocation: signedIn,
 		// Anonymous visitors upload and submit through the draft session a tap of
-		// the garden tag started (see $lib/server/drafts), for as long as their
-		// access pass is open (see $lib/access/pass).
+		// the garden tag started (see #lib/server/drafts), for as long as their
+		// access pass is open (see #lib/access/pass).
 		canContribute: signedIn || (!!locals.pass && !!readDraft(cookies)),
 		locations: await knownLocations()
 	};
@@ -55,7 +46,7 @@ export const actions: Actions = {
 		const signedIn = !!locals.user;
 
 		// Anonymous: an open access pass (hooks set `locals.pass` even on the
-		// enhanced posts the gate lets through, see $lib/access/gate), a draft
+		// enhanced posts the gate lets through, see #lib/access/gate), a draft
 		// session (a tap), and a rate limit.
 		const draft = signedIn ? null : readDraft(cookies);
 		if (!signedIn) {
@@ -76,16 +67,7 @@ export const actions: Actions = {
 			return fail(400, {
 				artefactError: summary(result),
 				errors: result.getErrors(),
-				values: {
-					artefact: String(form.get('artefact') ?? ''),
-					event: String(form.get('event') ?? ''),
-					date: String(form.get('date') ?? ''),
-					description: String(form.get('description') ?? ''),
-					location: String(form.get('location') ?? ''),
-					fileUrls: data.fileUrls,
-					provenance: String(form.get('provenance') ?? ''),
-					programArea: data.programArea
-				} satisfies ArtefactFormValues
+				values: echoArtefactForm(form, data)
 			});
 		}
 

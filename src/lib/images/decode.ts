@@ -1,5 +1,5 @@
-import type { ImageType } from '$lib/imageType';
-import { downscale, MAX_DIM } from '$lib/scanner/image';
+import type { ImageType } from '#lib/imageType.ts';
+import { downscale, MAX_DIM } from '#lib/scanner/image.ts';
 
 /** Why a photograph has no display copy, whatever went wrong inside the decoder. */
 export const UNREADABLE_PHOTO = 'This photo could not be read in this browser';
@@ -31,7 +31,7 @@ let heicStalled = false;
  * The browser's own decoder first. A HEIC file it can't decode (every browser
  * but Safari) goes through libheif instead (see ./heic), loaded only then. The
  * caller owns the canvas and should release it (`releaseCanvas`) as soon as it
- * is encoded: iOS Safari caps total canvas memory (see $lib/scanner/image).
+ * is encoded: iOS Safari caps total canvas memory (see #lib/scanner/image).
  */
 export async function decodeImage(
 	file: Blob,

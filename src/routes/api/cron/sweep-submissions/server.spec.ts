@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const env = vi.hoisted(() => ({ CRON_SECRET: 'test-cron-secret' as string | undefined }));
-vi.mock('$env/dynamic/private', () => ({ env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv(env));
 
-// The steps themselves are covered in $lib/server/uploads.spec.ts; here they
+// The steps themselves are covered in #lib/server/uploads.spec.ts; here they
 // only record that, and in what order, the route runs them.
 const calls: string[] = [];
 const recorded = (name: string, result: number) =>
@@ -17,8 +17,8 @@ const sweeps = vi.hoisted(() => ({
 	sweepOrphanObjects: vi.fn<() => Promise<number>>()
 }));
 const pruneRateLimits = vi.hoisted(() => vi.fn<(olderThanMs: number) => Promise<number>>());
-vi.mock('$lib/server/uploads', () => sweeps);
-vi.mock('$lib/server/rateLimit', () => ({ pruneRateLimits }));
+vi.mock('#lib/server/uploads.ts', () => sweeps);
+vi.mock('#lib/server/rateLimit.ts', () => ({ pruneRateLimits }));
 
 const { GET } = await import('./+server');
 const BEARER = 'Bearer test-cron-secret';

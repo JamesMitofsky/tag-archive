@@ -8,7 +8,7 @@ import {
 	pickedPhoto,
 	shootAndCrop,
 	simulateWebKitCanvas
-} from '$lib/testing/scanner';
+} from '#lib/testing/scanner.ts';
 
 // The iPhone path: WebKit canvases can't encode WebP and silently return PNG.
 // Its own file so the once-per-page encode-type probe only ever sees a WebKit
@@ -30,7 +30,7 @@ const requestedTypes = () => canvas.toBlob.mock.calls.map(([, type]) => type);
 describe('PageScanner.svelte without a WebP encoder (WebKit)', () => {
 	it('uploads a picked photo as JPEG, named to match', async () => {
 		const server = fakeServer();
-		render(PageScanner, {});
+		await render(PageScanner, {});
 		await page.getByLabelText('Add from photos').upload(await pickedPhoto('IMG_0042.PNG'));
 
 		await vi.waitFor(() => expect(server.uploads).toHaveLength(1));
@@ -41,7 +41,7 @@ describe('PageScanner.svelte without a WebP encoder (WebKit)', () => {
 	it('uploads a camera page as JPEG, and keeps its original as JPEG too', async () => {
 		fakeCamera();
 		const server = fakeServer();
-		render(PageScanner, {});
+		await render(PageScanner, {});
 		await shootAndCrop(1);
 		await page.getByRole('button', { name: 'Add 1 page' }).click();
 
@@ -58,7 +58,7 @@ describe('PageScanner.svelte without a WebP encoder (WebKit)', () => {
 		fakeCamera();
 		const server = fakeServer();
 		const onChange = vi.fn();
-		render(PageScanner, { onChange });
+		await render(PageScanner, { onChange });
 		await shootAndCrop(1);
 		await page.getByRole('button', { name: 'Add 1 page' }).click();
 		await vi.waitFor(() =>
@@ -78,7 +78,7 @@ describe('PageScanner.svelte without a WebP encoder (WebKit)', () => {
 	it('previews the encoded upload itself rather than encoding a second copy', async () => {
 		const createObjectURL = vi.spyOn(URL, 'createObjectURL');
 		const server = fakeServer();
-		render(PageScanner, {});
+		await render(PageScanner, {});
 		await page.getByLabelText('Add from photos').upload(await pickedPhoto('IMG_0042.PNG'));
 		await vi.waitFor(() => expect(server.uploads).toHaveLength(1));
 		const [file] = server.uploads;

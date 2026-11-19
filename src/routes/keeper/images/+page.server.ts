@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { listImageSets } from '$lib/server/imageSets';
+import { listImageSets } from '#lib/server/imageSets.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {

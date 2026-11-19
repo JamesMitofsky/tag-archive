@@ -2,10 +2,10 @@
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { createValidator } from '$lib/validation/client.svelte';
-	import { createContactSuite, parseContactForm } from '$lib/validation/contact';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
+	import { createContactSuite, parseContactForm } from '#lib/validation/contact.ts';
 
 	// The thank-you an anonymous contributor sees once a submission is with the
 	// keepers, and its side path: the optional contact form, which posts to the

@@ -6,7 +6,7 @@ await vi.hoisted(async () => {
 	useTestDatabaseUrl();
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 // Record storage deletes instead of calling R2.
 const deleteScan = vi.hoisted(() => vi.fn(async (_key: string) => {}));
 vi.mock('../scans', async (importOriginal) => ({
@@ -18,6 +18,8 @@ const { migrateTestDatabase } = await import('./testing');
 const { db } = await import('./index');
 const { rejectProposed } = await import('./queries');
 const { artefact, artefactProvenance, event, imageSet, person, user } = await import('./schema');
+
+let deletedKeys: string[] = [];
 
 beforeAll(async () => {
 	await migrateTestDatabase();
@@ -51,6 +53,8 @@ beforeAll(async () => {
 	]);
 
 	await rejectProposed('artefact', 1, 'admin');
+	// Vitest clears mock calls before each test, so keep what this one call deleted.
+	deletedKeys = deleteScan.mock.calls.map(([key]) => key);
 });
 
 describe('rejecting a proposed artefact', () => {
@@ -59,7 +63,7 @@ describe('rejecting a proposed artefact', () => {
 	});
 
 	it('deletes only the images nothing else uses, and never one that is not ours', () => {
-		expect(deleteScan.mock.calls.map(([key]) => key)).toEqual(['submissions/d1/only-mine.webp']);
+		expect(deletedKeys).toEqual(['submissions/d1/only-mine.webp']);
 	});
 
 	it('deletes the names it introduced, but keeps people still linked elsewhere', async () => {
