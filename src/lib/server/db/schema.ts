@@ -372,6 +372,49 @@ export const imageSetContact = sqliteTable('image_set_contact', {
 });
 
 /**
+ * Every item copied in from an iCloud Shared Album (see $lib/server/icloud),
+ * keyed by Apple's own id for it. A row means "done, never fetch again": a
+ * photograph gets its row once it sits in an image set, a video once its
+ * files are in the bucket. So a re-run of the sync only copies what the album
+ * gained since.
+ *
+ * `image_id` goes NULL when a keeper deletes or rejects the photograph's set
+ * (the image row cascades away with it). The row stays, so the next sync
+ * leaves that photograph out rather than importing it again.
+ *
+ * Videos have no place on the archive's pages yet: they are kept in the
+ * bucket under `videos/` (which no sweep touches) and listed here only.
+ * Never published: names the album's contributors.
+ */
+export const icloudAsset = sqliteTable(
+	'icloud_asset',
+	{
+		// Apple's photoGuid: an uppercase uuid.
+		guid: text('guid').primaryKey(),
+		kind: text('kind').$type<'photo' | 'video'>().notNull(),
+		// The album's name at the time of the copy.
+		album: text('album').notNull(),
+		// The album upload it came in with: one image set per batch (split past MAX_IMAGES_PER_SET).
+		batchGuid: text('batch_guid').notNull(),
+		// The photograph's image row; NULL for a video, or once a keeper deleted it.
+		imageId: integer('image_id').references(() => image.id, { onDelete: 'set null' }),
+		// A video's 720p file and its poster frame, both public bucket URLs.
+		videoUrl: text('video_url'),
+		posterUrl: text('poster_url'),
+		// Who posted it to the album, and their caption, as Apple reports them.
+		contributor: text('contributor'),
+		caption: text('caption'),
+		// When it was added to the album (ISO 8601, UTC), as Apple reports it.
+		postedAt: text('posted_at'),
+		...auditColumns()
+	},
+	(t) => [
+		// FK index: the ON DELETE SET NULL looks rows up by image.
+		index('icloud_asset_image_id_idx').on(t.imageId)
+	]
+);
+
+/**
  * Fixed-window request counters for anonymous writes (see
  * $lib/server/rateLimit). `key` is `<bucket>:<hashed subject>` — the subject is
  * an IP address or draft id, hashed so no raw address is stored. Each key holds
@@ -465,6 +508,8 @@ export type NewImageSet = typeof imageSet.$inferInsert;
 export type Image = typeof image.$inferSelect;
 export type NewImage = typeof image.$inferInsert;
 export type ImageSetContact = typeof imageSetContact.$inferSelect;
+export type IcloudAsset = typeof icloudAsset.$inferSelect;
+export type NewIcloudAsset = typeof icloudAsset.$inferInsert;
 /**
  * Image set as the keeper views read it: linked event title flattened in (null
  * when unlinked) and its images in display order.

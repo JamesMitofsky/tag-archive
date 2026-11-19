@@ -71,6 +71,13 @@
       "when": 1792338765923,
       "tag": "0009_images",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1795126606867,
+      "tag": "0010_icloud_assets",
+      "breakpoints": true
     }
   ]
 }

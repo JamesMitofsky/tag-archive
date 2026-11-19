@@ -40,6 +40,7 @@
 		"events:curate": "tsx src/lib/server/events-import/curate.ts",
 		"events:import": "tsx src/lib/server/events-import/import.ts",
 		"events:restore": "tsx src/lib/server/events-import/restore.ts",
+		"images:icloud": "node scripts/icloud-sync.mjs",
 		"nfc:tap": "tsx --env-file-if-exists=.env scripts/nfc-tap-url.ts",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes"
 	},
@@ -84,6 +85,7 @@
 		"prettier": "^3.8.3",
 		"prettier-plugin-svelte": "^4.1.0",
 		"prettier-plugin-tailwindcss": "^0.8.0",
+		"sharp": "^0.35.5",
 		"storybook": "10.5.0",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
