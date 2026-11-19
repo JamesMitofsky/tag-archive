@@ -1,10 +1,10 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
-	import KeeperList from '$lib/components/KeeperList.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import KeeperList from '#lib/components/KeeperList.svelte';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
-	import { morphVar } from '$lib/transitions.svelte';
+	import { morphVar } from '#lib/transitions.svelte.ts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -58,7 +58,7 @@
 				<BackButton class="mt-2" />
 			</div>
 			<a
-				href="/keeper/series/add"
+				href="/keeper/series/new"
 				aria-label="Add series"
 				title="Add series"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"

@@ -5,11 +5,11 @@ import {
 	loadImageSet,
 	STALE_REFUSAL,
 	updateImageSet as saveSet
-} from '$lib/server/imageSets';
-import { toUploadedImage } from '$lib/server/imageUploads';
-import { idSchema } from '$lib/schemas';
-import { createImageSetSuite, parseImageSetForm } from '$lib/validation/imageSet';
-import { summary } from '$lib/validation/helpers';
+} from '#lib/server/imageSets.ts';
+import { toUploadedImage } from '#lib/server/imageUploads.ts';
+import { idSchema } from '#lib/schemas.ts';
+import { createImageSetSuite, parseImageSetForm } from '#lib/validation/imageSet.ts';
+import { summary } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 /**

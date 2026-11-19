@@ -1,6 +1,6 @@
-import { accessDecision, LOCKED_PATH } from './gate.ts';
-import { unlockUrl } from './key.server.ts';
-import { PASS_COOKIE, verifyPass } from './pass.ts';
+import { accessDecision, LOCKED_PATH } from './gate.js';
+import { unlockUrl } from './key.server.js';
+import { PASS_COOKIE, verifyPass } from './pass.js';
 
 /**
  * The value of cookie `name` on `request`, or undefined. Routing Middleware

@@ -5,8 +5,9 @@ await vi.hoisted(async () => {
 	const { useTestDatabaseUrl } = await import('./db/testing');
 	useTestDatabaseUrl();
 });
-// SvelteKit only populates $env/dynamic/private inside a running server.
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+// SvelteKit fills $app/env/private when the Vite config loads, before this file sets
+// the variables, so the spec hands the module the live process.env instead.
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 
 const { client, db } = await import('./db');
 const { migrateTestDatabase } = await import('./db/testing');

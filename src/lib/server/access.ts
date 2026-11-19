@@ -1,6 +1,6 @@
 import type { Cookies } from '@sveltejs/kit';
-import { dev } from '$app/environment';
-import { env } from '$env/dynamic/private';
+import { dev } from '$app/env';
+import { BETTER_AUTH_SECRET } from '$app/env/private';
 import {
 	mintPass,
 	PASS_COOKIE,
@@ -8,10 +8,10 @@ import {
 	verifyPass,
 	type Pass,
 	type PassKind
-} from '$lib/access/pass';
+} from '#lib/access/pass.ts';
 
 /**
- * SvelteKit's side of the access pass ($lib/access/pass): reading it from the
+ * SvelteKit's side of the access pass (#lib/access/pass): reading it from the
  * request and setting it on the response. The edge gate only ever reads it.
  *
  * A pass is set on a response in exactly three places: the tap (src/routes/t),
@@ -23,14 +23,14 @@ import {
  */
 
 function secret(): string {
-	const value = env.BETTER_AUTH_SECRET;
+	const value = BETTER_AUTH_SECRET;
 	if (!value) throw new Error('BETTER_AUTH_SECRET is not set');
 	return value;
 }
 
 /** The visitor's pass, if genuine and unexpired. */
 export function readPass(cookies: Cookies, now = Date.now()): Promise<Pass | null> {
-	return verifyPass(env.BETTER_AUTH_SECRET ?? '', cookies.get(PASS_COOKIE), now);
+	return verifyPass(BETTER_AUTH_SECRET ?? '', cookies.get(PASS_COOKIE), now);
 }
 
 /** Issue a fresh pass of `kind`, good for PASS_TTL_MS, and set it on the response. */
@@ -82,7 +82,7 @@ export function mayIssuePass(request: RequestShape): boolean {
 /**
  * A signed-in account's pass: the session is the real credential, so an account
  * that holds no valid pass is handed one, of `kind` (`k` for a keeper, `l` for
- * a listener, see $lib/roles), on any request whose response the CDN cannot
+ * a listener, see #lib/roles), on any request whose response the CDN cannot
  * cache, and is never locked out for being away. Keeping it topped up is the
  * presence beat's job, the same as for everyone else; a bare fetch without a
  * pass gets the gate's 401 like anyone's, and the next beat (a POST) mends it.

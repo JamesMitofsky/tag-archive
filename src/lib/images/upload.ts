@@ -1,6 +1,6 @@
-import { sniffImageType, type ImageType } from '$lib/imageType';
-import { releaseCanvas } from '$lib/scanner/image';
-import type { SerialQueue } from '$lib/scanner/serial';
+import { sniffImageType, type ImageType } from '#lib/imageType.ts';
+import { releaseCanvas } from '#lib/scanner/image.ts';
+import type { SerialQueue } from '#lib/scanner/serial.ts';
 import { decodeImage } from './decode';
 import { encodeWebP } from './encode';
 import type {
@@ -14,7 +14,7 @@ import type {
 } from './types';
 
 /**
- * The browser side of uploading one photograph (see $lib/server/imageUploads
+ * The browser side of uploading one photograph (see #lib/server/imageUploads
  * for the server side).
  *
  * Files go straight to the bucket with presigned PUTs: an original can be tens

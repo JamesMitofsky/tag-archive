@@ -1,13 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import type { Cookies } from '@sveltejs/kit';
-import { dev } from '$app/environment';
+import { dev } from '$app/env';
 import { sign, verify } from './signing';
 
 /**
  * Draft sessions: how an anonymous visitor on /contribute is allowed to write.
  *
  * Tapping the garden's NFC tag (src/routes/t), or coming through the door
- * ($lib/access/door.server, see hooks.server.ts), issues a signed cookie naming
+ * (#lib/access/door.server, see hooks.server.ts), issues a signed cookie naming
  * a random draft id, alongside the access pass that opens the site. That id is
  * the visitor's private upload space: their images are stored under
  * `submissions/<id>/`, only that cookie may delete from it, and a submission
@@ -15,7 +15,7 @@ import { sign, verify } from './signing';
  * signature is the whole proof.
  *
  * A draft is identity, not permission. Whether its holder may write right now
- * is the access pass's question ($lib/access/pass — it drifts shut once the
+ * is the access pass's question (#lib/access/pass — it drifts shut once the
  * site has been off their screen for a while): anonymous writes need a valid
  * pass AND a draft. The draft keeps no clock of its own, so there is only one
  * to keep. A re-tap renews the pass and re-issues the same draft id (the old

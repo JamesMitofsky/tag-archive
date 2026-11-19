@@ -1,16 +1,15 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import { enhance, type SubmitFunction } from '$app/forms';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import UserGearIcon from 'phosphor-svelte/lib/UserGearIcon';
-	import { isRole, ROLE_META, roleLabel } from '$lib/roles';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import { isRole, ROLE_META, roleLabel } from '#lib/roles.ts';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
-
 	const updatedId = $derived(form && 'updated' in form ? (form.updated?.id ?? null) : null);
+
 	const errorFor = $derived(
 		form && 'error' in form ? { id: form.id as string, message: form.error as string } : null
 	);

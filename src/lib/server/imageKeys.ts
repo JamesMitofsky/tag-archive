@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { ImageType } from '$lib/imageType';
+import type { ImageType } from '#lib/imageType.ts';
 import { sign } from './signing';
 
 /**
@@ -10,7 +10,7 @@ import { sign } from './signing';
  *   <prefix>images/<display id>/display.webp      the WebP display copy
  *
  * `prefix` is '' for a signed-in keeper and `submissions/<draft>/` for an
- * anonymous contributor (see $lib/server/drafts), so ownership is readable from
+ * anonymous contributor (see #lib/server/drafts), so ownership is readable from
  * either key itself. `<display id>` is a keyed hash of `<uuid>` (see
  * `displayFolderId`): the display copy is published and the bucket is public,
  * so were the two in one folder, anyone could swap `display.webp` for
@@ -71,7 +71,7 @@ export function imageKeys(prefix: string, type: ImageType, uuid: string = random
 	};
 }
 
-// Draft ids are 22 base64url characters (see $lib/server/drafts); uuids are
+// Draft ids are 22 base64url characters (see #lib/server/drafts); uuids are
 // lowercase RFC 4122 as `crypto.randomUUID()` writes them.
 const ORIGINAL_KEY_RE =
 	/^((?:submissions\/[A-Za-z0-9_-]{22}\/)?)images\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/original\.(jpg|png|webp|gif|heic)$/;

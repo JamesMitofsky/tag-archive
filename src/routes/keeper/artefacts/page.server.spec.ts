@@ -3,22 +3,22 @@ import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 	process.env.BETTER_AUTH_SECRET = 'test-secret';
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 // Record storage deletes and cache purges instead of calling R2 and Vercel.
-vi.mock('$lib/server/scans', async (importOriginal) => ({
-	...(await importOriginal<typeof import('$lib/server/scans')>()),
+vi.mock('#lib/server/scans.ts', async (importOriginal) => ({
+	...(await importOriginal<typeof import('#lib/server/scans.ts')>()),
 	deleteScan: vi.fn(async () => {})
 }));
-vi.mock('$lib/server/cache', () => ({ purgeArchiveCache: vi.fn(async () => {}) }));
+vi.mock('#lib/server/cache.ts', () => ({ purgeArchiveCache: vi.fn(async () => {}) }));
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { db } = await import('$lib/server/db');
-const { artefact, user } = await import('$lib/server/db/schema');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { db } = await import('#lib/server/db/index.ts');
+const { artefact, user } = await import('#lib/server/db/schema.ts');
 const { actions } = await import('./+page.server');
 
 const ADMIN = { id: 'admin-1', role: 'admin', email: 'admin@example.org' };

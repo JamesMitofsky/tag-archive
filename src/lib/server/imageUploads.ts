@@ -1,4 +1,4 @@
-import { json, type Cookies } from '@sveltejs/kit';
+import type { Cookies } from '@sveltejs/kit';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from './db';
 import { stampInsert } from './db/audit';
@@ -9,7 +9,7 @@ import { parseImageMetadata, type ParsedImageMetadata } from './imageMetadata';
 import { sniffImageType, type ImageType } from './imageType';
 import { deleteScan, fetchObject, keyFromUrl, urlForKey } from './scans';
 import { webpDimensions } from './webpDimensions';
-import type { UploadedImage } from '$lib/images/types';
+import type { UploadedImage } from '#lib/images/types.ts';
 
 /**
  * The upload side of image sets: who may touch which uploaded photograph, and
@@ -40,7 +40,7 @@ export const UPLOAD_URL_TTL_S = 300;
  * Whose uploads a request may touch: a signed-in keeper (uploads at the bucket
  * root, rows attributed to them), or an anonymous contributor's draft session
  * (uploads under `submissions/<draft>/`, rows unattributed) — see
- * $lib/server/drafts.
+ * #lib/server/drafts.
  */
 export type UploadOwner = { kind: 'keeper'; userId: string } | { kind: 'draft'; prefix: string };
 
@@ -66,7 +66,10 @@ export function requestOwner(event: { locals: App.Locals; cookies: Cookies }): U
 
 /** 401 the uploader recognizes as "tap the tag again to keep going", as /api/scans answers it. */
 export function lockedResponse(): Response {
-	return json({ message: 'Visit the Cube to open the Archive.', code: 'locked' }, { status: 401 });
+	return Response.json(
+		{ message: 'Visit the Cube to open the Archive.', code: 'locked' },
+		{ status: 401 }
+	);
 }
 
 /**

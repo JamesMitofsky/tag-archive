@@ -5,14 +5,14 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 
 	// iOS opens a tapped tag's link in a new Safari tab, so this tab may be left
 	// behind while the visitor is let in elsewhere. When it comes back into view,
 	// re-run the load: with a pass now in hand, it moves on to the archive.
 	onMount(() => {
 		const recheck = () => {
-			if (document.visibilityState === 'visible') invalidateAll();
+			if (document.visibilityState === 'visible') refreshAll();
 		};
 		document.addEventListener('visibilitychange', recheck);
 		return () => document.removeEventListener('visibilitychange', recheck);

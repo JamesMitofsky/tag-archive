@@ -2,14 +2,14 @@ import { isHttpError } from '@sveltejs/kit';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { db } = await import('$lib/server/db');
-const { artefact, event } = await import('$lib/server/db/schema');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { db } = await import('#lib/server/db/index.ts');
+const { artefact, event } = await import('#lib/server/db/schema.ts');
 const { GET } = await import('./+server');
 
 const CONTRIBUTOR = { id: 'contrib-1', role: 'contributor', email: 'contrib@example.org' };

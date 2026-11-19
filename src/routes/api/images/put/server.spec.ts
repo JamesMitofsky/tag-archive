@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 await vi.hoisted(async () => {
 	// The proxy imports the upload module, which opens the database (lazily: no
 	// query runs here, so no migration is needed).
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 	Object.assign(process.env, {
 		BETTER_AUTH_SECRET: 'test-secret',
@@ -11,18 +11,18 @@ await vi.hoisted(async () => {
 		S3_ENDPOINT: 'http://s3.test'
 	});
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 // The proxy is dev-only; pin `dev` rather than rely on how vitest resolves it.
-vi.mock('$app/environment', () => ({ browser: false, building: false, dev: true, version: '' }));
+vi.mock('$app/env', () => ({ browser: false, building: false, dev: true, version: '' }));
 const putObject = vi.hoisted(() => vi.fn(async () => {}));
-vi.mock('$lib/server/scans', async (importOriginal) => ({
-	...(await importOriginal<typeof import('$lib/server/scans')>()),
+vi.mock('#lib/server/scans.ts', async (importOriginal) => ({
+	...(await importOriginal<typeof import('#lib/server/scans.ts')>()),
 	putObject
 }));
 // Not under test here; keep the metadata parser out of the import graph.
-vi.mock('$lib/server/imageMetadata', () => ({ parseImageMetadata: vi.fn() }));
+vi.mock('#lib/server/imageMetadata.ts', () => ({ parseImageMetadata: vi.fn() }));
 
-const { uploadTarget } = await import('$lib/server/scans');
+const { uploadTarget } = await import('#lib/server/scans.ts');
 const { PUT } = await import('./+server');
 
 const KEY =

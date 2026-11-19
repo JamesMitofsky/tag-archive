@@ -9,7 +9,7 @@ import {
 	rotateQuarterTurns,
 	withExtension
 } from './image';
-import { paintedCanvas } from '$lib/testing/scanner';
+import { paintedCanvas } from '#lib/testing/scanner.ts';
 
 // Chromium can encode WebP. The WebKit fallback is covered in
 // image.webkit.svelte.spec.ts: the encode type is probed once per page load, so

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
@@ -9,7 +9,7 @@
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import KeyIcon from 'phosphor-svelte/lib/KeyIcon';
 	import UserGearIcon from 'phosphor-svelte/lib/UserGearIcon';
-	import { roleLabel } from '$lib/roles';
+	import { roleLabel } from '#lib/roles.ts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

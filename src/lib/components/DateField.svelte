@@ -3,10 +3,10 @@
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeftIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
-	import { cn } from '$lib/utils';
-	import { Button } from '$lib/components/ui/button';
-	import { Calendar } from '$lib/components/ui/calendar';
-	import * as Popover from '$lib/components/ui/popover';
+	import { cn } from '#lib/utils.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Calendar } from '#lib/components/ui/calendar/index.ts';
+	import * as Popover from '#lib/components/ui/popover/index.ts';
 	import {
 		DATE_PRECISIONS,
 		MONTH_NAMES,
@@ -17,7 +17,7 @@
 		formatPartialDateValue,
 		parsePartialDate,
 		UNDATED
-	} from '$lib/partialDate';
+	} from '#lib/partialDate.ts';
 
 	// Wrapper around shadcn-svelte's Calendar in a Popover. Keeps the verbose picker
 	// markup out of the form and exposes a hidden <input> so the native POST still
@@ -25,7 +25,7 @@
 	//
 	// With `allowPartial`, the field also accepts dates that are only known to the
 	// month or the year, and emits the correspondingly truncated `YYYY-MM` /
-	// `YYYY` string (see $lib/partialDate). Fields describing a single real
+	// `YYYY` string (see #lib/partialDate). Fields describing a single real
 	// happening — an event's date — leave it off and stay day-precise.
 	//
 	// With `allowUndated` as well, "No date" joins the precision row: an explicit

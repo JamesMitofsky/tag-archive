@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { formatDate } from '$lib/formatDate';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import { formatDate } from '#lib/formatDate.ts';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
-	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
-	import { morphName } from '$lib/transitions.svelte';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
+	import { morphName } from '#lib/transitions.svelte.ts';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 
@@ -73,10 +73,10 @@
 					/>
 					<figcaption class="mt-2 text-xs text-gray-500">
 						From
-						<a href={featureHref} class="underline-offset-2 hover:text-gray-900 hover:underline"
-							>{feature.source.kind === 'artefact' ? 'the artefact' : 'the photographs'}
-							“{feature.source.label}”</a
-						>
+						<a href={featureHref} class="underline-offset-2 hover:text-gray-900 hover:underline">
+							{feature.source.kind === 'artefact' ? 'the artefact' : 'the photographs'}
+							“{feature.source.label}”
+						</a>
 					</figcaption>
 				</figure>
 			{/if}

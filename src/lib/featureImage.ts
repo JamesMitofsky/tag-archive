@@ -41,9 +41,9 @@ export type FeatureImageWithSource = FeatureImage & {
 export type FeatureCandidateGroup = {
 	kind: 'artefact' | 'imageSet';
 	id: number;
-	/** The artefact's title, or the set's derived label (see $lib/images/label). */
+	/** The artefact's title, or the set's derived label (see #lib/images/label). */
 	label: string;
-	/** A partial date (see $lib/partialDate), null when undated. */
+	/** A partial date (see #lib/partialDate), null when undated. */
 	date: string | null;
 	/** Still awaiting review: it can be chosen, but shows publicly only once vetted. */
 	proposed: boolean;

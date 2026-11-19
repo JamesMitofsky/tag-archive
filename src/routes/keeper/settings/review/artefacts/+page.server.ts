@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
-import { listProposedArtefacts } from '$lib/server/db/queries';
-import { reviewActions } from '$lib/server/reviewActions';
+import { listProposedArtefacts } from '#lib/server/db/queries.ts';
+import { reviewActions } from '#lib/server/reviewActions.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {

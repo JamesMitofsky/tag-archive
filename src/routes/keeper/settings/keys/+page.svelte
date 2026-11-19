@@ -1,40 +1,41 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
-	import CopyButton from '$lib/components/CopyButton.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
+	import { enhance, type SubmitFunction } from '$app/forms';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import CopyButton from '#lib/components/CopyButton.svelte';
+	import FieldError from '#lib/components/FieldError.svelte';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import KeyIcon from 'phosphor-svelte/lib/KeyIcon';
 	import ShuffleIcon from 'phosphor-svelte/lib/ShuffleIcon';
-	import { createValidator } from '$lib/validation/client.svelte';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
 	import {
 		createRemoteKeySuite,
 		DEFAULT_KEY_DAYS,
 		KEY_MAX,
 		parseRemoteKeyForm,
 		randomSuffix
-	} from '$lib/validation/remoteKey';
+	} from '#lib/validation/remoteKey.ts';
 	import type { ActionData, PageData } from './$types';
-	import type { SubmitFunction } from '@sveltejs/kit';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	type Errors = Record<string, string[]>;
+
 	const createForm = $derived(
 		form && 'create' in form
 			? (form.create as { key: string; expiresOn: string; errors: Errors })
 			: null
 	);
+
 	const editForm = $derived(
 		form && 'edit' in form
 			? (form.edit as { key: string; expiresOn: string; errors: Errors })
 			: null
 	);
+
 	const created = $derived(form && 'created' in form ? (form.created as string) : null);
 	const missing = $derived(form && 'missing' in form ? (form.missing as string) : null);
-
 	const validator = createValidator(createRemoteKeySuite(), () => createForm?.errors ?? {});
 	let createEl = $state<HTMLFormElement>();
 	// The create form's fields. They start from a refused no-JS submit's values,
@@ -73,6 +74,7 @@
 				dateStyle: 'medium',
 				timeZone: 'UTC'
 			});
+
 			return row.open ? `Open through ${day}` : `Closed after ${day}`;
 		}
 		const moment = new Date(row.endsAt).toLocaleString(undefined, {
@@ -131,9 +133,9 @@
 					<!-- A grid, not flex: a minmax(0, 1fr) track keeps the long link from
 					     widening the page at phone width, which `truncate` alone does not. -->
 					<div class="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-						<code class="truncate rounded-sm bg-white px-2 py-1 text-sm text-gray-800"
-							>{linkFor(created)}</code
-						>
+						<code class="truncate rounded-sm bg-white px-2 py-1 text-sm text-gray-800">
+							{linkFor(created)}
+						</code>
 						<CopyButton text={linkFor(created)} label="Copy link" />
 					</div>
 				</div>
@@ -197,8 +199,9 @@
 				</div>
 
 				<div>
-					<label class="block text-sm font-medium text-gray-800" for="expiresOn">Open through</label
-					>
+					<label class="block text-sm font-medium text-gray-800" for="expiresOn">
+						Open through
+					</label>
 					<input
 						id="expiresOn"
 						name="expiresOn"
@@ -259,9 +262,9 @@
 
 							{#if row.open}
 								<div class="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-									<code class="truncate rounded-sm bg-gray-50 px-2 py-1 text-xs text-gray-700"
-										>{linkFor(row.key)}</code
-									>
+									<code class="truncate rounded-sm bg-gray-50 px-2 py-1 text-xs text-gray-700">
+										{linkFor(row.key)}
+									</code>
 									<CopyButton text={linkFor(row.key)} label="Copy link for {row.key}" />
 								</div>
 							{/if}

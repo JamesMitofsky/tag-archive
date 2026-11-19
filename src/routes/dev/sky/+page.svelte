@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { DC, skyFrame } from '$lib/sky/engine';
-	import { SKY_PALETTE } from '$lib/sky/palette';
-	import { nextRepaintDelay } from '$lib/sky/schedule';
+	import { DC, skyFrame } from '#lib/sky/engine.ts';
+	import { SKY_PALETTE } from '#lib/sky/palette.ts';
+	import { nextRepaintDelay } from '#lib/sky/schedule.ts';
 
 	// Dev-only: today's sky over DC as a strip of 10-minute columns, the
 	// scheduler's repaint cadence underneath, and links that preview any moment

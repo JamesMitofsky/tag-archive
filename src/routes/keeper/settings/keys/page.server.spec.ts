@@ -1,14 +1,14 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { keyOpens, listKeys } = await import('$lib/server/remoteKeys');
-const { utcDate } = await import('$lib/validation/remoteKey');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { keyOpens, listKeys } = await import('#lib/server/remoteKeys.ts');
+const { utcDate } = await import('#lib/validation/remoteKey.ts');
 const { actions, load } = await import('./+page.server');
 
 beforeAll(migrateTestDatabase);

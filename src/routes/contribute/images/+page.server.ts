@@ -1,25 +1,19 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { client } from '$lib/server/db';
-import { readDraft } from '$lib/server/drafts';
-import { createImageSet } from '$lib/server/imageSets';
-import { requestOwner } from '$lib/server/imageUploads';
-import { consume, LIMITS } from '$lib/server/rateLimit';
-import { sign, verify } from '$lib/server/signing';
-import { createContactSuite, parseContactForm } from '$lib/validation/contact';
-import { summary } from '$lib/validation/helpers';
+import { client } from '#lib/server/db/index.ts';
+import { readDraft } from '#lib/server/drafts.ts';
+import { createImageSet } from '#lib/server/imageSets.ts';
+import { requestOwner } from '#lib/server/imageUploads.ts';
+import { consume, LIMITS } from '#lib/server/rateLimit.ts';
+import { sign, verify } from '#lib/server/signing.ts';
+import { createContactSuite, parseContactForm } from '#lib/validation/contact.ts';
+import { summary } from '#lib/validation/helpers.ts';
 import {
 	createImageSetSuite,
+	echoImageSetCreateForm,
 	parseImageSetForm,
 	type ImageSetData
-} from '$lib/validation/imageSet';
+} from '#lib/validation/imageSet.ts';
 import type { Actions, PageServerLoad } from './$types';
-
-/** Raw (unvalidated) form values echoed back so a failed submit keeps input. */
-export type ImageSetFormValues = {
-	description: string;
-	event: string;
-	imageIds: number[];
-};
 
 /**
  * Proof that whoever holds it just submitted image set `id` — handed back after
@@ -48,8 +42,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 	return {
 		signedIn,
 		// The same rule as /contribute: anonymous visitors upload and submit through
-		// the draft session a tap started (see $lib/server/drafts), while their
-		// access pass is open (see $lib/access/pass).
+		// the draft session a tap started (see #lib/server/drafts), while their
+		// access pass is open (see #lib/access/pass).
 		canContribute: signedIn || (!!locals.pass && !!readDraft(cookies))
 	};
 };
@@ -66,7 +60,7 @@ export const actions: Actions = {
 		const signedIn = !!locals.user;
 
 		// Anonymous: an open access pass (hooks set `locals.pass` even on the
-		// enhanced posts the gate lets through, see $lib/access/gate), a draft
+		// enhanced posts the gate lets through, see #lib/access/gate), a draft
 		// session (a tap), and a rate limit.
 		if (!signedIn) {
 			if (!locals.pass || !readDraft(cookies)) return locked();
@@ -75,11 +69,7 @@ export const actions: Actions = {
 			}
 		}
 
-		const values: ImageSetFormValues = {
-			description: String(form.get('description') ?? ''),
-			event: String(form.get('event') ?? ''),
-			imageIds: data.imageIds.filter((id) => Number.isSafeInteger(id))
-		};
+		const values = echoImageSetCreateForm(form, data);
 
 		const result = createImageSetSuite()(data);
 		if (!result.isValid()) {

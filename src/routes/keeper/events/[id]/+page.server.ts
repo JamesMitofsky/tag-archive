@@ -1,10 +1,10 @@
 import { error, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { attachHosts } from '$lib/server/db/queries';
-import { loadFeatureImage } from '$lib/server/eventFeatures';
-import { event, series } from '$lib/server/db/schema';
-import { idSchema } from '$lib/schemas';
+import { db } from '#lib/server/db/index.ts';
+import { attachHosts } from '#lib/server/db/queries.ts';
+import { loadFeatureImage } from '#lib/server/eventFeatures.ts';
+import { event, series } from '#lib/server/db/schema.ts';
+import { idSchema } from '#lib/schemas.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {

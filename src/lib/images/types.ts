@@ -25,7 +25,7 @@ export type PublicImageSet = {
 	description: string | null;
 	/** The linked event's title, only when that event is itself vetted. */
 	event: string | null;
-	/** A partial date (see $lib/partialDate), null when undated. */
+	/** A partial date (see #lib/partialDate), null when undated. */
 	date: string | null;
 	/** In display order. */
 	images: PublicImage[];

@@ -14,15 +14,15 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import type { InValue } from '@libsql/client';
 import { client, db } from './db';
 import { artefact, event, eventFeatureImage, image, imageSet } from './db/schema';
-import { isImageUrl } from '$lib/fileType';
-import { imageSetLabel } from '$lib/images/label';
+import { isImageUrl } from '#lib/fileType.ts';
+import { imageSetLabel } from '#lib/images/label.ts';
 import type {
 	FeatureCandidateGroup,
 	FeatureImage,
 	FeatureImageWithSource,
 	FeatureRef
-} from '$lib/featureImage';
-import { encodeFeatureRef, sameFeatureRef } from '$lib/featureImage';
+} from '#lib/featureImage.ts';
+import { encodeFeatureRef, sameFeatureRef } from '#lib/featureImage.ts';
 
 /**
  * Feature images: the one photograph or artefact page an event shows as its

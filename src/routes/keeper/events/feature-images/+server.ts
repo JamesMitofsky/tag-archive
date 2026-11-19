@@ -1,6 +1,6 @@
 import { error, json } from '@sveltejs/kit';
-import { idSchema } from '$lib/schemas';
-import { listFeatureCandidates } from '$lib/server/eventFeatures';
+import { idSchema } from '#lib/schemas.ts';
+import { listFeatureCandidates } from '#lib/server/eventFeatures.ts';
 import type { RequestHandler } from './$types';
 
 /**

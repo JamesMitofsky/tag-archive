@@ -10,7 +10,7 @@
 	every photograph. An event still being created has no id and nothing linked.
 -->
 <script module lang="ts">
-	import type { FeatureCandidate } from '$lib/featureImage';
+	import type { FeatureCandidate } from '#lib/featureImage.ts';
 
 	/** The current choice, with the label of what it came from. */
 	export type FeatureSelection = FeatureCandidate & { label: string };
@@ -18,10 +18,10 @@
 
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
-	import { formatPartialDate } from '$lib/partialDate';
-	import type { FeatureCandidateGroup } from '$lib/featureImage';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
+	import { formatPartialDate } from '#lib/partialDate.ts';
+	import type { FeatureCandidateGroup } from '#lib/featureImage.ts';
 	import ImageIcon from 'phosphor-svelte/lib/ImageIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';

@@ -6,6 +6,7 @@ import {
 	cardMargin,
 	measureCloud,
 	placeCloud,
+	spillFrom,
 	type FieldInput,
 	type Rect
 } from './cloudLayout';
@@ -151,6 +152,79 @@ describe('measureCloud — grid', () => {
 	it('gives a phone a bigger, more readable card than the cloud did', () => {
 		// The scattered layout had to shrink cards to fit a screenful; tiling does not.
 		expect(measureCloud(stacked(375, 667)).cardW).toBeGreaterThan(150);
+	});
+});
+
+describe('measureCloud — fitting a packet', () => {
+	it('keeps the usual card when the packet already fits', () => {
+		const usual = measureCloud(wide(1440, 900));
+		const fitted = measureCloud(wide(1440, 900), 4);
+		expect(fitted.cardW).toBe(usual.cardW);
+		expect(fitted.cap).toBe(4);
+	});
+
+	it('shows every card in a full packet, past the cloud cap', () => {
+		// 50 is the most photographs a set may hold.
+		const { cap } = measureCloud(wide(1440, 900), 50);
+		expect(cap).toBe(50);
+		expect(cap).toBeGreaterThan(CAP_MAX);
+	});
+
+	it('finds a slot of its own for every card in a full packet', () => {
+		// Running out of free slots parks the rest at the centre, under the bar.
+		for (const [w, h] of [
+			[1024, 768],
+			[1440, 900],
+			[1920, 1080]
+		]) {
+			const f = wide(w, h);
+			const cards = placeCloud(items(50), f, measureCloud(f, 50));
+			expect(new Set(cards.map((c) => `${c.dx},${c.dy}`)).size).toBe(50);
+		}
+	});
+
+	it('shrinks the cards as the packet grows, never below the floor', () => {
+		let previous = Number.POSITIVE_INFINITY;
+		for (const n of [1, 10, 20, 30, 40, 50]) {
+			const { cardW, cardH } = measureCloud(wide(1440, 900), n);
+			expect(cardW).toBeLessThanOrEqual(previous);
+			expect(cardW).toBeGreaterThanOrEqual(112);
+			expect(cardH / cardW).toBeCloseTo(A4, 5);
+			previous = cardW;
+		}
+		expect(measureCloud(wide(1440, 900), 50).cardW).toBeLessThan(192);
+	});
+
+	it('leaves the stacked grid alone, which shows everything already', () => {
+		expect(measureCloud(stacked(375, 667), 50)).toEqual(measureCloud(stacked(375, 667)));
+	});
+});
+
+describe('spillFrom', () => {
+	const f = wide(1440, 900);
+	const layout = measureCloud(f, 12);
+	const placed = placeCloud(items(12), f, layout);
+	const origin = { x: -400, y: 250 };
+	const spilled = spillFrom(placed, origin);
+
+	it('flies every card in from the origin, and sends it home there', () => {
+		for (const c of spilled) {
+			expect(c.dx + (c.homeX ?? NaN)).toBeCloseTo(origin.x, 6);
+			expect(c.dy + (c.homeY ?? NaN)).toBeCloseTo(origin.y, 6);
+			expect(c.enterStyle).toContain(`--ex:${(origin.x - c.dx).toFixed(0)}px`);
+			expect(c.enterStyle).toContain(`--ey:${(origin.y - c.dy).toFixed(0)}px`);
+		}
+	});
+
+	it('keeps where each card rests, and where it scatters to', () => {
+		expect(spilled.map((c) => [c.dx, c.dy, c.offX, c.offY, c.style])).toEqual(
+			placed.map((c) => [c.dx, c.dy, c.offX, c.offY, c.style])
+		);
+	});
+
+	it('lets the cards out one after another, in order', () => {
+		const delays = spilled.map((c) => Number(/--edelay:([\d.]+)s/.exec(c.enterStyle)?.[1]));
+		for (let i = 1; i < delays.length; i++) expect(delays[i]).toBeGreaterThan(delays[i - 1]);
 	});
 });
 

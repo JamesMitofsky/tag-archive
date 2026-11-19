@@ -1,18 +1,18 @@
 import { fail } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
-import { auth } from '$lib/server/auth';
+import { auth } from '#lib/server/auth.ts';
 import {
 	createEmailSuite,
 	createOtpSuite,
 	parseEmailForm,
 	parseOtpForm
-} from '$lib/validation/auth';
+} from '#lib/validation/auth.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// The keeper page is the sign-in gateway + hub; the archive lists live on the
 	// artefacts/events/series sub-routes.
-	// A listener (see $lib/roles) is signed in but no keeper: the hub shows them
+	// A listener (see #lib/roles) is signed in but no keeper: the hub shows them
 	// where the archive is instead of the keeper tools.
 	return {
 		user: locals.user ? { email: locals.user.email, role: locals.user.role } : null,

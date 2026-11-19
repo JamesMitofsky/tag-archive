@@ -1,7 +1,7 @@
 /**
  * The account roles, in one place for the server and the browser alike.
  *
- * Every signed-in account is handed an access pass (see $lib/server/access), so
+ * Every signed-in account is handed an access pass (see #lib/server/access), so
  * every one of them opens the archive from anywhere, not only at the Cube. What
  * the role decides is what else the account may do:
  *
@@ -14,7 +14,7 @@
  *  - `admin`: a keeper with full access, accounts included.
  *
  * The better-auth admin plugin stores the role as free text (no `roles` map is
- * configured in $lib/server/auth), so this list, not the plugin, is what keeps
+ * configured in #lib/server/auth), so this list, not the plugin, is what keeps
  * the column to known values: the forms that set a role validate against it.
  */
 

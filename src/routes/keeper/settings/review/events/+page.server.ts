@@ -1,9 +1,9 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { approveProposed, listProposedEvents, rejectProposed } from '$lib/server/db/queries';
-import { event } from '$lib/server/db/schema';
-import { featureImagesWhere } from '$lib/server/eventFeatures';
-import { idSchema } from '$lib/schemas';
+import { approveProposed, listProposedEvents, rejectProposed } from '#lib/server/db/queries.ts';
+import { event } from '#lib/server/db/schema.ts';
+import { featureImagesWhere } from '#lib/server/eventFeatures.ts';
+import { idSchema } from '#lib/schemas.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { sniffImageType } from '$lib/imageType';
-import { bytesOf } from '$lib/testing/images';
-import { paintedCanvas, simulateWebKitCanvas } from '$lib/testing/scanner';
+import { sniffImageType } from '#lib/imageType.ts';
+import { bytesOf } from '#lib/testing/images.ts';
+import { paintedCanvas, simulateWebKitCanvas } from '#lib/testing/scanner.ts';
 import { encodeWebP, UNENCODABLE_PHOTO } from './encode';
 
 // libwebp's .wasm download failing, on the iPhone path. Its own file, so the

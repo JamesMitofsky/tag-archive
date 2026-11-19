@@ -6,11 +6,11 @@
  * component's own popstate listener runs, as SvelteKit's router does:
  *
  *   vi.mock('$app/navigation', async () => {
- *     const nav = await import('$lib/testing/shallow-routing.svelte');
+ *     const nav = await import('#lib/testing/shallow-routing.svelte.ts');
  *     return { pushState: nav.pushState, onNavigate: nav.onNavigate, afterNavigate: nav.afterNavigate };
  *   });
  *   vi.mock('$app/state', async () => {
- *     const { page } = await import('$lib/testing/shallow-routing.svelte');
+ *     const { page } = await import('#lib/testing/shallow-routing.svelte.ts');
  *     return { page };
  *   });
  */

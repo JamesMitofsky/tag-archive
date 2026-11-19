@@ -14,14 +14,14 @@
  *    production, and the only gate under `vite dev`, where the middleware
  *    doesn't run.
  *
- * Imports nothing but its siblings, by relative path, so the middleware bundle
- * can load it. Server and middleware only: the browser gets LOCKED_PATH from
+ * Imports nothing but its siblings, by relative path with a .js extension, so
+ * the middleware bundle can load it (see middleware.ts). Server and middleware only: the browser gets LOCKED_PATH from
  * ./paths.
  */
 
-import { opensDoor } from './door.server.ts';
-import { carriesKey, UNLOCK_PATH } from './key.server.ts';
-import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.ts';
+import { opensDoor } from './door.server.js';
+import { carriesKey, UNLOCK_PATH } from './key.server.js';
+import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.js';
 
 export { LOCKED_PATH };
 
@@ -84,7 +84,7 @@ export function isOpenPath(pathname: string): boolean {
  * Enhanced form actions on the contribution forms — /contribute and the pages
  * beneath it, such as /contribute/images — pass the gate, because those
  * actions guard themselves: an anonymous submit needs an open pass and a draft
- * session, which only a tap or the door issues (see $lib/server/drafts), and a contact
+ * session, which only a tap or the door issues (see #lib/server/drafts), and a contact
  * token only the submission's own response carries. Turning the post away
  * here instead would replace a half-filled form with the locked page when the
  * visitor's hours run out mid-entry; the action's own refusal keeps the form
@@ -186,7 +186,7 @@ function isPageView(request: GateRequest): boolean {
  * data load for one, whose URL carries the door phrase. On any path. SvelteKit
  * answers it with a pass and a redirect to the same URL without the phrase
  * (hooks.server.ts); both kinds of response are rendered per visitor, never
- * cached, so they may carry the pass cookie ($lib/server/access, mayIssuePass).
+ * cached, so they may carry the pass cookie (#lib/server/access, mayIssuePass).
  */
 export function isDoorNavigation(request: GateRequest): boolean {
 	const isRead = request.method === 'GET' || request.method === 'HEAD';

@@ -2,7 +2,7 @@ import type { Cookies } from '@sveltejs/kit';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 	Object.assign(process.env, {
 		BETTER_AUTH_SECRET: 'test-secret',
@@ -14,31 +14,31 @@ await vi.hoisted(async () => {
 		S3_ENDPOINT: 'http://s3.test'
 	});
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 // The upload proxy is dev-only; pin `dev` rather than rely on how vitest resolves it.
-vi.mock('$app/environment', () => ({ browser: false, building: false, dev: true, version: '' }));
+vi.mock('$app/env', () => ({ browser: false, building: false, dev: true, version: '' }));
 // The real limiter, watched, so a spec can see which allowances a request draws on.
-vi.mock('$lib/server/rateLimit', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/server/rateLimit')>();
+vi.mock('#lib/server/rateLimit.ts', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/server/rateLimit.ts')>();
 	return { ...actual, consume: vi.fn(actual.consume) };
 });
 // finalize is not under test here; keep the metadata parser out of the import graph.
-vi.mock('$lib/server/imageMetadata', () => ({ parseImageMetadata: vi.fn() }));
+vi.mock('#lib/server/imageMetadata.ts', () => ({ parseImageMetadata: vi.fn() }));
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { db } = await import('$lib/server/db');
-const { image } = await import('$lib/server/db/schema');
-const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('$lib/server/drafts');
-const { consume, LIMITS } = await import('$lib/server/rateLimit');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { db } = await import('#lib/server/db/index.ts');
+const { image } = await import('#lib/server/db/schema.ts');
+const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('#lib/server/drafts.ts');
+const { consume, LIMITS } = await import('#lib/server/rateLimit.ts');
 const { MAX_DISPLAY_BYTES, MAX_ORIGINAL_BYTES, UPLOAD_URL_TTL_S } =
-	await import('$lib/server/imageUploads');
-const { sign, verify } = await import('$lib/server/signing');
-const { verifyProxyPut } = await import('$lib/server/scans');
-const { parseOriginalKey } = await import('$lib/server/imageKeys');
+	await import('#lib/server/imageUploads.ts');
+const { sign, verify } = await import('#lib/server/signing.ts');
+const { verifyProxyPut } = await import('#lib/server/scans.ts');
+const { parseOriginalKey } = await import('#lib/server/imageKeys.ts');
 const { POST } = await import('./+server');
 
-type Grant = import('$lib/images/types').OriginalUploadGrant;
-type DisplayGrant = import('$lib/images/types').DisplayUploadGrant;
+type Grant = import('#lib/images/types.ts').OriginalUploadGrant;
+type DisplayGrant = import('#lib/images/types.ts').DisplayUploadGrant;
 
 beforeAll(migrateTestDatabase);
 beforeEach(() => {
@@ -46,7 +46,7 @@ beforeEach(() => {
 	delete process.env.S3_UPLOAD_PROXY;
 });
 
-/** An open access pass, as hooks.server.ts leaves it on `locals` ($lib/access/pass). */
+/** An open access pass, as hooks.server.ts leaves it on `locals` (#lib/access/pass). */
 const OPEN_PASS = { kind: 't' as const, issuedAt: 0, expiresAt: Number.MAX_SAFE_INTEGER };
 const KEEPER = { id: 'keeper-1' };
 const IP = '198.51.100.7';

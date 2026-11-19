@@ -77,7 +77,11 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version-file: package.json
+          # Newest LTS, which is what Vercel resolves engines.node (a floor) to.
+          # Not node-version-file: a `>=` range there can pick an odd, non-LTS
+          # major Vercel never runs.
+          node-version: lts/*
+          check-latest: true
 
       # Run from outside the checkout, pointed at it with --cwd: npx resolves the
       # CLI with the working directory's npm config, and the PR's own .npmrc

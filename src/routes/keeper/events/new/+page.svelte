@@ -1,20 +1,20 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import DateField from '$lib/components/DateField.svelte';
-	import ComboField from '$lib/components/ComboField.svelte';
-	import TagsField from '$lib/components/TagsField.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { createEventSuite, parseEventForm } from '$lib/validation/event';
-	import { createValidator } from '$lib/validation/client.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import DateField from '#lib/components/DateField.svelte';
+	import ComboField from '#lib/components/ComboField.svelte';
+	import TagsField from '#lib/components/TagsField.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { createEventSuite, parseEventForm } from '#lib/validation/event.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
 	import FeatureImagePicker, {
 		type FeatureSelection
-	} from '$lib/components/FeatureImagePicker.svelte';
+	} from '#lib/components/FeatureImagePicker.svelte';
 	import type { EventFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 

@@ -9,8 +9,8 @@
 	import CornersOutIcon from 'phosphor-svelte/lib/CornersOutIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import CornerEditorSurface from './CornerEditorSurface.svelte';
-	import type { CornerPoints } from '$lib/scanner/detect';
-	import { releaseCanvas } from '$lib/scanner/image';
+	import type { CornerPoints } from '#lib/scanner/detect.ts';
+	import { releaseCanvas } from '#lib/scanner/image.ts';
 
 	// The crop step after a camera run: every photo just taken, one at a time,
 	// with the page found on the still photo and the corners there to correct.

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
-	import { getParentRoute } from '$lib/navigation/routes';
+	import { getParentRoute } from '#lib/navigation/routes.ts';
 
 	let {
 		href,

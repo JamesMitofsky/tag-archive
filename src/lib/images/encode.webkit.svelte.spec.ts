@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { sniffImageType } from '$lib/imageType';
-import { MAX_DIM, downscale, releaseCanvas } from '$lib/scanner/image';
-import { bytesOf, dimensionsOf } from '$lib/testing/images';
-import { paintedCanvas, simulateWebKitCanvas } from '$lib/testing/scanner';
+import { sniffImageType } from '#lib/imageType.ts';
+import { MAX_DIM, downscale, releaseCanvas } from '#lib/scanner/image.ts';
+import { bytesOf, dimensionsOf } from '#lib/testing/images.ts';
+import { paintedCanvas, simulateWebKitCanvas } from '#lib/testing/scanner.ts';
 import { encodeWebP, UNENCODABLE_PHOTO } from './encode';
 
 // The iPhone path: WebKit canvases can't encode WebP and silently return PNG.

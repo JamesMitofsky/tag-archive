@@ -196,7 +196,7 @@ export const artefact = sqliteTable(
 		// `(date, id)` index below and every `ORDER BY date` still hold.
 		// NULL when the artefact is deliberately undated: SQLite sorts NULL
 		// lowest, so `ORDER BY date DESC` lists undated artefacts last.
-		// See $lib/partialDate for the parsers, formatters, and the reasoning.
+		// See #lib/partialDate for the parsers, formatters, and the reasoning.
 		date: text('date'),
 		// TAG program area tags. Multi-value → JSON string array.
 		programArea: text('program_area', { mode: 'json' }).$type<string[]>().notNull().default([]),
@@ -261,7 +261,7 @@ export const submissionContact = sqliteTable('submission_contact', {
  * A set of photographs uploaded together: one or several images, with an
  * optional description and an optional event. Unlike an artefact it has no
  * title, location or program areas; its display label is derived (see
- * $lib/images/label). Contributor-creatable, so it carries the proposal flag
+ * #lib/images/label). Contributor-creatable, so it carries the proposal flag
  * and waits in the review queue like an artefact.
  */
 export const imageSet = sqliteTable(
@@ -271,7 +271,7 @@ export const imageSet = sqliteTable(
 		description: text('description'),
 		// The event the photographs were taken at; nullable, no cascade (like artefact).
 		eventId: integer('event_id').references(() => event.id),
-		// A partial date (see $lib/partialDate), NULL when undated. Derived from the
+		// A partial date (see #lib/partialDate), NULL when undated. Derived from the
 		// photographs' own capture dates — the earliest day among them — unless an
 		// admin overrode it on the edit page (`dateAuto` false).
 		date: text('date'),
@@ -293,7 +293,7 @@ export type MetadataSegment = Record<string, unknown>;
 
 /**
  * A photograph's parsed metadata, as stored per image (see
- * $lib/server/imageMetadata). Each segment is exifr's translated output for it,
+ * #lib/server/imageMetadata). Each segment is exifr's translated output for it,
  * binary values removed. Never published: it can carry GPS and device details.
  */
 export type ImageMetadata = {
@@ -318,7 +318,7 @@ export type ImageMetadata = {
  * (`url`, at most 2560px on its longest edge, no metadata) that can always be
  * regenerated from the original. Rows are created by the upload's finalize step
  * before any set exists, so `set_id` is NULL until a form attaches the image;
- * unattached rows older than a day are swept (see $lib/server/uploads).
+ * unattached rows older than a day are swept (see #lib/server/uploads).
  */
 export const image = sqliteTable(
 	'image',
@@ -373,7 +373,7 @@ export const imageSetContact = sqliteTable('image_set_contact', {
 });
 
 /**
- * The one image an event features (see $lib/server/eventFeatures): either a
+ * The one image an event features (see #lib/server/eventFeatures): either a
  * photograph (`image_id`) or one page of an artefact's scans (`artefact_id`
  * plus the page's URL, since an artefact's pages are URLs in its `file_urls`
  * rather than rows). One row per event; no row means no feature image.
@@ -413,7 +413,7 @@ export const eventFeatureImage = sqliteTable(
 
 /**
  * Fixed-window request counters for anonymous writes (see
- * $lib/server/rateLimit). `key` is `<bucket>:<hashed subject>` — the subject is
+ * #lib/server/rateLimit). `key` is `<bucket>:<hashed subject>` — the subject is
  * an IP address or draft id, hashed so no raw address is stored. Each key holds
  * only its current window; the daily sweep deletes stale rows.
  */
@@ -425,7 +425,7 @@ export const rateLimit = sqliteTable('rate_limit', {
 
 /**
  * The NFC tags (NTAG 424 DNA) whose taps open the site (see
- * $lib/server/nfc/taps). `uid` is the tag's 7-byte hardware id as uppercase
+ * #lib/server/nfc/taps). `uid` is the tag's 7-byte hardware id as uppercase
  * hex. `last_counter` is the highest tap counter accepted so far: a tap must
  * beat it, so a copied tap URL can never be replayed. A tag registers itself on
  * its first genuine tap — only a holder of the SDM keys can produce one — and a
@@ -443,7 +443,7 @@ export const nfcTag = sqliteTable('nfc_tag', {
 /**
  * Unlock keys: hand-entered values that open the archive from anywhere through
  * `?whoislisteningwiththevoiceofthegarden=<unlock_key>` (see
- * $lib/access/key.server and src/routes/unlock). A keeper adds a row to hand
+ * #lib/access/key.server and src/routes/unlock). A keeper adds a row to hand
  * one out; it stops working once `expires_at` passes, and deleting the row (or
  * moving `expires_at` into the past) closes it early.
  *

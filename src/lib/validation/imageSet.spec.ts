@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { UNDATED } from '$lib/partialDate';
+import { UNDATED } from '#lib/partialDate.ts';
 import { createImageSetSuite, MAX_IMAGES_PER_SET, parseImageSetForm } from './imageSet';
 
 function fd(entries: Record<string, string | string[]>): FormData {

@@ -25,7 +25,7 @@ afterEach(() => {
 
 describe('Drawing.svelte', () => {
 	it('shows the drawing, and no stand-in, when the file loads', async () => {
-		const { container } = render(Drawing, {
+		const { container } = await render(Drawing, {
 			src: PNG,
 			alt: 'Images',
 			text: 'Images',
@@ -38,7 +38,7 @@ describe('Drawing.svelte', () => {
 	});
 
 	it('sets its words in place of a missing drawing, under the same name and size', async () => {
-		render(Drawing, {
+		await render(Drawing, {
 			src: BROKEN,
 			alt: 'Images',
 			text: 'Images',
@@ -47,7 +47,7 @@ describe('Drawing.svelte', () => {
 		});
 
 		const standIn = page.getByRole('img', { name: 'Images' });
-		await expect.element(standIn).toHaveTextContent('Images');
+		await expect.element(standIn).toMatchTextContent('Images');
 		await expect.element(standIn).toBeVisible();
 		expect(drawing().tagName).toBe('SPAN');
 		// The drawing's sizing carries over, and the stand-in's own classes apply on
@@ -58,21 +58,21 @@ describe('Drawing.svelte', () => {
 	});
 
 	it('names the stand-in by `alt`, not by its words, as the drawing was named', async () => {
-		render(Drawing, {
+		await render(Drawing, {
 			src: BROKEN,
 			alt: 'Cloud Keeper — add to the archive',
 			text: 'Cloud Keeper'
 		});
 
 		const standIn = page.getByRole('img', { name: 'Cloud Keeper — add to the archive' });
-		await expect.element(standIn).toHaveTextContent('Cloud Keeper');
+		await expect.element(standIn).toMatchTextContent('Cloud Keeper');
 		await expect
 			.element(standIn)
 			.toHaveAttribute('aria-label', 'Cloud Keeper — add to the archive');
 	});
 
 	it('keeps a decorative stand-in out of the accessibility tree, like the drawing', async () => {
-		render(Drawing, { src: BROKEN, alt: '', 'aria-hidden': 'true', text: 'Images' });
+		await render(Drawing, { src: BROKEN, alt: '', 'aria-hidden': 'true', text: 'Images' });
 
 		const standIn = page.getByText('Images');
 		await expect.element(standIn).toBeVisible();
@@ -81,7 +81,7 @@ describe('Drawing.svelte', () => {
 	});
 
 	it('stays invisible without words to stand in, as before', async () => {
-		const { container } = render(Drawing, { src: BROKEN, alt: 'Images' });
+		const { container } = await render(Drawing, { src: BROKEN, alt: 'Images' });
 		const img = container.querySelector('img')!;
 
 		// Let the request fail first.
@@ -91,7 +91,7 @@ describe('Drawing.svelte', () => {
 	});
 
 	it('gives a new src its own attempt rather than the old failure', async () => {
-		const { rerender } = render(Drawing, { src: BROKEN, alt: 'Images', text: 'Images' });
+		const { rerender } = await render(Drawing, { src: BROKEN, alt: 'Images', text: 'Images' });
 		await expect.poll(() => drawing().tagName).toBe('SPAN');
 
 		await rerender({ src: PNG });
@@ -111,15 +111,15 @@ describe('Drawing.svelte', () => {
 		it('falls back when the load had already failed, an error event it never heard', async () => {
 			settledWithoutPixels(() => Promise.reject(new DOMException('broken', 'EncodingError')));
 			// The file itself is fine and fires no error: only the mount check can know.
-			render(Drawing, { src: PNG, alt: 'Images', text: 'Images' });
+			await render(Drawing, { src: PNG, alt: 'Images', text: 'Images' });
 
 			await expect.poll(() => drawing().tagName).toBe('SPAN');
-			await expect.element(page.getByRole('img', { name: 'Images' })).toHaveTextContent('Images');
+			await expect.element(page.getByRole('img', { name: 'Images' })).toMatchTextContent('Images');
 		});
 
 		it('keeps an image with no intrinsic size, such as a viewBox-only SVG, that decodes', async () => {
 			settledWithoutPixels(() => Promise.resolve());
-			render(Drawing, { src: PNG, alt: 'Images', text: 'Images' });
+			await render(Drawing, { src: PNG, alt: 'Images', text: 'Images' });
 
 			await expect.poll(() => drawing().classList.contains('cached')).toBe(true);
 			expect(drawing().tagName).toBe('IMG');
@@ -134,7 +134,7 @@ describe('Drawing.svelte', () => {
 			encodeURIComponent(
 				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 2"><path d="M0 1h4" stroke="#000"/></svg>'
 			);
-		render(Drawing, { src: svg, alt: 'Images', text: 'Images', class: 'h-10 w-auto' });
+		await render(Drawing, { src: svg, alt: 'Images', text: 'Images', class: 'h-10 w-auto' });
 
 		await expect.poll(() => drawing().classList.contains('loaded')).toBe(true);
 		expect(drawing().tagName).toBe('IMG');

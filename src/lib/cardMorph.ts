@@ -47,9 +47,11 @@ const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
  * is what lets the animation hand over to a static element without a seam.
  */
 export function morphBox(from: Box, to: Box, p: number): Box {
-	const k = Math.pow(to.width / from.width, p);
-	const width = from.width * k;
-	const height = from.height * k;
+	// Each axis on its own curve, so the two ends need not share a shape (a
+	// photograph opens to its own ratio from an A4 slot). When they do, the two
+	// factors are equal and this is one uniform scale.
+	const width = from.width * Math.pow(to.width / from.width, p);
+	const height = from.height * Math.pow(to.height / from.height, p);
 	return {
 		left: lerp(centre(from.left, from.width), centre(to.left, to.width), p) - width / 2,
 		top: lerp(centre(from.top, from.height), centre(to.top, to.height), p) - height / 2,

@@ -1,13 +1,13 @@
 <script lang="ts">
-	import type { ArtefactWithEvent } from '$lib/server/db/schema';
-	import { programAreaMeta } from '$lib/programAreas';
-	import { formatDate } from '$lib/formatDate';
-	import { loadArtefacts } from '$lib/dataset';
-	import { filterArtefacts } from '$lib/search';
-	import CardCloud from '$lib/components/CardCloud.svelte';
-	import CardSheet from '$lib/components/CardSheet.svelte';
-	import ArtefactFilePreview from '$lib/components/ArtefactFilePreview.svelte';
-	import Drawing from '$lib/components/Drawing.svelte';
+	import type { ArtefactWithEvent } from '#lib/server/db/schema.ts';
+	import { programAreaMeta } from '#lib/programAreas.ts';
+	import { formatDate } from '#lib/formatDate.ts';
+	import { loadArtefacts } from '#lib/dataset.ts';
+	import { filterArtefacts } from '#lib/search.ts';
+	import CardCloud from '#lib/components/CardCloud.svelte';
+	import CardSheet from '#lib/components/CardSheet.svelte';
+	import ArtefactFilePreview from '#lib/components/ArtefactFilePreview.svelte';
+	import Drawing from '#lib/components/Drawing.svelte';
 </script>
 
 <CardCloud load={loadArtefacts} filter={filterArtefacts} card={page} {placeholderMark} />

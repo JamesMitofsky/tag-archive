@@ -1,6 +1,6 @@
-import { formatArtefactDate } from '$lib/formatDate';
-import { imageSetLabel } from '$lib/images/label';
-import { formatPartialDate, isFullDate } from '$lib/partialDate';
+import { formatArtefactDate } from '#lib/formatDate.ts';
+import { imageSetLabel } from '#lib/images/label.ts';
+import { formatPartialDate, isFullDate } from '#lib/partialDate.ts';
 
 /**
  * Display helpers for the keeper image pages: how a set's particulars and

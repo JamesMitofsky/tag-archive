@@ -1,11 +1,11 @@
 /**
  * The widths Vercel's image optimizer (`/_vercel/image`) will render. It
  * refuses any `w` that is not in the list the build declared, so this one list
- * feeds both sides: svelte.config.js hands it to the adapter, and
+ * feeds both sides: vite.config.ts hands it to the adapter, and
  * OptimizedImage snaps every width it asks for onto it (see `cdnWidth`).
  *
- * Plain JS, not TS, because svelte.config.js imports it before any TypeScript
- * tooling runs.
+ * Plain JS, so vite.config.ts can import it while Vite is still loading its
+ * config, without any of the project's TypeScript tooling.
  *
  * Each width is a separate transformation, and the Hobby plan includes 5,000 a
  * month, so keep the list short: the srcset widths OptimizedImage uses by

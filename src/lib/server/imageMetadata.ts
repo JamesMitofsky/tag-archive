@@ -1,6 +1,6 @@
 import exifr from 'exifr';
 import { inflateSync } from 'node:zlib';
-import { isFullDate } from '$lib/partialDate';
+import { isFullDate } from '#lib/partialDate.ts';
 import type { ImageMetadata, MetadataSegment } from './db/schema';
 import { sniffImageType } from './imageType';
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { sniffImageType } from '$lib/imageType';
-import { createSerialQueue } from '$lib/scanner/serial';
+import { sniffImageType } from '#lib/imageType.ts';
+import { createSerialQueue } from '#lib/scanner/serial.ts';
 import {
 	bytesOf,
 	canvasPhoto,
@@ -8,7 +8,7 @@ import {
 	fakeImageServer,
 	heicLike,
 	textFile
-} from '$lib/testing/images';
+} from '#lib/testing/images.ts';
 import { UNREADABLE_PHOTO } from './decode';
 import {
 	createLimiter,
