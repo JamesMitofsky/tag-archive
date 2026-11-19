@@ -122,7 +122,7 @@
 				<BackButton class="mt-2" />
 			</div>
 			<a
-				href="/keeper/events/add"
+				href="/keeper/events/new"
 				aria-label="Add event"
 				title="Add event"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"

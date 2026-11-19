@@ -101,7 +101,7 @@ describe('/keeper/images', () => {
 		await expect.element(page.getByText(/No photographs yet/)).toBeVisible();
 		await expect
 			.element(page.getByRole('link', { name: 'Add photographs' }))
-			.toHaveAttribute('href', '/contribute/images');
+			.toHaveAttribute('href', '/keeper/images/new');
 	});
 });
 

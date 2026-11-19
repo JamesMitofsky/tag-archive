@@ -70,3 +70,22 @@ export function createImageSetSuite() {
 		);
 	});
 }
+
+/**
+ * Raw (unvalidated) values a failed new-set submit echoes back, on
+ * /contribute/images and /keeper/images/new alike. The ids are only those that
+ * parsed; the form itself doesn't re-seed from them (see ImageSetCreateForm).
+ */
+export type ImageSetCreateValues = {
+	description: string;
+	event: string;
+	imageIds: number[];
+};
+
+export function echoImageSetCreateForm(fd: FormData, data: ImageSetData): ImageSetCreateValues {
+	return {
+		description: String(fd.get('description') ?? ''),
+		event: String(fd.get('event') ?? ''),
+		imageIds: data.imageIds.filter((id) => Number.isSafeInteger(id))
+	};
+}

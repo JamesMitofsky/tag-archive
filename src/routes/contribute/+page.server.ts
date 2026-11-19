@@ -8,23 +8,10 @@ import { readDraft, submissionPrefix } from '$lib/server/drafts';
 import { consume, LIMITS } from '$lib/server/rateLimit';
 import { keyFromUrl } from '$lib/server/scans';
 import { sign, verify } from '$lib/server/signing';
-import { createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
+import { echoArtefactForm, createArtefactSuite, parseArtefactForm } from '$lib/validation/artefact';
 import { createContactSuite, parseContactForm } from '$lib/validation/contact';
 import { summary } from '$lib/validation/helpers';
 import type { Actions, PageServerLoad } from './$types';
-
-/** Raw (unvalidated) form values echoed back so a failed submit keeps input. */
-export type ArtefactFormValues = {
-	artefact: string;
-	event: string;
-	date: string;
-	description: string;
-	location: string;
-	fileUrls: string[];
-	/** Comma-separated in the form; kept raw so a failed submit doesn't lose it. */
-	provenance: string;
-	programArea: string[];
-};
 
 /**
  * Proof that whoever holds it just submitted artefact `id` — handed back after
@@ -76,16 +63,7 @@ export const actions: Actions = {
 			return fail(400, {
 				artefactError: summary(result),
 				errors: result.getErrors(),
-				values: {
-					artefact: String(form.get('artefact') ?? ''),
-					event: String(form.get('event') ?? ''),
-					date: String(form.get('date') ?? ''),
-					description: String(form.get('description') ?? ''),
-					location: String(form.get('location') ?? ''),
-					fileUrls: data.fileUrls,
-					provenance: String(form.get('provenance') ?? ''),
-					programArea: data.programArea
-				} satisfies ArtefactFormValues
+				values: echoArtefactForm(form, data)
 			});
 		}
 
