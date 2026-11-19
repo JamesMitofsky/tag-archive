@@ -72,6 +72,56 @@ export type SeedSummary = {
 	provLinks: number;
 };
 
+/** A key covering at least this many events becomes a series banner. */
+export const SERIES_MIN_EVENTS = 5;
+
+/**
+ * The series banner each event joins, by position, or null for a one-off.
+ *
+ * Events group under a banner by their series KEY — the export's explicit
+ * `series` field when set (curated consolidation of near-duplicate titles),
+ * else the event's own title. A banner exists only when a key covers at least
+ * SERIES_MIN_EVENTS events; smaller keys stay one-offs. Case-sensitive by
+ * design — near-duplicate titles are merged deliberately via `series`, never
+ * silently. Event titles are preserved as-is; only the banner is shared.
+ */
+export function seriesBanners(events: EventSource[]): (string | null)[] {
+	const keys = events.map((e) => e.series?.trim() || e.title.trim());
+	const counts = new Map<string, number>();
+	for (const k of keys) counts.set(k, (counts.get(k) ?? 0) + 1);
+	return keys.map((k) => (counts.get(k)! >= SERIES_MIN_EVENTS ? k : null));
+}
+
+/**
+ * The event each artefact came from, as a position in `events`, or null when
+ * it can't be pinned. Artefacts name their event by title (free text) and
+ * carry the date of the event they came from:
+ * - with a date → the event with that title on that date (the last, should two
+ *   share both); a same-titled event on another date is a different event
+ * - without a date → the event with that title, if exactly one event has it
+ * - otherwise → null, a manual link
+ */
+export function artefactEventIndexes(
+	events: EventSource[],
+	artefacts: Pick<ArtefactSource, 'event' | 'date'>[]
+): (number | null)[] {
+	const titles = events.map((e) => e.title.trim());
+	const titleCounts = new Map<string, number>();
+	for (const t of titles) titleCounts.set(t, (titleCounts.get(t) ?? 0) + 1);
+	const byUniqueTitle = new Map<string, number>();
+	const byTitleDate = new Map<string, number>();
+	titles.forEach((t, i) => {
+		byTitleDate.set(`${t} ${events[i].date}`, i);
+		if (titleCounts.get(t) === 1) byUniqueTitle.set(t, i);
+	});
+	return artefacts.map(({ event: name, date }) => {
+		const title = name?.trim();
+		if (!title) return null;
+		if (date) return byTitleDate.get(`${title} ${date}`) ?? null;
+		return byUniqueTitle.get(title) ?? null;
+	});
+}
+
 /** Load + parse the single source export. Standalone so it runs under tsx. */
 export function loadSeedData(): SeedData {
 	const dataPath = fileURLToPath(new URL('../../data/seed-data.json', import.meta.url));
@@ -89,69 +139,30 @@ export async function seedArchive<S extends Record<string, unknown>>(
 
 	// Events: one row per events-export entry (a real, dated happening). Ids follow
 	// source order so links below can address them by index.
-	const cleanTitle = (t: string) => t.trim();
-	const eventTitles = eventRows.map((e) => cleanTitle(e.title));
-
-	// Series: events group under a banner by their series KEY — the export's
-	// explicit `series` field when set (curated consolidation of near-duplicate
-	// titles), else the event's own title. A banner exists only when a key covers
-	// at least 5 events; keys with 4 or fewer stay one-offs (seriesId null).
-	// Case-sensitive by design — near-duplicate titles are merged deliberately via
-	// `series`, never silently. Event titles are preserved as-is; only the banner
-	// is shared.
-	const seriesKeys = eventRows.map((e, i) => e.series?.trim() || eventTitles[i]);
-	const seriesKeyCounts = new Map<string, number>();
-	for (const k of seriesKeys) seriesKeyCounts.set(k, (seriesKeyCounts.get(k) ?? 0) + 1);
-	const seriesNames = [...new Set(seriesKeys.filter((k) => seriesKeyCounts.get(k)! >= 5))];
+	const banners = seriesBanners(eventRows);
+	const seriesNames = [...new Set(banners.filter((b) => b !== null))];
 	const seriesRows = seriesNames.map((name, i) => ({ id: i + 1, name }));
 	const seriesIdByName = new Map(seriesRows.map((s) => [s.name, s.id]));
 
-	// Title counts stay title-based: artefact→event linking below resolves by an
-	// event's own title, independent of any series banner.
-	const titleCounts = new Map<string, number>();
-	for (const t of eventTitles) titleCounts.set(t, (titleCounts.get(t) ?? 0) + 1);
+	const events = eventRows.map((e, i) => ({
+		id: i + 1,
+		title: e.title.trim(),
+		// Null for a one-off; set when this event's series key recurs (a real series).
+		seriesId: banners[i] === null ? null : seriesIdByName.get(banners[i])!,
+		date: e.date,
+		time: e.time ?? null,
+		location: e.location ?? null,
+		description: e.description ?? null,
+		url: e.url ?? null,
+		mayHaveException: e.mayHaveException ?? false,
+		possibleExceptionDescription: e.possibleExceptionDescription ?? null
+	}));
 
-	const events = eventRows.map((e, i) => {
-		const title = eventTitles[i];
-		return {
-			id: i + 1,
-			title,
-			// Null for a one-off; set when this event's series key recurs (a real series).
-			seriesId: seriesIdByName.get(seriesKeys[i]) ?? null,
-			date: e.date,
-			time: e.time ?? null,
-			location: e.location ?? null,
-			description: e.description ?? null,
-			url: e.url ?? null,
-			mayHaveException: e.mayHaveException ?? false,
-			possibleExceptionDescription: e.possibleExceptionDescription ?? null
-		};
-	});
-
-	// Lookups for linking artefacts to a specific event by its title (see below):
-	// a title that maps to exactly one event resolves unambiguously; a recurring
-	// title resolves only when the artefact's date pins one of the events.
-	const eventIdByUniqueTitle = new Map<string, number>();
-	const eventIdByTitleDate = new Map<string, number>();
-	for (const e of events) {
-		eventIdByTitleDate.set(`${e.title} ${e.date}`, e.id);
-		if (titleCounts.get(e.title) === 1) eventIdByUniqueTitle.set(e.title, e.id);
-	}
-	/**
-	 * The event an artefact came from, or null when it can't be pinned:
-	 * - unique title → that event
-	 * - recurring title + a date that matches one event → that event
-	 * - recurring title without a matching date, or a title absent from the events
-	 *   export → null (needs a manual link; the series is still reachable elsewhere)
-	 */
-	const resolveArtefactEventId = (name: string | null, date: string): number | null => {
-		const title = name?.trim();
-		if (!title) return null;
-		const count = titleCounts.get(title) ?? 0;
-		if (count === 1) return eventIdByUniqueTitle.get(title) ?? null;
-		if (count >= 2 && date) return eventIdByTitleDate.get(`${title} ${date}`) ?? null;
-		return null;
-	};
+	// Artefacts link to an event by its title (and date, for a recurring title),
+	// independent of any series banner. Positions are 0-based; ids are 1-based.
+	const artefactEventIds = artefactEventIndexes(eventRows, rows).map((i) =>
+		i === null ? null : i + 1
+	);
 
 	// People are canonical: one row per name, shared across roles. The set is the
 	// UNION of event hosts and artefact provenance people, so someone who both hosts
@@ -197,10 +208,10 @@ export async function seedArchive<S extends Record<string, unknown>>(
 	if (events.length) await db.insert(event).values(events);
 	if (persons.length) await db.insert(person).values(persons);
 	await db.insert(artefact).values(
-		rows.map((r) => ({
+		rows.map((r, i) => ({
 			id: r.id,
 			artefact: r.artefact,
-			eventId: resolveArtefactEventId(r.event, r.date),
+			eventId: artefactEventIds[i],
 			date: r.date,
 			programArea: r.programArea,
 			description: r.description,
@@ -211,9 +222,7 @@ export async function seedArchive<S extends Record<string, unknown>>(
 	if (provLinks.length) await db.insert(artefactProvenance).values(provLinks);
 	if (hostLinks.length) await db.insert(eventHost).values(hostLinks);
 
-	const linkedArtefacts = rows.filter(
-		(r) => resolveArtefactEventId(r.event, r.date) !== null
-	).length;
+	const linkedArtefacts = artefactEventIds.filter((id) => id !== null).length;
 
 	return {
 		artefacts: rows.length,

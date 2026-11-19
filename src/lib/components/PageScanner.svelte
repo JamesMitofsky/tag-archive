@@ -22,6 +22,7 @@
 		releaseCanvas,
 		withExtension
 	} from '$lib/scanner/image';
+	import { MAX_SCAN_BYTES, SCAN_TOO_LARGE } from '$lib/scanner/limits';
 	import { createSerialQueue } from '$lib/scanner/serial';
 	import type { ScanPage } from '$lib/scanner/types';
 
@@ -495,6 +496,9 @@
 	/** Push one image to R2 and hand its URL back to the form. */
 	async function processUpload(claim: Claim, file: Blob, fileName: string, previewUrl: string) {
 		try {
+			// Past the platform's body limit the route never sees the request, and
+			// the answer is a bare 413 page; say why here instead.
+			if (file.size > MAX_SCAN_BYTES) throw new Error(SCAN_TOO_LARGE);
 			const body = new FormData();
 			body.append('file', file, fileName);
 			const res = await fetch(SCANS_ENDPOINT, { method: 'POST', body });

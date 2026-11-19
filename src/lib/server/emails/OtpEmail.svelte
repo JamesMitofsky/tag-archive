@@ -8,7 +8,7 @@
 	// or forget-password codes), so the copy is fixed rather than keyed off a type.
 	//
 	// `logoUrl` is an absolute URL to the handwritten wordmark PNG (built from
-	// env.ORIGIN at the call site). Email clients can't resolve relative paths, so
+	// siteOrigin() at the call site). Email clients can't resolve relative paths, so
 	// the header image must be fully-qualified.
 	let { otp, logoUrl }: { otp: string; logoUrl: string } = $props();
 
