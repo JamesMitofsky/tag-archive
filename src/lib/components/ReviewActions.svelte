@@ -14,7 +14,10 @@
 	let { id, variant = 'labeled', class: className = '' }: Props = $props();
 
 	const iconOnly = $derived(variant === 'icon');
-	const iconSize = $derived(iconOnly ? 16 : 15);
+	// Icon buttons come out at 24px (14 + 2 × 4 padding + 2 × 1 border), the
+	// WCAG 2.5.8 minimum target size, so don't shrink them further.
+	const iconSize = $derived(iconOnly ? 14 : 15);
+	const iconWeight = $derived(iconOnly ? 'regular' : 'bold');
 
 	// Labeled: a filled primary Approve beside an outlined Reject. Icon: approve
 	// stacked over reject, both outlined (secondary) but tinted in their own color.
@@ -24,12 +27,12 @@
 		'inline-flex items-center gap-1.5 rounded-full text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50';
 	const approveClass = $derived(
 		iconOnly
-			? 'border border-[#5a8a38]/40 bg-[#8cb369]/10 p-[5px] text-[#5a8a38] hover:border-[#5a8a38] hover:bg-[#8cb369]/25'
+			? 'border border-[#5a8a38]/40 bg-[#8cb369]/10 p-1 text-[#5a8a38] hover:border-[#5a8a38] hover:bg-[#8cb369]/25'
 			: 'bg-[#8cb369] px-3.5 py-1.5 text-white shadow-sm hover:bg-[#7aa259]'
 	);
 	const rejectClass = $derived(
 		iconOnly
-			? 'border border-[#bc4b51]/40 bg-[#bc4b51]/5 p-[5px] text-[#bc4b51] hover:border-[#bc4b51] hover:bg-[#bc4b51]/15'
+			? 'border border-[#bc4b51]/40 bg-[#bc4b51]/5 p-1 text-[#bc4b51] hover:border-[#bc4b51] hover:bg-[#bc4b51]/15'
 			: 'border border-gray-300 px-3.5 py-1.5 text-gray-700 hover:border-[#bc4b51] hover:text-[#bc4b51]'
 	);
 
@@ -38,7 +41,7 @@
 	let rejecting = $state(false);
 </script>
 
-<div class="flex {iconOnly ? 'flex-col gap-1.5' : 'mt-4 items-center gap-2'} {className}">
+<div class="flex {iconOnly ? 'flex-col gap-1' : 'mt-4 items-center gap-2'} {className}">
 	<form
 		method="POST"
 		action="?/approve"
@@ -62,7 +65,7 @@
 			{#if approving}
 				<CircleNotchIcon size={iconSize} class="shrink-0 animate-spin" />
 			{:else}
-				<CheckIcon size={iconSize} weight="bold" />
+				<CheckIcon size={iconSize} weight={iconWeight} />
 			{/if}
 			{#if !iconOnly}Approve{/if}
 		</button>
@@ -96,7 +99,7 @@
 			{#if rejecting}
 				<CircleNotchIcon size={iconSize} class="shrink-0 animate-spin" />
 			{:else}
-				<XIcon size={iconSize} weight="bold" />
+				<XIcon size={iconSize} weight={iconWeight} />
 			{/if}
 			{#if !iconOnly}Reject{/if}
 		</button>
