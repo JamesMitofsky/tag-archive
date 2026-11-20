@@ -29,6 +29,11 @@
 	const authStep = $derived(form && 'step' in form && form.step === 'otp' ? 'otp' : 'email');
 	const authError = $derived(form && 'error' in form ? form.error : undefined);
 	const authEmail = $derived(form && 'email' in form ? form.email : '');
+	// The page's title follows where the visitor is: signed out it asks, on the
+	// code step it says what to do next, and signed in it names the hub.
+	const pageTitle = $derived(
+		signedIn ? 'Cloud Keeper' : authStep === 'otp' ? 'Check your email' : 'Are you a Cloud Keeper?'
+	);
 	const errors = $derived(
 		form && 'errors' in form && form.errors ? (form.errors as Record<string, string[]>) : {}
 	);
@@ -220,12 +225,41 @@
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
-		<header class="mb-8 flex items-start justify-between gap-4">
-			<div>
-				<!-- Signed out, the page asks; signed in, it names the hub. -->
-				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
-					{signedIn ? 'Cloud Keeper' : 'Are you a Cloud Keeper?'}
-				</h1>
+		<!-- On the code step the title's own sentence follows it, so it sits closer. -->
+		<header
+			class="flex items-start justify-between gap-4 {pageTitle === 'Check your email'
+				? 'mb-2'
+				: 'mb-8'}"
+		>
+			<!-- Grid-stacked and keyed like the views below, so the title cross-flies
+			     with the step it names instead of snapping. -->
+			<div class="title-swap">
+				{#key pageTitle}
+					<h1
+						class="title flex items-center gap-2.5 text-2xl font-semibold tracking-tight text-gray-900"
+						in:fly={{ x: 20, duration: 250 }}
+						out:fly={{ x: -20, duration: 250 }}
+					>
+						{pageTitle}
+						{#if pageTitle === 'Check your email'}
+							<!-- The plane that left the send button, come in to land. -->
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="-10 -10 20 20"
+								fill="none"
+								stroke={INK}
+								stroke-width="1.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+								class="landing h-6 w-6 shrink-0"
+								style="mix-blend-mode: multiply;"
+							>
+								<path d={PLANE_PATH} />
+							</svg>
+						{/if}
+					</h1>
+				{/key}
 			</div>
 			{#if signedIn}
 				<a
@@ -323,25 +357,7 @@
 											</form>
 											<FieldError message={emailValidator.error('email')} />
 										{:else}
-											<h2 class="flex items-center gap-2 text-lg font-medium text-gray-900">
-												Check your email
-												<!-- The plane that left the send button, come in to land. -->
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													viewBox="-10 -10 20 20"
-													fill="none"
-													stroke={INK}
-													stroke-width="1.5"
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													aria-hidden="true"
-													class="landing h-5 w-5 shrink-0"
-													style="mix-blend-mode: multiply;"
-												>
-													<path d={PLANE_PATH} />
-												</svg>
-											</h2>
-											<p class="mt-1 text-sm text-gray-700">
+											<p class="text-sm text-gray-700">
 												The code sent to <span class="font-medium text-gray-900">{authEmail}</span> will
 												expire in 5 minutes.
 											</p>
@@ -533,13 +549,15 @@
 	}
 	/* Same trick one level up: signed-out and signed-in views share a cell so the
 	   post-OTP swap cross-flies like a route change instead of snapping. */
-	.view-swap {
+	.view-swap,
+	.title-swap {
 		display: grid;
 	}
-	.view {
+	.view,
+	.title {
 		grid-area: 1 / 1;
 	}
-	/* The plane beside "Check your email" glides down from the upper left, where
+	/* The plane beside the "Check your email" title glides down from the upper left, where
 	   the one from the send button flew off, and settles nose-down like a landed
 	   dart. It waits out the step's own fly-in first. */
 	.landing {
