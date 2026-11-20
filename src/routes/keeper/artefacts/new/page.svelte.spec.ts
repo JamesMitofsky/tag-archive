@@ -63,7 +63,12 @@ describe('/keeper/artefacts/new', () => {
 		const group = page.getByRole('group', { name: 'Archival storage location *' });
 		const radios = [...document.querySelectorAll<HTMLInputElement>('input[name="location"]')];
 		// A location in use that only differs by case is the preset, not a second radio.
-		expect(radios.map((r) => r.value)).toEqual(['Binder', 'Bin', 'Binder 3']);
+		expect(radios.map((r) => r.parentElement?.textContent?.trim())).toEqual([
+			'Binder',
+			'Bin',
+			'Binder 3',
+			'Other…'
+		]);
 		// Required for keepers, so nothing is picked for them and there is no “Not sure”.
 		expect(radios.some((r) => r.checked)).toBe(false);
 		expect(group.getByRole('radio', { name: 'Not sure' }).query()).toBeNull();
@@ -71,6 +76,35 @@ describe('/keeper/artefacts/new', () => {
 		await group.getByRole('radio', { name: 'Bin', exact: true }).click();
 		await expect.element(group.getByRole('radio', { name: 'Bin', exact: true })).toBeChecked();
 		expect(new FormData(document.querySelector('form')!).get('location')).toBe('Bin');
+	});
+
+	it('takes a location typed into “Other…”, in an existing spelling when it names one', async () => {
+		await render(NewArtefactPage, {
+			data: { locations: [] },
+			form: null
+		} as unknown as Props);
+		const posted = () => new FormData(document.querySelector('form')!).getAll('location');
+
+		const textbox = page.getByRole('textbox', { name: 'Other storage location' });
+		expect(textbox.query()).toBeNull();
+
+		await page.getByRole('radio', { name: 'Other…' }).click();
+		await expect.element(textbox).toHaveFocus();
+		await textbox.fill('Flat file drawer');
+		expect(posted()).toEqual(['Flat file drawer']);
+
+		await textbox.fill('bin');
+		expect(posted()).toEqual(['Bin']);
+
+		// Emptied, it is no location at all, which a keeper may not save.
+		await textbox.fill('');
+		await page.getByRole('button', { name: 'Add artefact' }).click();
+		await expect.element(page.getByText('Archival storage location required')).toBeInTheDocument();
+
+		// Picking a preset closes the text box.
+		await page.getByRole('radio', { name: 'Binder' }).click();
+		expect(textbox.query()).toBeNull();
+		expect(posted()).toEqual(['Binder']);
 	});
 
 	it('says what is missing when the button is pressed on an empty form', async () => {
