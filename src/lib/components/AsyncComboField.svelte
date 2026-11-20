@@ -71,6 +71,15 @@
 		void ensureLoaded();
 	}
 
+	// Typing reopens the list. Focus alone isn't enough: after a pick the input
+	// keeps focus with the list closed, and changing the event should not need
+	// a step out of the field and back in. The highlight goes back to where it
+	// starts, since the rows under it have just changed.
+	function onInput() {
+		activeIndex = -1;
+		onOpen();
+	}
+
 	function handleFocusOut(event: FocusEvent) {
 		const next = event.relatedTarget;
 		const container = event.currentTarget as HTMLElement;
@@ -166,6 +175,7 @@
 			autocomplete="off"
 			{placeholder}
 			bind:value={search}
+			oninput={onInput}
 			onkeydown={onKeydown}
 			class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none md:text-sm"
 		/>

@@ -125,21 +125,14 @@ describe('/keeper/artefacts/new', () => {
 		expect(eventIndex).toBeGreaterThanOrEqual(0);
 		expect(eventIndex).toBeLessThan(dateIndex);
 
-		// The list opens on focus, so step out of the field and back in, as a
-		// keeper would, to choose again.
-		const pickAnother = async () => {
-			await page.getByRole('textbox', { name: /^Title/ }).click();
-			await combo.click();
-			await combo.fill('');
-		};
-
 		await combo.click();
 		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
 		await expect.poll(date).toBe('2021-06-12');
 		await expect.element(page.getByRole('button', { name: 'June 12, 2021' })).toBeInTheDocument();
 
-		// Another event moves a date it filled in itself.
-		await pickAnother();
+		// Another event moves a date it filled in itself. Typing straight after a
+		// pick, with the field still focused, brings the list back.
+		await combo.fill('Morning');
 		await page.getByRole('option', { name: /Morning Meditation/ }).click();
 		await expect.poll(date).toBe('2021-06-16');
 
@@ -148,7 +141,7 @@ describe('/keeper/artefacts/new', () => {
 		await page.getByRole('button', { name: 'Year', exact: true }).click();
 		await page.getByRole('button', { name: '2019', exact: true }).click();
 		await expect.poll(date).toBe('2019');
-		await pickAnother();
+		await combo.fill('Symphonic');
 		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
 		await expect.element(combo).toHaveValue('Symphonic Steep');
 		expect(date()).toBe('2019');
