@@ -252,3 +252,98 @@ describe('0011_listener_role', () => {
 		expect(await count(client, 'session')).toBe(1);
 	});
 });
+
+describe('0014_drop_submission_contacts', () => {
+	let client: Client;
+	// Every table 0013 leaves behind that 0014 keeps, auth included.
+	const kept = [
+		'user',
+		'series',
+		'event',
+		'person',
+		'artefact',
+		'artefact_provenance',
+		'image_set',
+		'image',
+		'event_feature_image',
+		'rate_limit',
+		'nfc_tag',
+		'remote_key'
+	];
+	const before = new Map<string, number>();
+
+	const tableExists = async (table: string) =>
+		(
+			await client.execute({
+				sql: "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+				args: [table]
+			})
+		).rows.length > 0;
+
+	beforeAll(async () => {
+		client = createClient({ url: `file:${join(work, 'replay-0014.db')}` });
+		await migrateThrough(client, '0013_image_placeholders');
+
+		await client.batch(
+			[
+				"INSERT INTO user (id, name, email, role) VALUES ('u1', 'Admin', 'a@example.org', 'admin')",
+				"INSERT INTO series (id, name) VALUES (1, 'Music in the Garden')",
+				"INSERT INTO event (id, title, series_id, date) VALUES (1, 'Concert', 1, '2024-06-01')",
+				"INSERT INTO person (id, name) VALUES (1, 'Contributor')",
+				"INSERT INTO artefact (id, artefact, event_id, date, file_urls, proposed_addition) VALUES (1, 'Program', 1, '2024', '[]', 0), (2, 'Flyer', NULL, NULL, '[]', 1)",
+				'INSERT INTO artefact_provenance (artefact_id, person_id) VALUES (1, 1)',
+				"INSERT INTO submission_contact (artefact_id, name, email) VALUES (2, 'Ada', 'ada@example.org')",
+				"INSERT INTO image_set (id, description, proposed_addition) VALUES (1, 'Picnic', 1)",
+				`INSERT INTO image (id, set_id, url, original_url, original_type, original_bytes, bytes, width, height)
+					VALUES (1, 1, 'https://b.test/1.webp', 'https://b.test/1.jpg', 'image/jpeg', 100, 50, 4, 3)`,
+				"INSERT INTO image_set_contact (set_id, name) VALUES (1, 'Grace')",
+				'INSERT INTO event_feature_image (event_id, image_id) VALUES (1, 1)',
+				"INSERT INTO rate_limit (key, window_start, count) VALUES ('submit-ip:abc', 0, 3)",
+				"INSERT INTO nfc_tag (uid, last_counter, first_seen_at, last_seen_at) VALUES ('04A1B2C3D4E5F6', 7, 0, 0)",
+				"INSERT INTO remote_key (unlock_key, expires_at) VALUES ('tobyshorin', '2999-01-01')"
+			],
+			'write'
+		);
+		for (const table of kept) before.set(table, await count(client, table));
+
+		await migrateThrough(client, '0014_drop_submission_contacts');
+	});
+
+	afterAll(() => client.close());
+
+	it('drops both contact tables, and the names and emails in them', async () => {
+		expect(await tableExists('submission_contact')).toBe(false);
+		expect(await tableExists('image_set_contact')).toBe(false);
+	});
+
+	it('leaves every other table as it was', async () => {
+		for (const table of kept) {
+			expect(before.get(table), table).toBeGreaterThan(0);
+			expect(await count(client, table), table).toBe(before.get(table));
+		}
+	});
+});
+
+describe('0014_drop_submission_contacts on a database that already lost them', () => {
+	// A database migrated on develop before main was merged in dropped both
+	// tables in a since-removed 0010; 0014 must still apply there.
+	it('applies without error when neither table exists', async () => {
+		const client = createClient({ url: `file:${join(work, 'replay-0014-absent.db')}` });
+		try {
+			await migrateThrough(client, '0013_image_placeholders');
+			await client.batch(
+				['DROP TABLE image_set_contact', 'DROP TABLE submission_contact'],
+				'write'
+			);
+			await expect(
+				migrateThrough(client, '0014_drop_submission_contacts')
+			).resolves.toBeUndefined();
+			const left = await client.execute(
+				"SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE '%contact%'"
+			);
+			expect(left.rows).toEqual([]);
+		} finally {
+			client.close();
+		}
+	});
+});
