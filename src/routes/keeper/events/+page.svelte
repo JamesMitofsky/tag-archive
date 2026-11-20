@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { snapshot } from '$app/navigation';
 	import { formatDate } from '#lib/formatDate.ts';
 	import { untrack } from 'svelte';
 	import BackButton from '#lib/components/BackButton.svelte';
@@ -101,10 +102,13 @@
 	// Persist the search text across back navigation (e.g. open an event, then
 	// return). The list rides the page scroll, so native scroll restoration handles
 	// position; a restored query different from the seed re-runs the search above.
-	export const snapshot = {
+	// The explicit id outlives a deploy, which would change the call-site id
+	// SvelteKit derives otherwise and orphan a query kept in sessionStorage.
+	snapshot({
+		id: 'keeper-events-query',
 		capture: () => query,
-		restore: (value: string) => (query = value)
-	};
+		restore: (value) => (query = value)
+	});
 
 	// Frosted glass, borrowed from the keeper searchbar.
 	const glassInput =

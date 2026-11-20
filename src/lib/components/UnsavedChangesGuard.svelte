@@ -65,8 +65,10 @@
 	});
 
 	// Client-side (SPA) navigation: cancel, then re-issue once the user confirms.
+	// A shallow one (a full-screen view stacking a history entry, see
+	// ImmersiveView) keeps the page and the form on it, so it isn't leaving.
 	beforeNavigate((nav) => {
-		if (confirmedLeave || nav.willUnload || !nav.to || !isDirty()) return;
+		if (confirmedLeave || nav.shallow || nav.willUnload || !nav.to || !isDirty()) return;
 		nav.cancel();
 		pendingUrl = nav.to.url;
 		showPrompt = true;

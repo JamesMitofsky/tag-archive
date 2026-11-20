@@ -21,8 +21,7 @@ vi.mock('$app/navigation', () => ({
 	afterNavigate: () => {},
 	beforeNavigate: () => {},
 	goto: vi.fn(),
-	onNavigate: () => {},
-	pushState: vi.fn()
+	onNavigate: () => {}
 }));
 vi.mock('$app/state', () => ({
 	page: { url: new URL('http://localhost/keeper/artefacts/new'), state: {} }

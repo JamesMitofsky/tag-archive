@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog as DialogPrimitive } from 'bits-ui';
 	import { untrack, type Snippet } from 'svelte';
-	import { afterNavigate, onNavigate, pushState } from '$app/navigation';
+	import { afterNavigate, goto, onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 
 	// A full-viewport, dark, single-task surface: the camera, the crop editor,
@@ -41,8 +41,11 @@
 
 	// While open, the view stacks `steps` shallow history entries of its own
 	// (same URL, see SvelteKit's shallow routing), so back pops one of those
-	// instead of leaving the page. A pop never reaches beforeNavigate, so it
-	// can't trip an unsaved-changes guard either.
+	// instead of leaving the page. A pop between same-URL entries never reaches
+	// the navigation hooks. Stacking one does: `goto(…, { shallow: true })` runs
+	// beforeNavigate, onNavigate and afterNavigate with `shallow` set, which every
+	// hook that means "leaving the page" (here, and the unsaved-changes guard)
+	// must skip.
 	const id = $props.id();
 	/**
 	 * This open's mark on its entries. Fresh per open, so an entry left behind
@@ -72,12 +75,17 @@
 			const pushes: Promise<void>[] = [];
 			while (owned < target) {
 				// Started in order, so the entries land in order.
-				pushes.push(pushState('', { ...page.state, immersive: token!, immersiveStep: owned }));
+				pushes.push(
+					goto('', {
+						shallow: true,
+						state: { ...page.state, immersive: token!, immersiveStep: owned }
+					})
+				);
 				owned += 1;
 			}
-			// pushState rejects without a router, as when the component is rendered
-			// on its own: back just isn't intercepted, so forget the entries it never
-			// made.
+			// A shallow goto rejects without a router, as when the component is
+			// rendered on its own: back just isn't intercepted, so forget the entries
+			// it never made.
 			Promise.all(pushes).catch(() => {
 				owned = before;
 				if (owned === 0) token = null;
@@ -114,11 +122,12 @@
 		for (let i = 0; i < pressed && open; i++) onClose();
 	}
 
-	onNavigate(() => {
-		leaving = true;
+	// Only a real navigation unmounts the view; its own shallow entries don't.
+	onNavigate((nav) => {
+		if (!nav.shallow) leaving = true;
 	});
-	afterNavigate(() => {
-		leaving = false;
+	afterNavigate((nav) => {
+		if (!nav.shallow) leaving = false;
 	});
 
 	// Unmounted while open without a navigation (a form swapped for its
