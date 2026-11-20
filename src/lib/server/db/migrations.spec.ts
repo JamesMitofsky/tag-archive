@@ -323,3 +323,27 @@ describe('0014_drop_submission_contacts', () => {
 		}
 	});
 });
+
+describe('0014_drop_submission_contacts on a database that already lost them', () => {
+	// A database migrated on develop before main was merged in dropped both
+	// tables in a since-removed 0010; 0014 must still apply there.
+	it('applies without error when neither table exists', async () => {
+		const client = createClient({ url: `file:${join(work, 'replay-0014-absent.db')}` });
+		try {
+			await migrateThrough(client, '0013_image_placeholders');
+			await client.batch(
+				['DROP TABLE image_set_contact', 'DROP TABLE submission_contact'],
+				'write'
+			);
+			await expect(
+				migrateThrough(client, '0014_drop_submission_contacts')
+			).resolves.toBeUndefined();
+			const left = await client.execute(
+				"SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE '%contact%'"
+			);
+			expect(left.rows).toEqual([]);
+		} finally {
+			client.close();
+		}
+	});
+});
