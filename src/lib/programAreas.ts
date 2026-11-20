@@ -103,3 +103,39 @@ export const PROGRAM_AREA_FALLBACK: ProgramAreaMeta = {
 export function programAreaMeta(tag: string): ProgramAreaMeta {
 	return PROGRAM_AREA_META[tag as ProgramArea] ?? PROGRAM_AREA_FALLBACK;
 }
+
+/**
+ * What each program area is, in the TAG Season 4 Lookbook's own words: the
+ * Stump Fellowship's "focus areas", copied verbatim (spelling, curly quotes and
+ * the doubled em dashes included). Never reword them. `lead` is the sentence the
+ * lookbook sets in bold and `body` is the rest of its paragraph.
+ *
+ * Five of the six areas have a lookbook entry, under a slightly different name
+ * for two of them (Local Spotlight, Mind-Body Wellbeing). TAG Committee has none,
+ * so it has no description here. The lookbook's Service and Seasonal
+ * Celebrations are not program areas in the archive, so they are left out.
+ */
+export const PROGRAM_AREA_DESCRIPTIONS: Partial<
+	Record<ProgramArea, { lead: string; body: string }>
+> = {
+	DIY: {
+		lead: 'Cultivating craft in and for community.',
+		body: 'Inspired by the deep history of DC’s D.I.Y. scene, we host workshops, meetups, and jam sessions where aspiring creatives learn skills like mending, collaging, glass art, songwriting, zine-making, and more.'
+	},
+	'Learning Landscape': {
+		lead: 'Connecting residents to local history, ecology, and each other through site-specific curriculum.',
+		body: 'We’ve designed original courses, field trips, and “flowerside chats” in partnership with universities and elementary schools——teaching students of all ages about the stories of U Street’s plants, animals, and people.'
+	},
+	Wellbeing: {
+		lead: 'Providing a launching pad for newly-trained teachers and healers to share their practices.',
+		body: 'It’s no secret that gardens benefit our health. Whether it’s harvesting nutritious veggies and calming herbal teas, meditating with the birds, doing yoga under the big sky after a long day of work, or soaking in the sounds of a gong bath——TAG has green medicine for all.'
+	},
+	Spotlight: {
+		lead: 'Highlighting local up-and-coming musicians, comedians, actors, and producers on our performance stage.',
+		body: 'We transform the garden into an intimate and interactive venue for 100+ guests, with free shows that boost community pride and “bring up our own”. USNA’s stipends, photos, videos, and live recordings help featured artists find their next gig and expand their followings.'
+	},
+	Playground: {
+		lead: 'Reconnecting with childlike creativity through experimental games and gatherings.',
+		body: 'We playtest home-grown immersive experiences like “Turtling” (a slowmotion jogging club) and an entomological adventure called “Bugs Under Bricks”. New event types are shared with other community spaces, unlocking ways of being together that add a little extra to the ordinary.'
+	}
+};

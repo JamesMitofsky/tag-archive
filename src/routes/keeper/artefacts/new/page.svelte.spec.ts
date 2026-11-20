@@ -219,3 +219,22 @@ describe('/keeper/artefacts/new event', () => {
 		expect(submitted()).toBe('Symphonic Steep');
 	});
 });
+
+describe('/keeper/artefacts/new program areas', () => {
+	it('explains the areas in the lookbook’s words from an info bubble', async () => {
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		// The bubble's button sits in the legend without joining the group's name.
+		await expect.element(page.getByRole('group', { name: 'Program areas' })).toBeInTheDocument();
+
+		await page.getByRole('button', { name: 'What the program areas mean' }).click();
+
+		const bubble = page.getByRole('dialog', { name: 'Program areas' });
+		await expect.element(bubble.getByText('Cultivating craft in and for community.')).toBeVisible();
+		await expect
+			.element(bubble.getByText(/a gong bath——TAG has green medicine for all\.$/))
+			.toBeInTheDocument();
+		// TAG Committee has no lookbook entry, so the bubble says nothing of it.
+		expect(bubble.getByText('TAG Committee').query()).toBeNull();
+	});
+});
