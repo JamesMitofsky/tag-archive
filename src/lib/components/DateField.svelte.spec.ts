@@ -153,6 +153,8 @@ describe('DateField.svelte', () => {
 		await page.getByRole('button', { name: 'No date', exact: true }).click();
 		await expect.poll(() => submittedValue()).toBe(UNDATED);
 
+		// "No date" is a complete answer, so it closed the picker.
+		await page.getByRole('button', { name: 'No date', exact: true }).click();
 		await page.getByRole('button', { name: 'Month', exact: true }).click();
 		await expect.poll(() => submittedValue()).toBe('2019-07');
 	});
@@ -168,5 +170,68 @@ describe('DateField.svelte', () => {
 
 		await expect.poll(triggerLabel).toBe('No date');
 		await expect.poll(() => submittedValue()).toBe(UNDATED);
+	});
+
+	// Closing is polled: the popover leaves the DOM once its exit transition ends.
+	describe('closing on a pick', () => {
+		const isOpen = () => document.querySelector('[data-popover-content]') !== null;
+
+		it('closes once a day is picked', async () => {
+			await render(DateField, { name: 'date', label: 'Date', value: '2019-07-04' });
+
+			await page.getByRole('button', { name: 'July 4, 2019' }).click();
+			await expect.poll(isOpen).toBe(true);
+			await page.getByRole('button', { name: 'Friday, July 12, 2019' }).click();
+
+			await expect.poll(() => submittedValue()).toBe('2019-07-12');
+			await expect.poll(isOpen).toBe(false);
+		});
+
+		it('closes, keeping the date, when the day already picked is chosen again', async () => {
+			await render(DateField, { name: 'date', label: 'Date', value: '2019-07-04' });
+
+			await page.getByRole('button', { name: 'July 4, 2019' }).click();
+			await expect.poll(isOpen).toBe(true);
+			await page.getByRole('button', { name: 'Thursday, July 4, 2019' }).click();
+
+			await expect.poll(isOpen).toBe(false);
+			expect(submittedValue()).toBe('2019-07-04');
+		});
+
+		it('closes once "No date" is chosen', async () => {
+			await render(DateField, {
+				name: 'date',
+				label: 'Date',
+				allowPartial: true,
+				allowUndated: true
+			});
+
+			await page.getByRole('button', { name: 'Pick a date' }).click();
+			await expect.poll(isOpen).toBe(true);
+			await page.getByRole('button', { name: 'No date', exact: true }).click();
+
+			await expect.poll(() => submittedValue()).toBe(UNDATED);
+			await expect.poll(isOpen).toBe(false);
+		});
+
+		it('closes once a month or a year is picked', async () => {
+			await render(DateField, {
+				name: 'date',
+				label: 'Date',
+				allowPartial: true,
+				value: '2019-07'
+			});
+
+			await page.getByRole('button', { name: 'July 2019' }).click();
+			await page.getByRole('button', { name: 'Mar', exact: true }).click();
+			await expect.poll(isOpen).toBe(false);
+
+			await page.getByRole('button', { name: 'March 2019' }).click();
+			await page.getByRole('button', { name: 'Year', exact: true }).click();
+			// Choosing a precision is not yet a date, so the picker stays up for one.
+			await expect.poll(isOpen).toBe(true);
+			await page.getByRole('button', { name: '2021', exact: true }).click();
+			await expect.poll(isOpen).toBe(false);
+		});
 	});
 });

@@ -112,6 +112,10 @@
 	/**
 	 * Closed on a pick. A popover left open over a phone's form needs a tap
 	 * outside it to dismiss, and that tap lands on whatever is underneath.
+	 *
+	 * The calendar sets `preventDeselect` for the same reason: without it, tapping
+	 * the day that is already picked clears the calendar's value instead of
+	 * confirming it, so the picker would stay open on what is still an answer.
 	 */
 	let open = $state(false);
 
@@ -180,7 +184,10 @@
 							size="sm"
 							class="flex-1"
 							aria-pressed={undated}
-							onclick={() => (undated = true)}
+							onclick={() => {
+								undated = true;
+								open = false;
+							}}
 						>
 							No date
 						</Button>
@@ -210,6 +217,7 @@
 					value={calendarValue}
 					bind:placeholder={calendarPlaceholder}
 					captionLayout="dropdown"
+					preventDeselect
 					onValueChange={(next: DateValue | undefined) => {
 						if (!next) return;
 						year = next.year;
