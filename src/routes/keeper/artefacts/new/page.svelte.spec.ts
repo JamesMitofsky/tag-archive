@@ -54,6 +54,25 @@ describe('/keeper/artefacts/new', () => {
 		await expect.element(page.getByText('Archival storage location *')).toBeInTheDocument();
 	});
 
+	it('picks the storage location from radio buttons, presets first', async () => {
+		await render(NewArtefactPage, {
+			data: { locations: ['binder', 'Binder 3'] },
+			form: null
+		} as unknown as Props);
+
+		const group = page.getByRole('group', { name: 'Archival storage location *' });
+		const radios = [...document.querySelectorAll<HTMLInputElement>('input[name="location"]')];
+		// A location in use that only differs by case is the preset, not a second radio.
+		expect(radios.map((r) => r.value)).toEqual(['Binder', 'Bin', 'Binder 3']);
+		// Required for keepers, so nothing is picked for them and there is no “Not sure”.
+		expect(radios.some((r) => r.checked)).toBe(false);
+		expect(group.getByRole('radio', { name: 'Not sure' }).query()).toBeNull();
+
+		await group.getByRole('radio', { name: 'Bin', exact: true }).click();
+		await expect.element(group.getByRole('radio', { name: 'Bin', exact: true })).toBeChecked();
+		expect(new FormData(document.querySelector('form')!).get('location')).toBe('Bin');
+	});
+
 	it('says what is missing when the button is pressed on an empty form', async () => {
 		await render(NewArtefactPage, {
 			data: { locations: [] },
@@ -100,6 +119,7 @@ describe('/keeper/artefacts/new', () => {
 			.toHaveValue('Found in the blue folder');
 		await expect.element(page.getByRole('img', { name: 'Page 1' })).toBeInTheDocument();
 		await expect.element(page.getByText('Ada Example')).toBeInTheDocument();
+		await expect.element(page.getByRole('radio', { name: 'Binder 3' })).toBeChecked();
 
 		await page.getByRole('button', { name: 'Start over' }).click();
 

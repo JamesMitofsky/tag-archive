@@ -55,9 +55,9 @@ export async function createArtefact(data: ArtefactData, actor: Actor): Promise<
 }
 
 /**
- * Distinct previously-used storage locations, so anything typed in before
- * resurfaces as a picker option. Vetted rows only: a location typed into an
- * unreviewed submission isn't suggested to anyone until a keeper approves it.
+ * Distinct previously-used storage locations, so any location already stored
+ * beyond the presets still shows as a radio choice. Vetted rows only: a location
+ * on an unreviewed submission isn't offered to anyone until a keeper approves it.
  * Non-empty, sorted for a stable UI.
  */
 export async function knownLocations(): Promise<string[]> {
