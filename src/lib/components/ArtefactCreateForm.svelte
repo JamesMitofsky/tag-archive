@@ -464,7 +464,6 @@
 				name="provenance"
 				label="Provenance"
 				placeholder="Jane Doe"
-				prefetch
 				{people}
 				bind:value={provenanceTags}
 			/>

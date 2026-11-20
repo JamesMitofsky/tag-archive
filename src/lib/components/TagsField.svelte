@@ -18,14 +18,12 @@
 		name,
 		label,
 		placeholder = '',
-		prefetch = false,
 		people,
 		value = $bindable([])
 	}: {
 		name: string;
 		label?: string;
 		placeholder?: string;
-		prefetch?: boolean;
 		/**
 		 * Every name to offer, from the page's own load. Keeper pages pass it: the
 		 * public dataset, the fallback, lists only people on vetted rows and is
@@ -88,8 +86,7 @@
 
 	onMount(() => {
 		remembered = rememberedPeople();
-		// Otherwise the names load when the field is first focused.
-		if (prefetch) void ensureLoaded();
+		void ensureLoaded();
 	});
 
 	function onInput() {
