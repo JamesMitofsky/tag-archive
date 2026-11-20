@@ -5,6 +5,8 @@
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import UserGearIcon from 'phosphor-svelte/lib/UserGearIcon';
+	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import { isRole, ROLE_META, roleLabel } from '#lib/roles.ts';
 	import type { ActionData, PageData } from './$types';
 
@@ -49,8 +51,9 @@
 				Accounts
 			</h1>
 			<p class="mt-2 text-sm text-gray-600">
-				Every account opens the Archive from anywhere once signed in. The role decides what else it
-				can do. Someone already signed in sees a new role within five minutes.
+				Every account opens the Archive from anywhere once signed in, a listener’s only to the
+				artefacts chosen for it. The role decides what else it can do. Someone already signed in
+				sees a new role within five minutes.
 			</p>
 
 			<dl class="mt-4 space-y-1 text-sm text-gray-600">
@@ -110,6 +113,25 @@
 								</form>
 							{/if}
 						</div>
+
+						{#if account.role === 'listener'}
+							{@const given = data.artefactCounts[account.id] ?? 0}
+							<a
+								href="/keeper/settings/accounts/{account.id}"
+								class="mt-3 flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
+							>
+								<ArchiveIcon size={16} class="shrink-0 text-gray-500" />
+								<span class="flex-1">
+									{given === 0
+										? 'No artefacts chosen yet'
+										: given === 1
+											? 'Views 1 artefact'
+											: `Views ${given} artefacts`}
+								</span>
+								<span class="font-medium">Choose</span>
+								<CaretRightIcon size={14} class="shrink-0 text-gray-400" />
+							</a>
+						{/if}
 
 						{#if updatedId === account.id}
 							<p class="mt-2 flex items-center gap-1.5 text-sm text-green-800" role="status">

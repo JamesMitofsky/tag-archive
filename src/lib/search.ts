@@ -20,12 +20,18 @@ function haystack(parts: (string | null | undefined)[]): string[] {
 	return parts.filter((p): p is string => Boolean(p)).map((p) => p.toLowerCase());
 }
 
+/** The fields of an artefact that `filterArtefacts` searches. */
+export type SearchableArtefact = Pick<
+	ArtefactWithEvent,
+	'artefact' | 'event' | 'description' | 'programArea' | 'provenance'
+>;
+
 /**
  * Artefacts: tokenized AND — every token must appear in at least one field.
  * Fields mirror the old `/api/search`: artefact title, linked event title,
  * program areas, description, and provenance contributor names.
  */
-export function filterArtefacts(rows: ArtefactWithEvent[], q: string): ArtefactWithEvent[] {
+export function filterArtefacts<T extends SearchableArtefact>(rows: T[], q: string): T[] {
 	const tokens = tokenize(q);
 	if (tokens.length === 0) return [];
 

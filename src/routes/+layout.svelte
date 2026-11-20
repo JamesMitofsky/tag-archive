@@ -14,9 +14,13 @@
 	import PublicNav from '#lib/components/PublicNav.svelte';
 	import TapToast from '#lib/components/TapToast.svelte';
 	import Presence from '#lib/access/Presence.svelte';
-	import { KEEPER_PATH, LOCKED_PATH } from '#lib/access/paths.ts';
+	import { KEEPER_PATH, LISTENER_PATH, LOCKED_PATH } from '#lib/access/paths.ts';
 
 	let { children } = $props();
+
+	// A listener's page is all their pass opens (see #lib/access/gate), so from
+	// there the mark leads back to it rather than to an archive they can't open.
+	const onListenerPage = $derived(page.url.pathname === LISTENER_PATH);
 
 	// Shared-element morph for keeper list ↔ item navigations. Setting morph.name
 	// makes the matching card (shell + title/meta/tags) reactively carry its
@@ -60,7 +64,7 @@
      page like any in-flow header; pages reserve its band with `pt-chrome`. From
      md up the page rarely scrolls and the mark stays pinned. -->
 <a
-	href="/"
+	href={onListenerPage ? LISTENER_PATH : '/'}
 	aria-label="Home"
 	data-cloud-block
 	style="--fade-delay: 120ms"
@@ -69,8 +73,9 @@
 	<Drawing src="/drawing/text/tag-archive.webp" alt="Home" class="w-44 max-w-[32vw]" />
 </a>
 
-<!-- No nav on the locked page: every link would lead straight back to it. -->
-{#if !page.url.pathname.startsWith(KEEPER_PATH) && page.url.pathname !== LOCKED_PATH}
+<!-- No nav on the locked page: every link would lead straight back to it. Nor
+     on a listener's page, whose pass opens none of the pages it names. -->
+{#if !page.url.pathname.startsWith(KEEPER_PATH) && page.url.pathname !== LOCKED_PATH && !onListenerPage}
 	<PublicNav />
 {/if}
 

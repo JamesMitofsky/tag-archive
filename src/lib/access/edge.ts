@@ -1,4 +1,5 @@
-import { accessDecision, LOCKED_PATH } from './gate.js';
+import { verifyFileGrant } from './fileGrant.js';
+import { accessDecision, passOpens, refusedPagePath } from './gate.js';
 import { unlockUrl } from './key.server.js';
 import { PASS_COOKIE, verifyPass } from './pass.js';
 
@@ -59,12 +60,17 @@ export async function gateRequest(
 	// No secret means no pass can be checked: everything but the open paths stays
 	// locked (fail closed), and the keeper sign-in, an open path, still works.
 	if (!secret) console.error('[access-gate] BETTER_AUTH_SECRET is not set');
-	if (await verifyPass(secret ?? '', cookie(PASS_COOKIE), now)) return undefined;
+	const pass = await verifyPass(secret ?? '', cookie(PASS_COOKIE), now);
+	if (pass && passOpens(pass, url.pathname)) return undefined;
+	// A listener's scan shipped with the deployment, signed for them by their
+	// page (./fileGrant), whatever pass they hold.
+	const grantRequest = { pathname: url.pathname, search: url.search, method: request.method };
+	if (await verifyFileGrant(secret, grantRequest, now)) return undefined;
 
 	const headers = { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' };
 	if (decision === 'unlock' || decision === 'redirect') {
 		// The key rides in the Location; keep it out of any Referer from here on.
-		const location = decision === 'unlock' ? unlockUrl(url) : LOCKED_PATH;
+		const location = decision === 'unlock' ? unlockUrl(url) : refusedPagePath(pass);
 		return new Response(null, {
 			status: 303,
 			headers: { ...headers, 'referrer-policy': 'no-referrer', location }

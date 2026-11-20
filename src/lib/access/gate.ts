@@ -4,7 +4,8 @@
  * brought an unlock key (./key.server), and
  * have had the site on screen since (the pass drifts shut after a while away,
  * see ./presence), and signed-in keepers.
- * This decides what happens to a request WITHOUT a valid pass. It is enforced
+ * This decides what happens to a request WITHOUT a valid pass, or with one
+ * that does not open its path (a listener's, see `passOpens`). It is enforced
  * twice, from this one list:
  *
  *  - middleware.ts (Vercel Routing Middleware), in front of everything — the
@@ -21,7 +22,15 @@
 
 import { opensDoor } from './door.server.js';
 import { carriesKey, UNLOCK_PATH } from './key.server.js';
-import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.js';
+import { opensSite, type Pass } from './pass.js';
+import {
+	CONTRIBUTE_PATH,
+	isUnder,
+	KEEPER_PATH,
+	LISTENER_PATH,
+	LOCKED_PATH,
+	PRESENCE_PATH
+} from './paths.js';
 
 export { LOCKED_PATH };
 
@@ -76,6 +85,35 @@ export function routePath(pathname: string): string {
 export function isOpenPath(pathname: string): boolean {
 	const route = routePath(pathname);
 	return OPEN_EXACT.has(route) || OPEN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+/**
+ * What a listener's pass opens beyond the always-open paths (see ./pass and
+ * #lib/roles): their own page, its client-side data load, and the image
+ * optimizer the page draws its scans through. The optimizer only ever fetches
+ * the bucket's URLs (`remotePatterns` in vite.config.ts, no local patterns),
+ * which are public anyway, so opening it shows a listener nothing the page
+ * didn't. Scans shipped with the deployment open by file grant (./fileGrant).
+ */
+const LISTENER_OPEN = new Set([LISTENER_PATH, '/_vercel/image']);
+
+/**
+ * Whether `pass` opens this path on its own. Every kind but a listener's opens
+ * everything; a listener's only LISTENER_OPEN. Anything a pass doesn't open is
+ * decided as if there were no pass at all (`accessDecision`), so a listener
+ * still reaches the always-open paths, the door and the unlock page.
+ */
+export function passOpens(pass: Pick<Pass, 'kind'>, pathname: string): boolean {
+	return opensSite(pass) || LISTENER_OPEN.has(routePath(pathname));
+}
+
+/**
+ * Where a page view the pass doesn't open is sent: a listener to their own
+ * page, since the locked page would tell them to tap a Cube they were given an
+ * account to do without; anyone else to the locked page.
+ */
+export function refusedPagePath(pass: Pick<Pass, 'kind'> | null | undefined): string {
+	return pass && !opensSite(pass) ? LISTENER_PATH : LOCKED_PATH;
 }
 
 /**

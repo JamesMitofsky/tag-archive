@@ -13,6 +13,7 @@
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
 	import HeadphonesIcon from 'phosphor-svelte/lib/HeadphonesIcon';
+	import { LISTENER_PATH } from '#lib/access/paths.ts';
 	import { createEmailSuite, parseEmailForm } from '#lib/validation/auth.ts';
 	import { createValidator } from '#lib/validation/client.svelte.ts';
 	import FieldError from '#lib/components/FieldError.svelte';
@@ -496,17 +497,18 @@
 							{/if}
 						</section>
 					{:else if data.listener}
-						<!-- A listener has no keeper tools; their account opens the archive. -->
+						<!-- A listener has no keeper tools; their account opens their own page. -->
 						<nav class="mt-6 space-y-3">
 							<a
-								href="/"
+								href={LISTENER_PATH}
 								class="flex items-center gap-3 rounded-lg border border-white/40 bg-white/25 p-4 text-gray-800 shadow-sm backdrop-blur-md transition hover:bg-white/40"
 							>
 								<HeadphonesIcon size={24} class="shrink-0 text-gray-700" />
 								<span class="min-w-0 flex-1">
-									<span class="block font-medium text-gray-900">Open the Archive</span>
+									<span class="block font-medium text-gray-900">Your artefacts</span>
 									<span class="block text-sm text-gray-600">
-										You’re signed in as a listener, so the Archive opens for you wherever you are.
+										You’re signed in as a listener, so the artefacts chosen for you open wherever
+										you are.
 									</span>
 								</span>
 								<CaretRightIcon size={18} class="shrink-0 text-gray-400" />

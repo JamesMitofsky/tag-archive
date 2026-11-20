@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import { dev } from '$app/env';
 import { LOCKED_PATH } from '#lib/access/gate.ts';
 import { TAP_FLASH_COOKIE, type TapFlash } from '#lib/access/flash.ts';
+import { opensSite } from '#lib/access/pass.ts';
 import { issuePass, readPass } from '#lib/server/access.ts';
 import { issueDraft } from '#lib/server/drafts.ts';
 import { sdmKeys } from '#lib/server/nfc/keys.ts';
@@ -56,6 +57,6 @@ export const GET: RequestHandler = async ({ url, cookies, getClientAddress, setH
 
 	// A replay from a visitor who is already in — Safari reloading or restoring
 	// the tap's tab — is no cause for alarm: carry on as they were.
-	if (outcome === 'used' && (await readPass(cookies))) throw redirect(303, '/');
+	if (outcome === 'used' && opensSite(await readPass(cookies))) throw redirect(303, '/');
 	return flash(outcome, LOCKED_PATH);
 };

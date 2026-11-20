@@ -123,6 +123,19 @@ it against its source every time and show nothing when it no longer resolves
 feature image only while its source is vetted too, and only as the URL and size
 that render it.
 
+**Listener artefacts.** A listener's account views only the artefacts an admin
+chose for it (see [Access](#access)). `listener_artefact` holds the choices, one
+row per account and artefact:
+
+| Column        | Notes                                                 |
+| ------------- | ----------------------------------------------------- |
+| `user_id`     | The account (`user`); deleted with it                 |
+| `artefact_id` | An artefact it may view (`artefact`); deleted with it |
+
+The pair is the primary key. Rows outlive a change of role, so an account made
+a listener again finds its choices where they were. A chosen artefact still
+awaiting review stays hidden from the listener until vetted.
+
 Seed data lives in `src/lib/data/seed-data.json` (parsed from the original
 exports): artefacts, events, series and people. Editing the archive's seed =
 edit that file and re-seed.
@@ -499,17 +512,45 @@ is never locked out for being away. The signed-in area
 reaches SvelteKit, where their session renews it; anyone without a session is
 sent back to `/keeper`.
 
-**Every account opens it from anywhere; the role decides the rest.** Roles live
+**Every account opens it from anywhere; the role decides how much.** Roles live
 in `src/lib/roles.ts`:
 
 - **Admin**: a keeper with full access, accounts included.
 - **Contributor**: a keeper whose entries land as proposed additions.
-- **Listener**: signs in only so the archive opens wherever they are. A listener
-  is not a keeper: `hooks.server.ts` puts them on `locals.listener`, never
+- **Listener**: signs in to view the artefacts an admin chose for the account,
+  wherever they are, and nothing else of the archive (see below). A listener is
+  not a keeper: `hooks.server.ts` puts them on `locals.listener`, never
   `locals.user`, so every keeper check turns them away, and inside `/keeper/*`
-  they reach only the hub (which links them to the archive) and their settings,
-  to sign out. They get no upload draft either, so `/contribute` treats them like
-  any visitor who has not tapped the Cube.
+  they reach only the hub (which links them to their artefacts) and their
+  settings, to sign out. They get no upload draft either.
+
+**A listener sees only what they were given.** Signing in is not being in the
+garden, so a listener's pass (kind `l`) opens one page, `/listening`, which shows
+the artefacts chosen for their account (`listener_artefact`, see
+[Data model](#data-model)), drawn in the same cloud as `/`. Admins choose them at
+**Settings → Accounts**, from the listener's row. The pass also opens the image
+optimizer (`/_vercel/image`), which only ever fetches the bucket's already
+public URLs. Every other page view sends them back to `/listening`, and every
+other request (`/api/dataset`, uploads, audio, files) is refused, at the edge
+and in `hooks.server.ts` alike (`passOpens` in `src/lib/access/gate.ts`). A
+listener who taps the Cube, comes through the door or brings an unlock key is
+handed that kind of pass instead, and the whole site opens for them as for anyone.
+
+In SvelteKit a listener's pass rides on `locals.listenerPass`, never
+`locals.pass`, so every check of `locals.pass` (the contribution forms, uploads)
+still means a pass that opens the whole site. A signed-in account holding a pass
+its session handed to the other kind of account (an admin made a listener, say)
+is handed one of its own kind on its next page view or beat, so a role change
+isn't outlasted by a pass that keeps sliding.
+
+Scans shipped with the deployment (`static/artefacts/`) sit behind the edge gate,
+which can't read the database to learn which artefacts are a listener's. So
+`/listening` signs each of their files' URLs with a **file grant**
+(`src/lib/access/fileGrant.ts`, `?grant=<expiry>.<HMAC>`, keyed from
+`BETTER_AUTH_SECRET` for its own purpose), which the middleware checks: a grant
+opens one path under `/artefacts/`, for reads only, for at least 12 hours
+(rounded up to the hour so the browser's cache keeps serving the same URL).
+Bucket URLs need no grant.
 
 Admins set the role when creating an account (**Settings → New account**) and
 change it later at **Settings → Accounts** (`/keeper/settings/accounts`), for

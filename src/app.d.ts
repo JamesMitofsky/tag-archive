@@ -18,8 +18,16 @@ declare global {
 			listener?: AuthSession['user'];
 			/** The session of whichever of the two is signed in. */
 			session?: AuthSession['session'];
-			/** The visitor's access pass, when they hold one (see #lib/access/pass). */
+			/**
+			 * The visitor's access pass, when they hold one that opens the whole
+			 * site (see #lib/access/pass). Never a listener's.
+			 */
 			pass?: import('#lib/access/pass.ts').Pass;
+			/**
+			 * A listener's pass, which opens only their own page (see `passOpens`
+			 * in #lib/access/gate). Never set alongside `pass`.
+			 */
+			listenerPass?: import('#lib/access/pass.ts').Pass;
 		}
 
 		// interface Error {}

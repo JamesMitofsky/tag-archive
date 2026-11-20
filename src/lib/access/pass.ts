@@ -5,7 +5,13 @@
  * bringing an unlock key (kind `r`, see ./key.server and src/routes/unlock); a
  * signed-in account is issued one automatically (kind `k` for a keeper, `l`
  * for a listener, see #lib/roles and hooks.server.ts).
- * The kind records where a pass came from; every kind opens the same site.
+ * The kind records where a pass came from, and every kind opens the whole
+ * site but one: a listener's (`l`) opens only their own page, the artefacts an
+ * admin chose for their account (see `opensSite`, and `passOpens` in ./gate).
+ * Signing in is not being in the garden, so the account that never tapped the
+ * Cube sees only what it was given. A listener who does tap it, or comes
+ * through the door or with a key, is handed that kind of pass instead, and the
+ * whole site opens for them as for anyone.
  *
  * A pass is good for PASS_TTL_MS from the moment it was minted, and it slides:
  * while the site is on the visitor's screen, the browser re-mints it through
@@ -34,6 +40,11 @@ export type PassKind = 't' | 'd' | 'r' | 'k' | 'l';
  * beat that re-minted it. So on a pass that has slid, it reads as "last seen".
  */
 export type Pass = { kind: PassKind; issuedAt: number; expiresAt: number };
+
+/** Whether a pass of this kind opens the whole site (see the top of this file). */
+export function opensSite<P extends Pick<Pass, 'kind'>>(pass: P | null | undefined): pass is P {
+	return !!pass && pass.kind !== 'l';
+}
 
 const VERSION = 'v1';
 const encoder = new TextEncoder();

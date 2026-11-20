@@ -6,8 +6,10 @@ import {
 	accessDecision,
 	isDoorNavigation,
 	isKeyNavigation,
-	LOCKED_PATH
+	passOpens,
+	refusedPagePath
 } from '#lib/access/gate.ts';
+import { opensSite } from '#lib/access/pass.ts';
 import { unlockUrl, withoutKey } from '#lib/access/key.server.ts';
 import { auth } from '#lib/server/auth.ts';
 import { isKeeperRole } from '#lib/roles.ts';
@@ -43,7 +45,8 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 // The site-wide access gate (see #lib/access/gate): the site opens to holders
 // of an access pass — earned by tapping the garden's NFC tag or coming through
 // the door, or handed to a signed-in keeper or listener — and kept alive by the presence
-// beat while the site is on screen (src/routes/api/presence). In production the
+// beat while the site is on screen (src/routes/api/presence). A listener's pass
+// opens only their own page (see `passOpens`). In production the
 // middleware has already turned pass-less requests away; this is the same rule
 // again for everything that reaches SvelteKit, and the only gate under `vite dev`.
 const guardAccess: Handle = async ({ event, resolve }) => {
@@ -58,7 +61,8 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 
 	// Reading a pass costs one HMAC; a signed-in account without one is handed
 	// one here (never on a response the CDN might cache, see #lib/server/access).
-	// That is what lets a keeper or a listener open the archive from anywhere.
+	// That is what lets a keeper open the archive from anywhere, and a listener
+	// their own page of it.
 	let pass = await readPass(event.cookies);
 
 	if (event.locals.user) pass = await sessionPass(event.cookies, pass, request, 'k');
@@ -70,10 +74,11 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 	// visitor in as a tap would — a pass, and a draft so /contribute works —
 	// then send them on to the same URL without the phrase, so the next click
 	// still finds the site open and the phrase leaves the address bar. Someone
-	// already holding a pass keeps it and only loses the phrase. SvelteKit
-	// carries cookies set here onto the redirect, a JSON one for a data load.
+	// already holding a pass that opens the site keeps it and only loses the
+	// phrase (a listener's opens too little). SvelteKit carries cookies set here
+	// onto the redirect, a JSON one for a data load.
 	if (isDoorNavigation(gateRequest)) {
-		if (!pass) {
+		if (!opensSite(pass)) {
 			await issuePass(event.cookies, 'd');
 			issueDraft(event.cookies);
 		}
@@ -83,13 +88,18 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 	// With an unlock key (see #lib/access/key.server), on any page: only
 	// /unlock checks it against the database, so send the visitor there (the
 	// middleware already has, for a page view; this catches data loads, and everything under
-	// `vite dev`). Someone already holding a pass only loses the key.
+	// `vite dev`). Someone already holding a pass that opens the site only loses the key.
 	if (isKeyNavigation(gateRequest)) {
-		throw redirect(303, pass ? withoutKey(event.url) : unlockUrl(event.url));
+		throw redirect(303, opensSite(pass) ? withoutKey(event.url) : unlockUrl(event.url));
 	}
 
-	event.locals.pass = pass ?? undefined;
-	if (pass) return resolve(event);
+	// A pass that opens one page is kept apart from one that opens the site, as
+	// a listener is kept apart from `locals.user`: every check of `locals.pass`
+	// (the contribution forms and uploads among them) means the whole site, and
+	// none can be met by a listener's pass for forgetting to look at its kind.
+	if (opensSite(pass)) event.locals.pass = pass;
+	else event.locals.listenerPass = pass ?? undefined;
+	if (pass && passOpens(pass, event.url.pathname)) return resolve(event);
 
 	const decision = accessDecision(gateRequest);
 	if (decision === 'open') return resolve(event);
@@ -97,7 +107,7 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 	// loads and enhanced form actions too, so those land on the locked page
 	// rather than an error.
 	if (decision === 'redirect' || request.isDataRequest || request.isEnhancedAction) {
-		throw redirect(303, LOCKED_PATH);
+		throw redirect(303, refusedPagePath(pass));
 	}
 	throw error(401, 'Visit the Cube to open the Archive');
 };

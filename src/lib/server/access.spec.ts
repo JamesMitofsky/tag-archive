@@ -7,7 +7,9 @@ vi.mock('$app/env/private', async () =>
 vi.mock('$app/env', () => ({ dev: false, building: false }));
 
 const { PASS_COOKIE, PASS_TTL_MS, mintPass, verifyPass } = await import('#lib/access/pass.ts');
-const { issuePass, mayIssuePass, readPass, sessionPass, touchPass } = await import('./access');
+const { verifyFileGrant } = await import('#lib/access/fileGrant.ts');
+const { FILE_GRANT_TTL_MS, grantFiles, issuePass, mayIssuePass, readPass, sessionPass, touchPass } =
+	await import('./access');
 
 const SECRET = 'test-secret';
 
@@ -94,7 +96,7 @@ describe('sessionPass', () => {
 		});
 	});
 
-	it('hands a listener a pass of their own kind, so it opens the archive the same way', async () => {
+	it('hands a listener a pass of their own kind, which opens only their page', async () => {
 		const { cookies, token } = jar();
 		const pass = await sessionPass(cookies, null, pageView, 'l', 5_000);
 		expect(pass).toEqual({ kind: 'l', issuedAt: 5_000, expiresAt: 5_000 + PASS_TTL_MS });
@@ -105,5 +107,66 @@ describe('sessionPass', () => {
 		const { cookies, token } = jar();
 		expect(await sessionPass(cookies, null, bareFetch, 'k')).toBeNull();
 		expect(token()).toBeUndefined();
+	});
+
+	it('keeps a pass a listener earned in the garden, by the door or with a key', async () => {
+		for (const kind of ['t', 'd', 'r'] as const) {
+			const { cookies, token } = jar((await mintPass(SECRET, kind, 0)).token);
+			const before = token();
+			const current = await readPass(cookies, 1);
+			expect(await sessionPass(cookies, current, pageView, 'l', 1)).toEqual(current);
+			expect(token()).toBe(before);
+		}
+	});
+
+	it('swaps the other kind of account’s pass, so a role change is not outlasted by the beat', async () => {
+		// An admin made a listener keeps no whole-site pass ...
+		const demoted = jar((await mintPass(SECRET, 'k', 0)).token);
+		const fromKeeper = await readPass(demoted.cookies, 1);
+		expect(await sessionPass(demoted.cookies, fromKeeper, pageView, 'l', 2)).toEqual({
+			kind: 'l',
+			issuedAt: 2,
+			expiresAt: 2 + PASS_TTL_MS
+		});
+		expect((await verifyPass(SECRET, demoted.token(), 2))?.kind).toBe('l');
+
+		// ... and a listener made a keeper is no longer held to one page.
+		const promoted = jar((await mintPass(SECRET, 'l', 0)).token);
+		const fromListener = await readPass(promoted.cookies, 1);
+		expect(await sessionPass(promoted.cookies, fromListener, pageView, 'k', 2)).toMatchObject({
+			kind: 'k'
+		});
+	});
+
+	it('counts the other kind’s pass for nothing where the swap can’t be set', async () => {
+		const { cookies, token } = jar((await mintPass(SECRET, 'k', 0)).token);
+		const before = token();
+		const current = await readPass(cookies, 1);
+		expect(await sessionPass(cookies, current, bareFetch, 'l', 1)).toBeNull();
+		expect(token()).toBe(before);
+	});
+});
+
+describe('grantFiles', () => {
+	const HOUR = 60 * 60 * 1000;
+
+	it('signs scans shipped with the deployment and leaves bucket URLs as they were', async () => {
+		const bucket = 'https://pub.r2.test/scans/0b9c.webp';
+		const [local, remote] = await grantFiles(['/artefacts/A program.webp', bucket], 0);
+		expect(remote).toBe(bucket);
+		const url = new URL(local, 'https://archive.test');
+		expect(url.pathname).toBe('/artefacts/A%20program.webp');
+		const request = { pathname: url.pathname, search: url.search, method: 'GET' };
+		expect(await verifyFileGrant(SECRET, request, FILE_GRANT_TTL_MS - 1)).toBe(true);
+	});
+
+	it('signs the same URL all hour, good for at least FILE_GRANT_TTL_MS', async () => {
+		const start = 5 * HOUR + 1;
+		const [first] = await grantFiles(['/artefacts/a.webp'], start);
+		const [later] = await grantFiles(['/artefacts/a.webp'], 6 * HOUR - 1);
+		expect(later).toBe(first);
+		const expiresAt = Number(new URL(first, 'https://x').searchParams.get('grant')!.split('.')[0]);
+		expect(expiresAt % HOUR).toBe(0);
+		expect(expiresAt - (6 * HOUR - 1)).toBeGreaterThanOrEqual(FILE_GRANT_TTL_MS);
 	});
 });

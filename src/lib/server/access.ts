@@ -1,6 +1,7 @@
 import type { Cookies } from '@sveltejs/kit';
 import { dev } from '$app/env';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
+import { grantFile } from '#lib/access/fileGrant.ts';
 import {
 	mintPass,
 	PASS_COOKIE,
@@ -79,6 +80,9 @@ export function mayIssuePass(request: RequestShape): boolean {
 	);
 }
 
+/** The kinds of pass `sessionPass` hands out, one per kind of account. */
+const SESSION_KINDS: readonly PassKind[] = ['k', 'l'];
+
 /**
  * A signed-in account's pass: the session is the real credential, so an account
  * that holds no valid pass is handed one, of `kind` (`k` for a keeper, `l` for
@@ -86,6 +90,14 @@ export function mayIssuePass(request: RequestShape): boolean {
  * cache, and is never locked out for being away. Keeping it topped up is the
  * presence beat's job, the same as for everyone else; a bare fetch without a
  * pass gets the gate's 401 like anyone's, and the next beat (a POST) mends it.
+ *
+ * A pass the account earned another way (a tap, the door, a key) is kept, so a
+ * listener in the garden sees the whole site. But one a session handed out for
+ * the other kind of account is swapped for this one: the beat slides a pass
+ * for as long as it is on screen, so without the swap an admin turned listener
+ * would keep a keeper's whole-site pass indefinitely, and a listener made a
+ * keeper would stay held to the listener's page. Where the swap can't be set
+ * (a cacheable fetch) the old pass counts for nothing on this request.
  */
 export async function sessionPass(
 	cookies: Cookies,
@@ -94,7 +106,25 @@ export async function sessionPass(
 	kind: Extract<PassKind, 'k' | 'l'>,
 	now = Date.now()
 ): Promise<Pass | null> {
-	if (current) return current;
+	if (current && (current.kind === kind || !SESSION_KINDS.includes(current.kind))) return current;
 	if (!mayIssuePass(request)) return null;
 	return issuePass(cookies, kind, now);
+}
+
+/** How long a listener's file grant lasts, at the least (see `grantFiles`). */
+export const FILE_GRANT_TTL_MS = 12 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * `urls` with each scan shipped with the deployment signed for a listener to
+ * fetch (see #lib/access/fileGrant); bucket URLs, public already, as they were.
+ *
+ * Every grant handed out within the same hour runs out at the same moment, at
+ * least FILE_GRANT_TTL_MS away, so a page loaded twice in an hour asks for the
+ * same URLs and the browser's cache answers the second time. The margin is
+ * long so that a page left open all day still opens a card's later pages.
+ */
+export function grantFiles(urls: string[], now = Date.now()): Promise<string[]> {
+	const expiresAt = Math.ceil((now + FILE_GRANT_TTL_MS) / HOUR_MS) * HOUR_MS;
+	return Promise.all(urls.map((url) => grantFile(secret(), url, expiresAt)));
 }

@@ -5,9 +5,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import middleware, { config } from '../../../middleware';
 import { DOOR_PARAM, KEEPER_DOOR_URL, opensDoor, withoutDoor } from './door.server';
 import { gateRequest, readCookie } from './edge';
-import { accessDecision, isDoorNavigation, isKeyNavigation, isOpenPath, LOCKED_PATH } from './gate';
+import { grantFile } from './fileGrant';
+import {
+	accessDecision,
+	isDoorNavigation,
+	isKeyNavigation,
+	isOpenPath,
+	LOCKED_PATH,
+	passOpens,
+	refusedPagePath
+} from './gate';
 import { KEY_PARAM, returnPath, UNLOCK_PATH, unlockUrl, withoutKey } from './key.server';
-import { mintPass, PASS_COOKIE } from './pass';
+import { mintPass, PASS_COOKIE, type PassKind } from './pass';
+import { LISTENER_PATH } from './paths';
 
 const page = (pathname: string, method = 'GET') =>
 	accessDecision({ pathname, method, accept: 'text/html,*/*', isDataRequest: false });
@@ -352,6 +362,54 @@ describe('accessDecision (no pass)', () => {
 	});
 });
 
+describe('passOpens (a listener’s pass)', () => {
+	const listener = { kind: 'l' as const };
+
+	it('opens every path for every kind of pass but a listener’s', () => {
+		for (const kind of ['t', 'd', 'r', 'k'] satisfies PassKind[]) {
+			for (const path of ['/', '/events', '/api/dataset', '/artefacts/a.webp', LISTENER_PATH]) {
+				expect(passOpens({ kind }, path), `${kind} ${path}`).toBe(true);
+			}
+		}
+	});
+
+	it('opens a listener’s own page, its data load and the image optimizer alone', () => {
+		for (const path of [LISTENER_PATH, `${LISTENER_PATH}/`, `${LISTENER_PATH}/__data.json`]) {
+			expect(passOpens(listener, path), path).toBe(true);
+		}
+		expect(passOpens(listener, '/_vercel/image')).toBe(true);
+		for (const path of [
+			'/',
+			'/__data.json',
+			'/events',
+			'/images',
+			'/meditation-walk',
+			'/contribute',
+			'/contribute/images',
+			'/api/dataset',
+			'/api/scans',
+			'/api/images/upload-url',
+			'/artefacts/a.webp',
+			'/audio/meditation-walk/01%20-%20INTRODUCTION.mp3',
+			`${LISTENER_PATH}x`,
+			`${LISTENER_PATH}/other`
+		]) {
+			expect(passOpens(listener, path), path).toBe(false);
+		}
+	});
+
+	it('sends a listener refused a page to their own page, anyone else to the locked one', () => {
+		expect(refusedPagePath(listener)).toBe(LISTENER_PATH);
+		expect(refusedPagePath({ kind: 't' })).toBe(LOCKED_PATH);
+		expect(refusedPagePath(null)).toBe(LOCKED_PATH);
+	});
+
+	it('leaves the listener’s page shut to anyone without a pass', () => {
+		expect(page(LISTENER_PATH)).toBe('redirect');
+		expect(fetchCall(`${LISTENER_PATH}/__data.json`)).toBe('refuse');
+	});
+});
+
 describe('middleware matcher', () => {
 	// As Vercel compiles each matcher: anchored, with one optional trailing
 	// `/`, `#` or `?` (see `middlewareRawSrc` in .vercel/output/config.json).
@@ -565,6 +623,88 @@ describe('gateRequest (edge)', () => {
 			await gateRequest(request(`${UNLOCK_PATH}?key=tobyshorin&to=/`), () => undefined, SECRET)
 		).toBeUndefined();
 	});
+
+	describe('with a listener’s pass', () => {
+		const listener = async () => (await mintPass(SECRET, 'l')).token;
+
+		it('lets their own page and the image optimizer through', async () => {
+			const token = await listener();
+			expect(await gateRequest(request(LISTENER_PATH), () => token, SECRET)).toBeUndefined();
+			expect(
+				await gateRequest(request(`${LISTENER_PATH}/__data.json`, '*/*'), () => token, SECRET)
+			).toBeUndefined();
+			expect(
+				await gateRequest(
+					request('/_vercel/image?url=x&w=480&q=75', 'image/*'),
+					() => token,
+					SECRET
+				)
+			).toBeUndefined();
+		});
+
+		it('sends any other page view to their own page, not the locked one', async () => {
+			const token = await listener();
+			for (const path of ['/', '/events', '/images', '/contribute', '/meditation-walk']) {
+				const res = await gateRequest(request(path), () => token, SECRET);
+				expect(res?.status, path).toBe(303);
+				expect(res?.headers.get('location'), path).toBe(LISTENER_PATH);
+				expect(res?.headers.get('cache-control'), path).toBe('no-store');
+			}
+		});
+
+		it('refuses the dataset, the uploads and the files, cached or not', async () => {
+			const token = await listener();
+			for (const path of [
+				'/api/dataset',
+				'/api/scans',
+				'/events/__data.json',
+				'/artefacts/a.webp',
+				'/audio/meditation-walk/01.mp3'
+			]) {
+				const res = await gateRequest(request(path, '*/*'), () => token, SECRET);
+				expect(res?.status, path).toBe(401);
+			}
+		});
+
+		it('still reaches the door, and a key goes on to /unlock', async () => {
+			const token = await listener();
+			const door = new URL(KEEPER_DOOR_URL, 'https://archive.test').search;
+			expect(await gateRequest(request(`/events${door}`), () => token, SECRET)).toBeUndefined();
+			const res = await gateRequest(
+				request(`/events?${KEY_PARAM}=tobyshorin`),
+				() => token,
+				SECRET
+			);
+			expect(new URL(res?.headers.get('location') ?? '', 'https://archive.test').pathname).toBe(
+				UNLOCK_PATH
+			);
+		});
+	});
+
+	describe('file grants', () => {
+		it('let a granted scan through without a pass, and only that scan', async () => {
+			const href = await grantFile(SECRET, '/artefacts/A program.webp', Date.now() + 60_000);
+			expect(await gateRequest(request(href, 'image/*'), () => undefined, SECRET)).toBeUndefined();
+			const search = new URL(href, 'https://archive.test').search;
+			const other = await gateRequest(
+				request(`/artefacts/Another.webp${search}`, 'image/*'),
+				() => undefined,
+				SECRET
+			);
+			expect(other?.status).toBe(401);
+		});
+
+		it('do nothing once run out, or under another secret', async () => {
+			const expired = await grantFile(SECRET, '/artefacts/a.webp', Date.now() - 1);
+			expect((await gateRequest(request(expired, '*/*'), () => undefined, SECRET))?.status).toBe(
+				401
+			);
+			const foreign = await grantFile('other-secret', '/artefacts/a.webp', Date.now() + 60_000);
+			expect((await gateRequest(request(foreign, '*/*'), () => undefined, SECRET))?.status).toBe(
+				401
+			);
+		});
+	});
 });
 
 describe('middleware as Vercel builds it', () => {
@@ -612,6 +752,7 @@ describe('middleware as Vercel builds it', () => {
 			'middleware.ts',
 			'src/lib/access/door.server.ts',
 			'src/lib/access/edge.ts',
+			'src/lib/access/fileGrant.ts',
 			'src/lib/access/gate.ts',
 			'src/lib/access/key.server.ts',
 			'src/lib/access/pass.ts',
