@@ -15,6 +15,8 @@ export type PublicImage = {
 	url: string;
 	width: number;
 	height: number;
+	/** Its ThumbHash, base64 (see #lib/images/placeholder), or null when it has none. */
+	placeholder: string | null;
 	/** The day the photograph was taken (`YYYY-MM-DD`), or null when unknown. */
 	capturedDate: string | null;
 };
@@ -25,7 +27,7 @@ export type PublicImageSet = {
 	description: string | null;
 	/** The linked event's title, only when that event is itself vetted. */
 	event: string | null;
-	/** A partial date (see $lib/partialDate), null when undated. */
+	/** A partial date (see #lib/partialDate), null when undated. */
 	date: string | null;
 	/** In display order. */
 	images: PublicImage[];
@@ -98,4 +100,9 @@ export type FinalizeRequest = {
 	displayKey: string;
 	/** The file name the device gave the original. */
 	name: string;
+	/**
+	 * The display copy's ThumbHash, base64 (see #lib/images/placeholder), or
+	 * null when the browser couldn't make one. Kept only when well-formed.
+	 */
+	placeholder?: string | null;
 };

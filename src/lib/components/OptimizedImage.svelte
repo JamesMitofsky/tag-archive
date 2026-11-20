@@ -20,13 +20,13 @@
 	the bucket's host, from R2_PUBLIC_URL.
 
 	The optimizer only renders the widths the build declared, so every width asked
-	for is snapped onto that list first ($lib/images/cdnWidths).
+	for is snapped onto that list first (#lib/images/cdnWidths).
 
 	Layout/sizing stays with the caller (via `class`) — this only decides the source.
 -->
 <script lang="ts">
-	import { fileExt } from '$lib/fileType';
-	import { cdnWidth } from '$lib/images/cdnWidths';
+	import { fileExt } from '#lib/fileType.ts';
+	import { cdnWidth } from '#lib/images/cdnWidths.js';
 
 	let {
 		src,

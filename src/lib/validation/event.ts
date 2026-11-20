@@ -29,14 +29,14 @@ export function parseEventForm(fd: FormData): EventData {
 export function createEventSuite() {
 	return defineSuite<EventData>((data) => {
 		const title = data.title ?? '';
-		check('title', 'Title is required', title.length > 0);
+		check('title', 'Title required', title.length > 0);
 		check('title', 'Keep the title under 200 characters', title.length <= 200);
 
 		maxLen('series', data.series ?? '', 200, 'series');
 
 		// A date is required for an event, and to the exact day: an event is one
 		// real happening on one day, so the vaguer forms an artefact may carry
-		// (see $lib/partialDate) are deliberately not accepted here.
+		// (see #lib/partialDate) are deliberately not accepted here.
 		check('date', 'Pick a valid date', isFullDate(data.date ?? ''));
 
 		maxLen('time', data.time ?? '', 100, 'time');

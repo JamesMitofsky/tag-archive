@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { PublicImage, PublicImageSet } from '$lib/images/types';
+import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
 import { filterImageSets } from './search';
 
 function photo(id: number): PublicImage {
@@ -8,6 +8,7 @@ function photo(id: number): PublicImage {
 		url: `https://example.test/images/${id}/display.webp`,
 		width: 4,
 		height: 3,
+		placeholder: null,
 		capturedDate: null
 	};
 }

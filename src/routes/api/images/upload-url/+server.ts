@@ -1,8 +1,8 @@
-import { error, json } from '@sveltejs/kit';
-import type { DisplayUploadGrant, OriginalUploadGrant } from '$lib/images/types';
-import { readDraft } from '$lib/server/drafts';
-import { imageKeys, parseOriginalKey } from '$lib/server/imageKeys';
-import { isImageType } from '$lib/server/imageType';
+import { error } from '@sveltejs/kit';
+import type { DisplayUploadGrant, OriginalUploadGrant } from '#lib/images/types.ts';
+import { readDraft } from '#lib/server/drafts.ts';
+import { imageKeys, parseOriginalKey } from '#lib/server/imageKeys.ts';
+import { isImageType } from '#lib/server/imageType.ts';
 import {
 	isFinalized,
 	lockedResponse,
@@ -11,13 +11,13 @@ import {
 	ownerPrefix,
 	requestOwner,
 	UPLOAD_URL_TTL_S
-} from '$lib/server/imageUploads';
-import { consume, LIMITS } from '$lib/server/rateLimit';
-import { uploadTarget } from '$lib/server/scans';
-import { sign, verify } from '$lib/server/signing';
+} from '#lib/server/imageUploads.ts';
+import { consume, LIMITS } from '#lib/server/rateLimit.ts';
+import { uploadTarget } from '#lib/server/scans.ts';
+import { sign, verify } from '#lib/server/signing.ts';
 import type { RequestHandler } from './$types';
 
-// Upload URLs for photographs (see $lib/server/imageUploads). Photographs go
+// Upload URLs for photographs (see #lib/server/imageUploads). Photographs go
 // straight from the browser to the bucket, which has no per-request access
 // control of its own, so this is their write gate — the same two uploaders as
 // /api/scans, under the same rules:
@@ -60,7 +60,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies, getClient
 		const grant: DisplayUploadGrant = {
 			upload: await uploadTarget(keys.displayKey, 'image/webp', size, UPLOAD_URL_TTL_S)
 		};
-		return json(grant);
+		return Response.json(grant);
 	}
 
 	if (fields.object !== 'original') throw error(400, 'Expected an upload request');
@@ -89,7 +89,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies, getClient
 		ticket: sign('image-display', originalKey),
 		upload: await uploadTarget(originalKey, type, size, UPLOAD_URL_TTL_S)
 	};
-	return json(grant);
+	return Response.json(grant);
 };
 
 /** The exact byte size an upload URL is signed for, within `max`. */

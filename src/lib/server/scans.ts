@@ -1,20 +1,21 @@
 import { createHash } from 'node:crypto';
 import { AwsClient } from 'aws4fetch';
-import { dev } from '$app/environment';
-import { env } from '$env/dynamic/private';
-import type { PresignedPut } from '$lib/images/types';
+import { dev } from '$app/env';
+import * as env from '$app/env/private';
+import type { PresignedPut } from '#lib/images/types.ts';
 import type { ImageType } from './imageType';
 import { sign, verify } from './signing';
 
 // S3-compatible storage for uploaded scan images. Objects are served straight from
 // the bucket's public URL, so this module only handles writes. Credentials stay
-// server-side via $env/dynamic/private — they never reach the client.
+// server-side via $app/env/private — they never reach the client.
 //
 // Prod points at Cloudflare R2 (endpoint derived from the account id). Local dev
 // points S3_ENDPOINT at a RustFS container instead, so uploads never touch the prod
 // bucket — same code path, different endpoint + credentials.
 
-function required(name: string): string {
+/** A variable declared in src/env.ts that must be set for uploads to work. */
+function required(name: keyof typeof env): string {
 	const value = env[name];
 	if (!value) throw new Error(`Missing ${name} — set it to enable scan uploads`);
 	return value;
@@ -134,7 +135,7 @@ async function ensureLocalBucket(c: AwsClient): Promise<void> {
 		.catch(() => {});
 }
 
-// File extension for each sniffed image type (see $lib/server/imageType).
+// File extension for each sniffed image type (see #lib/server/imageType).
 const EXT_BY_TYPE: Record<ImageType, string> = {
 	'image/jpeg': 'jpg',
 	'image/png': 'png',

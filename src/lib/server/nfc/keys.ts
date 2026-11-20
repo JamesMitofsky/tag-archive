@@ -1,11 +1,11 @@
-import { dev } from '$app/environment';
-import { env } from '$env/dynamic/private';
+import { dev } from '$app/env';
+import { NFC_SDM_META_KEY, NFC_SDM_FILE_KEY } from '$app/env/private';
 import type { SdmKeys } from './sdm';
 
 /**
  * The two AES-128 keys the garden tag signs its taps with (see ./sdm). They
  * are their own env vars, not derived from BETTER_AUTH_SECRET like
- * $lib/server/signing's keys: the same bytes are written onto the physical
+ * #lib/server/signing's keys: the same bytes are written onto the physical
  * tag, so rotating the auth secret must never invalidate it.
  *
  * Fails closed: outside dev, missing keys — or the all-zero factory default,
@@ -16,8 +16,8 @@ import type { SdmKeys } from './sdm';
 const KEY_RE = /^[0-9A-Fa-f]{32}$/;
 
 export function sdmKeys(): SdmKeys | null {
-	const meta = env.NFC_SDM_META_KEY ?? '';
-	const file = env.NFC_SDM_FILE_KEY ?? '';
+	const meta = NFC_SDM_META_KEY ?? '';
+	const file = NFC_SDM_FILE_KEY ?? '';
 	if (!KEY_RE.test(meta) || !KEY_RE.test(file)) {
 		console.error('[nfc] NFC_SDM_META_KEY / NFC_SDM_FILE_KEY are unset or malformed');
 		return null;

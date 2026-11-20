@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const env = vi.hoisted(() => ({ BETTER_AUTH_SECRET: 'test-secret' }));
-vi.mock('$env/dynamic/private', () => ({ env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv(env));
 
 const { imageKeys, parseImageKeys, parseOriginalKey } = await import('./imageKeys');
 const { isPlainKey } = await import('./scans');

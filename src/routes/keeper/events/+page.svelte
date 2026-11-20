@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { formatDate } from '$lib/formatDate';
+	import { formatDate } from '#lib/formatDate.ts';
 	import { untrack } from 'svelte';
-	import BackButton from '$lib/components/BackButton.svelte';
-	import KeeperList from '$lib/components/KeeperList.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import KeeperList from '#lib/components/KeeperList.svelte';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
-	import { morphVar } from '$lib/transitions.svelte';
+	import { morphVar } from '#lib/transitions.svelte.ts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -122,7 +123,7 @@
 				<BackButton class="mt-2" />
 			</div>
 			<a
-				href="/keeper/events/add"
+				href="/keeper/events/new"
 				aria-label="Add event"
 				title="Add event"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"
@@ -167,8 +168,19 @@
 									class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5 transition hover:shadow-2xl
 									{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
 								>
-									<div class="flex items-start justify-between gap-3">
-										<div class="min-w-0">
+									<div class="flex items-start gap-3">
+										{#if item.featureImage}
+											<!-- Fixed size, so the virtual list's measured row height holds
+											     whether or not the image has loaded. -->
+											<OptimizedImage
+												src={item.featureImage.url}
+												alt=""
+												sizes="64px"
+												widths={[64, 128]}
+												class="size-16 shrink-0 rounded-sm bg-gray-50 object-cover ring-1 ring-black/5"
+											/>
+										{/if}
+										<div class="min-w-0 flex-1">
 											<!-- Stretched link: the ::after overlay makes the whole card open the event page. -->
 											<h3 class="font-medium break-words">
 												<a

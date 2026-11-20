@@ -68,7 +68,9 @@ AFTER="$(node scripts/row-counts.mjs)"
 # that migration's own file, so the intent is reviewed where it is written:
 #   -- migrate-test: drops <table>
 # It allows only that table's disappearance, never a changed row count in a
-# table that survives, and a declared table that is still there fails too.
+# table that survives, and a declared table that still exists afterward fails
+# too. A declared table the baseline never had is fine: there is nothing to
+# drop, so nothing is lost.
 echo "[migrate-test] checking row counts survived"
 INTENDED="$(for f in drizzle/*.sql; do
 	[ -e "$WORKTREE/$f" ] || sed -n 's/^-- migrate-test: drops \([A-Za-z0-9_]*\)$/\1/p' "$f"
@@ -76,7 +78,7 @@ done | LC_ALL=C sort -u)"
 LOST="$(LC_ALL=C join -t $'\t' <(echo "$BEFORE") <(echo "$AFTER") | awk -F'\t' '$2 != $3 { print "  " $1 ": " $2 " -> " $3 }')"
 DROPPED="$(LC_ALL=C join -t $'\t' -v 1 <(echo "$BEFORE") <(echo "$AFTER") | cut -f1 | LC_ALL=C sort)"
 MISSING="$(LC_ALL=C comm -23 <(echo "$DROPPED" | sed '/^$/d') <(echo "$INTENDED" | sed '/^$/d') | awk '{ print "  " $1 ": dropped" }')"
-KEPT="$(LC_ALL=C comm -13 <(echo "$DROPPED" | sed '/^$/d') <(echo "$INTENDED" | sed '/^$/d') | awk '{ print "  " $1 ": declared dropped, still there" }')"
+KEPT="$(LC_ALL=C comm -12 <(echo "$AFTER" | cut -f1 | LC_ALL=C sort | sed '/^$/d') <(echo "$INTENDED" | sed '/^$/d') | awk '{ print "  " $1 ": declared dropped, still there" }')"
 if [ -n "$LOST$MISSING$KEPT" ]; then
 	echo "[migrate-test] FAIL: pending migrations changed existing data:"
 	[ -n "$LOST" ] && echo "$LOST"

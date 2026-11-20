@@ -3,7 +3,7 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CornersOutIcon from 'phosphor-svelte/lib/CornersOutIcon';
 	import CornerEditorSurface from './CornerEditorSurface.svelte';
-	import type { CornerPoints } from '$lib/scanner/detect';
+	import type { CornerPoints } from '#lib/scanner/detect.ts';
 
 	// Re-crop one page: the corner editor plus Cancel / Use whole image / Apply.
 	let {
@@ -27,6 +27,11 @@
 		const current = surface?.getCorners();
 		if (current) onApply(current);
 	}
+
+	// Labeled in words, as in the crop step after a camera run: a touch screen
+	// never shows a tooltip.
+	const action = 'group flex flex-col items-center gap-1 text-[11px] leading-none text-white/80';
+	const disc = 'flex size-12 items-center justify-center rounded-full bg-white/10 transition';
 </script>
 
 <div class="flex h-full flex-col">
@@ -36,7 +41,7 @@
 				The crop editor could not be loaded. The page is stored as captured.
 			</span>
 		{:else}
-			Drag the corners to match the page. Arrow keys nudge a focused corner.
+			Drag the corners to match the page.
 		{/if}
 	</header>
 
@@ -44,14 +49,12 @@
 		<CornerEditorSurface bind:this={surface} bind:failed {image} {corners} />
 	</div>
 
-	<footer class="grid grid-cols-3 items-center px-6 py-5">
-		<button
-			type="button"
-			onclick={onCancel}
-			aria-label="Cancel"
-			class="flex size-12 items-center justify-center justify-self-start rounded-full bg-white/10 transition hover:bg-white/20"
-		>
-			<XIcon size={22} />
+	<footer class="grid grid-cols-3 items-start px-3 pt-3 pb-4">
+		<button type="button" onclick={onCancel} aria-label="Cancel" class={action}>
+			<span class="{disc} group-hover:bg-white/20">
+				<XIcon size={22} />
+			</span>
+			<span aria-hidden="true">Cancel</span>
 		</button>
 
 		<button
@@ -59,10 +62,12 @@
 			onclick={() => surface?.useWhole()}
 			disabled={failed}
 			aria-label="Use whole image"
-			title="Use whole image"
-			class="flex size-12 items-center justify-center justify-self-center rounded-full bg-white/10 transition hover:bg-white/20 disabled:opacity-40"
+			class="{action} disabled:opacity-40"
 		>
-			<CornersOutIcon size={22} />
+			<span class="{disc} group-hover:bg-white/20">
+				<CornersOutIcon size={22} />
+			</span>
+			<span aria-hidden="true">Whole image</span>
 		</button>
 
 		<button
@@ -70,9 +75,14 @@
 			onclick={apply}
 			disabled={failed}
 			aria-label="Apply crop"
-			class="flex size-14 items-center justify-center justify-self-end rounded-full bg-white text-black transition hover:bg-white/90 disabled:opacity-40"
+			class="{action} disabled:opacity-40"
 		>
-			<CheckIcon size={24} weight="bold" />
+			<span
+				class="flex size-12 items-center justify-center rounded-full bg-white text-black transition group-hover:bg-white/90"
+			>
+				<CheckIcon size={24} weight="bold" />
+			</span>
+			<span aria-hidden="true" class="font-medium text-white">Apply</span>
 		</button>
 	</footer>
 </div>

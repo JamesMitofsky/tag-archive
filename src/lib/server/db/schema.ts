@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+	check,
 	index,
 	integer,
 	primaryKey,
@@ -195,7 +196,7 @@ export const artefact = sqliteTable(
 		// `(date, id)` index below and every `ORDER BY date` still hold.
 		// NULL when the artefact is deliberately undated: SQLite sorts NULL
 		// lowest, so `ORDER BY date DESC` lists undated artefacts last.
-		// See $lib/partialDate for the parsers, formatters, and the reasoning.
+		// See #lib/partialDate for the parsers, formatters, and the reasoning.
 		date: text('date'),
 		// TAG program area tags. Multi-value → JSON string array.
 		programArea: text('program_area', { mode: 'json' }).$type<string[]>().notNull().default([]),
@@ -245,7 +246,7 @@ export const artefactProvenance = sqliteTable(
  * A set of photographs uploaded together: one or several images, with an
  * optional description and an optional event. Unlike an artefact it has no
  * title, location or program areas; its display label is derived (see
- * $lib/images/label). Contributor-creatable, so it carries the proposal flag
+ * #lib/images/label). Contributor-creatable, so it carries the proposal flag
  * and waits in the review queue like an artefact.
  */
 export const imageSet = sqliteTable(
@@ -255,7 +256,7 @@ export const imageSet = sqliteTable(
 		description: text('description'),
 		// The event the photographs were taken at; nullable, no cascade (like artefact).
 		eventId: integer('event_id').references(() => event.id),
-		// A partial date (see $lib/partialDate), NULL when undated. Derived from the
+		// A partial date (see #lib/partialDate), NULL when undated. Derived from the
 		// photographs' own capture dates — the earliest day among them — unless an
 		// admin overrode it on the edit page (`dateAuto` false).
 		date: text('date'),
@@ -277,7 +278,7 @@ export type MetadataSegment = Record<string, unknown>;
 
 /**
  * A photograph's parsed metadata, as stored per image (see
- * $lib/server/imageMetadata). Each segment is exifr's translated output for it,
+ * #lib/server/imageMetadata). Each segment is exifr's translated output for it,
  * binary values removed. Never published: it can carry GPS and device details.
  */
 export type ImageMetadata = {
@@ -302,7 +303,7 @@ export type ImageMetadata = {
  * (`url`, at most 2560px on its longest edge, no metadata) that can always be
  * regenerated from the original. Rows are created by the upload's finalize step
  * before any set exists, so `set_id` is NULL until a form attaches the image;
- * unattached rows older than a day are swept (see $lib/server/uploads).
+ * unattached rows older than a day are swept (see #lib/server/uploads).
  */
 export const image = sqliteTable(
 	'image',
@@ -324,6 +325,11 @@ export const image = sqliteTable(
 		bytes: integer('bytes').notNull(),
 		width: integer('width').notNull(),
 		height: integer('height').notNull(),
+		// The photograph's ThumbHash, base64 (see #lib/images/placeholder): the
+		// blur a print shows while its pixels load. NULL when the uploader's
+		// browser couldn't make one, or for a row not yet backfilled
+		// (scripts/backfill-placeholders.ts).
+		placeholder: text('placeholder'),
 		// Wall-clock capture time `YYYY-MM-DDTHH:MM:SS` (or `YYYY-MM-DD` when the
 		// photo only records a day, as some XMP dates do) from the photo's own
 		// metadata, as the camera recorded it (no time zone applied), or NULL.
@@ -343,8 +349,47 @@ export const image = sqliteTable(
 );
 
 /**
+ * The one image an event features (see #lib/server/eventFeatures): either a
+ * photograph (`image_id`) or one page of an artefact's scans (`artefact_id`
+ * plus the page's URL, since an artefact's pages are URLs in its `file_urls`
+ * rather than rows). One row per event; no row means no feature image.
+ *
+ * A row of its own rather than columns on `event` so every way the source can
+ * go away takes the choice with it: deleting the event, the photograph (or the
+ * set it belongs to) or the artefact cascades here. What a cascade can't see is
+ * an artefact page dropped from `file_urls`, or a photograph detached from its
+ * set, so readers resolve the row against its source every time and treat a
+ * page or photograph that is no longer there as no feature image.
+ *
+ * The CHECK keeps the row to exactly one source, so it can never name both a
+ * photograph and a page, or a page without its artefact.
+ */
+export const eventFeatureImage = sqliteTable(
+	'event_feature_image',
+	{
+		eventId: integer('event_id')
+			.primaryKey()
+			.references(() => event.id, { onDelete: 'cascade' }),
+		imageId: integer('image_id').references(() => image.id, { onDelete: 'cascade' }),
+		artefactId: integer('artefact_id').references(() => artefact.id, { onDelete: 'cascade' }),
+		// The featured page: one of the artefact's `file_urls`, exactly as stored there.
+		artefactFileUrl: text('artefact_file_url'),
+		...auditColumns()
+	},
+	(t) => [
+		// A cascade from `image` or `artefact` looks rows up by these columns.
+		index('event_feature_image_image_id_idx').on(t.imageId),
+		index('event_feature_image_artefact_id_idx').on(t.artefactId),
+		check(
+			'event_feature_image_source_check',
+			sql`(${t.imageId} IS NOT NULL AND ${t.artefactId} IS NULL AND ${t.artefactFileUrl} IS NULL) OR (${t.imageId} IS NULL AND ${t.artefactId} IS NOT NULL AND ${t.artefactFileUrl} IS NOT NULL)`
+		)
+	]
+);
+
+/**
  * Fixed-window request counters for anonymous writes (see
- * $lib/server/rateLimit). `key` is `<bucket>:<hashed subject>` — the subject is
+ * #lib/server/rateLimit). `key` is `<bucket>:<hashed subject>` — the subject is
  * an IP address or draft id, hashed so no raw address is stored. Each key holds
  * only its current window; the daily sweep deletes stale rows.
  */
@@ -356,7 +401,7 @@ export const rateLimit = sqliteTable('rate_limit', {
 
 /**
  * The NFC tags (NTAG 424 DNA) whose taps open the site (see
- * $lib/server/nfc/taps). `uid` is the tag's 7-byte hardware id as uppercase
+ * #lib/server/nfc/taps). `uid` is the tag's 7-byte hardware id as uppercase
  * hex. `last_counter` is the highest tap counter accepted so far: a tap must
  * beat it, so a copied tap URL can never be replayed. A tag registers itself on
  * its first genuine tap — only a holder of the SDM keys can produce one — and a
@@ -371,6 +416,44 @@ export const nfcTag = sqliteTable('nfc_tag', {
 	lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }).notNull()
 });
 
+/**
+ * Unlock keys: hand-entered values that open the archive from anywhere through
+ * `?whoislisteningwiththevoiceofthegarden=<unlock_key>` (see
+ * #lib/access/key.server and src/routes/unlock). A keeper adds a row to hand
+ * one out; it stops working once `expires_at` passes, and deleting the row (or
+ * moving `expires_at` into the past) closes it early.
+ *
+ * Both columns are text so they can be typed by hand in Drizzle Studio or a SQL
+ * shell. `unlock_key` matches case-insensitively (ASCII letters only, as SQLite's
+ * `lower()` folds), so two keys differing only in case are refused by the
+ * unique index. `expires_at` is an ISO 8601 date or date-time: a bare date
+ * (`2026-12-31`) keeps the key working through the end of that day, UTC; a
+ * date-time (`2026-12-31 18:00`, `2026-12-31T18:00:00+01:00`) is the exact
+ * moment it stops, UTC unless it carries an offset. The CHECK refuses anything
+ * SQLite can't read as a date, so a typo can't leave a key that never opens, or
+ * never closes.
+ */
+export const remoteKey = sqliteTable(
+	'remote_key',
+	{
+		unlockKey: text('unlock_key').primaryKey(),
+		expiresAt: text('expires_at').notNull()
+	},
+	(t) => [
+		uniqueIndex('remote_key_unlock_key_lower_idx').on(sql`lower(${t.unlockKey})`),
+		// The visitor's value is trimmed before it is looked up, so a stored key
+		// with stray spaces could never match: refuse it here instead.
+		check(
+			'remote_key_unlock_key_check',
+			sql`${t.unlockKey} <> '' AND ${t.unlockKey} = trim(${t.unlockKey})`
+		),
+		check(
+			'remote_key_expires_at_check',
+			sql`${t.expiresAt} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' AND julianday(${t.expiresAt}) IS NOT NULL`
+		)
+	]
+);
+
 // Relations power `db.query` relational loads.
 export const seriesRelations = relations(series, ({ many }) => ({
 	events: many(event)
@@ -379,7 +462,11 @@ export const eventRelations = relations(event, ({ one, many }) => ({
 	series: one(series, { fields: [event.seriesId], references: [series.id] }),
 	hosts: many(eventHost),
 	artefacts: many(artefact),
-	imageSets: many(imageSet)
+	imageSets: many(imageSet),
+	featureImage: one(eventFeatureImage, {
+		fields: [event.id],
+		references: [eventFeatureImage.eventId]
+	})
 }));
 export const personRelations = relations(person, ({ many }) => ({
 	artefacts: many(artefactProvenance),
@@ -434,6 +521,7 @@ export type ImageSet = typeof imageSet.$inferSelect;
 export type NewImageSet = typeof imageSet.$inferInsert;
 export type Image = typeof image.$inferSelect;
 export type NewImage = typeof image.$inferInsert;
+export type EventFeatureImage = typeof eventFeatureImage.$inferSelect;
 /**
  * Image set as the keeper views read it: linked event title flattened in (null
  * when unlinked) and its images in display order.

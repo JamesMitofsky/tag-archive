@@ -1,8 +1,9 @@
-import { sniffImageType, type ImageType } from '$lib/imageType';
-import { releaseCanvas } from '$lib/scanner/image';
-import type { SerialQueue } from '$lib/scanner/serial';
+import { sniffImageType, type ImageType } from '#lib/imageType.ts';
+import { releaseCanvas } from '#lib/scanner/image.ts';
+import type { SerialQueue } from '#lib/scanner/serial.ts';
 import { decodeImage } from './decode';
 import { encodeWebP } from './encode';
+import { placeholderFromCanvas } from './placeholder';
 import type {
 	DisplayUploadGrant,
 	DisplayUploadRequest,
@@ -14,7 +15,7 @@ import type {
 } from './types';
 
 /**
- * The browser side of uploading one photograph (see $lib/server/imageUploads
+ * The browser side of uploading one photograph (see #lib/server/imageUploads
  * for the server side).
  *
  * Files go straight to the bucket with presigned PUTs: an original can be tens
@@ -379,20 +380,23 @@ export async function uploadImage(file: File, options: UploadOptions): Promise<U
 				if (originalSent) report('encoding');
 				const canvas = await decodeImage(file, type);
 				try {
-					return await encodeWebP(canvas);
+					// From the same pixels as the display copy, while they are at hand.
+					const placeholder = placeholderFromCanvas(canvas);
+					return { display: await encodeWebP(canvas), placeholder };
 				} finally {
 					releaseCanvas(canvas);
 				}
 			})
-			.then((display) => {
+			.then((made) => {
 				displayMade = true;
-				if (!settled && !aborting.aborted) onDisplay?.(display);
-				return display;
+				if (!settled && !aborting.aborted) onDisplay?.(made.display);
+				return made;
 			});
 
 		let display: Blob;
+		let placeholder: string | null;
 		try {
-			[, display] = await Promise.all([sent, made]);
+			[, { display, placeholder }] = await Promise.all([sent, made]);
 		} catch (e) {
 			// One half failed: stop the other rather than finish work nobody can use.
 			local.abort();
@@ -416,7 +420,8 @@ export async function uploadImage(file: File, options: UploadOptions): Promise<U
 		const uploaded = await finalizeUpload({
 			originalKey: grant.originalKey,
 			displayKey: grant.displayKey,
-			name: file.name
+			name: file.name,
+			placeholder
 		});
 		report('done');
 		return uploaded;

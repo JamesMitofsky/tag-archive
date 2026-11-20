@@ -1,15 +1,15 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import {
 	finalizeImage,
 	ImageUploadError,
 	lockedResponse,
 	requestOwner
-} from '$lib/server/imageUploads';
-import { readDraft } from '$lib/server/drafts';
-import { consume, LIMITS } from '$lib/server/rateLimit';
+} from '#lib/server/imageUploads.ts';
+import { readDraft } from '#lib/server/drafts.ts';
+import { consume, LIMITS } from '#lib/server/rateLimit.ts';
 import type { RequestHandler } from './$types';
 
-// The last step of a photograph's upload (see $lib/server/imageUploads): the
+// The last step of a photograph's upload (see #lib/server/imageUploads): the
 // browser has PUT both objects straight to the bucket, and the server now
 // reads them back, checks them and records an unattached image row. Same
 // uploaders as /api/images/upload-url. Only an upload that URL issued (and
@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 
 	const body = await request.json().catch(() => null);
 	try {
-		return json(await finalizeImage(body, owner));
+		return Response.json(await finalizeImage(body, owner));
 	} catch (e) {
 		// Refusals reach the uploader as their message; anything else is a 500.
 		if (e instanceof ImageUploadError) throw error(e.status, e.message);

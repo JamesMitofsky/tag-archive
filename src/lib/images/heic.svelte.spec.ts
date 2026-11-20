@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { heicLike } from '$lib/testing/images';
+import { heicLike } from '#lib/testing/images.ts';
 import { heicToJpeg } from './heic';
 
 // The real libheif build, which the other specs stand in for. There is no

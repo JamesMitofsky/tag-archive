@@ -27,6 +27,13 @@ const HOUR = 60 * 60 * 1000;
 export const LIMITS = {
 	/** Tag taps (each opens the site and starts a draft), per IP. */
 	tapPerIp: { limit: 300, windowMs: HOUR },
+	/**
+	 * Unlock-key attempts per IP (see src/routes/unlock). Tight, unlike the
+	 * others: keys are typed by people, so they can be guessed, and someone
+	 * holding a real one needs only a try or two. A visitor who already holds
+	 * a pass never reaches this.
+	 */
+	unlockPerIp: { limit: 20, windowMs: HOUR },
 	/** Image uploads per IP — a long multi-page scan is a few dozen, per person. */
 	uploadPerIp: { limit: 1500, windowMs: HOUR },
 	/** Image uploads per draft session, per day — the cap on any one visitor. */

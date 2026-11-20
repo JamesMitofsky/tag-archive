@@ -1,6 +1,6 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import type { CornerPoints, Point, Scanner } from 'scanic';
-import { downscale } from './image';
+import { downscale, quarterTurns } from './image';
 import { refineCorners, toLuma } from './refine';
 
 export type { CornerPoints, Point };
@@ -127,6 +127,36 @@ export function scaleCorners(corners: CornerPoints, sx: number, sy: number): Cor
 		bottomRight: { x: corners.bottomRight.x * sx, y: corners.bottomRight.y * sy },
 		bottomLeft: { x: corners.bottomLeft.x * sx, y: corners.bottomLeft.y * sy }
 	};
+}
+
+/**
+ * `corners` of a width×height image, carried onto that image turned `turns`
+ * quarter turns clockwise (as `rotateQuarterTurns` turns it). Each
+ * corner is renamed for where it lands, so `topLeft` is still the top-left
+ * corner of the turned image. Turning back is `-turns` on the turned size.
+ */
+export function rotateCorners(
+	corners: CornerPoints,
+	width: number,
+	height: number,
+	turns: number
+): CornerPoints {
+	let turned = corners;
+	let w = width;
+	let h = height;
+	for (let i = 0; i < quarterTurns(turns); i++) {
+		// One clockwise quarter turn: (x, y) → (h − y, x), and the
+		// bottom-left corner becomes the top-left.
+		const turn = (p: Point): Point => ({ x: h - p.y, y: p.x });
+		turned = {
+			topLeft: turn(turned.bottomLeft),
+			topRight: turn(turned.topLeft),
+			bottomRight: turn(turned.topRight),
+			bottomLeft: turn(turned.bottomRight)
+		};
+		[w, h] = [h, w];
+	}
+	return turned;
 }
 
 /** The identity quad — the whole frame. Used as the "use original" reset. */

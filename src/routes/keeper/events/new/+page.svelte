@@ -1,17 +1,20 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import DateField from '$lib/components/DateField.svelte';
-	import ComboField from '$lib/components/ComboField.svelte';
-	import TagsField from '$lib/components/TagsField.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { createEventSuite, parseEventForm } from '$lib/validation/event';
-	import { createValidator } from '$lib/validation/client.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import DateField from '#lib/components/DateField.svelte';
+	import ComboField from '#lib/components/ComboField.svelte';
+	import TagsField from '#lib/components/TagsField.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { createEventSuite, parseEventForm } from '#lib/validation/event.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
+	import FeatureImagePicker, {
+		type FeatureSelection
+	} from '#lib/components/FeatureImagePicker.svelte';
 	import type { EventFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -58,6 +61,16 @@
 	// svelte-ignore state_referenced_locally
 	let date = $state(
 		form && 'values' in form && form.values ? (form.values as EventFormValues).date : ''
+	);
+
+	// The feature image: client state, so it survives a failed (enhanced) submit
+	// without an echo of its own. A no-JS failure starts it over empty.
+	let feature = $state<FeatureSelection | null>(null);
+	// The server's refusal of a choice holds only until another one is made.
+	const featureError = $derived(
+		errors.featureImage?.[0] !== undefined && (feature?.ref ?? '') === (echoed?.featureImage ?? '')
+			? errors.featureImage[0]
+			: undefined
 	);
 
 	let submitting = $state(false);
@@ -178,12 +191,7 @@
 				</div>
 
 				<div>
-					<TagsField
-						name="hosts"
-						label="Hosts"
-						placeholder="Johnny B. Good"
-						bind:value={hostTags}
-					/>
+					<TagsField name="hosts" label="Hosts" placeholder="Jane Doe" bind:value={hostTags} />
 					<p class="mt-1 text-xs text-gray-500">Press Enter to add</p>
 					<FieldError message={validator.error('hosts')} />
 				</div>
@@ -204,6 +212,14 @@
 					<FieldError message={validator.error('description')} />
 				</div>
 
+				<FeatureImagePicker
+					name="featureImage"
+					bind:value={feature}
+					linked={[]}
+					eventId={null}
+					error={featureError}
+				/>
+
 				<div>
 					<label for="url" class="block text-sm font-medium text-gray-700">Source URL</label>
 					<Input
@@ -219,7 +235,7 @@
 				</div>
 
 				{#if eventError && Object.keys(errors).length === 0}
-					<p class="font-friendly text-sm text-red-600" role="alert">{eventError}</p>
+					<FieldError message={eventError} class="mt-0" />
 				{/if}
 
 				<button

@@ -5,7 +5,7 @@ import { stampInsert } from './db/audit';
 import { isProposedAddition } from './db/proposals';
 import { resolveEventId, resolvePersonIds } from './db/queries';
 import { artefact, artefactProvenance } from './db/schema';
-import type { ArtefactData } from '$lib/validation/artefact';
+import type { ArtefactData } from '#lib/validation/artefact.ts';
 
 /** Who is creating an artefact: a signed-in user, or an anonymous visitor (both null). */
 export type Actor = { userId: string | null; role: string | null };

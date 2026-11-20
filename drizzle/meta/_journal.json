@@ -75,8 +75,36 @@
     {
       "idx": 10,
       "version": "6",
-      "when": 1795104635900,
-      "tag": "0010_drop_submission_contacts",
+      "when": 1795014715110,
+      "tag": "0010_remote_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1795114448686,
+      "tag": "0011_listener_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1795121510767,
+      "tag": "0012_event_feature_image",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1795125389331,
+      "tag": "0013_image_placeholders",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1795204865237,
+      "tag": "0014_drop_submission_contacts",
       "breakpoints": true
     }
   ]

@@ -232,7 +232,7 @@ export function encodePng({ data, width, height }: Pixels, exif?: Uint8Array): U
 
 /**
  * libwebp's encoder: the same WebAssembly build the uploader falls back to in
- * browsers without a native WebP encoder (see $lib/images/encode). Under Node
+ * browsers without a native WebP encoder (see #lib/images/encode). Under Node
  * it can't fetch its .wasm by URL, so the module is compiled from disk and
  * handed over; the SIMD build where this Node validates it, as libwebp's own
  * feature check would pick.

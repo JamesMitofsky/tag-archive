@@ -1,13 +1,19 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { purgeArchiveCache } from '$lib/server/cache';
-import { attachHosts, resolvePersonIds, resolveSeriesId } from '$lib/server/db/queries';
-import { stampInsert, stampUpdate } from '$lib/server/db/audit';
-import { artefact, event, eventHost, imageSet, person, series } from '$lib/server/db/schema';
-import { idSchema } from '$lib/schemas';
-import { createEventSuite, parseEventForm } from '$lib/validation/event';
-import { summary } from '$lib/validation/helpers';
+import { db } from '#lib/server/db/index.ts';
+import { purgeArchiveCache } from '#lib/server/cache.ts';
+import { attachHosts, resolvePersonIds, resolveSeriesId } from '#lib/server/db/queries.ts';
+import { stampInsert, stampUpdate } from '#lib/server/db/audit.ts';
+import {
+	listFeatureCandidates,
+	loadFeatureImage,
+	setFeatureImage
+} from '#lib/server/eventFeatures.ts';
+import { parseFeatureRef } from '#lib/featureImage.ts';
+import { artefact, event, eventHost, imageSet, person, series } from '#lib/server/db/schema.ts';
+import { idSchema } from '#lib/schemas.ts';
+import { createEventSuite, parseEventForm } from '#lib/validation/event.ts';
+import { summary } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Raw (unvalidated) edit-form values echoed back so a failed submit keeps input. */
@@ -21,7 +27,13 @@ export type EventFormValues = {
 	url: string;
 	/** Comma-separated in the form; kept raw so a failed submit doesn't lose it. */
 	hosts: string;
+	/** The chosen feature image as the form carries it (see `encodeFeatureRef`); empty for none. */
+	featureImage: string;
 };
+
+/** Shown when the chosen feature image can't be saved. */
+const FEATURE_REFUSAL =
+	'That image is no longer in the archive. Choose another feature image, or remove it.';
 
 /** Empty string → null, for the event's nullable columns. */
 const nullIfEmpty = (value: string) => (value === '' ? null : value);
@@ -44,15 +56,24 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	if (rows.length === 0) throw error(404, 'Event not found');
 	const [item] = await attachHosts(rows);
 
-	// Existing series names + people power the searchable datalists.
-	const seriesList = await db.select({ name: series.name }).from(series).orderBy(series.name);
-	const hostPeople = await db.select().from(person).orderBy(person.name);
+	// Existing series names + people power the searchable datalists. The feature
+	// image field seeds from the choice as it resolves now (null once its source
+	// is gone, so saving clears a dead choice), and the picker leads with what is
+	// linked to this event; the rest of the archive it searches on demand.
+	const [seriesList, hostPeople, featureImage, linkedCandidates] = await Promise.all([
+		db.select({ name: series.name }).from(series).orderBy(series.name),
+		db.select().from(person).orderBy(person.name),
+		loadFeatureImage(id.data, { vettedOnly: false }),
+		listFeatureCandidates(id.data, { linked: true })
+	]);
 
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
 		event: item,
 		series: seriesList,
-		hostPeople
+		hostPeople,
+		featureImage,
+		linkedCandidates: linkedCandidates.groups
 	};
 };
 
@@ -70,21 +91,38 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const data = parseEventForm(form);
 		const result = createEventSuite()(data);
+		const values = (): EventFormValues => ({
+			title: String(form.get('title') ?? ''),
+			series: String(form.get('series') ?? ''),
+			date: String(form.get('date') ?? ''),
+			time: String(form.get('time') ?? ''),
+			location: String(form.get('location') ?? ''),
+			description: String(form.get('description') ?? ''),
+			url: String(form.get('url') ?? ''),
+			hosts: String(form.get('hosts') ?? ''),
+			featureImage: String(form.get('featureImage') ?? '')
+		});
 		if (!result.isValid()) {
 			return fail(400, {
 				eventError: summary(result),
 				errors: result.getErrors(),
-				values: {
-					title: String(form.get('title') ?? ''),
-					series: String(form.get('series') ?? ''),
-					date: String(form.get('date') ?? ''),
-					time: String(form.get('time') ?? ''),
-					location: String(form.get('location') ?? ''),
-					description: String(form.get('description') ?? ''),
-					url: String(form.get('url') ?? ''),
-					hosts: String(form.get('hosts') ?? '')
-				}
+				values: values()
 			});
+		}
+
+		// The feature image is checked and saved before anything else, so a refused
+		// choice leaves the whole event as it was. A form without the field (a page
+		// loaded before it existed) leaves the choice alone.
+		const featureField = form.get('featureImage');
+		if (featureField !== null) {
+			const ref = parseFeatureRef(String(featureField));
+			if (ref === undefined || !(await setFeatureImage(id.data, ref, userId))) {
+				return fail(400, {
+					eventError: FEATURE_REFUSAL,
+					errors: { featureImage: [FEATURE_REFUSAL] },
+					values: values()
+				});
+			}
 		}
 
 		const seriesId = await resolveSeriesId(data.series, userId);

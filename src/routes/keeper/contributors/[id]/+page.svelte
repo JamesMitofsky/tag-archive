@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { formatArtefactDate, formatDate } from '$lib/formatDate';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import { formatArtefactDate, formatDate } from '#lib/formatDate.ts';
 	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
-	import { programAreaMeta } from '$lib/programAreas';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import { programAreaMeta } from '#lib/programAreas.ts';
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
@@ -112,7 +113,7 @@
 					<h1 class="mt-3 text-2xl font-semibold tracking-tight text-[#14120f]">{person.name}</h1>
 				{/if}
 				{#if form?.error}
-					<p class="mt-1 px-2 text-sm text-red-600" role="alert">{form.error}</p>
+					<FieldError message={form.error} class="mt-1 px-2" />
 				{/if}
 			{:else}
 				<h1 class="text-2xl font-semibold tracking-tight text-[#14120f]">{person.name}</h1>

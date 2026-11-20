@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const env = vi.hoisted(() => ({}) as Record<string, string | undefined>);
-vi.mock('$env/dynamic/private', () => ({ env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv(env));
 const { siteOrigin } = await import('./origin');
 
 beforeEach(() => {

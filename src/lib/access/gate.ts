@@ -1,6 +1,7 @@
 /**
  * The whole site opens only to holders of an access pass (./pass): visitors who
- * tapped the garden's NFC tag or came through the door (./door.server), and
+ * tapped the garden's NFC tag, came through the door (./door.server) or
+ * brought an unlock key (./key.server), and
  * have had the site on screen since (the pass drifts shut after a while away,
  * see ./presence), and signed-in keepers.
  * This decides what happens to a request WITHOUT a valid pass. It is enforced
@@ -13,26 +14,32 @@
  *    production, and the only gate under `vite dev`, where the middleware
  *    doesn't run.
  *
- * Imports nothing but its siblings, by relative path, so the middleware bundle
- * can load it. Server and middleware only: the browser gets LOCKED_PATH from
+ * Imports nothing but its siblings, by relative path with a .js extension, so
+ * the middleware bundle can load it (see middleware.ts). Server and middleware only: the browser gets LOCKED_PATH from
  * ./paths.
  */
 
-import { opensDoor } from './door.server.ts';
-import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.ts';
+import { opensDoor } from './door.server.js';
+import { carriesKey, UNLOCK_PATH } from './key.server.js';
+import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.js';
 
 export { LOCKED_PATH };
 
-export type GateDecision = 'open' | 'redirect' | 'refuse';
-
-/** The keeper sign-in page: closed without a pass, like any other page. */
-const KEEPER_GATE = KEEPER_PATH;
+export type GateDecision = 'open' | 'unlock' | 'redirect' | 'refuse';
 
 /** Paths that are always open, exactly. */
 const OPEN_EXACT = new Set([
 	// The tap itself, and where a locked visitor is told to make one.
 	'/t',
 	LOCKED_PATH,
+	// Where a navigation carrying an unlock key is checked (./key.server).
+	UNLOCK_PATH,
+	// The keeper sign-in page, so a keeper can always reach it to sign in, from
+	// anywhere, like the locked page. It shows nothing from the archive, and
+	// signing in still takes a one-time code emailed to an existing account.
+	// The keeper tools beneath it are open at the gate too (OPEN_PREFIXES) but
+	// guarded by session in hooks.server.ts (see #lib/server/keeperGuard).
+	KEEPER_PATH,
 	// The presence beat. Open here for the same reason as /keeper/ below: a
 	// signed-in keeper whose pass has lapsed must reach SvelteKit, where their
 	// session mints a new one. The route itself answers 401 to anyone without a
@@ -50,9 +57,8 @@ const OPEN_EXACT = new Set([
  */
 export const OPEN_PREFIXES = [
 	// Every route checks the keeper session (see keeperGuard), and an anonymous
-	// visit is sent to /keeper, which is locked without a pass. Open here so that a
-	// keeper whose pass has lapsed still reaches SvelteKit, where their session
-	// renews it.
+	// visit is sent to the sign-in page at /keeper. Open here so that a keeper
+	// whose pass has lapsed still reaches SvelteKit, where their session renews it.
 	'/keeper/',
 	'/api/auth/', // better-auth sign-in endpoints
 	'/api/cron/', // bearer-authenticated scheduled jobs
@@ -70,9 +76,6 @@ export function routePath(pathname: string): string {
 
 export function isOpenPath(pathname: string): boolean {
 	const route = routePath(pathname);
-	// `/keeper/` and `/keeper/__data.json` match the keeper prefix below, but they
-	// are the sign-in page all the same, which is locked like any other page.
-	if (route === KEEPER_GATE) return false;
 	return OPEN_EXACT.has(route) || OPEN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
@@ -80,7 +83,7 @@ export function isOpenPath(pathname: string): boolean {
  * Enhanced form actions on the contribution forms — /contribute and the pages
  * beneath it, such as /contribute/images — pass the gate, because those
  * actions guard themselves: an anonymous submit needs an open pass and a draft
- * session, which only a tap or the door issues (see $lib/server/drafts).
+ * session, which only a tap or the door issues (see #lib/server/drafts).
  * Turning the post away here instead would replace a half-filled form with the
  * locked page when the
  * visitor's hours run out mid-entry; the action's own refusal keeps the form
@@ -162,7 +165,7 @@ function negotiate(accept: string, types: string[]): string | undefined {
 /** The shape of a request the gate decides on. */
 export type GateRequest = {
 	pathname: string;
-	/** The URL's query string, which may carry the door phrase. */
+	/** The URL's query string, which may carry the door phrase or an unlock key. */
 	search?: string;
 	method: string;
 	accept: string | null;
@@ -182,7 +185,7 @@ function isPageView(request: GateRequest): boolean {
  * data load for one, whose URL carries the door phrase. On any path. SvelteKit
  * answers it with a pass and a redirect to the same URL without the phrase
  * (hooks.server.ts); both kinds of response are rendered per visitor, never
- * cached, so they may carry the pass cookie ($lib/server/access, mayIssuePass).
+ * cached, so they may carry the pass cookie (#lib/server/access, mayIssuePass).
  */
 export function isDoorNavigation(request: GateRequest): boolean {
 	const isRead = request.method === 'GET' || request.method === 'HEAD';
@@ -192,8 +195,26 @@ export function isDoorNavigation(request: GateRequest): boolean {
 }
 
 /**
+ * A navigation carrying an unlock key (./key.server), whatever its value: a
+ * page view, or the client-side data load for one, on any path. Only SvelteKit
+ * can check the key against the database, so these go to UNLOCK_PATH, which
+ * does (hooks.server.ts and ./edge send them there).
+ */
+export function isKeyNavigation(request: GateRequest): boolean {
+	const isRead = request.method === 'GET' || request.method === 'HEAD';
+	return (
+		(isPageView(request) || (isRead && request.isDataRequest)) && carriesKey(request.search ?? '')
+	);
+}
+
+/**
  * What to do with a request that carries no valid pass:
- *  - `open`: always-open paths (above), and navigations through the door;
+ *  - `open`: always-open paths (above), navigations through the door, and the
+ *    data load of a key navigation — always answered by SvelteKit, whose hooks
+ *    send it on to UNLOCK_PATH as a JSON redirect the client can follow;
+ *  - `unlock`: a page view carrying a key — send it to UNLOCK_PATH. Not let
+ *    through like the door, because the key is unchecked here and the path may
+ *    be a static file the CDN would serve without asking SvelteKit;
  *  - `redirect`: a page view — send it to the locked page;
  *  - `refuse`: anything else (data loads, API calls, files) gets a 401. A
  *    redirect would be followed by `fetch` into an HTML page the caller can't use.
@@ -201,5 +222,6 @@ export function isDoorNavigation(request: GateRequest): boolean {
 export function accessDecision(request: GateRequest): GateDecision {
 	if (isOpenPath(request.pathname) || isSelfGuardedWrite(request)) return 'open';
 	if (isDoorNavigation(request)) return 'open';
+	if (isKeyNavigation(request)) return request.isDataRequest ? 'open' : 'unlock';
 	return isPageView(request) ? 'redirect' : 'refuse';
 }

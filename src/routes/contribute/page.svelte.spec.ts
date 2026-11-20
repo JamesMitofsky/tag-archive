@@ -14,7 +14,7 @@ vi.mock('$app/navigation', () => ({
 }));
 vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/contribute'), state: {} } }));
 // The comboboxes load the public dataset; nothing to pick from here.
-vi.mock('$lib/dataset', () => ({ loadEvents: async () => [], loadPeople: async () => [] }));
+vi.mock('#lib/dataset.ts', () => ({ loadEvents: async () => [], loadPeople: async () => [] }));
 
 const { default: ContributePage } = await import('./+page.svelte');
 type Props = ComponentProps<typeof ContributePage>;
@@ -23,7 +23,7 @@ describe('/contribute', () => {
 	const data = { signedIn: false, canContribute: true, requireLocation: false, locations: [] };
 
 	it('shows the archive number to write on the item in place of the form', async () => {
-		render(ContributePage, { data, form: { submitted: { id: 42 } } } as unknown as Props);
+		await render(ContributePage, { data, form: { submitted: { id: 42 } } } as unknown as Props);
 
 		await expect
 			.element(page.getByRole('heading', { name: 'Write this number on the item' }))
@@ -41,7 +41,7 @@ describe('/contribute', () => {
 	});
 
 	it('goes back to the form once a navigation clears the result', async () => {
-		const { rerender } = render(ContributePage, {
+		const { rerender } = await render(ContributePage, {
 			data,
 			form: { submitted: { id: 6 } }
 		} as unknown as Props);

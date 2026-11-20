@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
-import { loadImageSet } from '$lib/server/imageSets';
-import { idSchema } from '$lib/schemas';
+import { loadImageSet } from '#lib/server/imageSets.ts';
+import { idSchema } from '#lib/schemas.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {

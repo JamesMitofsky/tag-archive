@@ -1,17 +1,17 @@
 <!--
-	The word a tap leaves behind (see $lib/access/flash): a cheerful "Archive
+	The word a tap leaves behind (see #lib/access/flash): a cheerful "Archive
 	opened" after a good tap, or why it didn't work. Read once on page load, then
 	gone. "Archive opened" sits in the middle of the screen and bows out just
-	before the cards fly in (see $lib/access/opening).
+	before the cards fly in (see #lib/access/opening).
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { backOut } from 'svelte/easing';
 	import FlowerIcon from 'phosphor-svelte/lib/FlowerIcon';
-	import { TAP_MESSAGES, takeTapFlash, type TapFlash } from '$lib/access/flash';
-	import { opening } from '$lib/access/opening.svelte';
-	import { reducedMotion } from '$lib/transitions.svelte';
+	import { TAP_MESSAGES, takeTapFlash, type TapFlash } from '#lib/access/flash.ts';
+	import { opening } from '#lib/access/opening.svelte.ts';
+	import { reducedMotion } from '#lib/transitions.svelte.ts';
 
 	/** How long a toast stays when nothing else decides for it. */
 	const SHOW_MS = 4500;

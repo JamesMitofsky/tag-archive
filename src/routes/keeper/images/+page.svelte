@@ -1,12 +1,12 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
-	import KeeperList from '$lib/components/KeeperList.svelte';
-	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import KeeperList from '#lib/components/KeeperList.svelte';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
 	import ImageSquareIcon from 'phosphor-svelte/lib/ImageSquareIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
-	import { imageSetLabel, withoutTitleLine } from '$lib/images/label';
-	import { morphVar } from '$lib/transitions.svelte';
+	import { imageSetLabel, withoutTitleLine } from '#lib/images/label.ts';
+	import { morphVar } from '#lib/transitions.svelte.ts';
 	import { formatSetMeta } from './format';
 	import type { PageData } from './$types';
 
@@ -66,7 +66,7 @@
 				<BackButton class="mt-2" />
 			</div>
 			<a
-				href="/contribute/images"
+				href="/keeper/images/new"
 				aria-label="Add photographs"
 				title="Add photographs"
 				class="rounded-full border border-white/40 bg-white/25 p-2.5 text-gray-700 shadow-sm backdrop-blur-md transition hover:bg-white/40 hover:text-gray-900"

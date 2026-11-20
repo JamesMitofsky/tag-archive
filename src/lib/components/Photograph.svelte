@@ -3,7 +3,9 @@
 	box IS the picture. A shadow or rounded corner the caller adds then hugs the
 	photograph rather than the empty margin an `object-contain` box would leave,
 	and the loading skeleton is already the photograph's shape, so nothing
-	changes size when the pixels arrive.
+	changes size when the pixels arrive. Given a `placeholder` (the photograph's
+	ThumbHash, see #lib/images/placeholder), the box shows a blur of the
+	photograph itself until then, rather than a gray card.
 
 	The caller decides how big the print is, through `class`. Giving it a width is
 	enough: the height follows from the ratio. To fit a print inside a box on both
@@ -12,9 +14,10 @@
 -->
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
-	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
-	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
-	import { cn } from '$lib/utils';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
+	import Skeleton from '#lib/components/ui/skeleton/skeleton.svelte';
+	import { placeholderUrl } from '#lib/images/placeholder.ts';
+	import { cn } from '#lib/utils.ts';
 
 	interface Props extends Omit<HTMLAttributes<HTMLDivElement>, 'class'> {
 		src: string;
@@ -24,6 +27,8 @@
 		height: number;
 		/** The width the print is displayed at, for the srcset (see OptimizedImage). */
 		sizes: string;
+		/** Its ThumbHash, base64; without one the box is a gray skeleton until it loads. */
+		placeholder?: string | null;
 		loading?: 'lazy' | 'eager';
 		class?: string;
 	}
@@ -34,6 +39,7 @@
 		width,
 		height,
 		sizes,
+		placeholder,
 		loading = 'lazy',
 		class: className,
 		...rest
@@ -46,6 +52,29 @@
 	 */
 	let settledSrc = $state<string | null>(null);
 	const loaded = $derived(settledSrc === src);
+	const blur = $derived(placeholderUrl(placeholder));
+
+	/**
+	 * A print whose pixels are already to hand shows at once, with no fade and
+	 * no blur held under it. The fade is for a photograph arriving over the
+	 * network; one the page is already showing elsewhere (an image set's pile,
+	 * say, whose prints are about to spill out as cards of their own) would
+	 * otherwise blink out and fade back in, which reads as a different picture
+	 * taking its place.
+	 *
+	 * Taking the transition off in the same change as the opacity is what makes
+	 * that hold. Clearing the skeleton early is not enough on its own: anything
+	 * in the same update that reads layout (a neighbor's exit animation does)
+	 * has the browser settle the print at opacity 0 first, and the change to 1
+	 * after it would then fade like any other.
+	 */
+	let readySrc = $state<string | null>(null);
+	const ready = $derived(readySrc === src);
+	function settleIfReady(img: HTMLImageElement) {
+		if (!img.complete || img.naturalWidth === 0) return;
+		readySrc = src;
+		settledSrc = src;
+	}
 </script>
 
 <div
@@ -54,7 +83,22 @@
 	style:aspect-ratio="{width} / {height}"
 	{...rest}
 >
-	{#if !loaded}
+	{#if blur}
+		<!-- Under the photograph rather than swapped for it: the photograph fades
+		     in over the blur, so there is never a frame with neither. Hidden once
+		     that fade is over, so a photograph with transparent parts doesn't
+		     show the blur through them. A data URL, so it paints with the box. -->
+		<img
+			src={blur}
+			alt=""
+			aria-hidden="true"
+			class={cn(
+				'absolute inset-0 h-full w-full object-cover transition-opacity duration-0',
+				loaded && 'opacity-0',
+				loaded && !ready && 'delay-300 motion-reduce:delay-0'
+			)}
+		/>
+	{:else if !loaded}
 		<Skeleton class="absolute inset-0 rounded-none bg-gray-200" />
 	{/if}
 	<OptimizedImage
@@ -63,10 +107,12 @@
 		{sizes}
 		{loading}
 		class={cn(
-			'absolute inset-0 h-full w-full object-cover transition-opacity duration-300 motion-reduce:transition-none',
+			'absolute inset-0 h-full w-full object-cover',
+			!ready && 'transition-opacity duration-300 motion-reduce:transition-none',
 			loaded ? 'opacity-100' : 'opacity-0'
 		)}
 		onload={() => (settledSrc = src)}
 		onerror={() => (settledSrc = src)}
+		{@attach settleIfReady}
 	/>
 </div>

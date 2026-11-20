@@ -1,13 +1,13 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
 import type { Config } from '@sveltejs/adapter-vercel';
-import { env } from '$env/dynamic/private';
-import { pruneRateLimits } from '$lib/server/rateLimit';
+import { CRON_SECRET } from '$app/env/private';
+import { pruneRateLimits } from '#lib/server/rateLimit.ts';
 import {
 	sweepAbandonedSubmissions,
 	sweepOrphanObjects,
 	sweepUnattachedImages
-} from '$lib/server/uploads';
+} from '#lib/server/uploads.ts';
 import type { RequestHandler } from './$types';
 
 /**
@@ -34,7 +34,7 @@ export const config: Config = { maxDuration: 300 };
  * CRON_SECRET, compared in constant time. With no secret set, nothing is.
  */
 function isCron(authorization: string | null): boolean {
-	const secret = env.CRON_SECRET;
+	const secret = CRON_SECRET;
 	if (!secret) {
 		console.error('[sweep-submissions] CRON_SECRET is not set');
 		return false;
@@ -67,5 +67,5 @@ export const GET: RequestHandler = async ({ request }) => {
 	const report = { images, unattachedImages, orphanObjects, counters };
 	// A 500 shows up in the cron job's log; the body says which step.
 	const failed = Object.values(report).some((n) => n === null);
-	return json(report, { status: failed ? 500 : 200 });
+	return Response.json(report, { status: failed ? 500 : 200 });
 };

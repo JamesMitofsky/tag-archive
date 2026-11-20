@@ -1,4 +1,4 @@
-import { building, dev } from '$app/environment';
+import { building, dev } from '$app/env';
 
 /**
  * Invalidate the public archive dataset in Vercel's CDN cache.

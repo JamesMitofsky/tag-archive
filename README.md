@@ -47,7 +47,7 @@ More detail (individual services, Drizzle Studio, prod storage) is below.
 The schema is `src/lib/server/db/schema.ts` (migrations in `drizzle/`); column
 names below are as SQLite and Drizzle Studio show them. Every archive table
 carries audit columns (`created_at` / `updated_at`, `created_by` / `updated_by`);
-only the bookkeeping tables `rate_limit` and `nfc_tag` don't. `artefact`,
+only the bookkeeping tables `rate_limit`, `nfc_tag` and `remote_key` don't. `artefact`,
 `event`, `series` and `image_set` also carry `proposed_addition`: true on a row
 anyone but an admin created, until an admin vets it in the review queue, and
 kept off the public site until then.
@@ -104,6 +104,25 @@ Image rows are written when an upload is _finalized_, before any set exists, so
 still filling in, until it attaches them on save. Ones left unattached for a day
 are swept with their objects.
 
+**Feature images.** An event can feature one image the archive already holds,
+a photograph or one page of an artefact, chosen on the form that adds the event
+or, by an admin, on its edit page. `event_feature_image` holds the choice, one row per event (no row, no
+feature image):
+
+| Column              | Notes                                                                 |
+| ------------------- | --------------------------------------------------------------------- |
+| `event_id`          | Integer PK, the event (deleted with it)                               |
+| `image_id`          | The photograph (`image`); deleted with it, and so with its set        |
+| `artefact_id`       | Or the artefact (`artefact`); deleted with it                         |
+| `artefact_file_url` | The featured page: one of that artefact's `file_urls`, exactly stored |
+
+A CHECK keeps each row to exactly one source. A page dropped from the artefact,
+or a photograph let go of by its set, leaves the row behind, so readers resolve
+it against its source every time and show nothing when it no longer resolves
+(`src/lib/server/eventFeatures.ts`). The public dataset publishes an event's
+feature image only while its source is vetted too, and only as the URL and size
+that render it.
+
 Seed data lives in `src/lib/data/seed-data.json` (parsed from the original
 exports): artefacts, events, series and people. Editing the archive's seed =
 edit that file and re-seed.
@@ -129,7 +148,7 @@ SQLite file), then stops it:
 2. `drizzle-kit push --force` — create tables (`--force` because Conductor's shell
    is non-interactive)
 3. `pnpm db:seed` — insert rows from `src/lib/data/seed-data.json`, plus an
-   admin and a contributor test account
+   admin, a contributor and a listener test account
 
 Tables after setup: the archive's (see [Data model](#data-model)) plus Better
 Auth's `user`, `session`, `account`, `verification`.
@@ -211,8 +230,8 @@ them client-side, and upload each as WebP to `POST /api/scans`
 via `src/lib/server/scans.ts`. The stored type is sniffed from the bytes, never
 taken from the client.
 
-Anyone in the garden can contribute; only admins sign in (at `/keeper`, deliberately
-unlinked). An admin's artefact lands vetted. Anyone else's lands as a proposed
+Anyone in the garden can contribute; keepers sign in (at `/keeper`, deliberately
+unlinked; see [Access](#access) for the roles). An admin's artefact lands vetted. Anyone else's lands as a proposed
 addition, hidden from the public site until an admin approves it in the review
 queue. Anonymous writes are guarded by:
 
@@ -259,7 +278,7 @@ same code targets two backends via env:
   (`.env.production` is **not** read by the deployed site). `R2_PUBLIC_URL` must be
   there for builds too: the build allows the image optimizer to fetch from it, and
   fails without it. Credentials are server-only
-  (`$env/dynamic/private`) — they never reach the browser.
+  (`$app/env/private`, declared in `src/env.ts`) — they never reach the browser.
 - **Local:** the run script starts a [RustFS](https://github.com/rustfs/rustfs)
   container (a maintained, S3-compatible object store) and points `S3_ENDPOINT`
   / `R2_PUBLIC_URL` at it, so dev uploads never touch the prod bucket. See below.
@@ -428,7 +447,7 @@ signed terms. It only works under `vite dev` with a local store.
 3. The display copy renders through the image optimizer: on the site, open
    `/_vercel/image?url=<the display.webp URL, percent-encoded>&w=480&q=75`. If
    that answers with an error rather than the image, check that the deploy was
-   built with `R2_PUBLIC_URL` set to the bucket's public URL (`svelte.config.js`
+   built with `R2_PUBLIC_URL` set to the bucket's public URL (`vite.config.ts`
    allows only that host), and that `w` is one of `CDN_WIDTHS`
    (`src/lib/images/cdnWidths.js`).
 4. Once the set is vetted, `/api/dataset` lists it with only `id`, `url`,
@@ -463,22 +482,76 @@ The pass is checked twice, from one rule (`src/lib/access/gate.ts`):
   under `vite dev`, which doesn't run the middleware.
 
 Without a pass, a page view lands on `/locked`; anything else gets a 401. Always
-open: `/t`, `/locked`, the sign-in endpoints (`/api/auth/*`), the cron endpoint,
-and the app bundles and decor the locked page is drawn with.
+open: `/t`, `/locked`, `/unlock`, the keeper sign-in page (`/keeper`), the sign-in
+endpoints (`/api/auth/*`), the cron endpoint, and the app bundles and decor those
+pages are drawn with.
 
 **The door bypasses the tag.** Any page opens without a pass when its URL carries
 `?listeningwith=thevoiceofthegarden` (case-insensitive value;
 `src/lib/access/door.server.ts`, server-only, so the phrase never ships in the
 browser bundle). Coming through the door counts as a tap: the visitor is handed a
 pass and an upload draft, then redirected to the same URL without the phrase, so
-the rest of the site opens behind it. Keepers bookmark the sign-in page through it,
-`/keeper?listeningwith=thevoiceofthegarden`, which is otherwise locked like
-everything else. A signed-in keeper who holds no pass is
+the rest of the site opens behind it. The sign-in page at `/keeper` needs no door:
+it is open to everyone, so a keeper can always reach it to sign in. A signed-in keeper who holds no pass is
 handed one on their next page view, and the same beat keeps it sliding, so a keeper
 is never locked out for being away. The signed-in area
 (`/keeper/*`) stays open at the gate so a keeper whose pass has lapsed still
 reaches SvelteKit, where their session renews it; anyone without a session is
 sent back to `/keeper`.
+
+**Every account opens it from anywhere; the role decides the rest.** Roles live
+in `src/lib/roles.ts`:
+
+- **Admin**: a keeper with full access, accounts included.
+- **Contributor**: a keeper whose entries land as proposed additions.
+- **Listener**: signs in only so the archive opens wherever they are. A listener
+  is not a keeper: `hooks.server.ts` puts them on `locals.listener`, never
+  `locals.user`, so every keeper check turns them away, and inside `/keeper/*`
+  they reach only the hub (which links them to the archive) and their settings,
+  to sign out. They get no upload draft either, so `/contribute` treats them like
+  any visitor who has not tapped the Cube.
+
+Admins set the role when creating an account (**Settings → New account**) and
+change it later at **Settings → Accounts** (`/keeper/settings/accounts`), for
+any account but their own, so the archive always keeps an admin. Someone already
+signed in sees a new role within five minutes: better-auth's session cookie
+cache (`cookieCache.maxAge` in `src/lib/server/auth.ts`) keeps serving the old
+one until it lapses. The database holds `user.role` to these values with
+`user_role_check` (migration `0011_listener_role`), so a new role needs a
+migration as well as an entry in `src/lib/roles.ts`.
+
+**Unlock keys open it from anywhere, for a while.** Any page also opens when its
+URL carries `?whoislisteningwiththevoiceofthegarden=<key>` and `<key>` is a row
+of the `remote_key` table that hasn't expired, so you can hand one person a link
+like `https://<site>/?whoislisteningwiththevoiceofthegarden=tobyshorin` and have
+it close by itself. Admins hand them out at **Settings → Unlock keys**
+(`/keeper/settings/keys`): pick a key, and a date it stays open through (a week
+from today unless you change it), and copy the link. The same page moves a key's
+date, closes it now, or deletes it. A key can also be added by hand in Drizzle
+Studio or any SQL shell:
+
+```sql
+INSERT INTO remote_key (unlock_key, expires_at) VALUES ('tobyshorin', '2026-12-31');
+```
+
+- `unlock_key` matches in any case (ASCII letters), so `TobyShorin` opens it too,
+  and two keys differing only in case are refused.
+- `expires_at` is an ISO date or date-time. A bare date (`2026-12-31`) keeps the
+  key working through the end of that day, UTC; a date-time
+  (`2026-12-31 18:00`, or `2026-12-31T18:00:00+01:00` with an offset) is the
+  moment it stops, UTC unless it says otherwise. Anything SQLite can't read as a
+  date is refused on insert, so a typo can't leave a key that never closes.
+- To close a key early, delete its row or move `expires_at` into the past.
+
+The middleware can't read the database, so it never lets a key through to the page:
+it redirects the navigation to `/unlock?key=…&to=<page>`
+(`src/routes/unlock/+server.ts`, `src/lib/access/key.server.ts`), which checks
+the key (`src/lib/server/remoteKeys.ts`), hands out a pass and an upload draft as
+a tap would, and goes on to the page without the key. An unknown key and an
+expired one both land on `/locked` with the same message, and `/unlock` allows 20
+tries per IP per hour, since keys made of names can be guessed. A pass a key
+handed out slides like any other, so a visitor whose key expires keeps the site
+until it has been off their screen for 20 minutes.
 
 **Keys.** `NFC_SDM_META_KEY` and `NFC_SDM_FILE_KEY` (32 hex characters each) are
 the AES-128 keys written onto the tag. They are their own env vars, not derived
@@ -643,7 +716,7 @@ pnpm preview    # preview it
 ## Deploying
 
 The site runs on Vercel (`@sveltejs/adapter-vercel`, configured in
-`svelte.config.js`; platform settings in `vercel.json`).
+`vite.config.ts`; platform settings in `vercel.json`).
 
 - **Production only.** Vercel builds `main` and nothing else from git
   (`git.deploymentEnabled`). For a preview of a pull request, comment `/deploy`
@@ -652,14 +725,25 @@ The site runs on Vercel (`@sveltejs/adapter-vercel`, configured in
   (`src/lib/server/origin.ts`). Photograph uploads fail there unless its exact
   origin is added to the bucket's CORS rule (see [CORS](#cors)).
 - **Environment variables** go in Vercel → Project → Settings → Environment
-  Variables, for Production (and Preview, for `/deploy`). Use `.env.example` as
-  the checklist, plus `CRON_SECRET`: a random string of at least 16 characters,
+  Variables, for Production (and Preview, for `/deploy`). The server reads only
+  the variables `src/env.ts` declares, so a new one goes there too. Use
+  `.env.example` as the checklist, plus `CRON_SECRET`: a random string of at least 16 characters,
   which Vercel sends as the daily sweep's bearer. Without it the sweep refuses to
   run.
-- **Node 24**, pinned once by `engines.node` in `package.json`. Vercel builds
-  with it (it overrides the project's Node.js setting), the adapter gives the
-  functions the same version it built with, and the GitHub workflows read it via
-  `node-version-file`. To upgrade, change that one line.
+- **Node 24 or later**, set as a floor by `engines.node` (`>=24`) in
+  `package.json`. Vercel resolves that range to the newest major it offers (26.x
+  today) and moves up on its own when it adds one; the range overrides the
+  project's Node.js setting. The adapter gives the functions the same version it
+  built with, and the GitHub workflows install the newest LTS to match. Locally,
+  `engine-strict` in `.npmrc` makes `pnpm install` refuse anything below 24. To
+  hold production on one major instead, set `engines.node` to that major (e.g.
+  `26.x`).
+- **pnpm 11**, pinned exactly by `packageManager` in `package.json`. Vercel
+  installs with it (without it, Vercel picks a pnpm by the project's creation
+  date, which meant pnpm 10), the GitHub workflows' `pnpm/action-setup` reads
+  it, and a local pnpm switches to it. The lockfile, `allowBuilds` in
+  `pnpm-workspace.yaml` and the one-day `minimumReleaseAge` that holds back
+  brand-new releases are all pnpm 11's. To upgrade, change that one line.
 - **The daily sweep** runs once a day, at some point in the hour after midnight
   UTC (the Hobby plan's cron precision). Run it by hand with
   `curl -H "Authorization: Bearer $CRON_SECRET" https://<site>/api/cron/sweep-submissions`.
