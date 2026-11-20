@@ -10,7 +10,7 @@
 	import {
 		detectCorners,
 		dewarp,
-		getScanner,
+		warmDetection,
 		isFullFrame,
 		refineDetection,
 		rotateCorners,
@@ -809,9 +809,9 @@
 		adjustLoading = false;
 		error = '';
 		stage = 'camera';
-		// The live view no longer touches scanic, so start loading it now, while
-		// the camera warms up, rather than on the first shot.
-		void getScanner();
+		// The live view doesn't run detection, so start loading it now, while the
+		// camera warms up, rather than on the first shot.
+		warmDetection();
 	}
 
 	// Block submit while any upload is in flight, or has failed: a failed page is

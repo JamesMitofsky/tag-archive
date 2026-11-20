@@ -2,13 +2,14 @@ import { browser } from '$app/env';
 import type { CornerPoints, Point, Scanner } from 'scanic';
 import { downscale, quarterTurns } from './image';
 import { refineCorners, toLuma } from './refine';
+import { segmentCorners, warmSegmenter } from './segment';
 
 export type { CornerPoints, Point };
 
 /**
- * Every call into scanic goes through this module, so the "library failed to
- * load" and "nothing was detected" paths are handled in exactly one place and
- * the rest of the app can treat detection as best-effort.
+ * Every call into page detection and into scanic goes through this module, so
+ * the "library failed to load" and "nothing was detected" paths are handled in
+ * exactly one place and the rest of the app can treat detection as best-effort.
  *
  * scanic is only ever reached through `await import()` inside a function: that
  * keeps its ~100KB inlined-WASM payload out of the initial bundle and out of
@@ -40,11 +41,37 @@ export function getScanner(): Promise<Scanner | null> {
 }
 
 /**
- * Find the document quad in `source`, in `source`'s own pixel space.
- * Returns `null` when scanic is unavailable, nothing was found, or the quad
- * is too small/degenerate to be a real document.
+ * Start loading what detection needs (the segmentation model and scanic), so
+ * the first photo doesn't wait for a download.
+ */
+export function warmDetection(): void {
+	if (!browser) return;
+	warmSegmenter();
+	void getScanner();
+}
+
+/**
+ * Find the page's quad in `source`, in `source`'s own pixel space, or `null`
+ * when there is nothing to crop to.
+ *
+ * The segmentation model (see segment.ts) is asked first, and its answer is
+ * final either way: when it sees no four-sided subject, the edge detector's
+ * guess would only be a confident-looking quad around something else. scanic's
+ * edge detector is the fallback for when the model can't be run at all.
  */
 export async function detectCorners(source: HTMLCanvasElement): Promise<CornerPoints | null> {
+	const segmented = await segmentCorners(source);
+	if (segmented.status === 'found') {
+		return isPlausibleQuad(segmented.corners, source.width, source.height)
+			? segmented.corners
+			: null;
+	}
+	if (segmented.status === 'none') return null;
+	return detectEdges(source);
+}
+
+/** scanic's edge-and-contour detector. `null` if unavailable or nothing plausible was found. */
+async function detectEdges(source: HTMLCanvasElement): Promise<CornerPoints | null> {
 	const scanner = await getScanner();
 	if (!scanner) return null;
 
@@ -87,8 +114,8 @@ const REFINE_MAX = 960;
 
 /**
  * Tighten a detection against the photo it is about to crop (see refine.ts):
- * scanic's corners can sit several pixels off, and differently each frame.
- * Runs once per photo, after capture, never in the live preview. Hands back
+ * the detector works on a small copy of the photo, so its corners can sit
+ * several pixels off the page's real edges. Runs once per photo, after capture. Hands back
  * `corners` unchanged whenever the page edges can't be measured confidently.
  */
 export function refineDetection(source: HTMLCanvasElement, corners: CornerPoints): CornerPoints {
