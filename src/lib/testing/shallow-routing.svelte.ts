@@ -39,7 +39,7 @@ export async function goto(
 export function onNavigate() {}
 export function afterNavigate() {}
 
-addEventListener('popstate', async (event) => {
+window.addEventListener('popstate', async (event: PopStateEvent) => {
 	await Promise.resolve();
 	page.state = (event.state as Record<string, App.PageState> | null)?.[KEY] ?? {};
 });
