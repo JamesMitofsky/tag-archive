@@ -196,7 +196,7 @@ describe('createImageSet', () => {
 		expect(purgeArchiveCache).not.toHaveBeenCalled();
 	});
 
-	it('links a proposed set only to a vetted event; an admin links any', async () => {
+	it('links any event, pending or vetted, whoever proposes the set', async () => {
 		const pending = await created([(await upload(byDraft)).id], asDraft(), {
 			event: 'Pending Picnic'
 		});
@@ -207,7 +207,7 @@ describe('createImageSet', () => {
 			event: 'Pending Picnic'
 		});
 
-		expect((await setRow(pending))?.eventId).toBeNull();
+		expect((await setRow(pending))?.eventId).toBe(2);
 		expect((await setRow(vetted))?.eventId).toBe(1);
 		expect((await setRow(admins))?.eventId).toBe(2);
 	});
