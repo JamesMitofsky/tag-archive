@@ -3,6 +3,15 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import PageScanner from './PageScanner.svelte';
 
+// The page-finding model has its own test (scanner/segment.svelte.spec.ts).
+// Here it stands down, as on a device that can't run it, and the edge detector
+// finds the page: these tests are about the flow around detection, and a
+// second or two of inference per shot would only slow them.
+vi.mock('#lib/scanner/segment.ts', () => ({
+	warmSegmenter: async () => false,
+	segmentCorners: async () => ({ status: 'unavailable' })
+}));
+
 // A file of its own: module mocks can't reach a module an earlier test in the
 // same file already loaded. Every entry point throws, as a broken WASM build or
 // an unsupported browser would; a factory that throws outright can't stand in

@@ -22,7 +22,7 @@ import type { CornerPoints, Point } from './detect';
 /** A single-channel image. */
 export type Luma = { width: number; height: number; data: Float32Array };
 
-type Line = { x: number; y: number; dx: number; dy: number; nx: number; ny: number };
+export type Line = { x: number; y: number; dx: number; dy: number; nx: number; ny: number };
 
 const KEYS = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'] as const;
 
@@ -73,7 +73,7 @@ function sample(img: Luma, cx: number, cy: number): number {
 }
 
 /** Total least squares: the line minimising perpendicular distance to `pts`. */
-function fitLine(pts: Point[]): Line {
+export function fitLine(pts: Point[]): Line {
 	let mx = 0;
 	let my = 0;
 	for (const p of pts) {
@@ -98,9 +98,10 @@ function fitLine(pts: Point[]): Line {
 	return { x: mx, y: my, dx, dy, nx: -dy, ny: dx };
 }
 
-const distance = (line: Line, p: Point) => (p.x - line.x) * line.nx + (p.y - line.y) * line.ny;
+export const distance = (line: Line, p: Point) =>
+	(p.x - line.x) * line.nx + (p.y - line.y) * line.ny;
 
-function intersect(a: Line, b: Line): Point | null {
+export function intersect(a: Line, b: Line): Point | null {
 	const det = a.dx * b.dy - a.dy * b.dx;
 	if (Math.abs(det) < 1e-3) return null;
 	const t = ((b.x - a.x) * b.dy - (b.y - a.y) * b.dx) / det;

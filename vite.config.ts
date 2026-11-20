@@ -102,7 +102,7 @@ export default defineConfig({
 		// `new URL(…, import.meta.url)`, which pre-bundling into .vite/deps
 		// breaks in dev; heic-to is a 3 MB self-contained libheif build that
 		// gains nothing from pre-bundling but a slower cold start.
-		exclude: ['@jsquash/webp', 'heic-to']
+		exclude: ['@jsquash/webp', 'heic-to', 'onnxruntime-web']
 	},
 	build: {
 		// Declare a browser floor for the CSS minifier. Without it, esbuild treats a
