@@ -24,7 +24,9 @@ import type { RequestHandler } from './$types';
  */
 export const POST: RequestHandler = async ({ locals, cookies, setHeaders }) => {
 	setHeaders({ 'cache-control': 'no-store' });
-	if (!locals.pass) throw error(401, 'Visit the Cube to open the Archive');
-	await touchPass(cookies, locals.pass);
+	// A listener's pass slides like any other, still opening only their page.
+	const pass = locals.pass ?? locals.listenerPass;
+	if (!pass) throw error(401, 'Visit the Cube to open the Archive');
+	await touchPass(cookies, pass);
 	return new Response(null, { status: 204 });
 };

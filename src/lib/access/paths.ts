@@ -11,6 +11,12 @@ export const LOCKED_PATH = '/locked';
 /** The keeper sign-in page (and the prefix of the signed-in keeper area). */
 export const KEEPER_PATH = '/keeper';
 
+/**
+ * A listener's page (see #lib/roles): the artefacts an admin chose for their
+ * account, and the only page their pass opens (see ./gate, `passOpens`).
+ */
+export const LISTENER_PATH = '/listening';
+
 /** The public contribution forms (artefacts here, photographs beneath it), whose actions guard themselves (see ./gate). */
 export const CONTRIBUTE_PATH = '/contribute';
 

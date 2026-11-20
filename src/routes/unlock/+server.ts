@@ -3,6 +3,7 @@ import { dev } from '$app/env';
 import { TAP_FLASH_COOKIE, type TapFlash } from '#lib/access/flash.ts';
 import { LOCKED_PATH } from '#lib/access/gate.ts';
 import { readKey, returnPath, UNLOCK_KEY_PARAM, UNLOCK_TO_PARAM } from '#lib/access/key.server.ts';
+import { opensSite } from '#lib/access/pass.ts';
 import { issuePass, readPass } from '#lib/server/access.ts';
 import { issueDraft } from '#lib/server/drafts.ts';
 import { consume, LIMITS } from '#lib/server/rateLimit.ts';
@@ -26,8 +27,9 @@ export const GET: RequestHandler = async ({ url, cookies, getClientAddress, setH
 	const to = returnPath(url.searchParams.get(UNLOCK_TO_PARAM), url.origin);
 
 	// Already in (a reload, or a key followed while the site is open): carry on,
-	// without spending a database read or a try against the rate limit.
-	if (await readPass(cookies)) throw redirect(303, to);
+	// without spending a database read or a try against the rate limit. A
+	// listener's pass opens only their page, so it is not in (see #lib/access/pass).
+	if (opensSite(await readPass(cookies))) throw redirect(303, to);
 
 	const flash = (outcome: TapFlash, location: string): never => {
 		cookies.set(TAP_FLASH_COOKIE, outcome, {

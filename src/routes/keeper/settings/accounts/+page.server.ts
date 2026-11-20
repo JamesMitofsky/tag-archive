@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { isRole, ROLES } from '#lib/roles.ts';
 import { listAccounts, setAccountRole } from '#lib/server/accounts.ts';
+import { countListenerArtefacts } from '#lib/server/listeners.ts';
 import { str } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -15,7 +16,10 @@ function requireAdmin(locals: App.Locals): string {
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const selfId = requireAdmin(locals);
-	return { accounts: await listAccounts(), roles: ROLES, selfId };
+	const [accounts, given] = await Promise.all([listAccounts(), countListenerArtefacts()]);
+	// How many artefacts each listener may view (see #lib/server/listeners).
+	const artefactCounts = Object.fromEntries(given);
+	return { accounts, artefactCounts, roles: ROLES, selfId };
 };
 
 export const actions: Actions = {

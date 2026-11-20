@@ -3,13 +3,17 @@
  *
  * Every signed-in account is handed an access pass (see #lib/server/access), so
  * every one of them opens the archive from anywhere, not only at the Cube. What
- * the role decides is what else the account may do:
+ * the role decides is how much of it, and what else the account may do:
  *
- *  - `listener`: nothing else. A listener signs in only so the archive opens
- *    for them wherever they are. They are not a keeper: hooks.server.ts never
- *    puts them on `locals.user`, so every keeper check in the app (the keeper
- *    area, keeper uploads, keeper submissions) already turns them away, and
- *    they reach only the keeper hub and their settings, to sign out.
+ *  - `listener`: only the artefacts an admin chose for the account (the
+ *    `listener_artefact` table, chosen at Settings → Accounts), on its own page
+ *    (/listening), and nothing else. Their pass is a listener's (`l`), which
+ *    opens that page alone (see `passOpens` in #lib/access/gate); tapping the
+ *    Cube still opens the whole site to them, as to anyone in the garden. They
+ *    are not a keeper: hooks.server.ts never puts them on `locals.user`, so
+ *    every keeper check in the app (the keeper area, keeper uploads, keeper
+ *    submissions) already turns them away, and they reach only the keeper hub
+ *    and their settings, to sign out.
  *  - `contributor`: a keeper whose entries land as proposed additions.
  *  - `admin`: a keeper with full access, accounts included.
  *
@@ -39,7 +43,7 @@ export const ROLE_META: Record<Role, { label: string; blurb: string }> = {
 	contributor: { label: 'Contributor', blurb: 'Submits entries as proposed additions.' },
 	listener: {
 		label: 'Listener',
-		blurb: 'Opens the Archive from anywhere, with no keeper tools.'
+		blurb: 'Views only the artefacts chosen for it, from anywhere, with no keeper tools.'
 	},
 	admin: { label: 'Admin', blurb: 'Full access: edit, vet, and manage accounts.' }
 };

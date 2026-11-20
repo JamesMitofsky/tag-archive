@@ -454,6 +454,31 @@ export const remoteKey = sqliteTable(
 	]
 );
 
+/**
+ * The artefacts a listener's account may view (see #lib/roles): one row per
+ * account and artefact, chosen by an admin at Settings → Accounts. A listener
+ * who never tapped the Cube sees these and nothing else, on /listening; a row
+ * whose artefact is still a proposed addition stays hidden there until vetted.
+ * Rows outlive a change of role, so an account made a listener again finds its
+ * choices where they were, and go with the account or the artefact.
+ */
+export const listenerArtefact = sqliteTable(
+	'listener_artefact',
+	{
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		artefactId: integer('artefact_id')
+			.notNull()
+			.references(() => artefact.id, { onDelete: 'cascade' }),
+		...auditColumns()
+	},
+	(t) => [
+		primaryKey({ columns: [t.userId, t.artefactId] }),
+		index('listener_artefact_artefact_id_idx').on(t.artefactId)
+	]
+);
+
 // Relations power `db.query` relational loads.
 export const seriesRelations = relations(series, ({ many }) => ({
 	events: many(event)
