@@ -22,13 +22,10 @@ export type Role = 'pad' | 'screen';
 export type PadMessage =
 	{ t: 'down' } | { t: 'd'; dx: number; dy: number } | { t: 'up'; vx: number; vy: number };
 
-/** What the projector sends back: the color of what is in focus, for the iPad's glow. */
-export type ScreenMessage = { t: 'focus'; rgb: [number, number, number] | null };
-
 /** Either side measuring the round trip to the other. */
 type PeerControl = { t: 'ping'; ts: number } | { t: 'pong'; ts: number };
 
-export type RelayMessage = PadMessage | ScreenMessage;
+export type RelayMessage = PadMessage;
 
 export type RelayState = 'connecting' | 'open' | 'closed';
 

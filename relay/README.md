@@ -16,7 +16,7 @@ and whatever drifts into the lens blooms to full size, with its title and date b
 
 Vercel can't hold a WebSocket open, and an iPhone's Personal Hotspot is reported to stop the devices
 on it from reaching each other directly. So both pages connect _out_ to this Worker, which forwards
-every message from the iPad to the projector and the focus color back. It stores nothing. A Durable
+every message from the iPad to the projector. It stores nothing. A Durable
 Object holds each room, using the hibernation API, so an idle room costs nothing, and it answers
 the clients' `hb` heartbeat without waking up. That heartbeat is how a silently dead cellular
 socket gets noticed and replaced within about 8 seconds.

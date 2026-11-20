@@ -16,7 +16,6 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { PUBLIC_INSTALLATION_RELAY_URL } from '$app/env/public';
-	import { thumbHashToAverageRGBA } from 'thumbhash';
 	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
 	import { loadDataset } from '#lib/dataset.ts';
 	import { placeholderUrl } from '#lib/images/placeholder.ts';
@@ -30,7 +29,6 @@
 		nearestItem,
 		offsetFrom,
 		parting,
-		type FieldKind,
 		type Placed,
 		type World
 	} from '#lib/installation/field.ts';
@@ -55,13 +53,6 @@
 	const MARGIN_CELLS = 1;
 	/** How long the field must be still on an item before its caption shows (s). */
 	const CAPTION_AFTER = 0.7;
-
-	/** The soft frame each kind of thing is drawn in, and the iPad's glow when it has no picture. */
-	const TINT: Record<FieldKind, [number, number, number]> = {
-		artefact: [196, 176, 230],
-		photo: [176, 222, 190],
-		event: [168, 210, 240]
-	};
 
 	let world = $state.raw<World | null>(null);
 	let visible = $state.raw<Placed[]>([]);
@@ -93,20 +84,6 @@
 		};
 	}
 
-	function averageColor(placed: Placed): [number, number, number] {
-		const hash = placed.item.placeholder;
-		if (hash) {
-			try {
-				const bytes = Uint8Array.from(atob(hash), (c) => c.charCodeAt(0));
-				const { r, g, b } = thumbHashToAverageRGBA(bytes);
-				return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-			} catch {
-				// A malformed hash: fall back to the frame's tint.
-			}
-		}
-		return TINT[placed.item.kind];
-	}
-
 	onMount(() => {
 		const gain = Number(page.url.searchParams.get('gain')) || TUNING.gain;
 		const tuning = { ...TUNING, gain };
@@ -120,7 +97,6 @@
 		let visibleKey = '';
 		let stillSince: number | null = null;
 		let focusedId: string | null = null;
-		let focusRgb: [number, number, number] | null = null;
 		let frames = 0;
 		let fpsSince = last;
 
@@ -144,8 +120,6 @@
 		} else {
 			unconfigured = true;
 		}
-		// The iPad may join (or rejoin) at any time: tell it the color now and then.
-		const resendFocus = setInterval(() => relay?.send({ t: 'focus', rgb: focusRgb }), 3000);
 
 		loadDataset()
 			.then((data) => {
@@ -262,7 +236,7 @@
 
 			if (lens) lens.style.opacity = String(0.6 * (1 - Math.min(1, bloomAmount * 1.4)));
 
-			// What's in focus, for the caption, the full-size picture and the iPad's glow.
+			// What's in focus, for the caption and the full-size picture.
 			const focused = best && best.focus > 0.5 ? best : null;
 			const id = focused?.placed.item.id ?? null;
 			if (id !== focusedId) {
@@ -272,8 +246,6 @@
 				caption = focused
 					? { title: focused.placed.item.title, date: focused.placed.item.date }
 					: null;
-				focusRgb = focused ? averageColor(focused.placed) : null;
-				relay?.send({ t: 'focus', rgb: focusRgb });
 			}
 			const settled = !!focused && focused.focus > 0.85 && calm > 0.9;
 			if (settled) stillSince ??= t;
@@ -337,7 +309,6 @@
 		return () => {
 			disposed = true;
 			cancelAnimationFrame(frame);
-			clearInterval(resendFocus);
 			relay?.close();
 			window.removeEventListener('resize', onResize);
 			window.removeEventListener('keydown', onKey);

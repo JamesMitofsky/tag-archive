@@ -1,10 +1,10 @@
 <!--
-	Archive Stream, the iPad side: a pane of soft, blurry pools of color that
-	shows nothing of the archive. It is the water. One finger in it moves the
-	field on the projector, and the pools move with the finger right here, at
-	once, whatever the network is doing, so the touch never feels unanswered.
-	After a flick they glide on and slow just as the projector's field does.
-	Their color is that of whatever is in focus on the wall.
+	Archive Stream, the iPad side: a hazy wash of light blue and white, like
+	clouds, that shows nothing of the archive. It is the water. One finger in
+	it moves the field on the projector, and the haze moves with the finger
+	right here, at once, whatever the network is doing, so the touch never
+	feels unanswered. After a flick it glides on and slows just as the
+	projector's field does. Its colors never change.
 
 	One finger only: the first to touch owns the gesture and any others are
 	ignored, so a resting palm or a second hand can't make the field jitter.
@@ -35,22 +35,21 @@
 	 * `size` is its diameter as a share of the screen's longer side; `depth`
 	 * is how far it moves for a finger's travel, so the pools slide past one
 	 * another like water rather than as one rigid sheet; `tone` picks its
-	 * color: the focus glow, a deeper shade of it, a paler wash, or the sky.
+	 * color: white haze, a deeper blue, or a light blue a shade off the ground.
 	 */
 	const POOLS = [
-		{ u: 0.12, v: 0.2, size: 0.95, depth: 1, tone: 'deep' },
-		{ u: 0.55, v: 0.1, size: 0.8, depth: 0.82, tone: 'sky' },
+		{ u: 0.12, v: 0.2, size: 0.95, depth: 1, tone: 'blue' },
+		{ u: 0.55, v: 0.1, size: 0.95, depth: 0.82, tone: 'white' },
 		{ u: 0.82, v: 0.55, size: 1.05, depth: 1.12, tone: 'deep' },
-		{ u: 0.35, v: 0.68, size: 0.85, depth: 0.9, tone: 'pale' },
-		{ u: 0.68, v: 0.88, size: 0.7, depth: 1.2, tone: 'sky' },
-		{ u: 0.05, v: 0.82, size: 0.75, depth: 0.75, tone: 'pale' },
-		{ u: 0.45, v: 0.38, size: 0.6, depth: 1.05, tone: 'glow' }
+		{ u: 0.35, v: 0.68, size: 1, depth: 0.9, tone: 'white' },
+		{ u: 0.68, v: 0.88, size: 0.7, depth: 1.2, tone: 'blue' },
+		{ u: 0.05, v: 0.82, size: 0.75, depth: 0.75, tone: 'deep' },
+		{ u: 0.45, v: 0.38, size: 0.75, depth: 1.05, tone: 'white' }
 	] as const;
 
 	let surface: HTMLElement | undefined = $state();
 	const pools: HTMLElement[] = $state([]);
 	let inviting = $state(true);
-	let glow = $state<[number, number, number]>([148, 202, 231]);
 	let connection = $state<RelayState | 'unconfigured'>('connecting');
 
 	onMount(() => {
@@ -60,9 +59,8 @@
 			relay = connectRelay({
 				config,
 				role: 'pad',
-				onMessage(message) {
-					if (message.t === 'focus' && message.rgb) glow = message.rgb;
-				},
+				// The projector sends nothing back but its round-trip pings.
+				onMessage() {},
 				onStatus(status) {
 					connection = status.state;
 				}
@@ -139,8 +137,10 @@
 				// A slow sway of its own, so the water is never quite still.
 				const swayX = still.matches ? 0 : Math.sin(seconds / (11 + i * 2) + i) * 18;
 				const swayY = still.matches ? 0 : Math.cos(seconds / (13 + i * 3) + i * 2) * 14;
-				const x = viewW / 2 + wrapDelta(pool.u * spanW + water.x * pool.depth + swayX, spanW);
-				const y = viewH / 2 + wrapDelta(pool.v * spanH + water.y * pool.depth + swayY, spanH);
+				const x =
+					viewW / 2 + wrapDelta((pool.u - 0.5) * spanW + water.x * pool.depth + swayX, spanW);
+				const y =
+					viewH / 2 + wrapDelta((pool.v - 0.5) * spanH + water.y * pool.depth + swayY, spanH);
 				node.style.width = `${size}px`;
 				node.style.height = `${size}px`;
 				node.style.transform = `translate3d(${x - size / 2}px, ${y - size / 2}px, 0)`;
@@ -264,7 +264,7 @@
 	<meta name="apple-mobile-web-app-title" content="Archive Stream" />
 </svelte:head>
 
-<div class="pad" bind:this={surface} style:--glow="{glow[0]} {glow[1]} {glow[2]}">
+<div class="pad" bind:this={surface}>
 	<div class="water" aria-hidden="true">
 		{#each POOLS as pool, i (i)}
 			<span class="pool {pool.tone}" bind:this={pools[i]}></span>
@@ -299,14 +299,13 @@
 		-webkit-touch-callout: none;
 		-webkit-tap-highlight-color: transparent;
 		overscroll-behavior: none;
-		background: oklch(0.93 0.02 230);
+		/* The ground: a light blue the haze drifts over. */
+		background: oklch(0.9 0.045 230);
 		z-index: 50;
 	}
 
-	/* Soft pools of color, each a radial gradient fading to nothing at its
-	   edge: blurry without a blur filter, so moving them every frame is cheap.
-	   The color is `color`, so a new focus color fades in over a second and a
-	   half, and the gradient follows it through `currentColor`. */
+	/* Soft pools of haze, each a radial gradient fading to nothing at its
+	   edge: blurry without a blur filter, so moving them every frame is cheap. */
 	.water {
 		position: absolute;
 		inset: 0;
@@ -318,23 +317,18 @@
 		border-radius: 50%;
 		will-change: transform;
 		background: radial-gradient(circle closest-side, currentColor 15%, transparent);
-		transition: color 1.6s ease;
 	}
-	.pool.glow {
-		color: rgb(var(--glow));
-		opacity: 0.9;
+	.pool.white {
+		color: oklch(0.99 0.006 230);
+		opacity: 0.95;
+	}
+	.pool.blue {
+		color: oklch(0.86 0.06 232);
+		opacity: 0.8;
 	}
 	.pool.deep {
-		color: color-mix(in oklch, rgb(var(--glow)), oklch(0.35 0.08 250) 30%);
-		opacity: 0.75;
-	}
-	.pool.pale {
-		color: rgb(var(--glow));
+		color: oklch(0.78 0.08 236);
 		opacity: 0.55;
-	}
-	.pool.sky {
-		color: oklch(0.96 0.025 230);
-		opacity: 0.9;
 	}
 
 	.invite {

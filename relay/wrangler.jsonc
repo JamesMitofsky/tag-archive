@@ -1,5 +1,5 @@
-// The Archive Stream relay: passes touches from the iPad to the projector and
-// the focus color back. See relay/README.md.
+// The Archive Stream relay: passes touches from the iPad to the projector.
+// See relay/README.md.
 {
 	"$schema": "../node_modules/wrangler/config-schema.json",
 	"name": "archive-stream-relay",
