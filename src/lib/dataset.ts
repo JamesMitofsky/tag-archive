@@ -42,6 +42,11 @@ async function fetchDataset(): Promise<Partial<Dataset>> {
 	return res.json();
 }
 
+/** Every slice at once, in one request, for a page that shows the whole archive. */
+export async function loadDataset(): Promise<Dataset> {
+	return { ...EMPTY, ...(await fetchDataset()) };
+}
+
 export async function loadArtefacts(): Promise<ArtefactWithEvent[]> {
 	return (await fetchDataset()).artefacts ?? [];
 }
