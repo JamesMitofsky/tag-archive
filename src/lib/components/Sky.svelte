@@ -142,6 +142,7 @@
      brings them back. -->
 <div class="paper pointer-events-none fixed inset-0 -z-10" aria-hidden="true">
 	<div class="layer" style:background-image={glow}></div>
+	<div class="layer edges"></div>
 	<div class="layer grain"></div>
 </div>
 
@@ -275,6 +276,46 @@
 	/* The sky behind the middle of the screen, under the glow. */
 	.paper {
 		background-color: var(--sky-1);
+	}
+
+	/* iOS 26 Safari clips this fixed paper to the area between its bars. Under
+	   the status bar and the floating toolbar the page shows a single flat
+	   color instead: SkyUnderlay's halves, or past the end of the page the root
+	   canvas (layout.css), and Safari's soft blur over either. Those colors are
+	   the glow at the middle of the top and bottom edges (--sky-0, --sky-2), but
+	   the glow is round the sun, so along each edge it shifts from one side of
+	   the screen to the other: with the sun low in the corner, a warm patch
+	   beside a blue one. The flat strip matched only the middle, so the sky read
+	   as cut off at the bar. Fading the paper's edges into those same colors
+	   makes it meet the strip wherever Safari clips it.
+
+	   Over the glow and under the grain, so the paper keeps its texture
+	   right up to the edge. Nothing elsewhere, where the paper reaches the
+	   screen's edges itself. The bottom only on iPhone sizes, as the canvas
+	   switch in layout.css: iPad Safari has no bottom bar. */
+	.edges {
+		display: none;
+		--edge-fade: 7rem;
+		--edge-bottom: transparent;
+	}
+
+	@supports (-webkit-touch-callout: none) {
+		.edges {
+			display: block;
+			background-image: linear-gradient(
+				to bottom,
+				var(--sky-0),
+				transparent var(--edge-fade),
+				transparent calc(100% - var(--edge-fade)),
+				var(--edge-bottom)
+			);
+		}
+
+		@media (max-width: 500px), (max-height: 500px) {
+			.edges {
+				--edge-bottom: var(--sky-2);
+			}
+		}
 	}
 
 	/* pre-rendered static paper noise tile (baked low-opacity noise tile), over
