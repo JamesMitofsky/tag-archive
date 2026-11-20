@@ -21,7 +21,7 @@ vi.mock('#lib/server/imageMetadata.ts', () => ({ parseImageMetadata: vi.fn() }))
 
 const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
 const { db } = await import('#lib/server/db/index.ts');
-const { image, imageSet, imageSetContact, user } = await import('#lib/server/db/schema.ts');
+const { image, imageSet, user } = await import('#lib/server/db/schema.ts');
 const { actions, load } = await import('./+page.server');
 
 const ADMIN = { id: 'admin-1', role: 'admin', email: 'admin@example.org' };
@@ -39,16 +39,13 @@ beforeEach(() => deleteScan.mockClear());
 
 let uploads = 0;
 
-/** A proposed set of `count` photographs, from the public (with contact) or a keeper. */
+/** A proposed set of `count` photographs, from the public or a keeper. */
 async function proposed(count: number, from: 'public' | 'keeper') {
 	const createdBy = from === 'keeper' ? KEEPER.id : null;
 	const [{ id }] = await db
 		.insert(imageSet)
 		.values({ description: 'Submitted', proposedAddition: true, createdBy })
 		.returning({ id: imageSet.id });
-	if (from === 'public') {
-		await db.insert(imageSetContact).values({ setId: id, name: 'Ada', email: 'ada@example.org' });
-	}
 	for (let position = 0; position < count; position++) {
 		uploads++;
 		const folder = `https://bucket.test/submissions/d/images/00000000-0000-4000-8000-${String(uploads).padStart(12, '0')}`;
@@ -108,18 +105,14 @@ describe('load', () => {
 		expect(cards.get(fromPublic)).toMatchObject({
 			description: 'Submitted',
 			count: 10,
-			fromKeeper: false,
-			contactName: 'Ada',
-			contactEmail: 'ada@example.org'
+			fromKeeper: false
 		});
 		expect(cards.get(fromPublic)?.thumbnails).toHaveLength(8);
 		expect(cards.get(fromKeeper)).toMatchObject({
 			count: 1,
-			fromKeeper: true,
-			contactName: null,
-			contactEmail: null
+			fromKeeper: true
 		});
-		expect(JSON.stringify(data.sets)).not.toMatch(/latitude|original|keeper-1/);
+		expect(JSON.stringify(data.sets)).not.toMatch(/latitude|original|keeper-1|contact/i);
 	});
 });
 
@@ -147,14 +140,11 @@ describe('actions', () => {
 		expect(await db.select().from(image).where(eq(image.setId, id))).toHaveLength(2);
 	});
 
-	it('rejecting deletes the set with its photographs, contact and stored objects', async () => {
+	it('rejecting deletes the set with its photographs and stored objects', async () => {
 		const id = await proposed(2, 'public');
 		expect(await act('reject', id)).toEqual({ rejected: true });
 		expect(await setRow(id)).toBeUndefined();
 		expect(await db.select().from(image).where(eq(image.setId, id))).toHaveLength(0);
-		expect(
-			await db.select().from(imageSetContact).where(eq(imageSetContact.setId, id))
-		).toHaveLength(0);
 		// Two objects per photograph: the display copy and the original.
 		expect(deleteScan).toHaveBeenCalledTimes(4);
 	});
