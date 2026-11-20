@@ -8,7 +8,7 @@ describe('OtpEmail', () => {
 			props: { otp: '123456', logoSrc: 'cid:tag-archive-wordmark' }
 		});
 		expect(body).toContain('123456');
-		expect(body).toContain('Use this code to connect');
+		expect(body).toContain('Expires in 5 minutes');
 		expect(body).toContain('src="cid:tag-archive-wordmark"');
 		// Email-safe: inline styles, no Tailwind classes or oklch() leaking through.
 		expect(body).toContain('style=');

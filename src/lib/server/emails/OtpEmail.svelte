@@ -16,13 +16,13 @@
 	// string if it isn't the expected 6 chars.
 	const otpGroups = otp.length === 6 ? [otp.slice(0, 3), otp.slice(3)] : [otp];
 
-	const intro = 'Use this code to connect';
-
 	// Landing-page palette (layout.css / Sky.svelte tokens → email-safe hex).
 	// Everything sits straight on the sky, so every line of text is navy: it
 	// reads at 7.4:1 there, where the site's gray muted text manages only 2.6:1.
 	const sky = '#8ecbe6'; // Sky.svelte watercolor-paper backdrop
 	const navy = '#22304a'; // --primary-foreground
+	const frost = 'rgba(255,255,255,0.45)'; // translucent white code well
+	const frostOnSky = '#c1e2f1'; // the same frost flattened onto the sky
 
 	// Palatino-first serif stack mirrors layout.css --font-sans, with web-safe
 	// Georgia/serif fallbacks for clients lacking the primary faces.
@@ -78,23 +78,19 @@
 											alt="TAG Archive"
 											width="280"
 											height="75"
-											style="display:block; width:280px; max-width:100%; height:auto; margin:0 auto 28px auto; border:0;"
+											style="display:block; width:280px; max-width:100%; height:auto; margin:0 auto 32px auto; border:0;"
 										/>
 
-										<p
-											style="margin:0 0 20px 0; text-align:center; font-family:{serif}; font-size:17px; line-height:1.5; color:{navy};"
-										>
-											{intro}
-										</p>
-
-										<!-- Code well: a white slip on the sky, auto-width so it hugs the
-										     digits instead of stretching to the column's edges. -->
+										<!-- Code well: a frosted slip on the sky, auto-width so it hugs the
+										     digits instead of stretching to the column's edges. The hex is
+										     that frost already laid over the sky, for clients that drop
+										     rgba(); the rest read the rgba() background-color after it. -->
 										<table role="presentation" align="center" cellpadding="0" cellspacing="0">
 											<tbody>
 												<tr>
 													<td
 														align="center"
-														style="padding:18px 20px; background-color:#ffffff; border-radius:10px; box-shadow:0 6px 18px rgba(34,48,74,0.14);"
+														style="padding:18px 20px; background:{frostOnSky}; background-color:{frost}; border-radius:10px; box-shadow:0 2px 6px rgba(34,48,74,0.08);"
 													>
 														<!-- Tight letter-spacing within each group, a wide gap between
 														     groups. padding-left on the first group balances the trailing
