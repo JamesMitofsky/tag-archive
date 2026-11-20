@@ -6,6 +6,7 @@
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '#lib/programAreas.ts';
+	import ProgramAreasInfo from '#lib/components/ProgramAreasInfo.svelte';
 	import DateField from '#lib/components/DateField.svelte';
 	import ComboField from '#lib/components/ComboField.svelte';
 	import AsyncComboField from '#lib/components/AsyncComboField.svelte';
@@ -32,7 +33,8 @@
 		form,
 		requireLocation,
 		locations,
-		people
+		people,
+		explainProgramAreas = false
 	}: {
 		/** The page's action data, for any error and echoed values from a failed submit. */
 		form: Record<string, unknown> | null | undefined;
@@ -46,7 +48,13 @@
 		 * public dataset's names (see TagsField).
 		 */
 		people?: string[];
+		/** Show an info bubble beside "Program areas" that says what each one means. */
+		explainProgramAreas?: boolean;
 	} = $props();
+
+	// Names the program-area group by its legend's text alone, so the info
+	// button inside the legend doesn't become part of the group's name.
+	const programAreasLabelId = $props.id();
 
 	// Kit flattens the action-data union, so restore the echoed values' shape.
 	const submitted = $derived(
@@ -426,8 +434,13 @@
 			<FieldError message={validator.error('date')} />
 		</div>
 
-		<fieldset data-field>
-			<legend class="block text-sm font-medium text-gray-700">Program areas</legend>
+		<fieldset data-field aria-labelledby={programAreasLabelId}>
+			<legend class="flex items-center gap-1 text-sm font-medium text-gray-700">
+				<span id={programAreasLabelId}>Program areas</span>
+				{#if explainProgramAreas}
+					<ProgramAreasInfo />
+				{/if}
+			</legend>
 			<!-- Unconventional multiselect: each area is a compact card that
 		     toggles a hidden checkbox. Card carries the area's color identity; a primary
 		     ring + check badge signals selection. -->
