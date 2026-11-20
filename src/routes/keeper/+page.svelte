@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { enhance } from '$app/forms';
 	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
@@ -11,11 +11,13 @@
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
 	import HeadphonesIcon from 'phosphor-svelte/lib/HeadphonesIcon';
 	import { createEmailSuite, parseEmailForm } from '#lib/validation/auth.ts';
 	import { createValidator } from '#lib/validation/client.svelte.ts';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import Confetti from '#lib/components/Confetti.svelte';
+	import PaperPlaneFlight, { PLANE_PATH, INK } from '#lib/components/PaperPlaneFlight.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -27,6 +29,11 @@
 	const authStep = $derived(form && 'step' in form && form.step === 'otp' ? 'otp' : 'email');
 	const authError = $derived(form && 'error' in form ? form.error : undefined);
 	const authEmail = $derived(form && 'email' in form ? form.email : '');
+	// The page's title follows where the visitor is: signed out it asks, on the
+	// code step it says what to do next, and signed in it names the hub.
+	const pageTitle = $derived(
+		signedIn ? 'Cloud Keeper' : authStep === 'otp' ? 'Check your email' : 'Are you a Cloud Keeper?'
+	);
 	const errors = $derived(
 		form && 'errors' in form && form.errors ? (form.errors as Record<string, string[]>) : {}
 	);
@@ -35,6 +42,21 @@
 	const emailValidator = createValidator(createEmailSuite(), () => errors);
 	let emailFormEl = $state<HTMLFormElement>();
 	let emailSubmitting = $state(false);
+	// What is typed in the email field: seeded from each action result (the
+	// address it echoes back) and overwritten as the keeper types. It is bound
+	// rather than set one-way with `value={authEmail}`, because Svelte re-applies
+	// a one-way value whenever its template effect next runs. That first rerun
+	// came on submit, when `emailSubmitting` flipped, and blanked the field (and
+	// tripped the "valid email" error) for as long as the send was pending.
+	let email = $derived(form && 'email' in form ? (form.email ?? '') : '');
+	// The plane's takeoff is the send's pending state, so a send that returns at
+	// once would swap the step before the plane had left the button. Hold the
+	// swap until the send has been in the air this long. No hold under reduced
+	// motion, where there is no flight to see.
+	const TAKEOFF_MS = 700;
+	function takeoffHold() {
+		return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : TAKEOFF_MS;
+	}
 	function revalidateEmail() {
 		if (emailFormEl) emailValidator.run(parseEmailForm(new FormData(emailFormEl)));
 	}
@@ -86,6 +108,39 @@
 		otpForm?.requestSubmit();
 	}
 
+	// Resend: a sent code holds off another for `resendIn` seconds, which every
+	// sendOtp result names (the server holds the same line, see
+	// #lib/server/otpResendCooldown). The countdown is drawn only once the page
+	// is hydrated: without JS nothing would tick it down, so the button stays
+	// usable and the server's refusal says how long is left.
+	let hydrated = $state(false);
+	onMount(() => (hydrated = true));
+	let resendReadyAt = $state(0);
+	let clock = $state(Date.now());
+	let resendPending = $state(false);
+	// True after a resend lands, until the next attempt at either form.
+	let resent = $state(false);
+	const resendWait = $derived(Math.max(0, Math.ceil((resendReadyAt - clock) / 1000)));
+
+	// Before the DOM updates, so the code step never draws the button usable for
+	// a frame. Only results that name a wait move it: a wrong code leaves it be.
+	$effect.pre(() => {
+		if (form && 'resendIn' in form && typeof form.resendIn === 'number') {
+			resendReadyAt = Date.now() + form.resendIn * 1000;
+			clock = Date.now();
+		}
+	});
+
+	// Tick only while there is a wait to count down.
+	$effect(() => {
+		if (authStep !== 'otp' || resendReadyAt <= Date.now()) return;
+		const timer = setInterval(() => {
+			clock = Date.now();
+			if (clock >= resendReadyAt) clearInterval(timer);
+		}, 250);
+		return () => clearInterval(timer);
+	});
+
 	function handleOtpInput(i: number, event: Event) {
 		const el = event.target as HTMLInputElement;
 		const digit = el.value.replace(/\D/g, '').slice(-1);
@@ -124,14 +179,14 @@
 		maybeSubmitOtp();
 	}
 
+	// Ink button, same graphite tone as the landing handwriting.
+	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
 	// Frosted glass, borrowed from the landing searchbar.
 	const glassInput =
 		'w-full rounded-lg border border-white/40 bg-white/25 text-base text-gray-800 shadow-sm backdrop-blur-md placeholder:text-gray-600 focus:border-white/60 focus:bg-white/35 focus:ring-1 focus:ring-white/50 focus:outline-none';
 	// A single OTP digit box, frosted like the glass panel it sits on.
 	const otpBox =
 		'h-14 w-12 rounded-lg border border-white/40 bg-white/25 text-center text-2xl text-gray-800 shadow-sm backdrop-blur-md focus:border-white/60 focus:bg-white/35 focus:ring-1 focus:ring-white/50 focus:outline-none';
-	// Ink button, same graphite tone as the landing handwriting.
-	const inkButton = 'bg-[#14120f] text-white transition hover:bg-[#33302a]';
 
 	// The archive views, surfaced as hub cards for signed-in keepers.
 	const hubLinks = [
@@ -164,13 +219,47 @@
 
 <svelte:head>
 	<title>Cloud Keeper · TAG Archive</title>
+	<!-- Open to everyone (see #lib/access/gate) but deliberately unlinked. -->
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
-		<header class="mb-8 flex items-start justify-between gap-4">
-			<div>
-				<h1 class="text-2xl font-semibold tracking-tight text-gray-900">Cloud Keeper</h1>
+		<!-- On the code step the title's own sentence follows it, so it sits closer. -->
+		<header
+			class="flex items-start justify-between gap-4 {pageTitle === 'Check your email'
+				? 'mb-2'
+				: 'mb-8'}"
+		>
+			<!-- Grid-stacked and keyed like the views below, so the title cross-flies
+			     with the step it names instead of snapping. -->
+			<div class="title-swap">
+				{#key pageTitle}
+					<h1
+						class="title flex items-center gap-2.5 text-2xl font-semibold tracking-tight text-gray-900"
+						in:fly={{ x: 20, duration: 250 }}
+						out:fly={{ x: -20, duration: 250 }}
+					>
+						{pageTitle}
+						{#if pageTitle === 'Check your email'}
+							<!-- The plane that left the send button, come in to land. -->
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="-10 -10 20 20"
+								fill="none"
+								stroke={INK}
+								stroke-width="1.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+								class="landing h-6 w-6 shrink-0"
+								style="mix-blend-mode: multiply;"
+							>
+								<path d={PLANE_PATH} />
+							</svg>
+						{/if}
+					</h1>
+				{/key}
 			</div>
 			{#if signedIn}
 				<a
@@ -215,12 +304,16 @@
 														return;
 													}
 													emailSubmitting = true;
+													const landAt = performance.now() + takeoffHold();
 													return async ({ update }) => {
-														await update();
+														const wait = landAt - performance.now();
+														if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+														// No reset: a refused send should leave the address to correct.
+														await update({ reset: false });
 														emailSubmitting = false;
 													};
 												}}
-												class="flex gap-2"
+												class="flex max-w-sm items-center gap-2"
 											>
 												<label class="sr-only" for="email">Email</label>
 												<input
@@ -229,28 +322,42 @@
 													type="email"
 													required
 													autocomplete="off"
-													placeholder="you@email.community"
-													value={authEmail}
+													placeholder="keeper@cube.local"
+													bind:value={email}
 													class="min-w-0 flex-1 {glassInput}"
 												/>
 												<button
 													type="submit"
 													disabled={emailSubmitting}
 													aria-busy={emailSubmitting}
-													aria-label="Send sign-in code"
-													class="shrink-0 rounded-lg p-3 disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
+													class="inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-3 font-medium disabled:cursor-not-allowed {inkButton}"
 												>
-													{#if emailSubmitting}
-														<CircleNotchIcon size={20} class="shrink-0 animate-spin" />
-													{:else}
-														<PaperPlaneTiltIcon size={20} />
-													{/if}
+													<!-- The heading asks "Are you a Cloud Keeper?"; the button answers.
+													     The hidden words say what pressing it does. -->
+													<span>I am<span class="sr-only">. Send my sign-in code</span></span>
+													<span class="relative block h-5 w-5">
+														<!-- At rest the plane sits in the button. On send it lifts off, and
+														     an ink one flies a loop out over the sky until the code is sent.
+														     Under reduced motion a spinner stands in for the flight. -->
+														<PaperPlaneTiltIcon
+															size={20}
+															class="transition duration-200 motion-reduce:transition-none {emailSubmitting
+																? 'translate-x-2 -translate-y-2 opacity-0'
+																: ''}"
+														/>
+														{#if emailSubmitting}
+															<CircleNotchIcon
+																size={20}
+																class="absolute inset-0 hidden animate-spin motion-reduce:block"
+															/>
+															<PaperPlaneFlight />
+														{/if}
+													</span>
 												</button>
 											</form>
 											<FieldError message={emailValidator.error('email')} />
 										{:else}
-											<h2 class="text-lg font-medium text-gray-900">Check your email</h2>
-											<p class="mt-1 text-sm text-gray-700">
+											<p class="text-sm text-gray-700">
 												The code sent to <span class="font-medium text-gray-900">{authEmail}</span> will
 												expire in 5 minutes.
 											</p>
@@ -260,6 +367,7 @@
 												bind:this={otpForm}
 												use:enhance={() => {
 													otpPending = true;
+													resent = false;
 													return async ({ result, update }) => {
 														const positive =
 															result.type === 'redirect' || result.type === 'success';
@@ -331,12 +439,60 @@
 													</div>
 												{/if}
 											</form>
+											<form
+												method="POST"
+												action="?/sendOtp"
+												use:enhance={() => {
+													resendPending = true;
+													resent = false;
+													return async ({ result, update }) => {
+														await update();
+														resendPending = false;
+														if (result.type !== 'success') return;
+														// A fresh code: clear the old digits and start again from box one.
+														resent = true;
+														otpDigits = ['', '', '', '', '', ''];
+														focusOtp(0);
+													};
+												}}
+												class="mt-5 flex flex-col items-center gap-1"
+											>
+												<input type="hidden" name="email" value={authEmail} />
+												<button
+													type="submit"
+													disabled={resendPending ||
+														otpPending ||
+														otpCelebrating ||
+														(hydrated && resendWait > 0)}
+													aria-busy={resendPending}
+													class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 transition hover:bg-white/25 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
+												>
+													{#if resendPending}
+														<CircleNotchIcon size={16} class="shrink-0 animate-spin" />
+														Sending a new code
+													{:else}
+														<ArrowClockwiseIcon size={16} class="shrink-0" />
+														{#if hydrated && resendWait > 0}
+															<span>
+																Resend code in <span class="tabular-nums">{resendWait}s</span>
+															</span>
+														{:else}
+															Resend code
+														{/if}
+													{/if}
+												</button>
+												{#if resent}
+													<p class="text-sm text-gray-700" role="status">
+														A new code is on its way. Earlier codes no longer work.
+													</p>
+												{/if}
+											</form>
 										{/if}
 									</div>
 								{/key}
 							</div>
 							{#if authError && Object.keys(errors).length === 0}
-								<p class="mt-4 text-sm text-red-700" role="alert">{authError}</p>
+								<FieldError message={authError} class="mt-4" />
 							{/if}
 						</section>
 					{:else if data.listener}
@@ -393,10 +549,35 @@
 	}
 	/* Same trick one level up: signed-out and signed-in views share a cell so the
 	   post-OTP swap cross-flies like a route change instead of snapping. */
-	.view-swap {
+	.view-swap,
+	.title-swap {
 		display: grid;
 	}
-	.view {
+	.view,
+	.title {
 		grid-area: 1 / 1;
+	}
+	/* The plane beside the "Check your email" title glides down from the upper left, where
+	   the one from the send button flew off, and settles nose-down like a landed
+	   dart. It waits out the step's own fly-in first. */
+	.landing {
+		transform: rotate(12deg);
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.landing {
+			animation: land 650ms cubic-bezier(0.2, 0.7, 0.3, 1) 200ms backwards;
+		}
+	}
+	@keyframes land {
+		from {
+			opacity: 0;
+			transform: translate(-56px, -34px) rotate(32deg);
+		}
+		60% {
+			opacity: 1;
+		}
+		to {
+			transform: rotate(12deg);
+		}
 	}
 </style>

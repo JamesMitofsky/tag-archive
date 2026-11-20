@@ -49,3 +49,11 @@ export function createOtpSuite() {
 		check('otp', 'Code is 6 digits', /^\d{6}$/.test(data.otp ?? ''));
 	});
 }
+
+/**
+ * Seconds a keeper must wait after a sign-in code is sent before asking for
+ * another. The sign-in page counts it down on its resend button, and the
+ * server enforces it (#lib/server/otpResendCooldown) whichever way the request
+ * comes in.
+ */
+export const OTP_RESEND_COOLDOWN_S = 30;

@@ -36,7 +36,7 @@ photographs uploaded through the app's own finalize and image-set code, so they
 carry real EXIF capture dates and land like any upload. Four are published on
 `/images` (several photographs at an event, a single photograph, a set with no
 event, an undated set); two wait in the review queue (one from the test
-contributor, one anonymous with contact details). Each run replaces the last
+contributor, one anonymous). Each run replaces the last
 run's sets (their photographs are named `demo-…`); re-seed by hand with
 `pnpm db:seed:photographs`.
 
@@ -67,8 +67,7 @@ kept off the public site until then.
 
 Provenance (who an artefact came from) is `person` rows linked through
 `artefact_provenance`; events (grouped into a `series` when they recur) list
-their hosts in `event_host`. A public submitter's optional contact details sit
-in `submission_contact`, never published.
+their hosts in `event_host`.
 
 **Image sets** are photographs uploaded together (see [Photographs](#photographs)).
 A set has no title, location or program areas; its label is derived
@@ -99,9 +98,6 @@ line, else "N photographs"). Three tables:
 | `bytes` / `width` / `height`      | Size and pixel dimensions of the display copy                                           |
 | `captured_at` / `captured_offset` | Wall-clock capture time (or just the day) and UTC offset, from the photo's own metadata |
 | `metadata`                        | The original's parsed EXIF / GPS / XMP / IPTC, JSON; never published                    |
-
-`image_set_contact` — a public submitter's optional name and email for a set,
-the twin of `submission_contact`; never published.
 
 Image rows are written when an upload is _finalized_, before any set exists, so
 **unattached rows** (`set_id` NULL) are normal: they belong to a form someone is
@@ -254,9 +250,9 @@ queue. Anonymous writes are guarded by:
   `/api/cron/sweep-submissions`) that deletes abandoned uploads and stale counters
   (see [Sweeps](#sweeps)).
 
-After submitting, a contributor may optionally leave a name or email for the
-keepers (`submission_contact`, or `image_set_contact` for photographs; never
-published).
+After submitting an artefact, a public contributor is shown its archive number
+to write on the physical item (keepers see the same on the new artefact's page).
+Nothing about who submitted is collected.
 
 Photographs are the archive's other attachment: see [Photographs](#photographs).
 
@@ -486,17 +482,17 @@ The pass is checked twice, from one rule (`src/lib/access/gate.ts`):
   under `vite dev`, which doesn't run the middleware.
 
 Without a pass, a page view lands on `/locked`; anything else gets a 401. Always
-open: `/t`, `/locked`, `/unlock`, the sign-in endpoints (`/api/auth/*`), the cron endpoint,
-and the app bundles and decor the locked page is drawn with.
+open: `/t`, `/locked`, `/unlock`, the keeper sign-in page (`/keeper`), the sign-in
+endpoints (`/api/auth/*`), the cron endpoint, and the app bundles and decor those
+pages are drawn with.
 
 **The door bypasses the tag.** Any page opens without a pass when its URL carries
 `?listeningwith=thevoiceofthegarden` (case-insensitive value;
 `src/lib/access/door.server.ts`, server-only, so the phrase never ships in the
 browser bundle). Coming through the door counts as a tap: the visitor is handed a
 pass and an upload draft, then redirected to the same URL without the phrase, so
-the rest of the site opens behind it. Keepers bookmark the sign-in page through it,
-`/keeper?listeningwith=thevoiceofthegarden`, which is otherwise locked like
-everything else. A signed-in keeper who holds no pass is
+the rest of the site opens behind it. The sign-in page at `/keeper` needs no door:
+it is open to everyone, so a keeper can always reach it to sign in. A signed-in keeper who holds no pass is
 handed one on their next page view, and the same beat keeps it sliding, so a keeper
 is never locked out for being away. The signed-in area
 (`/keeper/*`) stays open at the gate so a keeper whose pass has lapsed still
@@ -751,6 +747,12 @@ The site runs on Vercel (`@sveltejs/adapter-vercel`, configured in
   `engine-strict` in `.npmrc` makes `pnpm install` refuse anything below 24. To
   hold production on one major instead, set `engines.node` to that major (e.g.
   `26.x`).
+- **pnpm 11**, pinned exactly by `packageManager` in `package.json`. Vercel
+  installs with it (without it, Vercel picks a pnpm by the project's creation
+  date, which meant pnpm 10), the GitHub workflows' `pnpm/action-setup` reads
+  it, and a local pnpm switches to it. The lockfile, `allowBuilds` in
+  `pnpm-workspace.yaml` and the one-day `minimumReleaseAge` that holds back
+  brand-new releases are all pnpm 11's. To upgrade, change that one line.
 - **The daily sweep** runs once a day, at some point in the hour after midnight
   UTC (the Hobby plan's cron precision). Run it by hand with
   `curl -H "Authorization: Bearer $CRON_SECRET" https://<site>/api/cron/sweep-submissions`.

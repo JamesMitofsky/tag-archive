@@ -1,29 +1,15 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { and, eq } from 'drizzle-orm';
 import { createArtefact, knownLocations } from '#lib/server/artefacts.ts';
-import { db } from '#lib/server/db/index.ts';
-import { stampInsert } from '#lib/server/db/audit.ts';
-import { artefact, submissionContact } from '#lib/server/db/schema.ts';
 import { readDraft, submissionPrefix } from '#lib/server/drafts.ts';
 import { consume, LIMITS } from '#lib/server/rateLimit.ts';
 import { keyFromUrl } from '#lib/server/scans.ts';
-import { sign, verify } from '#lib/server/signing.ts';
 import {
 	echoArtefactForm,
 	createArtefactSuite,
 	parseArtefactForm
 } from '#lib/validation/artefact.ts';
-import { createContactSuite, parseContactForm } from '#lib/validation/contact.ts';
 import { summary } from '#lib/validation/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
-
-/**
- * Proof that whoever holds it just submitted artefact `id` — handed back after
- * an anonymous submission so the optional contact form can attach to it,
- * without an account and without letting anyone attach contact details to an
- * artefact they didn't submit.
- */
-const contactToken = (id: number) => sign('contact', String(id));
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
 	const signedIn = !!locals.user;
@@ -79,62 +65,26 @@ export const actions: Actions = {
 			if (!own) return fail(400, { artefactError: 'Those images could not be attached.' });
 		}
 
-		const id = await createArtefact(data, {
-			userId: locals.user?.id ?? null,
-			role: locals.user?.role ?? null
-		});
+		let id: number;
+		try {
+			id = await createArtefact(data, {
+				userId: locals.user?.id ?? null,
+				role: locals.user?.role ?? null
+			});
+		} catch (error) {
+			// Thrown, this would replace the form with the error page, and every
+			// field and uploaded page with it. Answer as a failed submit instead.
+			console.error('createArtefact failed', error);
+			return fail(500, {
+				artefactError: 'The artefact could not be saved. Nothing here is lost: try again.',
+				values: echoArtefactForm(form, data)
+			});
+		}
 
-		// Keepers land on the new artefact, flagged as just created so they're shown
-		// the archive number to write on the physical item; the public get a
-		// thank-you (with the optional way to leave contact details) instead.
+		// Both get the archive number to write on the physical item: keepers on
+		// the new artefact's page, flagged as just created; the public here, in
+		// place of the form (they can't open a keeper page).
 		if (signedIn) throw redirect(303, `/keeper/artefacts/${id}?created`);
-		return { submitted: { id, token: contactToken(id) } };
-	},
-
-	connect: async ({ request, getClientAddress }) => {
-		const form = await request.formData();
-		const id = Number(form.get('artefactId'));
-		const token = String(form.get('token') ?? '');
-		if (!Number.isSafeInteger(id) || !verify('contact', String(id), token)) {
-			return fail(403, { contactError: 'That link has expired.' });
-		}
-		if (!(await consume('connect-ip', getClientAddress(), LIMITS.connectPerIp))) {
-			// Keep `submitted`, or the thank-you (and this message with it) vanishes.
-			return fail(429, {
-				contactError: 'Too many attempts — wait a little and try again.',
-				submitted: { id, token }
-			});
-		}
-
-		const data = parseContactForm(form);
-		const result = createContactSuite()(data);
-		if (!result.isValid()) {
-			return fail(400, {
-				contactError: summary(result),
-				contactErrors: result.getErrors(),
-				submitted: { id, token }
-			});
-		}
-
-		// Only while the submission is still awaiting review: once a keeper has
-		// vetted (or rejected) it, the token no longer opens anything.
-		const [pending] = await db
-			.select({ id: artefact.id })
-			.from(artefact)
-			.where(and(eq(artefact.id, id), eq(artefact.proposedAddition, true)));
-		if (!pending) {
-			return fail(410, {
-				contactError: 'That submission has already been reviewed.',
-				submitted: { id, token }
-			});
-		}
-
-		const contact = { name: data.name || null, email: data.email || null };
-		await db
-			.insert(submissionContact)
-			.values({ artefactId: id, ...contact, ...stampInsert(null) })
-			.onConflictDoUpdate({ target: submissionContact.artefactId, set: contact });
-
-		return { connected: true, submitted: { id, token } };
+		return { submitted: { id } };
 	}
 };

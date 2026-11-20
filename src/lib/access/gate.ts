@@ -27,9 +27,6 @@ export { LOCKED_PATH };
 
 export type GateDecision = 'open' | 'unlock' | 'redirect' | 'refuse';
 
-/** The keeper sign-in page: closed without a pass, like any other page. */
-const KEEPER_GATE = KEEPER_PATH;
-
 /** Paths that are always open, exactly. */
 const OPEN_EXACT = new Set([
 	// The tap itself, and where a locked visitor is told to make one.
@@ -37,6 +34,12 @@ const OPEN_EXACT = new Set([
 	LOCKED_PATH,
 	// Where a navigation carrying an unlock key is checked (./key.server).
 	UNLOCK_PATH,
+	// The keeper sign-in page, so a keeper can always reach it to sign in, from
+	// anywhere, like the locked page. It shows nothing from the archive, and
+	// signing in still takes a one-time code emailed to an existing account.
+	// The keeper tools beneath it are open at the gate too (OPEN_PREFIXES) but
+	// guarded by session in hooks.server.ts (see #lib/server/keeperGuard).
+	KEEPER_PATH,
 	// The presence beat. Open here for the same reason as /keeper/ below: a
 	// signed-in keeper whose pass has lapsed must reach SvelteKit, where their
 	// session mints a new one. The route itself answers 401 to anyone without a
@@ -54,9 +57,8 @@ const OPEN_EXACT = new Set([
  */
 export const OPEN_PREFIXES = [
 	// Every route checks the keeper session (see keeperGuard), and an anonymous
-	// visit is sent to /keeper, which is locked without a pass. Open here so that a
-	// keeper whose pass has lapsed still reaches SvelteKit, where their session
-	// renews it.
+	// visit is sent to the sign-in page at /keeper. Open here so that a keeper
+	// whose pass has lapsed still reaches SvelteKit, where their session renews it.
 	'/keeper/',
 	'/api/auth/', // better-auth sign-in endpoints
 	'/api/cron/', // bearer-authenticated scheduled jobs
@@ -74,9 +76,6 @@ export function routePath(pathname: string): string {
 
 export function isOpenPath(pathname: string): boolean {
 	const route = routePath(pathname);
-	// `/keeper/` and `/keeper/__data.json` match the keeper prefix below, but they
-	// are the sign-in page all the same, which is locked like any other page.
-	if (route === KEEPER_GATE) return false;
 	return OPEN_EXACT.has(route) || OPEN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
@@ -84,9 +83,9 @@ export function isOpenPath(pathname: string): boolean {
  * Enhanced form actions on the contribution forms — /contribute and the pages
  * beneath it, such as /contribute/images — pass the gate, because those
  * actions guard themselves: an anonymous submit needs an open pass and a draft
- * session, which only a tap or the door issues (see #lib/server/drafts), and a contact
- * token only the submission's own response carries. Turning the post away
- * here instead would replace a half-filled form with the locked page when the
+ * session, which only a tap or the door issues (see #lib/server/drafts).
+ * Turning the post away here instead would replace a half-filled form with the
+ * locked page when the
  * visitor's hours run out mid-entry; the action's own refusal keeps the form
  * and says "tap again". Only enhanced posts that SvelteKit will answer with
  * the action's result alone (`answersWithActionResult`), whereas a plain post

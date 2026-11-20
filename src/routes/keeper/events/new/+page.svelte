@@ -191,12 +191,7 @@
 				</div>
 
 				<div>
-					<TagsField
-						name="hosts"
-						label="Hosts"
-						placeholder="Johnny B. Good"
-						bind:value={hostTags}
-					/>
+					<TagsField name="hosts" label="Hosts" placeholder="Jane Doe" bind:value={hostTags} />
 					<p class="mt-1 text-xs text-gray-500">Press Enter to add</p>
 					<FieldError message={validator.error('hosts')} />
 				</div>
@@ -240,7 +235,7 @@
 				</div>
 
 				{#if eventError && Object.keys(errors).length === 0}
-					<p class="font-friendly text-sm text-red-600" role="alert">{eventError}</p>
+					<FieldError message={eventError} class="mt-0" />
 				{/if}
 
 				<button

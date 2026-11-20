@@ -1,7 +1,9 @@
 import { fail } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
 import { auth } from '#lib/server/auth.ts';
+import { cooldownRetryAfter } from '#lib/server/otpResendCooldown.ts';
 import {
+	OTP_RESEND_COOLDOWN_S,
 	createEmailSuite,
 	createOtpSuite,
 	parseEmailForm,
@@ -32,9 +34,22 @@ export const actions: Actions = {
 			});
 		}
 
+		// The page counts `resendIn` down on its resend button; the server holds
+		// the same line (#lib/server/otpResendCooldown). A send turned away by
+		// the cooldown still lands on the code step, because the code sent a
+		// moment ago is still good.
 		try {
 			await auth.api.sendVerificationOTP({ body: { email, type: 'sign-in' } });
 		} catch (e) {
+			const retryAfter = cooldownRetryAfter(e);
+			if (retryAfter !== null) {
+				return fail(429, {
+					step: 'otp' as const,
+					email,
+					resendIn: retryAfter,
+					error: `A code was sent a moment ago. You can ask for another in ${retryAfter} seconds.`
+				});
+			}
 			console.error('[keeper] failed to send OTP', e);
 			return fail(500, {
 				step: 'email' as const,
@@ -43,7 +58,7 @@ export const actions: Actions = {
 			});
 		}
 
-		return { step: 'otp' as const, email };
+		return { step: 'otp' as const, email, resendIn: OTP_RESEND_COOLDOWN_S };
 	},
 
 	verifyOtp: async ({ request }) => {

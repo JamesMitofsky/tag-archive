@@ -15,7 +15,7 @@ export function parseRenameForm(fd: FormData): RenameData {
 export function createRenameSuite() {
 	return defineSuite<RenameData>((data) => {
 		const name = data.name ?? '';
-		check('name', 'Name is required', name.length > 0);
+		check('name', 'Name required', name.length > 0);
 		check('name', 'Keep the name under 200 characters', name.length <= 200);
 	});
 }

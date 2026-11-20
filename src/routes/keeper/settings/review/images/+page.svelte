@@ -37,7 +37,6 @@
 					{#each data.sets as item, i (item.id)}
 						{@const label = imageSetLabel(item)}
 						{@const description = withoutTitleLine(item.description, label)}
-						{@const contact = [item.contactName, item.contactEmail].filter(Boolean).join(', ')}
 						<li
 							class="relative rounded-sm bg-white/95 p-4 text-gray-900 shadow-xl ring-1 ring-black/5
 							{i % 2 === 0 ? '-rotate-[0.35deg]' : 'rotate-[0.4deg]'}"
@@ -76,15 +75,9 @@
 									{/if}
 								</div>
 							{/if}
-							<!-- Who it came from: an anonymous submission has no creator. Joined
-							     here, since a block would drop the space before its first word. -->
+							<!-- Who it came from: an anonymous submission has no creator. -->
 							<p class="mt-2 text-xs text-gray-500">
-								{[
-									item.fromKeeper ? 'From a signed-in contributor' : 'From the public',
-									contact && `Contact: ${contact}`
-								]
-									.filter(Boolean)
-									.join(' · ')}
+								{item.fromKeeper ? 'From a signed-in contributor' : 'From the public'}
 							</p>
 							<ReviewActions id={item.id} />
 						</li>

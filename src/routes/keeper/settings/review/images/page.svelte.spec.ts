@@ -32,9 +32,7 @@ describe('/keeper/settings/review/images', () => {
 				date: '2024-06-01',
 				count: 10,
 				thumbnails: thumbnails(8),
-				fromKeeper: false,
-				contactName: 'Ada',
-				contactEmail: 'ada@example.org'
+				fromKeeper: false
 			},
 			{
 				id: 4,
@@ -43,9 +41,7 @@ describe('/keeper/settings/review/images', () => {
 				date: null,
 				count: 1,
 				thumbnails: thumbnails(1),
-				fromKeeper: true,
-				contactName: null,
-				contactEmail: null
+				fromKeeper: true
 			}
 		]);
 
@@ -55,9 +51,7 @@ describe('/keeper/settings/review/images', () => {
 			.toHaveAttribute('href', '/keeper/images/3');
 		await expect.element(page.getByText('June 1, 2024 · 10 photographs')).toBeVisible();
 		await expect.element(page.getByText('+2 more')).toBeVisible();
-		await expect
-			.element(page.getByText('From the public · Contact: Ada, ada@example.org'))
-			.toBeVisible();
+		await expect.element(page.getByText('From the public', { exact: true })).toBeVisible();
 
 		await expect.element(page.getByRole('link', { name: '1 photograph' })).toBeVisible();
 		await expect.element(page.getByText('From a signed-in contributor')).toBeVisible();

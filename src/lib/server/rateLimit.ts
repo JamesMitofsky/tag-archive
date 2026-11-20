@@ -46,9 +46,7 @@ export const LIMITS = {
 	 */
 	finalizePerDraft: { limit: 400, windowMs: 24 * HOUR },
 	/** Artefact submissions per IP. */
-	submitPerIp: { limit: 150, windowMs: HOUR },
-	/** Contact details left after submitting, per IP. */
-	connectPerIp: { limit: 150, windowMs: HOUR }
+	submitPerIp: { limit: 150, windowMs: HOUR }
 } satisfies Record<string, Limit>;
 
 /**

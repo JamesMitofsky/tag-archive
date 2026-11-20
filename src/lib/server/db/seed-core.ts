@@ -25,7 +25,6 @@ import {
 	eventHost,
 	image,
 	imageSet,
-	imageSetContact,
 	person,
 	series
 } from './schema';
@@ -196,11 +195,10 @@ export async function seedArchive<S extends Record<string, unknown>>(
 
 	// Clean slate. Children before parents: the join tables reference their two
 	// sides; artefact + event reference their parents (event → series, joins → person);
-	// image sets reference events, and their images and contact rows reference them;
-	// a feature image references an event and a photograph or artefact.
+	// image sets reference events, and their images reference them; a feature
+	// image references an event and a photograph or artefact.
 	await db.delete(eventFeatureImage);
 	await db.delete(image);
-	await db.delete(imageSetContact);
 	await db.delete(imageSet);
 	await db.delete(artefactProvenance);
 	await db.delete(eventHost);

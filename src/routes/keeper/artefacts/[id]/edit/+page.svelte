@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { dateFieldValue } from '#lib/partialDate.ts';
 	import { enhance } from '$app/forms';
 	import BackButton from '#lib/components/BackButton.svelte';
@@ -83,12 +84,19 @@
 
 	// True while an image upload is in flight.
 	let scanPending = $state(false);
+	// How many pages failed to upload and are still in the list.
+	let scanFailed = $state(0);
+	const pagesNote = $derived.by(() => {
+		if (scanFailed > 0) {
+			return scanFailed === 1
+				? 'One page failed to upload. Retry it or remove it before saving.'
+				: `${scanFailed} pages failed to upload. Retry or remove them before saving.`;
+		}
+		return scanPending ? 'Pages are still uploading. Saving waits for them.' : '';
+	});
 	// True while update or delete actions are processing.
 	let submitting = $state(false);
 	let deleting = $state(false);
-
-	// Block submit until required fields are filled and any upload is finalized.
-	const canSubmit = $derived(title.trim().length > 0 && formDate.trim().length > 0 && !scanPending);
 
 	// Combos, tags, and the program-area cards mutate state without always firing a
 	// bubbling input event, so re-validate whenever any tracked field changes.
@@ -106,7 +114,7 @@
 </svelte:head>
 
 <main class="relative min-h-dvh overflow-x-hidden px-4 py-8 sm:py-12">
-	<UnsavedChangesGuard form={formEl} />
+	<UnsavedChangesGuard form={formEl} dirty={scanPending || scanFailed > 0} />
 	<div class="relative z-10 mx-auto w-full max-w-2xl">
 		<!-- The edit form is a sheet of paper, like the artefact pages. -->
 		<BackButton class="mb-6" />
@@ -117,13 +125,20 @@
 				method="POST"
 				action="?/updateArtefact"
 				class="space-y-5"
+				novalidate
 				bind:this={formEl}
 				oninput={revalidate}
 				onfocusout={markTouched}
 				use:enhance={({ formData, cancel }) => {
+					// As on the create form: the button is never disabled for an
+					// incomplete form, so that pressing it can say what is missing.
 					validator.revealAll();
-					if (!validator.run(parseArtefactForm(formData))) {
+					const valid = validator.run(parseArtefactForm(formData));
+					if (!valid || scanPending || scanFailed > 0) {
 						cancel();
+						void tick().then(() =>
+							formEl?.querySelector('[role="alert"]')?.scrollIntoView({ block: 'center' })
+						);
 						return;
 					}
 					submitting = true;
@@ -160,6 +175,7 @@
 					label="Images"
 					required
 					bind:pending={scanPending}
+					bind:failed={scanFailed}
 					initial={data.artefact.fileUrls}
 					onChange={(urls) => {
 						fileUrls = urls;
@@ -233,7 +249,7 @@
 					<TagsField
 						name="provenance"
 						label="Provenance"
-						placeholder="Johnny B. Good"
+						placeholder="Jane Doe"
 						bind:value={provenanceTags}
 					/>
 					<p class="mt-1 text-xs text-gray-500">Press Enter to add</p>
@@ -259,7 +275,7 @@
 				<div>
 					<ComboField
 						name="location"
-						label="Archival storage location"
+						label="Archival storage location *"
 						placeholder="Search or add a location"
 						options={LOCATION_OPTIONS}
 						value={echoed?.location ?? data.artefact.location ?? ''}
@@ -268,12 +284,18 @@
 				</div>
 
 				{#if artefactError && Object.keys(errors).length === 0}
-					<p class="font-friendly text-sm text-red-600" role="alert">{artefactError}</p>
+					<FieldError message={artefactError} class="mt-0" />
+				{/if}
+
+				{#if scanFailed > 0}
+					<FieldError message={pagesNote} class="mt-0" />
+				{:else if pagesNote}
+					<p class="text-[0.8125rem] leading-snug text-gray-600" role="status">{pagesNote}</p>
 				{/if}
 
 				<button
 					type="submit"
-					disabled={!canSubmit || submitting || deleting}
+					disabled={submitting || deleting}
 					aria-busy={submitting}
 					class="flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 {inkButton}"
 				>

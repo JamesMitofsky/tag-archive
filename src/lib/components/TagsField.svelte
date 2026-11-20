@@ -77,6 +77,15 @@
 	});
 
 	function onInput() {
+		// A comma typed on a phone. Android's keyboards report most keys to
+		// keydown as "Unidentified", so the comma that ends a name there is only
+		// ever seen here, in the text.
+		if (draft.includes(',')) {
+			const names = draft.split(',');
+			const rest = names.pop() ?? '';
+			for (const each of names) addTag(each);
+			draft = rest;
+		}
 		open = true;
 		activeIndex = -1;
 		void ensureLoaded().then(updateSuggestions);
@@ -91,6 +100,10 @@
 		const next = event.relatedTarget;
 		const container = event.currentTarget as HTMLElement;
 		if (next instanceof Node && container.contains(next)) return;
+		// A name typed and left is a name meant: without this it was dropped on
+		// submit without a word, since only Enter or a tap in the list kept it.
+		// It shows as a tag, where a slip is one tap to remove.
+		if (query) addTag(query);
 		open = false;
 		activeIndex = -1;
 	}
@@ -159,6 +172,7 @@
 			{onkeydown}
 			oninput={onInput}
 			autocomplete="off"
+			enterkeyhint="done"
 			role="combobox"
 			aria-expanded={open}
 			aria-autocomplete="list"

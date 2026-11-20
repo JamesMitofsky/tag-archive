@@ -103,31 +103,18 @@ describe('/contribute/images', () => {
 		]);
 	});
 
-	it('keeps the thank-you, and what was typed into its contact form, through a refusal', async () => {
+	it('confirms the submission in one line in place of the form, with no contact form', async () => {
 		const { apply } = await renderPage();
-		const submitted = { id: 5, token: 'token-5' };
-		await apply({ submitted });
-		await page.getByRole('button', { name: /Leave a name or email/ }).click();
-		await page.getByLabelText('Name').fill('Ada');
-		await page.getByLabelText('Email').fill('ada@example.org');
-
-		await apply({ contactError: 'That submission has already been reviewed.', submitted });
+		await apply({ submitted: { id: 5 } });
 
 		await expect
-			.element(page.getByRole('alert'))
-			.toMatchTextContent('That submission has already been reviewed.');
-		await expect.element(page.getByLabelText('Name')).toHaveValue('Ada');
-		await expect.element(page.getByLabelText('Email')).toHaveValue('ada@example.org');
-		await expect.element(page.getByRole('heading', { name: 'Thank you' })).toBeInTheDocument();
-
-		// An expired token echoes nothing back, and still leaves the thank-you up to say so.
-		await apply({ contactError: 'That link has expired.' });
-		await expect.element(page.getByRole('alert')).toMatchTextContent('That link has expired.');
-		await expect.element(page.getByLabelText('Name')).toHaveValue('Ada');
-
-		await apply({ connected: true, submitted });
+			.element(page.getByRole('heading', { name: 'Photographs sent for review' }))
+			.toHaveFocus();
 		await expect
-			.element(page.getByRole('status'))
-			.toMatchTextContent('Thanks — a keeper may be in touch about these photographs.');
+			.element(page.getByRole('link', { name: 'Add another' }))
+			.toHaveAttribute('href', '/contribute/images');
+		expect(document.querySelector('form')).toBeNull();
+		// Only what happened: no thank-you copy, no contact form.
+		expect(document.body.textContent).not.toMatch(/thank you|with the keepers|name or email/i);
 	});
 });
