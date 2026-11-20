@@ -4,6 +4,7 @@
 	import ArtefactId from '#lib/components/ArtefactId.svelte';
 	import BackButton from '#lib/components/BackButton.svelte';
 	import ArchiveNumber from '#lib/components/ArchiveNumber.svelte';
+	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
@@ -55,12 +56,20 @@
 			class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8"
 		>
 			{#if justCreated}
-				<ArchiveNumber id={item.id} class="mb-6">
+				<ArchiveNumber id={item.id}>
 					<p class="text-sm font-medium">Added to the archive.</p>
 					<p class="mt-0.5 text-sm text-gray-600">
 						Write this number on the item so the two can be matched up again.
 					</p>
 				</ArchiveNumber>
+				<!-- The next item is usually already in hand: straight to a fresh form. -->
+				<a
+					href="/keeper/artefacts/new"
+					class="mt-3 mb-6 flex w-full items-center justify-center gap-2 rounded-sm bg-[#14120f] py-3 text-base font-medium text-white transition hover:bg-[#33302a]"
+				>
+					<ArrowCounterClockwiseIcon size={18} />
+					Submit another
+				</a>
 			{/if}
 
 			<p

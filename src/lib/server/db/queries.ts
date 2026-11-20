@@ -349,6 +349,18 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 }
 
 /**
+ * Every person's name, vetted or not, for a keeper's provenance picker. Keepers
+ * already see unvetted rows and their provenance in the keeper lists, and read
+ * fresh from the database, a name added on the last artefact is offered on the
+ * next one, whether or not it awaits review or the CDN copy has caught up. Not
+ * for public pages: `loadPublicDataset` is what they may see.
+ */
+export async function listPersonNames(): Promise<string[]> {
+	const rows = await db.select({ name: person.name }).from(person).orderBy(person.name);
+	return rows.map((row) => row.name);
+}
+
+/**
  * Find-or-create each person by name, returning their ids. Dedupes names first
  * so the same person always maps to one row (canonical, searchable across the
  * provenance and host roles alike).

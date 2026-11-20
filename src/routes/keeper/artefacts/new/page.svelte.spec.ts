@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
@@ -144,5 +144,38 @@ describe('/keeper/artefacts/new', () => {
 		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
 		await expect.element(combo).toHaveValue('Symphonic Steep');
 		expect(date()).toBe('2019');
+	});
+});
+
+describe('/keeper/artefacts/new provenance', () => {
+	const provenance = () => page.getByPlaceholder('Jane Doe');
+
+	it('offers the names the page loaded, not only the public dataset', async () => {
+		await render(NewArtefactPage, {
+			data: { locations: [], people: ['Awaiting Review'] },
+			form: null
+		} as unknown as Props);
+
+		await provenance().click();
+		await expect.element(page.getByRole('option', { name: /Awaiting Review/ })).toBeVisible();
+	});
+
+	it('offers a name submitted earlier in this tab', async () => {
+		sessionStorage.setItem('remembered-people', JSON.stringify(['From Last Time']));
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		await provenance().fill('last');
+		await expect.element(page.getByRole('option', { name: /From Last Time/ })).toBeVisible();
+	});
+
+	it('still offers a new name after its tag is removed', async () => {
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		await provenance().fill('Brand New');
+		await userEvent.keyboard('{Enter}');
+		await page.getByRole('button', { name: 'Remove Brand New' }).click();
+
+		await provenance().fill('brand');
+		await expect.element(page.getByRole('option', { name: /Brand New\s*New/ })).toBeVisible();
 	});
 });

@@ -28,11 +28,10 @@ describe('/contribute', () => {
 			.element(page.getByRole('heading', { name: 'Write this number on the item' }))
 			.toHaveFocus();
 		await expect.element(page.getByText('#42')).toBeVisible();
+		// Written out by hand, so there is nothing to copy.
+		expect(page.getByRole('button', { name: /copy/i }).query()).toBeNull();
 		await expect
-			.element(page.getByRole('button', { name: 'Copy archive number' }))
-			.toBeInTheDocument();
-		await expect
-			.element(page.getByRole('link', { name: 'Add another' }))
+			.element(page.getByRole('link', { name: 'Submit another' }))
 			.toHaveAttribute('href', '/contribute');
 		// Only what's needed to label the item: no thank-you copy, no contact form.
 		expect(document.querySelector('form')).toBeNull();

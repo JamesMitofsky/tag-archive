@@ -22,6 +22,7 @@
 	import { createValidator } from '#lib/validation/client.svelte.ts';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
+	import { rememberPeople } from '#lib/rememberedPeople.ts';
 
 	// The new-artefact form, shared by the public /contribute page and the
 	// keeper-only /keeper/artefacts/new. Each page posts to its own
@@ -30,7 +31,8 @@
 	let {
 		form,
 		requireLocation,
-		locations
+		locations,
+		people
 	}: {
 		/** The page's action data, for any error and echoed values from a failed submit. */
 		form: Record<string, unknown> | null | undefined;
@@ -38,6 +40,12 @@
 		requireLocation: boolean;
 		/** Previously used storage locations, offered alongside the presets. */
 		locations: string[];
+		/**
+		 * Every person's name, for a keeper: they may see unvetted rows, and the
+		 * public dataset leaves those names out. Unset, provenance offers the
+		 * public dataset's names (see TagsField).
+		 */
+		people?: string[];
 	} = $props();
 
 	// Kit flattens the action-data union, so restore the echoed values' shape.
@@ -315,7 +323,11 @@
 				submitting = false;
 				return;
 			}
-			if (result.type !== 'failure') closeDraft();
+			if (result.type !== 'failure') {
+				closeDraft();
+				// Offered again on the next artefact, saved or awaiting review.
+				rememberPeople(provenanceTags);
+			}
 			await update();
 			submitting = false;
 		};
@@ -453,6 +465,7 @@
 				label="Provenance"
 				placeholder="Jane Doe"
 				prefetch
+				{people}
 				bind:value={provenanceTags}
 			/>
 			<p class="mt-1 text-xs text-gray-500">
