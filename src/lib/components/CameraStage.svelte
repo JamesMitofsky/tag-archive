@@ -2,6 +2,7 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
+	import FlashlightIcon from 'phosphor-svelte/lib/FlashlightIcon';
 	import { dev } from '$app/env';
 	import { MAX_DIM, fitWithin } from '#lib/scanner/image.ts';
 
@@ -55,6 +56,57 @@
 	let stream: MediaStream | null = null;
 	let stopped = false;
 
+	/**
+	 * Why the camera would not open, in terms of what to do about it. A refused
+	 * permission is the common one on a phone and the only one the user can fix,
+	 * but only if told where: the browser does not ask a second time.
+	 */
+	function failureMessage(error: unknown): string {
+		const name = error instanceof DOMException ? error.name : '';
+		if (name === 'NotAllowedError' || name === 'SecurityError') {
+			return 'Camera access is blocked. Allow the camera for this site in your browser settings, or use “Add from photos”.';
+		}
+		if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+			return 'No camera found on this device. Use “Add from photos” instead.';
+		}
+		if (name === 'NotReadableError' || name === 'AbortError') {
+			return 'The camera is in use by another app. Close that app and try again, or use “Add from photos”.';
+		}
+		return 'Camera unavailable. Use “Add from photos” instead.';
+	}
+
+	// --- Light ---------------------------------------------------------------
+	// Archive items get scanned indoors, on a table, under the phone's own
+	// shadow. Where the camera reports a torch (Chrome on Android does), offer
+	// it; elsewhere the button is simply not there.
+
+	let torchAvailable = $state(false);
+	let torchOn = $state(false);
+
+	function readTorch() {
+		const track = stream?.getVideoTracks()[0];
+		// `torch` is in the Image Capture spec, not yet in TypeScript's DOM types.
+		const capabilities = track?.getCapabilities?.() as { torch?: boolean } | undefined;
+		torchAvailable = !!capabilities?.torch;
+		// A fresh stream starts dark, whatever the last one was left at.
+		torchOn = false;
+	}
+
+	async function toggleTorch() {
+		const track = stream?.getVideoTracks()[0];
+		if (!track) return;
+		const next = !torchOn;
+		try {
+			await track.applyConstraints({
+				advanced: [{ torch: next } as MediaTrackConstraintSet]
+			});
+			torchOn = next;
+		} catch {
+			// Reported but refused (some front cameras): stop offering it.
+			torchAvailable = false;
+		}
+	}
+
 	/** With nothing shot, leaving is quitting; after that it is finishing. */
 	const finishing = $derived(shotCount > 0);
 	const photos = $derived(`${shotCount} ${shotCount === 1 ? 'photo' : 'photos'}`);
@@ -73,15 +125,37 @@
 				return;
 			}
 			stream = acquired;
+			readTorch();
 			await Promise.resolve();
 			if (stopped || !video) return;
 			video.srcObject = stream;
 			await video.play();
-		} catch {
+		} catch (error) {
 			// Unmounting mid-start aborts `play()`; that is not a camera failure.
 			if (stopped) return;
-			onError('Camera unavailable. Use “Add from photos” instead.');
+			onError(failureMessage(error));
 			onDone();
+		}
+	}
+
+	/**
+	 * Back from another app, or from a locked screen. A phone takes the camera
+	 * away from a page it has put in the background, and does not always hand it
+	 * back: the track is ended, or the video is left paused on its last frame,
+	 * and the shutter would go on photographing that frame. Checked on return
+	 * rather than on the track's own `ended`, which also fires for a camera
+	 * another app is still holding.
+	 */
+	function onVisible() {
+		if (document.visibilityState !== 'visible' || stopped) return;
+		const track = stream?.getVideoTracks()[0];
+		if (!track || track.readyState === 'ended') {
+			stream?.getTracks().forEach((each) => each.stop());
+			stream = null;
+			ready = false;
+			void start();
+		} else if (video?.paused) {
+			void video.play().catch(() => {});
 		}
 	}
 
@@ -130,8 +204,10 @@
 	});
 </script>
 
+<svelte:document onvisibilitychange={onVisible} />
+
 <div class="flex h-full flex-col">
-	<header class="flex items-baseline justify-between gap-3 px-4 py-3 text-sm">
+	<header class="flex min-h-11 items-center justify-between gap-3 px-4 py-1.5 text-sm">
 		<!-- Announced: for a non-sighted user the thumbnail is not feedback. -->
 		<span aria-live="polite" class="text-white/80">
 			<!-- Photos, not pages: they aren't pages until they're cropped and kept,
@@ -144,6 +220,19 @@
 		</span>
 		{#if dev && delivered}
 			<span class="text-xs text-white/50 tabular-nums">{delivered}</span>
+		{/if}
+		{#if torchAvailable}
+			<button
+				type="button"
+				onclick={toggleTorch}
+				aria-pressed={torchOn}
+				class="flex h-11 items-center gap-1.5 rounded-full px-3 transition {torchOn
+					? 'bg-white text-black'
+					: 'bg-white/10 hover:bg-white/20'}"
+			>
+				<FlashlightIcon size={18} weight={torchOn ? 'fill' : 'regular'} />
+				Light
+			</button>
 		{/if}
 	</header>
 
@@ -168,7 +257,7 @@
 			{#if shutterCount > 0}
 				<div
 					aria-hidden="true"
-					class="pointer-events-none absolute inset-0 animate-out bg-white duration-300 fill-mode-forwards fade-out"
+					class="pointer-events-none absolute inset-0 animate-out bg-white duration-300 fill-mode-forwards fade-out motion-reduce:hidden"
 				></div>
 			{/if}
 		{/key}
@@ -207,25 +296,33 @@
 		</button>
 
 		<!-- One button whose meaning follows the shot count, so focus stays put
-		     when it turns from "quit" into "done". -->
+		     when it turns from "quit" into "done". It says which in words: the
+		     icon alone changes from an X to a check without the screen moving, and
+		     a touch screen shows no tooltip to explain it. -->
 		<button
 			type="button"
 			onclick={onDone}
 			aria-label={exitLabel}
-			title={exitLabel}
-			class="flex size-12 items-center justify-center justify-self-end rounded-full transition {finishing
-				? 'bg-white text-black hover:bg-white/90'
-				: 'bg-white/10 hover:bg-white/20'}"
+			class="group flex flex-col items-center gap-1 justify-self-end text-[11px] leading-none"
 		>
-			{#key finishing}
-				<span class="animate-in duration-200 zoom-in-50 fade-in">
-					{#if finishing}
-						<CheckIcon size={22} weight="bold" />
-					{:else}
-						<XIcon size={22} />
-					{/if}
-				</span>
-			{/key}
+			<span
+				class="flex size-12 items-center justify-center rounded-full transition {finishing
+					? 'bg-white text-black group-hover:bg-white/90'
+					: 'bg-white/10 group-hover:bg-white/20'}"
+			>
+				{#key finishing}
+					<span class="animate-in duration-200 zoom-in-50 fade-in">
+						{#if finishing}
+							<CheckIcon size={22} weight="bold" />
+						{:else}
+							<XIcon size={22} />
+						{/if}
+					</span>
+				{/key}
+			</span>
+			<span aria-hidden="true" class={finishing ? 'font-medium text-white' : 'text-white/80'}>
+				{finishing ? `Crop ${shotCount}` : 'Close'}
+			</span>
 		</button>
 	</footer>
 </div>

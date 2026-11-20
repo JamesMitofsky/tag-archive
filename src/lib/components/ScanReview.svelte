@@ -8,8 +8,9 @@
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import CornersOutIcon from 'phosphor-svelte/lib/CornersOutIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import ArrowUUpLeftIcon from 'phosphor-svelte/lib/ArrowUUpLeftIcon';
 	import CornerEditorSurface from './CornerEditorSurface.svelte';
-	import type { CornerPoints } from '#lib/scanner/detect.ts';
+	import { cornerList, type CornerPoints } from '#lib/scanner/detect.ts';
 	import { releaseCanvas } from '#lib/scanner/image.ts';
 
 	// The crop step after a camera run: every photo just taken, one at a time,
@@ -21,23 +22,27 @@
 		load,
 		onChange,
 		onDiscard,
+		onDiscardAll,
 		onBack,
 		onFinish
 	}: {
 		/** This run's photos, in capture order. */
 		shots: { id: string; thumbUrl: string }[];
 		/**
-		 * The full-size photo and the quad to start from (a correction made earlier,
-		 * else the detection). `null` if the photo could not be prepared.
+		 * The full-size photo, the quad to start from (a correction made earlier,
+		 * else the detection), and the page edges found in it, if any were. `null`
+		 * if the photo could not be prepared.
 		 */
 		load: (id: string) => Promise<{
 			image: HTMLCanvasElement;
 			corners: CornerPoints | null;
-			detected: boolean;
+			found: CornerPoints | null;
 		} | null>;
 		/** Every corner change, so moving between photos keeps corrections. */
 		onChange: (id: string, corners: CornerPoints) => void;
 		onDiscard: (id: string) => void;
+		/** Throw the whole run away. Asked for outright, and confirmed here first. */
+		onDiscardAll?: () => void;
 		/** Leave the first photo backwards, to the camera. */
 		onBack: () => void;
 		/** Keep every photo with its crop as it stands, and add them as pages. */
@@ -62,9 +67,11 @@
 		id: string;
 		image: HTMLCanvasElement;
 		corners: CornerPoints | null;
-		detected: boolean;
+		found: CornerPoints | null;
 	};
 	let view = $state.raw<View | null>(null);
+	/** The quad as it stands on the photo showing, to tell whether it has left the edges found. */
+	let current = $state.raw<CornerPoints | null>(null);
 	let loadFailed = $state(false);
 	let editorFailed = $state(false);
 	const loading = $derived(!view && !loadFailed);
@@ -89,6 +96,7 @@
 
 		let stale = false;
 		view = null;
+		current = null;
 		loadFailed = false;
 		editorFailed = false;
 		settling = true;
@@ -98,8 +106,10 @@
 		untrack(() => load(id)).then(
 			(result) => {
 				if (stale) return releaseCanvas(result?.image);
-				if (result) view = { id, ...result };
-				else loadFailed = true;
+				if (result) {
+					view = { id, ...result };
+					current = result.corners;
+				} else loadFailed = true;
 			},
 			() => {
 				if (!stale) loadFailed = true;
@@ -164,12 +174,12 @@
 	const hint = $derived.by(() => {
 		if (loadFailed) return 'This photo could not be processed. Discard it and take it again.';
 		if (editorFailed) {
-			return view?.detected
+			return view?.found
 				? 'The crop editor could not be loaded, so the page will be cropped to the edges found.'
 				: 'The crop editor could not be loaded, so the page will be kept as shot.';
 		}
 		if (loading) return 'Finding the page…';
-		return view?.detected
+		return view?.found
 			? 'Drag the corners to fit the page.'
 			: 'No page edges found. Drag the corners to the page.';
 	});
@@ -212,6 +222,41 @@
 		holdFocus();
 		onFinish();
 	}
+
+	function discardAll() {
+		// The one step in the run that can't be taken back, so the one that asks.
+		if (!confirm(`Discard all ${shots.length} photos?`)) return;
+		holdFocus();
+		onDiscardAll?.();
+	}
+
+	const samePoint = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+		Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5;
+	/**
+	 * The quad has left the edges found on this photo: by a drag, or by Use whole
+	 * image. The middle button then offers the way back to them, which is the
+	 * step wanted after a drag that went wrong; until then it offers the whole
+	 * image, the step wanted when the edges found are wrong to begin with.
+	 */
+	const strayed = $derived.by(() => {
+		const found = view?.found;
+		if (!found || !current) return false;
+		const now = cornerList(current);
+		return !cornerList(found).every((point, i) => samePoint(point, now[i]));
+	});
+
+	function resetCrop() {
+		const found = view?.found;
+		if (strayed && found) surface?.setCorners(found);
+		else surface?.useWhole();
+	}
+
+	const resetLabel = $derived(strayed ? 'Reset to found edges' : 'Use whole image');
+
+	// Labeled in words, not only by icon: a touch screen never shows a tooltip,
+	// and two of these change meaning from one photo to the next.
+	const action = 'flex flex-col items-center gap-1 text-[11px] leading-none text-white/80';
+	const disc = 'flex size-12 items-center justify-center rounded-full bg-white/10 transition';
 </script>
 
 <div bind:this={root} class="flex h-full flex-col">
@@ -229,31 +274,32 @@
 			<p class={editorFailed || loadFailed ? 'text-red-400' : 'text-white/70'}>{hint}</p>
 		</div>
 
-		<div class="flex shrink-0 items-center gap-2">
-			<button
-				type="button"
-				onclick={discard}
-				aria-disabled={settling}
-				aria-label="Discard photo {position + 1}"
-				title="Discard"
-				class="flex size-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-red-600"
-			>
-				<TrashIcon size={18} />
-			</button>
-			{#if shots.length > 1}
-				<!-- Skips the rest of the photos with their crops as found. Kept in
-				     the layout on the last photo, where Done says the same. -->
+		{#if shots.length > 1}
+			<!-- The two that act on the whole run, apart from the footer's, which
+			     act on this photo. Add all skips the rest of the photos with their
+			     crops as found; kept in the layout on the last photo, where Done
+			     says the same. -->
+			<div class="flex shrink-0 items-center gap-2">
+				{#if onDiscardAll}
+					<button
+						type="button"
+						onclick={discardAll}
+						class="h-11 rounded-full px-3 text-white/70 underline underline-offset-2 transition hover:text-white"
+					>
+						Discard all
+					</button>
+				{/if}
 				<button
 					type="button"
 					onclick={finish}
-					class="h-10 rounded-full bg-white/10 px-4 font-medium transition hover:bg-white/20 {isLast
+					class="h-11 rounded-full bg-white/10 px-4 font-medium transition hover:bg-white/20 {isLast
 						? 'invisible'
 						: ''}"
 				>
 					Add all {shots.length}
 				</button>
-			{/if}
-		</div>
+			</div>
+		{/if}
 	</header>
 
 	<div class="relative min-h-0 flex-1">
@@ -266,7 +312,10 @@
 					image={shown.image}
 					corners={shown.corners}
 					{focusHandle}
-					onChange={(corners) => onChange(shown.id, corners)}
+					onChange={(corners) => {
+						current = corners;
+						onChange(shown.id, corners);
+					}}
 					onConfirm={() => advance(true)}
 				/>
 			{/key}
@@ -285,30 +334,53 @@
 		{/if}
 	</div>
 
-	<footer class="grid grid-cols-3 items-center px-6 py-5">
+	<!-- Back, Discard, the crop reset, Next: Discard is kept a button away from
+	     Next, the one tapped over and over, and within the thumb's reach. -->
+	<footer class="grid grid-cols-4 items-start px-3 pt-3 pb-4">
 		<button
 			type="button"
 			onclick={back}
 			aria-label={position > 0 ? 'Previous photo' : 'Back to camera'}
-			title={position > 0 ? 'Previous photo' : 'Back to camera'}
-			class="flex size-12 items-center justify-center justify-self-start rounded-full bg-white/10 transition hover:bg-white/20"
+			class="{action} group"
 		>
-			{#if position > 0}
-				<ArrowLeftIcon size={22} />
-			{:else}
-				<CameraIcon size={22} />
-			{/if}
+			<span class="{disc} group-hover:bg-white/20">
+				{#if position > 0}
+					<ArrowLeftIcon size={22} />
+				{:else}
+					<CameraIcon size={22} />
+				{/if}
+			</span>
+			<span aria-hidden="true">{position > 0 ? 'Previous' : 'Camera'}</span>
 		</button>
 
 		<button
 			type="button"
-			onclick={() => surface?.useWhole()}
-			disabled={!view || editorFailed}
-			aria-label="Use whole image"
-			title="Use whole image"
-			class="flex size-12 items-center justify-center justify-self-center rounded-full bg-white/10 transition hover:bg-white/20 disabled:opacity-40"
+			onclick={discard}
+			aria-disabled={settling}
+			aria-label="Discard photo {position + 1}"
+			class="{action} group"
 		>
-			<CornersOutIcon size={22} />
+			<span class="{disc} group-hover:bg-red-600">
+				<TrashIcon size={22} />
+			</span>
+			<span aria-hidden="true">Discard</span>
+		</button>
+
+		<button
+			type="button"
+			onclick={resetCrop}
+			disabled={!view || editorFailed}
+			aria-label={resetLabel}
+			class="{action} group disabled:opacity-40"
+		>
+			<span class="{disc} group-hover:bg-white/20">
+				{#if strayed}
+					<ArrowUUpLeftIcon size={22} />
+				{:else}
+					<CornersOutIcon size={22} />
+				{/if}
+			</span>
+			<span aria-hidden="true">{strayed ? 'Reset' : 'Whole image'}</span>
 		</button>
 
 		<!-- Held while the photo loads: the crop it would keep is one nobody has seen. -->
@@ -317,14 +389,18 @@
 			onclick={() => advance()}
 			aria-disabled={holding}
 			aria-label={isLast ? finishLabel : 'Next photo'}
-			title={isLast ? finishLabel : 'Next photo'}
-			class="flex size-14 items-center justify-center justify-self-end rounded-full bg-white text-black transition hover:bg-white/90 aria-disabled:opacity-40"
+			class="{action} group aria-disabled:opacity-40"
 		>
-			{#if isLast}
-				<CheckIcon size={24} weight="bold" />
-			{:else}
-				<ArrowRightIcon size={24} weight="bold" />
-			{/if}
+			<span
+				class="flex size-12 items-center justify-center rounded-full bg-white text-black transition group-hover:bg-white/90"
+			>
+				{#if isLast}
+					<CheckIcon size={24} weight="bold" />
+				{:else}
+					<ArrowRightIcon size={24} weight="bold" />
+				{/if}
+			</span>
+			<span aria-hidden="true" class="font-medium text-white">{isLast ? 'Add' : 'Next'}</span>
 		</button>
 	</footer>
 </div>

@@ -102,6 +102,64 @@ describe('PageScanner.svelte', () => {
 		expect(server.uploads[0].name).toBe('IMG_0042.webp');
 	});
 
+	it('puts a removed page back on Undo, where it stood, and deletes nothing', async () => {
+		const server = fakeServer();
+		const onChange = vi.fn();
+		const three = [...URLS, 'https://example.com/scan3.jpg'];
+		await render(PageScanner, { initial: three, onChange });
+
+		await page.getByRole('button', { name: 'Remove page 2' }).click();
+		await expect.element(page.getByText('Page 2 removed.')).toBeInTheDocument();
+		await page.getByRole('button', { name: 'Undo' }).click();
+
+		expect(onChange).toHaveBeenLastCalledWith(three);
+		await expect.element(page.getByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+		expect(server.fetch).not.toHaveBeenCalled();
+	});
+
+	it('counts a failed upload, and sends the same bytes again on Retry', async () => {
+		const sent: Blob[] = [];
+		let attempts = 0;
+		vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+			sent.push((init?.body as FormData).get('file') as Blob);
+			attempts += 1;
+			// The first try is a dropped connection.
+			if (attempts === 1) throw new TypeError('Failed to fetch');
+			return new Response(
+				JSON.stringify({ url: 'https://example.com/second-try.webp', fileName: 'p.webp' }),
+				{ headers: { 'Content-Type': 'application/json' } }
+			);
+		});
+		const onChange = vi.fn();
+		let failed = 0;
+		await render(PageScanner, {
+			onChange,
+			get failed() {
+				return failed;
+			},
+			set failed(count: number) {
+				failed = count;
+			}
+		});
+		await page.getByLabelText('Add from photos').upload(await pickedPhoto('page.png'));
+
+		const retry = page.getByRole('button', { name: 'Retry page 1' });
+		await expect.element(retry).toBeInTheDocument();
+		// A failed page is not one of the artefact's pages, and is counted so the form can wait.
+		expect(failed).toBe(1);
+		expect(onChange).not.toHaveBeenCalledWith(['https://example.com/second-try.webp']);
+
+		await retry.click();
+
+		await vi.waitFor(() =>
+			expect(onChange).toHaveBeenLastCalledWith(['https://example.com/second-try.webp'])
+		);
+		expect(failed).toBe(0);
+		// Not cropped and encoded a second time: the very blob that failed.
+		expect(sent).toHaveLength(2);
+		expect(sent[1].size).toBe(sent[0].size);
+	});
+
 	it('offers no crop editor for pages that have no local original', async () => {
 		await render(PageScanner, { initial: URLS });
 
@@ -264,6 +322,86 @@ describe('PageScanner.svelte', () => {
 
 			await expect.element(page.getByRole('button', { name: 'Close camera' })).toBeInTheDocument();
 			expect(server.fetch).not.toHaveBeenCalled();
+		});
+
+		it('discards the whole run at once, after asking, and uploads nothing', async () => {
+			fakeCamera();
+			const server = fakeServer();
+			const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(false);
+			await render(PageScanner, {});
+			await shootAndCrop(2);
+
+			// Declined: the run is as it was.
+			await page.getByRole('button', { name: 'Discard all' }).click();
+			expect(confirmed).toHaveBeenCalledWith('Discard all 2 photos?');
+			await expect.element(page.getByText('Photo 1 of 2')).toBeInTheDocument();
+
+			confirmed.mockReturnValue(true);
+			await page.getByRole('button', { name: 'Discard all' }).click();
+
+			await expect.element(page.getByRole('button', { name: 'Close camera' })).toBeInTheDocument();
+			expect(server.fetch).not.toHaveBeenCalled();
+		});
+
+		it('offers the way back to the edges found once the crop has left them', async () => {
+			fakeCamera();
+			fakeServer();
+			await render(PageScanner, {});
+			await shootAndCrop(1);
+
+			await page.getByRole('button', { name: 'Use whole image' }).click();
+			const reset = page.getByRole('button', { name: 'Reset to found edges' });
+			await expect.element(reset).toBeInTheDocument();
+			await reset.click();
+
+			await expect
+				.element(page.getByRole('button', { name: 'Use whole image' }))
+				.toBeInTheDocument();
+		});
+
+		it('shows the corner being dragged in a magnifier on the far side, out from under the finger', async () => {
+			fakeCamera();
+			fakeServer();
+			await render(PageScanner, {});
+			await shootAndCrop(1);
+			const magnifier = () => document.querySelector<HTMLElement>('[data-crop-magnifier]')!;
+			const handle = (corner: string) =>
+				document.querySelector<HTMLElement>(`.scanic-handle[data-corner="${corner}"]`)!;
+			await vi.waitFor(() => expect(handle('topLeft')).not.toBeNull());
+			const press = (corner: string, type: string) =>
+				handle(corner).dispatchEvent(
+					new PointerEvent(type, { bubbles: true, pointerId: 1, clientX: 0, clientY: 0 })
+				);
+			// Hidden until a corner is held.
+			expect(magnifier().hasAttribute('data-active')).toBe(false);
+
+			// A corner on the left is shown top right, and one on the right top left:
+			// never beside or below the corner, where the hand is.
+			press('topLeft', 'pointerdown');
+			await vi.waitFor(() => expect(magnifier().hasAttribute('data-active')).toBe(true));
+			expect(magnifier().dataset.cropMagnifier).toBe('right');
+			// Something was drawn into it.
+			await vi.waitFor(() => expect((magnifier() as HTMLCanvasElement).width).toBeGreaterThan(0));
+			press('topLeft', 'pointerup');
+			await vi.waitFor(() => expect(magnifier().hasAttribute('data-active')).toBe(false));
+
+			press('bottomRight', 'pointerdown');
+			await vi.waitFor(() => expect(magnifier().dataset.cropMagnifier).toBe('left'));
+			press('bottomRight', 'pointerup');
+		});
+
+		it('says how to unblock the camera when permission was refused', async () => {
+			// Refused a moment after it is asked, as a tap on the prompt's Block is.
+			vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockImplementation(async () => {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+				throw new DOMException('Permission denied', 'NotAllowedError');
+			});
+			await render(PageScanner, {});
+
+			await page.getByRole('button', { name: 'Scan pages' }).click();
+
+			await expect.element(page.getByText(/Camera access is blocked/)).toBeInTheDocument();
+			await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
 		});
 
 		it('moves on with Enter on a corner, never via Discard, and not twice at once', async () => {
