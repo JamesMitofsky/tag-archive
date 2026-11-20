@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog as DialogPrimitive } from 'bits-ui';
 	import { untrack, type Snippet } from 'svelte';
-	import { afterNavigate, onNavigate, pushState } from '$app/navigation';
+	import { afterNavigate, goto, onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 
 	// A full-viewport, dark, single-task surface: the camera, the crop editor,
@@ -69,16 +69,14 @@
 			if (navigator.userActivation && !navigator.userActivation.isActive) return;
 			const before = owned;
 			if (owned === 0) token = `${id}:${crypto.randomUUID()}`;
-			const pushes: Promise<void>[] = [];
-			while (owned < target) {
-				// Started in order, so the entries land in order.
-				pushes.push(pushState('', { ...page.state, immersive: token!, immersiveStep: owned }));
-				owned += 1;
-			}
-			// pushState rejects without a router, as when the component is rendered
-			// on its own: back just isn't intercepted, so forget the entries it never
-			// made.
-			Promise.all(pushes).catch(() => {
+			const mark = token!;
+			const pending: number[] = [];
+			for (; owned < target; owned++) pending.push(owned);
+			// goto rejects without a router, as when the component is rendered on
+			// its own: back just isn't intercepted, so forget the entries it never
+			// made, unless the view has moved on since.
+			push(mark, pending).catch(() => {
+				if (token !== mark || owned !== target) return;
 				owned = before;
 				if (owned === 0) token = null;
 			});
@@ -90,17 +88,56 @@
 		}
 	}
 
+	/** Push `steps` of this open's entries, each on top of the one before. */
+	async function push(mark: string, steps: number[]) {
+		for (const step of steps) {
+			await goto('', {
+				shallow: true,
+				state: { ...page.state, immersive: mark, immersiveStep: step }
+			});
+			// A beforeNavigate that cancels a shallow goto resolves it without an
+			// entry (the app's own guards let shallow navigations through).
+			if (page.state.immersive !== mark || page.state.immersiveStep !== step) {
+				throw new Error('Shallow navigation was cancelled');
+			}
+		}
+	}
+
 	$effect(() => {
 		const target = open ? steps : 0;
 		untrack(() => settle(target));
 	});
 
-	// Runs after SvelteKit's own popstate handler, which has already set
-	// `page.state` to the entry now current. Watching `page.state` itself would
-	// not do: it can change without anyone pressing back (SvelteKit 2's
-	// `invalidateAll` reset it on every form submit).
+	// A back or forward press is read once SvelteKit has set `page.state` to the
+	// entry now current, which may be before or after this view hears the
+	// popstate. SvelteKit 3's popstate handler awaits the navigation intent
+	// before it updates the page, so on a real router `page.state` usually still
+	// holds the entry being left while the event runs; but the browser runs
+	// pending microtasks between popstate listeners, so a quick update lands
+	// first. Before a press the view stands on its own top entry (depth equal to
+	// `owned`), so a different depth at the popstate means the update is already
+	// in; otherwise it waits for `page.state` to change. Watching `page.state`
+	// alone would not do: it also changes without anyone pressing back (this
+	// view's own entries, for one), so only a change that follows a popstate
+	// counts.
+	let popped = false;
+
 	function onPopState() {
-		const at = depthOf(page.state);
+		if (depthOf(page.state) !== owned) onPop(page.state);
+		else popped = true;
+	}
+
+	$effect(() => {
+		const state = page.state;
+		untrack(() => {
+			if (!popped) return;
+			popped = false;
+			onPop(state);
+		});
+	});
+
+	function onPop(state: App.PageState) {
+		const at = depthOf(state);
 		if (at === owned) return;
 		if (at > owned) {
 			// Forward onto entries this open had already unwound: unwind again.
@@ -114,11 +151,13 @@
 		for (let i = 0; i < pressed && open; i++) onClose();
 	}
 
-	onNavigate(() => {
-		leaving = true;
+	// Shallow navigations (this view's own entries among them) stay on the page,
+	// so only a real one counts as leaving.
+	onNavigate((nav) => {
+		if (!nav.shallow) leaving = true;
 	});
-	afterNavigate(() => {
-		leaving = false;
+	afterNavigate((nav) => {
+		if (!nav.shallow) leaving = false;
 	});
 
 	// Unmounted while open without a navigation (a form swapped for its
