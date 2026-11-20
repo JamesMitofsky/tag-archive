@@ -3,9 +3,11 @@
  * `shallow: true`, and `page.state`), for components rendered without a
  * running app, where the real `goto` refuses to run. Real history entries, so
  * `history.back()` pops them with a genuine popstate, and `page.state` follows
- * only after an await, so a component's own popstate listener still sees the
- * entry it left, as with SvelteKit 3's router (its popstate handler awaits the
- * navigation intent before it updates the page):
+ * only a task later, so a component's own popstate listener still sees the
+ * entry it left, as in the app: SvelteKit 3 starts its router after the page
+ * has mounted, so its popstate listener runs after a component's. A microtask
+ * would not do: the browser runs those between listeners, so this one, added
+ * first, would have updated `page.state` before any component's ran.
  *
  *   vi.mock('$app/navigation', async () => {
  *     const nav = await import('#lib/testing/shallow-routing.svelte.ts');
@@ -39,7 +41,8 @@ export async function goto(
 export function onNavigate() {}
 export function afterNavigate() {}
 
-window.addEventListener('popstate', async (event: PopStateEvent) => {
-	await Promise.resolve();
-	page.state = (event.state as Record<string, App.PageState> | null)?.[KEY] ?? {};
+window.addEventListener('popstate', (event: PopStateEvent) => {
+	setTimeout(() => {
+		page.state = (event.state as Record<string, App.PageState> | null)?.[KEY] ?? {};
+	});
 });

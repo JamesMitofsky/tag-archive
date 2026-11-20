@@ -118,6 +118,34 @@ it('drops its history entry when closed from inside, so the next back is a real 
 	await vi.waitFor(() => expect(onOwnEntry()).toBe(false));
 });
 
+it('steps back exactly one entry when closed from inside, not off the page', async () => {
+	fakeCamera();
+	// The form's own entry. Stepping past it would leave the page, which on the
+	// real router trips the unsaved-changes guard (or loses the form).
+	const mark = crypto.randomUUID();
+	const before = history.state;
+	history.replaceState({ formEntry: mark }, '');
+	let pops = 0;
+	const countPop = () => (pops += 1);
+	addEventListener('popstate', countPop);
+	try {
+		await render(PageScanner, {});
+		await openCamera();
+
+		await page.getByRole('button', { name: 'Close camera' }).click();
+
+		await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+		await vi.waitFor(() => expect(pops).toBe(1));
+		// Room for a stray second pop, which used to follow the view's own.
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		expect(pops).toBe(1);
+		expect(history.state?.formEntry).toBe(mark);
+	} finally {
+		removeEventListener('popstate', countPop);
+		if (history.state?.formEntry === mark) history.replaceState(before, '');
+	}
+});
+
 it('never adds a history entry in answer to back, only to a tap', async () => {
 	fakeCamera();
 	await render(PageScanner, {});

@@ -54,6 +54,14 @@
 	let owned = 0;
 	/** A real navigation is unmounting the view: the entries are history now. */
 	let leaving = false;
+	/**
+	 * Popstates still to come from this view's own unwinding, one per
+	 * `history.go`. Each lands the view on `owned` already, so it is skipped.
+	 * They can't be told apart by `page.state`: SvelteKit 3 usually updates it
+	 * only after this view hears the popstate, and the entry being left looks
+	 * exactly like a forward press onto one the view had unwound.
+	 */
+	let unwinding = 0;
 
 	/** How many of this open's entries are at or below the one `state` belongs to. */
 	function depthOf(state: App.PageState) {
@@ -81,9 +89,11 @@
 				if (owned === 0) token = null;
 			});
 		} else if (target < owned) {
-			// Unwound before it lands, so the popstate this causes finds nothing to do.
+			// Unwound before it lands, and the popstate this causes is marked as
+			// the view's own, so it finds nothing to do.
 			const extra = owned - target;
 			owned = target;
+			unwinding += 1;
 			history.go(-extra);
 		}
 	}
@@ -123,6 +133,10 @@
 	let popped = false;
 
 	function onPopState() {
+		if (unwinding > 0) {
+			unwinding -= 1;
+			return;
+		}
 		if (depthOf(page.state) !== owned) onPop(page.state);
 		else popped = true;
 	}
