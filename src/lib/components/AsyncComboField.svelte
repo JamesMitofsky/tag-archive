@@ -16,7 +16,8 @@
 		label,
 		placeholder = 'Search or add…',
 		date,
-		value: initial = ''
+		value: initial = '',
+		onSelect
 	}: {
 		name: string;
 		label?: string;
@@ -25,6 +26,11 @@
 		date?: string;
 		value?: string;
 		pageSize?: number;
+		/**
+		 * Fires when an existing event is picked from the list (not for a typed-in
+		 * "Use …" entry), with the date shown on its row.
+		 */
+		onSelect?: (event: { name: string; date: string | null }) => void;
 	} = $props();
 
 	let open = $state(false);
@@ -77,6 +83,11 @@
 		open = false;
 	}
 
+	function chooseItem(item: { name: string; date: string | null }) {
+		choose(item.name);
+		onSelect?.(item);
+	}
+
 	// --- Virtualized dropdown ------------------------------------------------
 	let scrollEl = $state<HTMLDivElement>();
 	const ROW_H = 40;
@@ -125,7 +136,7 @@
 				if (open && (activeIndex >= 0 || (activeIndex === -1 && showCustom))) {
 					event.preventDefault();
 					if (activeIndex === -1) choose(query);
-					else if (items[activeIndex]) choose(items[activeIndex]!.name);
+					else if (items[activeIndex]) chooseItem(items[activeIndex]!);
 				}
 				break;
 			case 'Escape':
@@ -212,7 +223,7 @@
 									onmousedown={(e) => {
 										if (!item) return;
 										e.preventDefault();
-										choose(item.name);
+										chooseItem(item);
 									}}
 									onmouseenter={() => (activeIndex = v.index)}
 									style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({v.start}px);"

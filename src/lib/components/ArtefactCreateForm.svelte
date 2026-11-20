@@ -101,6 +101,19 @@
 	// Live form date, tracked so the event list can prioritise events near it.
 	let formDate = $state(seed ? seed.date : '');
 
+	// Picking an event fills the date from it. Only over a date nobody has set
+	// by hand: an empty field, or the date a previous pick put there, so choosing
+	// a different event moves it along but a date the keeper typed in (a flyer
+	// printed weeks before its event, say) is never overwritten.
+	let dateField = $state<ReturnType<typeof DateField>>();
+	let autofilledDate = '';
+	function fillDateFromEvent(event: { date: string | null }) {
+		if (!event.date || !dateField) return;
+		if (formDate !== '' && formDate !== autofilledDate) return;
+		autofilledDate = event.date;
+		dateField.setValue(event.date);
+	}
+
 	// Location: preset options merged with any previously-typed values from the DB,
 	// case-insensitively deduped and alphabetised. The combobox also accepts a
 	// typed-in custom value, so new locations save on submit and resurface here next load.
@@ -227,6 +240,7 @@
 	function fill(values: ArtefactFormValues | null) {
 		title = values?.artefact ?? '';
 		formDate = values?.date ?? '';
+		autofilledDate = '';
 		location = values?.location ?? '';
 		selectedAreas = values ? [...values.programArea] : [];
 		provenanceTags = values ? splitNames(values.provenance) : [];
@@ -368,8 +382,23 @@
 			<FieldError message={validator.error('artefact')} />
 		</div>
 
+		<!-- Event before date: an artefact from a known event takes its date from
+		     the event, so picking one fills the date in below. -->
+		<div data-field>
+			<AsyncComboField
+				name="event"
+				label="Event"
+				placeholder="Search or add an event"
+				date={formDate}
+				value={echoed?.event ?? ''}
+				onSelect={fillDateFromEvent}
+			/>
+			<FieldError message={validator.error('event')} />
+		</div>
+
 		<div data-field>
 			<DateField
+				bind:this={dateField}
 				name="date"
 				label="Date"
 				required
@@ -383,17 +412,6 @@
 				}}
 			/>
 			<FieldError message={validator.error('date')} />
-		</div>
-
-		<div data-field>
-			<AsyncComboField
-				name="event"
-				label="Event"
-				placeholder="Search or add an event"
-				date={formDate}
-				value={echoed?.event ?? ''}
-			/>
-			<FieldError message={validator.error('event')} />
 		</div>
 
 		<fieldset data-field>

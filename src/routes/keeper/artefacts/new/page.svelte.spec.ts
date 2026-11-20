@@ -27,8 +27,12 @@ vi.mock('$app/navigation', () => ({
 vi.mock('$app/state', () => ({
 	page: { url: new URL('http://localhost/keeper/artefacts/new'), state: {} }
 }));
-// The comboboxes load the public dataset; nothing to pick from here.
-vi.mock('#lib/dataset.ts', () => ({ loadEvents: async () => [], loadPeople: async () => [] }));
+// The comboboxes load the public dataset: two events to pick from, no people.
+const EVENTS = [
+	{ id: 0, title: 'Symphonic Steep', date: '2021-06-12' },
+	{ id: 1, title: 'Morning Meditation', date: '2021-06-16' }
+];
+vi.mock('#lib/dataset.ts', () => ({ loadEvents: async () => EVENTS, loadPeople: async () => [] }));
 
 const { default: NewArtefactPage } = await import('./+page.svelte');
 type Props = ComponentProps<typeof NewArtefactPage>;
@@ -103,5 +107,50 @@ describe('/keeper/artefacts/new', () => {
 		await expect.element(page.getByRole('textbox', { name: /^Title/ })).toHaveValue('');
 		expect(page.getByRole('img', { name: 'Page 1' }).query()).toBeNull();
 		expect(sessionStorage.getItem('artefact-draft:/keeper/artefacts/new')).toBeNull();
+	});
+
+	it('fills the date from the event picked, but never over a date set by hand', async () => {
+		await render(NewArtefactPage, {
+			data: { locations: [] },
+			form: null
+		} as unknown as Props);
+		const date = () =>
+			document.querySelector<HTMLInputElement>('input[type="hidden"][name="date"]')?.value;
+
+		// The event comes before the date.
+		const combo = page.getByPlaceholder('Search or add an event');
+		const fields = [...document.querySelectorAll('form [data-field]')];
+		const eventIndex = fields.findIndex((el) => el.querySelector('[role="combobox"]'));
+		const dateIndex = fields.findIndex((el) => el.querySelector('[data-popover-trigger]'));
+		expect(eventIndex).toBeGreaterThanOrEqual(0);
+		expect(eventIndex).toBeLessThan(dateIndex);
+
+		// The list opens on focus, so step out of the field and back in, as a
+		// keeper would, to choose again.
+		const pickAnother = async () => {
+			await page.getByRole('textbox', { name: /^Title/ }).click();
+			await combo.click();
+			await combo.fill('');
+		};
+
+		await combo.click();
+		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
+		await expect.poll(date).toBe('2021-06-12');
+		await expect.element(page.getByRole('button', { name: 'June 12, 2021' })).toBeInTheDocument();
+
+		// Another event moves a date it filled in itself.
+		await pickAnother();
+		await page.getByRole('option', { name: /Morning Meditation/ }).click();
+		await expect.poll(date).toBe('2021-06-16');
+
+		// A date picked by hand stays put when the event changes.
+		await page.getByRole('button', { name: 'June 16, 2021' }).click();
+		await page.getByRole('button', { name: 'Year', exact: true }).click();
+		await page.getByRole('button', { name: '2019', exact: true }).click();
+		await expect.poll(date).toBe('2019');
+		await pickAnother();
+		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
+		await expect.element(combo).toHaveValue('Symphonic Steep');
+		expect(date()).toBe('2019');
 	});
 });
