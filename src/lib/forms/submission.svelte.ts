@@ -29,9 +29,10 @@ export function latchedSubmission(getForm: () => unknown) {
 	$effect.pre(() => {
 		if (current) held = current;
 	});
-	afterNavigate(({ type }) => {
-		// 'enter' is the page's own first load, whose result `current` already reads.
-		if (type !== 'enter' && !current) held = undefined;
+	afterNavigate(({ type, shallow }) => {
+		// 'enter' is the page's own first load, whose result `current` already
+		// reads. A shallow navigation stays on the page, so it keeps the submission.
+		if (type !== 'enter' && !shallow && !current) held = undefined;
 	});
 
 	return {

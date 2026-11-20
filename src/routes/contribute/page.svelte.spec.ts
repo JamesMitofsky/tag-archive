@@ -11,8 +11,7 @@ vi.mock('$app/navigation', () => ({
 	afterNavigate: (callback: (nav: { type: string }) => void) => void navigated.push(callback),
 	beforeNavigate: () => {},
 	goto: vi.fn(),
-	onNavigate: () => {},
-	pushState: vi.fn()
+	onNavigate: () => {}
 }));
 vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/contribute'), state: {} } }));
 // The comboboxes load the public dataset; nothing to pick from here.
