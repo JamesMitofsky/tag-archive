@@ -191,12 +191,7 @@
 				</div>
 
 				<div>
-					<TagsField
-						name="hosts"
-						label="Hosts"
-						placeholder="Johnny B. Good"
-						bind:value={hostTags}
-					/>
+					<TagsField name="hosts" label="Hosts" placeholder="Jane Doe" bind:value={hostTags} />
 					<p class="mt-1 text-xs text-gray-500">Press Enter to add</p>
 					<FieldError message={validator.error('hosts')} />
 				</div>
