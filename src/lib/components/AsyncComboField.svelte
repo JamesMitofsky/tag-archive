@@ -29,7 +29,6 @@
 		name: string;
 		label?: string;
 		placeholder?: string;
-		endpoint?: string;
 		date?: string;
 		value?: string;
 		/**
@@ -37,7 +36,6 @@
 		 * or the one a failed submit or a kept draft had picked.
 		 */
 		eventId?: number | string | null;
-		pageSize?: number;
 		/**
 		 * Fires when an existing event is picked from the list (not for a typed-in
 		 * "Use …" entry), with the occurrence on its row.
