@@ -1,11 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { client } from '$lib/server/db';
 import { readDraft } from '$lib/server/drafts';
 import { createImageSet } from '$lib/server/imageSets';
 import { requestOwner } from '$lib/server/imageUploads';
 import { consume, LIMITS } from '$lib/server/rateLimit';
-import { sign, verify } from '$lib/server/signing';
-import { createContactSuite, parseContactForm } from '$lib/validation/contact';
 import { summary } from '$lib/validation/helpers';
 import {
 	createImageSetSuite,
@@ -20,16 +17,6 @@ export type ImageSetFormValues = {
 	event: string;
 	imageIds: number[];
 };
-
-/**
- * Proof that whoever holds it just submitted image set `id` — handed back after
- * an anonymous submission so the optional contact form can attach to it. Its
- * own purpose, apart from the artefact form's 'contact': ids are only unique
- * per table, so a token for artefact 7 must never open image set 7, nor the
- * other way round.
- */
-const CONTACT_PURPOSE = 'contact-image-set';
-const contactToken = (id: number) => sign(CONTACT_PURPOSE, String(id));
 
 /**
  * The "tap again" refusal: shown in place, so the photographs already added
@@ -104,54 +91,8 @@ export const actions: Actions = {
 		if (!created.ok) return fail(400, { imageSetError: created.message, values });
 
 		// Keepers land on the new set, flagged as just created; the public get a
-		// thank-you (with the optional way to leave contact details) instead.
+		// one-line confirmation instead.
 		if (signedIn) throw redirect(303, `/keeper/images/${created.id}?created`);
-		return { submitted: { id: created.id, token: contactToken(created.id) } };
-	},
-
-	connect: async ({ request, getClientAddress }) => {
-		const form = await request.formData();
-		const id = Number(form.get('setId'));
-		const token = String(form.get('token') ?? '');
-		if (!Number.isSafeInteger(id) || !verify(CONTACT_PURPOSE, String(id), token)) {
-			return fail(403, { contactError: 'That link has expired.' });
-		}
-		// From here on the token is good, so every answer hands it back: the
-		// thank-you (and its contact form) stays on screen to show the message.
-		const submitted = { id, token };
-		if (!(await consume('connect-ip', getClientAddress(), LIMITS.connectPerIp))) {
-			return fail(429, {
-				contactError: 'Too many attempts — wait a little and try again.',
-				submitted
-			});
-		}
-
-		const data = parseContactForm(form);
-		const result = createContactSuite()(data);
-		if (!result.isValid()) {
-			return fail(400, {
-				contactError: summary(result),
-				contactErrors: result.getErrors(),
-				submitted
-			});
-		}
-
-		// Only while the set is still awaiting review: once a keeper has vetted (or
-		// rejected) it, the token no longer opens anything. One statement, so the
-		// check and the write can't be split by a review landing in between — a
-		// rejection would otherwise turn the insert into a foreign-key failure.
-		// Raw SQL bypasses Drizzle's `$onUpdate`, so a repeat stamps `updated_at`
-		// (epoch ms) itself; the insert takes the column defaults.
-		const saved = await client.execute({
-			sql: `INSERT INTO image_set_contact (set_id, name, email, created_by, updated_by)
-				SELECT id, ?, ?, NULL, NULL FROM image_set WHERE id = ? AND proposed_addition = 1
-				ON CONFLICT (set_id) DO UPDATE SET name = excluded.name, email = excluded.email, updated_at = ?`,
-			args: [data.name || null, data.email || null, id, Date.now()]
-		});
-		if (saved.rowsAffected === 0) {
-			return fail(410, { contactError: 'That submission has already been reviewed.', submitted });
-		}
-
-		return { connected: true, submitted };
+		return { submitted: { id: created.id } };
 	}
 };

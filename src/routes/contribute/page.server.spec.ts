@@ -13,9 +13,8 @@ vi.mock('$env/dynamic/public', () => ({ env: {} }));
 
 const { migrateTestDatabase } = await import('$lib/server/db/testing');
 const { db } = await import('$lib/server/db');
-const { artefact, event, submissionContact, user } = await import('$lib/server/db/schema');
+const { artefact, event, user } = await import('$lib/server/db/schema');
 const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('$lib/server/drafts');
-const { approveProposed } = await import('$lib/server/db/queries');
 const { UNDATED } = await import('$lib/partialDate');
 const { actions } = await import('./+page.server');
 
@@ -136,7 +135,9 @@ describe('createArtefact (anonymous)', () => {
 			{ ...minimal([upload('page-1')]), date: UNDATED, event: 'Vetted Concert' },
 			{ cookies }
 		);
-		const submitted = (result as { submitted: { id: number; token: string } }).submitted;
+		// The id alone comes back: the contributor writes it on the physical item.
+		const submitted = (result as { submitted: { id: number } }).submitted;
+		expect(result).toEqual({ submitted: { id: expect.any(Number) } });
 		const created = await row(submitted.id);
 		expect(created).toMatchObject({
 			proposedAddition: true,
@@ -156,54 +157,6 @@ describe('createArtefact (anonymous)', () => {
 		);
 		const { id } = (result as { submitted: { id: number } }).submitted;
 		expect((await row(id)).eventId).toBeNull();
-	});
-});
-
-describe('connect (optional contact side path)', () => {
-	async function submit() {
-		const { cookies, upload } = anonymousDraft();
-		const result = await run('createArtefact', minimal([upload('c')]), { cookies });
-		return (result as { submitted: { id: number; token: string } }).submitted;
-	}
-
-	it('stores contact details for the submission the token belongs to', async () => {
-		const { id, token } = await submit();
-		const result = await run('connect', {
-			artefactId: String(id),
-			token,
-			name: 'Ada',
-			email: 'Ada@Example.org'
-		});
-		expect(result).toMatchObject({ connected: true });
-		const [contact] = await db
-			.select()
-			.from(submissionContact)
-			.where(eq(submissionContact.artefactId, id));
-		expect(contact).toMatchObject({ name: 'Ada', email: 'ada@example.org' });
-	});
-
-	it("refuses a token for a different artefact, so nobody can attach to another's submission", async () => {
-		const first = await submit();
-		const second = await submit();
-		const result = await run('connect', {
-			artefactId: String(second.id),
-			token: first.token,
-			name: 'Mallory'
-		});
-		expect(isActionFailure(result) && result.status).toBe(403);
-	});
-
-	it('requires at least a name or an email', async () => {
-		const { id, token } = await submit();
-		const result = await run('connect', { artefactId: String(id), token, name: '', email: '' });
-		expect(isActionFailure(result) && result.status).toBe(400);
-	});
-
-	it('closes once a keeper has reviewed the submission', async () => {
-		const { id, token } = await submit();
-		await approveProposed('artefact', id, ADMIN.id);
-		const result = await run('connect', { artefactId: String(id), token, name: 'Late' });
-		expect(isActionFailure(result) && result.status).toBe(410);
 	});
 });
 

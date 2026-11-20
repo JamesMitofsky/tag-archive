@@ -11,8 +11,7 @@ import {
 	image,
 	imageSet,
 	person,
-	series,
-	submissionContact
+	series
 } from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
 import type { EventItem } from '$lib/events';
@@ -383,28 +382,12 @@ export async function countPendingReview(): Promise<{
 	return { artefacts: a.n, events: e.n, series: s.n, images: i.n };
 }
 
-/**
- * A proposed artefact as the review queue reads it: anything a public
- * submitter chose to leave so a keeper can reach them (both null when they
- * left nothing, or for a signed-in contributor's submission).
- */
-export type ProposedArtefact = ArtefactWithEvent & {
-	contactName: string | null;
-	contactEmail: string | null;
-};
-
-/** Proposed artefacts with their event title, provenance names and submitter contact, newest first. */
-export async function listProposedArtefacts(): Promise<ProposedArtefact[]> {
+/** Proposed artefacts with their event title and provenance names, newest first. */
+export async function listProposedArtefacts(): Promise<ArtefactWithEvent[]> {
 	const rows = await db
-		.select({
-			...getTableColumns(artefact),
-			event: event.title,
-			contactName: submissionContact.name,
-			contactEmail: submissionContact.email
-		})
+		.select({ ...getTableColumns(artefact), event: event.title })
 		.from(artefact)
 		.leftJoin(event, eq(artefact.eventId, event.id))
-		.leftJoin(submissionContact, eq(submissionContact.artefactId, artefact.id))
 		.where(eq(artefact.proposedAddition, true))
 		.orderBy(desc(artefact.date), desc(artefact.id));
 	return attachProvenance(rows);
@@ -455,7 +438,7 @@ export async function rejectProposed(kind: ReviewKind, id: number, userId: strin
 	if (guard.length === 0) return;
 
 	if (kind === 'imageSet') {
-		// Its photographs, their stored objects and its contact row go with it.
+		// Its photographs and their stored objects go with it.
 		// Imported here, not at the top: ../imageSets imports this module.
 		// `proposedOnly` makes the delete itself conditional, so an approval that
 		// lands after the guard above still wins. It refreshes the cache itself.

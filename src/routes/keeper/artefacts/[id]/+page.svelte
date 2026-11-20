@@ -3,7 +3,7 @@
 	import { formatArtefactDate } from '$lib/formatDate';
 	import ArtefactId from '$lib/components/ArtefactId.svelte';
 	import BackButton from '$lib/components/BackButton.svelte';
-	import CopyButton from '$lib/components/CopyButton.svelte';
+	import ArchiveNumber from '$lib/components/ArchiveNumber.svelte';
 	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import OptimizedImage from '$lib/components/OptimizedImage.svelte';
@@ -55,18 +55,12 @@
 			class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8"
 		>
 			{#if justCreated}
-				<!-- A label to copy onto the item: dashed like a tag, number oversized so it
-				     reads from arm's length while writing. -->
-				<div role="status" class="mb-6 rounded-sm border border-dashed border-gray-400 p-4">
+				<ArchiveNumber id={item.id} class="mb-6">
 					<p class="text-sm font-medium">Added to the archive.</p>
 					<p class="mt-0.5 text-sm text-gray-600">
 						Write this number on the item so the two can be matched up again.
 					</p>
-					<div class="mt-3 flex items-center gap-3">
-						<ArtefactId id={item.id} class="text-4xl font-semibold text-[#14120f]" />
-						<CopyButton text={String(item.id)} label="Copy archive number" />
-					</div>
-				</div>
+				</ArchiveNumber>
 			{/if}
 
 			<p

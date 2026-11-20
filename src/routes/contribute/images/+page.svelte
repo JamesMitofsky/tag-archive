@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { latchedSubmission } from '$lib/forms/submission.svelte';
+	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import AsyncComboField from '$lib/components/AsyncComboField.svelte';
@@ -10,7 +10,6 @@
 	import { createValidator } from '$lib/validation/client.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
 	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
-	import SubmittedThanks from '$lib/components/SubmittedThanks.svelte';
 	import type { ImageSetFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -18,8 +17,7 @@
 
 	// Photographs, as /contribute takes artefacts: one form for everyone. A
 	// signed-in admin's set lands vetted and they go straight to it; anyone
-	// else's waits for a keeper's review, and they get a thank-you — with the
-	// same optional side path to leave contact details.
+	// else's waits for a keeper's review, and they're told it was sent.
 	//
 	// Each photograph uploads as soon as it is picked (see ImageUploader); the
 	// form submits only their ids. Anonymous visitors upload and submit through
@@ -28,18 +26,17 @@
 	// again" message, shown in place, so nothing typed or uploaded is lost, and a
 	// fresh tap resumes the same draft (whose uploads stay attachable).
 
-	// After an anonymous submit: the new set's id and the token that lets
-	// this visitor (and only them) attach contact details to it — held through
-	// each answer to the contact form (see latchedSubmission).
-	const submission = latchedSubmission(() => form);
-	const submitted = $derived(submission.value);
-	const connected = $derived(!!(form && 'connected' in form && form.connected));
-	const contactError = $derived(form && 'contactError' in form ? form.contactError : undefined);
-	const contactErrors = $derived(
-		form && 'contactErrors' in form && form.contactErrors
-			? (form.contactErrors as Record<string, string[]>)
-			: {}
-	);
+	// After an anonymous submit, a one-line confirmation replaces the form
+	// until a navigation ("Add another", the nav) clears `form`.
+	const submitted = $derived(!!(form && 'submitted' in form && form.submitted));
+	// The confirmation replaces the submit button that had focus, so move focus
+	// to its heading, where a screen reader announces it. Runs after SvelteKit's
+	// own focus reset on a successful action, which would leave focus on the
+	// page.
+	let sentHeading = $state<HTMLHeadingElement>();
+	$effect(() => {
+		sentHeading?.focus();
+	});
 
 	// Isomorphic validation: the same vest suite runs here for live, per-field
 	// feedback and on the server as the authority. `errors` seeds field messages
@@ -109,16 +106,27 @@
 		     as the searchbar and the keeper sign-in. -->
 		<section class="rounded-2xl border border-white/40 bg-white/30 p-6 shadow-lg backdrop-blur-md">
 			{#if submitted}
-				<SubmittedThanks
-					noun={imageIds.length === 1 ? 'photograph' : 'photographs'}
-					plural={imageIds.length !== 1}
-					anotherHref="/contribute/images"
-					idField="setId"
-					{submitted}
-					{connected}
-					{contactError}
-					{contactErrors}
-				/>
+				<!-- Functional, like the artefact form's archive-number screen: what
+				     happened, then "Add another". No number: a set's id counts
+				     separately from artefacts', so "#7" written on anything would be
+				     mistaken for artefact #7. -->
+				<h1
+					bind:this={sentHeading}
+					tabindex="-1"
+					class="text-sm font-medium text-gray-900 outline-none"
+				>
+					{imageIds.length === 1 ? 'Photograph' : 'Photographs'} sent for review
+				</h1>
+				<!-- Full reload, not client navigation: the form's state lives in this
+				     page, and the same URL would keep it. The draft session survives. -->
+				<a
+					href="/contribute/images"
+					data-sveltekit-reload
+					class="mt-6 flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium {inkButton}"
+				>
+					<ArrowCounterClockwiseIcon size={18} />
+					Add another
+				</a>
 			{:else}
 				<!-- The artefact form, pointed to quietly beside the heading, as it
 				     points here. -->

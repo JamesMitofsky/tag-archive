@@ -3,9 +3,9 @@ import { env } from '$env/dynamic/private';
 
 /**
  * Purpose-bound HMAC keys derived from BETTER_AUTH_SECRET, so features that
- * need to sign something (draft-session cookies, contact tokens, upload
- * permits) don't each need their own secret — and a value signed for one purpose
- * can never be replayed as another, because each purpose gets its own key.
+ * need to sign something (draft-session cookies, upload permits) don't each
+ * need their own secret — and a value signed for one purpose can never be
+ * replayed as another, because each purpose gets its own key.
  */
 function key(purpose: string): Buffer {
 	const secret = env.BETTER_AUTH_SECRET;
