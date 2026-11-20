@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import type { EventItem } from '#lib/events.ts';
 import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
-import { filterImageSets } from './search';
+import { filterAndSortEvents, filterImageSets } from './search';
 
 function photo(id: number): PublicImage {
 	return {
@@ -88,5 +89,60 @@ describe('filterImageSets', () => {
 		const result = filterImageSets([undated, july, garden], 'a');
 		expect(result.map((row) => row.id)).toEqual([3, 1, 2]);
 		expect(result[1]).toBe(july);
+	});
+});
+
+describe('filterAndSortEvents', () => {
+	const TEMPERANCE = 'Temperance Alley Beautification';
+	const ev = (id: number, title: string, date: string | null): EventItem => ({
+		id,
+		title,
+		date,
+		time: null,
+		location: null,
+		description: null,
+		hosts: [],
+		url: null
+	});
+	const events = [
+		ev(1, TEMPERANCE, '2021-04-17'),
+		ev(2, TEMPERANCE, '2021-04-24'),
+		ev(3, TEMPERANCE, '2021-05-01'),
+		ev(4, TEMPERANCE, '2021-05-08'),
+		// An exact repeat of the 2021-05-01 row: the same choice to anyone picking.
+		ev(5, TEMPERANCE, '2021-05-01'),
+		ev(6, 'Morning Meditation', '2021-06-16')
+	];
+
+	it('lists every dated occurrence of a recurring title, each with its own id', () => {
+		expect(filterAndSortEvents(events, 'temperance')).toEqual([
+			{ id: 1, name: TEMPERANCE, date: '2021-04-17' },
+			{ id: 2, name: TEMPERANCE, date: '2021-04-24' },
+			{ id: 3, name: TEMPERANCE, date: '2021-05-01' },
+			{ id: 4, name: TEMPERANCE, date: '2021-05-08' }
+		]);
+	});
+
+	it('collapses only exact repeats of a title and date', () => {
+		const may1 = filterAndSortEvents(events, '').filter((o) => o.date === '2021-05-01');
+		expect(may1).toEqual([{ id: 3, name: TEMPERANCE, date: '2021-05-01' }]);
+		// Undated rows of one title are repeats of each other too.
+		expect(
+			filterAndSortEvents([ev(7, 'Open house', null), ev(8, 'Open house', null)], 'open')
+		).toEqual([{ id: 7, name: 'Open house', date: null }]);
+	});
+
+	it('orders the occurrences by nearness to the form date', () => {
+		const ids = filterAndSortEvents(events, TEMPERANCE, '2021-05-02').map((o) => o.id);
+		expect(ids).toEqual([3, 4, 2, 1]);
+		// A vague date ranks from the first day it covers.
+		expect(filterAndSortEvents(events, TEMPERANCE, '2021-05')[0]).toMatchObject({ id: 3 });
+	});
+
+	it('keeps the nearest of an exact repeat when sorting', () => {
+		const repeat = [ev(9, 'Gala', '2020-01-01'), ev(10, 'Gala', '2020-01-01')];
+		expect(filterAndSortEvents(repeat, 'gala', '2020-01-01')).toEqual([
+			{ id: 9, name: 'Gala', date: '2020-01-01' }
+		]);
 	});
 });

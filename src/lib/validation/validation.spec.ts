@@ -45,6 +45,24 @@ describe('artefact suite', () => {
 		expect(run(data).isValid()).toBe(true);
 	});
 
+	it('reads the picked event occurrence; an unreadable one is none, not an error', () => {
+		const base = {
+			artefact: 'Steep Program',
+			date: '2021-07-01',
+			location: 'Binder',
+			fileUrls: ['https://cdn.example/x.jpg'],
+			event: 'Temperance Alley Beautification'
+		};
+		expect(parseArtefactForm(fd({ ...base, eventId: '12' })).eventId).toBe(12);
+		for (const eventId of ['', '0', '-3', '1.5', 'abc']) {
+			const data = parseArtefactForm(fd({ ...base, eventId }));
+			expect(data.eventId).toBeNull();
+			expect(run(data).isValid()).toBe(true);
+		}
+		// A form from before the field existed.
+		expect(parseArtefactForm(fd(base)).eventId).toBeNull();
+	});
+
 	it('requires at least one image', () => {
 		const r = run(parseArtefactForm(fd({ artefact: 'Steep Program', date: '2021-07-01' })));
 		expect(r.isValid()).toBe(false);

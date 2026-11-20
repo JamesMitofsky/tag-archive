@@ -1,5 +1,5 @@
 import { readDateField } from '#lib/partialDate.ts';
-import { check, defineSuite, isPartialDate, maxLen, str } from './helpers';
+import { check, defineSuite, isPartialDate, maxLen, optionalId, str } from './helpers';
 
 /** The most photographs one set may hold. Mirrored by the uploader's `max`. */
 export const MAX_IMAGES_PER_SET = 50;
@@ -8,6 +8,11 @@ export const MAX_IMAGES_PER_SET = 50;
 export type ImageSetData = {
 	description: string;
 	event: string;
+	/**
+	 * The event occurrence picked from the list; null for a typed-in title,
+	 * which the server resolves by title alone (see `ArtefactData.eventId`).
+	 */
+	eventId: number | null;
 	/** Uploaded image ids (see /api/images/finalize), in display order. */
 	imageIds: number[];
 	/**
@@ -29,6 +34,7 @@ export function parseImageSetForm(fd: FormData): ImageSetData {
 	return {
 		description: str(fd.get('description')),
 		event: str(fd.get('event')),
+		eventId: optionalId(fd.get('eventId')),
 		imageIds: fd
 			.getAll('imageIds')
 			.map((value) => String(value).trim())
@@ -79,6 +85,8 @@ export function createImageSetSuite() {
 export type ImageSetCreateValues = {
 	description: string;
 	event: string;
+	/** The picked occurrence's id, '' for none. */
+	eventId: string;
 	imageIds: number[];
 };
 
@@ -86,6 +94,7 @@ export function echoImageSetCreateForm(fd: FormData, data: ImageSetData): ImageS
 	return {
 		description: String(fd.get('description') ?? ''),
 		event: String(fd.get('event') ?? ''),
+		eventId: String(fd.get('eventId') ?? ''),
 		imageIds: data.imageIds.filter((id) => Number.isSafeInteger(id))
 	};
 }

@@ -27,10 +27,16 @@ vi.mock('$app/navigation', () => ({
 vi.mock('$app/state', () => ({
 	page: { url: new URL('http://localhost/keeper/artefacts/new'), state: {} }
 }));
-// The comboboxes load the public dataset: two events to pick from, no people.
+// The comboboxes load the public dataset: two one-off events and one that
+// recurs on four Saturdays, to pick from; no people.
+const TEMPERANCE = 'Temperance Alley Beautification';
 const EVENTS = [
-	{ id: 0, title: 'Symphonic Steep', date: '2021-06-12' },
-	{ id: 1, title: 'Morning Meditation', date: '2021-06-16' }
+	{ id: 1, title: 'Symphonic Steep', date: '2021-06-12' },
+	{ id: 2, title: 'Morning Meditation', date: '2021-06-16' },
+	{ id: 10, title: TEMPERANCE, date: '2021-04-17' },
+	{ id: 11, title: TEMPERANCE, date: '2021-04-24' },
+	{ id: 12, title: TEMPERANCE, date: '2021-05-01' },
+	{ id: 13, title: TEMPERANCE, date: '2021-05-08' }
 ];
 vi.mock('#lib/dataset.ts', () => ({ loadEvents: async () => EVENTS, loadPeople: async () => [] }));
 
@@ -152,5 +158,90 @@ describe('/keeper/artefacts/new', () => {
 		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
 		await expect.element(combo).toHaveValue('Symphonic Steep');
 		expect(date()).toBe('2019');
+	});
+
+	it('lists each day of a recurring event, and posts the one picked', async () => {
+		await render(NewArtefactPage, {
+			data: { locations: [] },
+			form: null
+		} as unknown as Props);
+		const hidden = (name: string) =>
+			document.querySelector<HTMLInputElement>(`input[type="hidden"][name="${name}"]`)?.value;
+
+		const combo = page.getByPlaceholder('Search or add an event');
+		await combo.click();
+		await combo.fill('Temperance');
+		// One row per Saturday, not one for the title.
+		await expect
+			.poll(() => page.getByRole('option', { name: new RegExp(TEMPERANCE) }).all())
+			.toHaveLength(4);
+
+		await page.getByRole('option', { name: `${TEMPERANCE} May 1, 2021` }).click();
+
+		await expect.element(combo).toHaveValue(TEMPERANCE);
+		// That day, posted beside the title, filling the date and shown in the box.
+		await expect.poll(() => hidden('eventId')).toBe('12');
+		expect(hidden('event')).toBe(TEMPERANCE);
+		await expect.poll(() => hidden('date')).toBe('2021-05-01');
+		await expect.element(page.getByTestId('event-picked-date')).toHaveTextContent('May 1, 2021');
+
+		// Change the text and it no longer names that day: the title alone goes.
+		await combo.fill(`${TEMPERANCE} cleanup`);
+		await expect.poll(() => hidden('eventId')).toBe('');
+		expect(page.getByTestId('event-picked-date').query()).toBeNull();
+	});
+
+	it('keeps the day picked in the draft, and puts it back', async () => {
+		const { unmount } = await render(NewArtefactPage, {
+			data: { locations: [] },
+			form: null
+		} as unknown as Props);
+		const combo = page.getByPlaceholder('Search or add an event');
+		await combo.click();
+		await combo.fill('Temperance');
+		await page.getByRole('option', { name: `${TEMPERANCE} May 1, 2021` }).click();
+
+		const key = 'artefact-draft:/keeper/artefacts/new';
+		await expect
+			.poll(() => JSON.parse(sessionStorage.getItem(key) ?? '{}'))
+			.toMatchObject({ event: TEMPERANCE, eventId: '12', date: '2021-05-01' });
+		unmount();
+
+		await render(NewArtefactPage, {
+			data: { locations: [] },
+			form: null
+		} as unknown as Props);
+		await expect.element(page.getByText('Picked up where you left off.')).toBeInTheDocument();
+		await expect
+			.poll(
+				() =>
+					document.querySelector<HTMLInputElement>('input[type="hidden"][name="eventId"]')?.value
+			)
+			.toBe('12');
+	});
+
+	it('restores a draft kept before the picker posted an id, by its title alone', async () => {
+		sessionStorage.setItem(
+			'artefact-draft:/keeper/artefacts/new',
+			JSON.stringify({
+				artefact: 'Planting flyer',
+				event: TEMPERANCE,
+				date: '2021-05-01',
+				description: '',
+				location: '',
+				fileUrls: [],
+				provenance: '',
+				programArea: []
+			})
+		);
+		await render(NewArtefactPage, {
+			data: { locations: [] },
+			form: null
+		} as unknown as Props);
+
+		await expect.element(page.getByPlaceholder('Search or add an event')).toHaveValue(TEMPERANCE);
+		expect(
+			document.querySelector<HTMLInputElement>('input[type="hidden"][name="eventId"]')?.value
+		).toBe('');
 	});
 });

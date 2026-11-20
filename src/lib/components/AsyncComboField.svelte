@@ -6,17 +6,24 @@
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { formatDateShort } from '#lib/formatDate.ts';
 	import { loadEvents } from '#lib/dataset.ts';
-	import { filterAndSortEvents } from '#lib/search.ts';
+	import { filterAndSortEvents, type EventOption } from '#lib/search.ts';
 	import type { EventItem } from '#lib/events.ts';
 
-	// Searchable single-select for event titles backed by the local dataset.
-	// Filtered in-memory and sorted by date proximity to `date` (if provided).
+	// Searchable single-select for events backed by the local dataset. Filtered
+	// in-memory and sorted by date proximity to `date` (if provided).
+	//
+	// Each dated occurrence of a recurring title is its own row, and two hidden
+	// fields go to the server: `{name}`, the title as it stands in the box, and
+	// `{name}Id`, the id of the occurrence picked from the list. The id is only
+	// sent while the box still reads that occurrence's title: edit the text, or
+	// take the "Use …" row, and the server resolves the title alone.
 	let {
 		name,
 		label,
 		placeholder = 'Search or add…',
 		date,
 		value: initial = '',
+		eventId: initialId = null,
 		onSelect
 	}: {
 		name: string;
@@ -25,17 +32,35 @@
 		endpoint?: string;
 		date?: string;
 		value?: string;
+		/**
+		 * The occurrence `value` already names: the linked event on an edit page,
+		 * or the one a failed submit or a kept draft had picked.
+		 */
+		eventId?: number | string | null;
 		pageSize?: number;
 		/**
 		 * Fires when an existing event is picked from the list (not for a typed-in
-		 * "Use …" entry), with the date shown on its row.
+		 * "Use …" entry), with the occurrence on its row.
 		 */
-		onSelect?: (event: { name: string; date: string | null }) => void;
+		onSelect?: (event: EventOption) => void;
 	} = $props();
 
 	let open = $state(false);
 	let search = $state(initial);
 	const query = $derived(search.trim());
+
+	/** The occurrence picked, and the title it was picked under. */
+	// Seeded once, like `search`: from here the box owns it.
+	// svelte-ignore state_referenced_locally
+	let picked = $state.raw<{ id: number; name: string } | null>(seedPick(initialId, initial));
+	function seedPick(id: number | string | null, title: string) {
+		const n = typeof id === 'string' ? Number(id.trim()) : id;
+		return n !== null && Number.isSafeInteger(n) && n > 0 && title.trim()
+			? { id: n, name: title.trim() }
+			: null;
+	}
+	/** What `{name}Id` posts: the picked occurrence, while the box still names it. */
+	const pickedId = $derived(picked && picked.name === query ? picked.id : null);
 
 	let allEvents = $state<EventItem[]>([]);
 	let loading = $state(false);
@@ -83,10 +108,24 @@
 		open = false;
 	}
 
-	function chooseItem(item: { name: string; date: string | null }) {
+	/** A typed-in title: no occurrence, so the server resolves the title alone. */
+	function chooseTyped(val: string) {
+		picked = null;
+		choose(val);
+	}
+
+	function chooseItem(item: EventOption) {
+		picked = { id: item.id, name: item.name };
 		choose(item.name);
 		onSelect?.(item);
 	}
+
+	// The linked occurrence's date, shown in the box so a recurring title says
+	// which of its days it is. Unknown for an event the public list leaves out
+	// (one still awaiting review): the link holds, there is just no date to show.
+	const pickedDate = $derived(
+		pickedId === null ? null : (allEvents.find((e) => e.id === pickedId)?.date ?? null)
+	);
 
 	// --- Virtualized dropdown ------------------------------------------------
 	let scrollEl = $state<HTMLDivElement>();
@@ -135,7 +174,7 @@
 			case 'Enter':
 				if (open && (activeIndex >= 0 || (activeIndex === -1 && showCustom))) {
 					event.preventDefault();
-					if (activeIndex === -1) choose(query);
+					if (activeIndex === -1) chooseTyped(query);
 					else if (items[activeIndex]) chooseItem(items[activeIndex]!);
 				}
 				break;
@@ -167,8 +206,18 @@
 			{placeholder}
 			bind:value={search}
 			onkeydown={onKeydown}
-			class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none md:text-sm"
+			class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none md:text-sm {pickedDate
+				? 'pe-24'
+				: ''}"
 		/>
+		{#if pickedDate}
+			<span
+				data-testid="{name}-picked-date"
+				class="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs text-muted-foreground"
+			>
+				{formatDateShort(pickedDate)}
+			</span>
+		{/if}
 
 		{#if open}
 			<div
@@ -187,7 +236,7 @@
 						aria-selected={activeIndex === -1}
 						onmousedown={(e) => {
 							e.preventDefault();
-							choose(query);
+							chooseTyped(query);
 						}}
 						class="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-2 text-sm {activeIndex ===
 						-1
@@ -252,5 +301,6 @@
 	</div>
 </div>
 
-<!-- Resolved value the server action reads. -->
+<!-- Resolved values the server action reads: the title, and the occurrence picked. -->
 <input type="hidden" {name} value={search} />
+<input type="hidden" name="{name}Id" value={pickedId ?? ''} />

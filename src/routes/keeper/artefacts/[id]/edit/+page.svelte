@@ -191,6 +191,7 @@
 						placeholder="Search or add an event"
 						date={formDate}
 						value={echoed?.event ?? data.artefact.event ?? ''}
+						eventId={echoed ? echoed.eventId : data.artefact.eventId}
 					/>
 					<FieldError message={validator.error('event')} />
 				</div>

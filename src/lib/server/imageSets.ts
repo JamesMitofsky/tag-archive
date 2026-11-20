@@ -231,7 +231,7 @@ export async function createImageSet(
 	if (!usable) return refused();
 
 	const proposed = isProposedAddition(actor.role);
-	const eventId = await resolveEventId(data.event, proposed);
+	const eventId = await resolveEventId(data.event, proposed, data.eventId);
 
 	// The date comes from the rows just read: a capture time never changes, and
 	// these are exactly the set's photographs once the attach below succeeds.
@@ -342,7 +342,7 @@ export async function updateImageSet(
 	// exactly the set's photographs once the write below lands.
 	const fields: SetFields = {
 		description: data.description.trim() || null,
-		eventId: await resolveEventId(data.event, false),
+		eventId: await resolveEventId(data.event, false, data.eventId),
 		dateAuto: data.dateAuto,
 		date: data.dateAuto
 			? earliestDay(

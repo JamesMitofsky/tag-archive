@@ -549,24 +549,49 @@ export async function deleteOrphanPeople(ids: number[]): Promise<void> {
 }
 
 /**
- * Resolve a typed event title to an existing event's id. Events are dated
+ * Resolve a form's event to an existing event's id. Events are dated
  * happenings sourced from the events export — a bare title here can't create
- * one, so an unknown title yields null (the row stays unlinked). A recurring
- * title resolves to its earliest event. With `vettedOnly`, only vetted events
- * match: an unvetted submitter can only link to the events they could have
- * seen. Keepers editing a row pass false.
+ * one, so an unknown title yields null (the row stays unlinked).
+ *
+ * A recurring title is one event row per date, so the picker also posts the id
+ * of the occurrence chosen (`pickedId`). That id wins, but only while it still
+ * names an event with exactly this title: a stale id (the text was changed
+ * after the pick, a draft outlived a reseed) or a forged one can't link a row
+ * the title doesn't describe. Without a usable id — a typed-in title, a form
+ * or draft from before the picker sent one — the title alone resolves, to its
+ * earliest occurrence (the lowest id among same-day repeats, so it's stable).
+ *
+ * With `vettedOnly`, only vetted events match, by id or by title: an unvetted
+ * submitter can only link to the events they could have seen. Keepers editing
+ * a row pass false.
  */
-export async function resolveEventId(name: string, vettedOnly: boolean): Promise<number | null> {
+export async function resolveEventId(
+	name: string,
+	vettedOnly: boolean,
+	pickedId: number | null = null
+): Promise<number | null> {
 	const trimmed = name.trim();
 	if (!trimmed) return null;
+
+	const matches = and(
+		eq(event.title, trimmed),
+		vettedOnly ? eq(event.proposedAddition, false) : undefined
+	);
+
+	if (pickedId !== null) {
+		const [picked] = await db
+			.select({ id: event.id })
+			.from(event)
+			.where(and(eq(event.id, pickedId), matches))
+			.limit(1);
+		if (picked) return picked.id;
+	}
 
 	const [existing] = await db
 		.select({ id: event.id })
 		.from(event)
-		.where(
-			and(eq(event.title, trimmed), vettedOnly ? eq(event.proposedAddition, false) : undefined)
-		)
-		.orderBy(event.date)
+		.where(matches)
+		.orderBy(event.date, event.id)
 		.limit(1);
 	return existing?.id ?? null;
 }

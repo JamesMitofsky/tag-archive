@@ -391,6 +391,7 @@
 				placeholder="Search or add an event"
 				date={formDate}
 				value={echoed?.event ?? ''}
+				eventId={echoed?.eventId}
 				onSelect={fillDateFromEvent}
 			/>
 			<FieldError message={validator.error('event')} />

@@ -21,7 +21,7 @@ const nullIfEmpty = (value: string) => (value === '' ? null : value);
  */
 export async function createArtefact(data: ArtefactData, actor: Actor): Promise<number> {
 	const proposed = isProposedAddition(actor.role);
-	const eventId = await resolveEventId(data.event, proposed);
+	const eventId = await resolveEventId(data.event, proposed, data.eventId);
 	const personIds = await resolvePersonIds(data.provenance, actor.userId);
 
 	// id is AUTOINCREMENT — omit it and SQLite assigns the next one.
