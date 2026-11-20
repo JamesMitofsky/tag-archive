@@ -117,7 +117,7 @@ describe('/keeper/artefacts/new', () => {
 			document.querySelector<HTMLInputElement>('input[type="hidden"][name="date"]')?.value;
 
 		// The event comes before the date.
-		const combo = page.getByPlaceholder('Search or add an event');
+		const combo = page.getByPlaceholder('Search events');
 		const fields = [...document.querySelectorAll('form [data-field]')];
 		const eventIndex = fields.findIndex((el) => el.querySelector('[role="combobox"]'));
 		const dateIndex = fields.findIndex((el) => el.querySelector('[data-popover-trigger]'));
@@ -177,5 +177,45 @@ describe('/keeper/artefacts/new provenance', () => {
 
 		await provenance().fill('brand');
 		await expect.element(page.getByRole('option', { name: /Brand New\s*New/ })).toBeVisible();
+	});
+});
+
+describe('/keeper/artefacts/new event', () => {
+	const combo = () => page.getByPlaceholder('Search events');
+	const submitted = () =>
+		document.querySelector<HTMLInputElement>('input[type="hidden"][name="event"]')?.value;
+
+	it('offers only existing events, and drops typed text that names none', async () => {
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		await combo().fill('A Picnic Nobody Listed');
+		await expect.element(page.getByText('No event by that name.')).toBeVisible();
+		expect(page.getByRole('option', { name: /Use/ }).query()).toBeNull();
+
+		await page.getByRole('textbox', { name: /^Title/ }).click();
+		await expect.element(combo()).toHaveValue('');
+		expect(submitted()).toBe('');
+	});
+
+	it('takes a title typed out in full as that event', async () => {
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		await combo().fill('morning meditation');
+		await page.getByRole('textbox', { name: /^Title/ }).click();
+
+		await expect.element(combo()).toHaveValue('Morning Meditation');
+		expect(submitted()).toBe('Morning Meditation');
+	});
+
+	it('keeps the event it held when the text is changed to nothing it knows', async () => {
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		await combo().click();
+		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
+		await combo().fill('Symphonic Steeple');
+		await page.getByRole('textbox', { name: /^Title/ }).click();
+
+		await expect.element(combo()).toHaveValue('Symphonic Steep');
+		expect(submitted()).toBe('Symphonic Steep');
 	});
 });
