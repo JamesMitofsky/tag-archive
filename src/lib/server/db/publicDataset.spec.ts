@@ -65,7 +65,7 @@ beforeAll(async () => {
 	await db.insert(artefact).values([
 		{ id: 1, artefact: 'Vetted program', date: '2024', eventId: 1 },
 		{ id: 2, artefact: 'Pending flyer', date: '2024', proposedAddition: true },
-		// Vetted itself, but linked to an event nobody has reviewed yet.
+		// Vetted itself, linked to an event still awaiting review.
 		{ id: 3, artefact: 'Vetted photo', date: '2024-07', eventId: 2 }
 	]);
 	await db.insert(person).values([
@@ -85,7 +85,7 @@ beforeAll(async () => {
 	]);
 	await db.insert(imageSet).values([
 		{ id: 1, description: 'Vetted set', eventId: 1, date: '2024-06-01' },
-		// Vetted itself, but linked to an event nobody has reviewed yet.
+		// Vetted itself, linked to an event still awaiting review.
 		{ id: 2, description: 'Vetted set at a pending event', eventId: 2, date: '2023' },
 		{ id: 3, description: 'Pending set', date: '2025', proposedAddition: true },
 		// Vetted, but holding no photographs (a create that failed halfway).
@@ -144,11 +144,11 @@ describe('loadPublicDataset', () => {
 		expect(artefacts.map((a) => a.artefact).sort()).toEqual(['Vetted photo', 'Vetted program']);
 	});
 
-	it('publishes vetted events only', async () => {
+	it('publishes every event, including those awaiting review', async () => {
 		const { events } = await loadPublicDataset();
-		expect(events.map((e) => e.title)).not.toContain('Pending Picnic');
-		expect(events.map((e) => e.title)).not.toContain('Pending, featuring a vetted photograph');
+		expect(events.map((e) => e.id).sort()).toEqual([1, 2, 3, 4, 5, 6, 7]);
 		expect(events.find((e) => e.id === 1)?.hosts).toEqual(['Vetted Host']);
+		expect(events.find((e) => e.id === 2)?.hosts).toEqual(['Pending Host']);
 	});
 
 	it("publishes an event's feature image only while its source is vetted", async () => {
@@ -167,6 +167,12 @@ describe('loadPublicDataset', () => {
 			height: null
 		});
 		expect(feature.get(6)).toBeNull();
+		// An event awaiting review still shows a vetted source's image.
+		expect(feature.get(7)).toEqual({
+			url: 'https://bucket.test/images/2/display.webp',
+			width: 2560,
+			height: 1920
+		});
 
 		// Only what renders it: no ids, no labels, nothing of the original.
 		const blob = JSON.stringify(events);
@@ -175,16 +181,16 @@ describe('loadPublicDataset', () => {
 		}
 	});
 
-	it("hides a pending event's title on a vetted artefact", async () => {
+	it("shows a pending event's title on a vetted artefact", async () => {
 		const { artefacts } = await loadPublicDataset();
 		const byTitle = new Map(artefacts.map((a) => [a.artefact, a]));
 		expect(byTitle.get('Vetted program')?.event).toBe('Vetted Concert');
-		expect(byTitle.get('Vetted photo')?.event).toBeNull();
+		expect(byTitle.get('Vetted photo')?.event).toBe('Pending Picnic');
 	});
 
-	it('lists only people linked to something vetted', async () => {
+	it('lists people linked to a vetted artefact or to any event', async () => {
 		const { people } = await loadPublicDataset();
-		expect(people.sort()).toEqual(['Vetted Contributor', 'Vetted Host']);
+		expect(people.sort()).toEqual(['Pending Host', 'Vetted Contributor', 'Vetted Host']);
 	});
 
 	it('publishes vetted image sets that hold photographs, newest first', async () => {
@@ -193,11 +199,11 @@ describe('loadPublicDataset', () => {
 		expect(images.flatMap((set) => set.images.map((i) => i.id)).sort()).toEqual([1, 2, 3, 4]);
 	});
 
-	it("hides a pending event's title on a vetted image set", async () => {
+	it("shows a pending event's title on a vetted image set", async () => {
 		const { images } = await loadPublicDataset();
 		const byId = new Map(images.map((set) => [set.id, set]));
 		expect(byId.get(1)?.event).toBe('Vetted Concert');
-		expect(byId.get(2)?.event).toBeNull();
+		expect(byId.get(2)?.event).toBe('Pending Picnic');
 	});
 
 	it('publishes each photograph as a whitelist, dated to the day only', async () => {

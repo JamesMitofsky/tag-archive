@@ -290,13 +290,13 @@ describe('createImageSet (anonymous)', () => {
 		expect((await setRow(id))?.date).toBeNull();
 	});
 
-	it('only links an anonymous submission to vetted events', async () => {
+	it('links an anonymous submission to an event still awaiting review', async () => {
 		const { cookies, upload: add } = anonymousDraft();
 		const result = await run('createImageSet', fields([await add()], { event: 'Pending Picnic' }), {
 			cookies
 		});
 		const { id } = submittedOf(result);
-		expect((await setRow(id))?.eventId).toBeNull();
+		expect((await setRow(id))?.eventId).toBe(2);
 	});
 
 	it('leaves the set unlinked when no event has the title typed', async () => {
@@ -334,7 +334,7 @@ describe('createImageSet (signed in)', () => {
 	it("lands an admin's set vetted and attributed, then redirects to it", async () => {
 		const first = await upload({ userId: ADMIN.id }, '2022-01-02T03:04:05');
 		const second = await upload({ userId: ADMIN.id });
-		// Keepers write without a draft session; an admin may link any event.
+		// Keepers write without a draft session.
 		const result = await run(
 			'createImageSet',
 			fields([second, first], { event: 'Pending Picnic' }),
@@ -355,7 +355,7 @@ describe('createImageSet (signed in)', () => {
 
 	it("lands a contributor's set for review, still on its keeper page", async () => {
 		const photo = await upload({ userId: CONTRIBUTOR.id });
-		// Under review, it may only link the events its submitter could have seen.
+		// Every event is public, so a set under review may link one under review too.
 		const id = createdId(
 			await run('createImageSet', fields([photo], { event: 'Pending Picnic' }), {
 				as: CONTRIBUTOR
@@ -364,7 +364,7 @@ describe('createImageSet (signed in)', () => {
 		expect(await setRow(id)).toMatchObject({
 			proposedAddition: true,
 			createdBy: CONTRIBUTOR.id,
-			eventId: null
+			eventId: 2
 		});
 	});
 

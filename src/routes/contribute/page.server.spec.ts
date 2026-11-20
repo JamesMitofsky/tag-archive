@@ -147,7 +147,7 @@ describe('createArtefact (anonymous)', () => {
 		});
 	});
 
-	it('only links an anonymous submission to vetted events', async () => {
+	it('links an anonymous submission to an event still awaiting review', async () => {
 		const { cookies, upload } = anonymousDraft();
 		const result = await run(
 			'createArtefact',
@@ -155,7 +155,7 @@ describe('createArtefact (anonymous)', () => {
 			{ cookies }
 		);
 		const { id } = (result as { submitted: { id: number } }).submitted;
-		expect((await row(id)).eventId).toBeNull();
+		expect((await row(id)).eventId).toBe(2);
 	});
 });
 

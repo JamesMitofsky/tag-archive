@@ -66,7 +66,7 @@ export const actions: Actions = {
 		}
 
 		// A keeper may link any event, vetted or not.
-		const eventId = await resolveEventId(data.event, false);
+		const eventId = await resolveEventId(data.event);
 		const personIds = await resolvePersonIds(data.provenance, userId);
 
 		await db
