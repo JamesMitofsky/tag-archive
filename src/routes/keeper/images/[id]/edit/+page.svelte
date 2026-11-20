@@ -183,7 +183,7 @@
 					<AsyncComboField
 						name="event"
 						label="Event"
-						placeholder="Search or add an event"
+						placeholder="Search events"
 						date={dateAuto ? (data.photographDate ?? undefined) : formDate}
 						value={echoed?.event ?? data.set.event ?? ''}
 					/>

@@ -188,7 +188,7 @@
 					<AsyncComboField
 						name="event"
 						label="Event"
-						placeholder="Search or add an event"
+						placeholder="Search events"
 						date={formDate}
 						value={echoed?.event ?? data.artefact.event ?? ''}
 					/>

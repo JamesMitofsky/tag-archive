@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { createArtefact, knownLocations } from '#lib/server/artefacts.ts';
+import { listPersonNames } from '#lib/server/db/queries.ts';
 import {
 	echoArtefactForm,
 	createArtefactSuite,
@@ -16,7 +17,8 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	// The hook bounces anonymous requests; this narrows the type and backs it up.
 	if (!locals.user) throw redirect(303, '/keeper');
-	return { locations: await knownLocations() };
+	const [locations, people] = await Promise.all([knownLocations(), listPersonNames()]);
+	return { locations, people };
 };
 
 export const actions: Actions = {

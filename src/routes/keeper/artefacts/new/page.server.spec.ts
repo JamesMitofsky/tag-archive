@@ -76,6 +76,15 @@ describe('/keeper/artefacts/new load', () => {
 		expect(data).toMatchObject({ locations: ['Binder 3'] });
 	});
 
+	it('offers a name from the last artefact on the next, even one awaiting review', async () => {
+		// A contributor's artefact is a proposed addition, so the public dataset
+		// leaves its people out until an admin vets it.
+		createdId(await create({ ...filled, provenance: 'Newly Named' }, CONTRIBUTOR));
+
+		const data = await load({ locals: { user: CONTRIBUTOR } } as never);
+		expect(data).toMatchObject({ people: expect.arrayContaining(['Newly Named']) });
+	});
+
 	it('sends anyone without a session to sign in', async () => {
 		const result = await caught(() => load({ locals: {} } as never));
 		expect(isRedirect(result) && result.location).toBe('/keeper');
