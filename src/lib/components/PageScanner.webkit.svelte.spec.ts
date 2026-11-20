@@ -10,6 +10,15 @@ import {
 	simulateWebKitCanvas
 } from '#lib/testing/scanner.ts';
 
+// The page-finding model has its own test (scanner/segment.svelte.spec.ts).
+// Here it stands down, as on a device that can't run it, and the edge detector
+// finds the page: these tests are about the flow around detection, and a
+// second or two of inference per shot would only slow them.
+vi.mock('#lib/scanner/segment.ts', () => ({
+	warmSegmenter: async () => false,
+	segmentCorners: async () => ({ status: 'unavailable' })
+}));
+
 // The iPhone path: WebKit canvases can't encode WebP and silently return PNG.
 // Its own file so the once-per-page encode-type probe only ever sees a WebKit
 // canvas, whichever test triggers it first.

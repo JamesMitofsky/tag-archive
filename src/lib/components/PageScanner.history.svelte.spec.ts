@@ -5,6 +5,15 @@ import PageScanner from './PageScanner.svelte';
 import { pushState } from '$app/navigation';
 import { page as appPage } from '#lib/testing/shallow-routing.svelte.ts';
 
+// The page-finding model has its own test (scanner/segment.svelte.spec.ts).
+// Here it stands down, as on a device that can't run it, and the edge detector
+// finds the page: these tests are about the flow around detection, and a
+// second or two of inference per shot would only slow them.
+vi.mock('#lib/scanner/segment.ts', () => ({
+	warmSegmenter: async () => false,
+	segmentCorners: async () => ({ status: 'unavailable' })
+}));
+
 // The back gesture, through real history entries: a router stand-in replaces
 // SvelteKit's, which won't run outside an app.
 vi.mock('$app/navigation', async () => {
