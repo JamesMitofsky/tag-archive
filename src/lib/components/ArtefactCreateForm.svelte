@@ -433,7 +433,7 @@
 			<TagsField
 				name="provenance"
 				label="Provenance"
-				placeholder="Johnny B. Good"
+				placeholder="Jane Doe"
 				prefetch
 				bind:value={provenanceTags}
 			/>

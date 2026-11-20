@@ -742,6 +742,12 @@ The site runs on Vercel (`@sveltejs/adapter-vercel`, configured in
   `engine-strict` in `.npmrc` makes `pnpm install` refuse anything below 24. To
   hold production on one major instead, set `engines.node` to that major (e.g.
   `26.x`).
+- **pnpm 11**, pinned exactly by `packageManager` in `package.json`. Vercel
+  installs with it (without it, Vercel picks a pnpm by the project's creation
+  date, which meant pnpm 10), the GitHub workflows' `pnpm/action-setup` reads
+  it, and a local pnpm switches to it. The lockfile, `allowBuilds` in
+  `pnpm-workspace.yaml` and the one-day `minimumReleaseAge` that holds back
+  brand-new releases are all pnpm 11's. To upgrade, change that one line.
 - **The daily sweep** runs once a day, at some point in the hour after midnight
   UTC (the Hobby plan's cron precision). Run it by hand with
   `curl -H "Authorization: Bearer $CRON_SECRET" https://<site>/api/cron/sweep-submissions`.
