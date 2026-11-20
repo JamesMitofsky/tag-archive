@@ -120,6 +120,10 @@ img {
 	--accent-foreground: oklch(0.1776 0 0);
 	--destructive: oklch(0.6372 0.22 28.71);
 	--destructive-foreground: oklch(0.9999 0 0);
+	/* Validation and failure messages. A deep brick rather than the bright
+	   destructive red: it marks a problem without shouting, and holds 4.5:1
+	   contrast on white for small text. */
+	--error: oklch(0.5003 0.1821 29.51);
 	--border: oklch(0.8141 0 0);
 	--input: oklch(0.8141 0 0);
 	--ring: oklch(0.82 0.07 228.67);
@@ -142,6 +146,7 @@ img {
 	--accent-foreground: oklch(1 0 0);
 	--destructive: oklch(0.6372 0.22 28.71);
 	--destructive-foreground: oklch(0.9999 0 0);
+	--error: oklch(0.7891 0.0984 27.98);
 	--border: oklch(0.3867 0 0);
 	--input: oklch(0.3867 0 0);
 	--ring: oklch(0.82 0.07 228.67);
@@ -186,13 +191,6 @@ img {
 	--spacing-chrome: 4rem;
 }
 
-/* Every error / status message speaks in the friendly hand, without each call
-   site having to remember `font-friendly`. Keyed off role="alert" because that
-   is the attribute these messages already need for screen readers. */
-[role='alert'] {
-	font-family: var(--font-friendly);
-}
-
 /* Map the theme tokens to Tailwind color + radius utilities so components
    resolve bg-background / text-foreground / rounded-md / etc. */
 @theme inline {
@@ -212,6 +210,7 @@ img {
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
 	--color-destructive-foreground: var(--destructive-foreground);
+	--color-error: var(--error);
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);

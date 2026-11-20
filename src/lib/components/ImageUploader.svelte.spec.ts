@@ -100,7 +100,8 @@ describe('ImageUploader.svelte', () => {
 			expect(server.finalizing).toContainEqual({
 				originalKey: grant.originalKey,
 				displayKey: grant.displayKey,
-				name: file.name
+				name: file.name,
+				placeholder: expect.any(String)
 			});
 		}
 	});

@@ -170,7 +170,7 @@
 	</div>
 
 	{#if imageSetError && Object.keys(errors).length === 0}
-		<p class="font-friendly text-sm text-red-600" role="alert">{imageSetError}</p>
+		<FieldError message={imageSetError} class="mt-0" />
 	{/if}
 
 	<!-- Why the button is held, beside it: the uploader's own alert may be

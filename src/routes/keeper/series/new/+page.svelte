@@ -197,7 +197,7 @@
 				</fieldset>
 
 				{#if seriesError && Object.keys(errors).length === 0}
-					<p class="text-sm text-red-600" role="alert">{seriesError}</p>
+					<FieldError message={seriesError} class="mt-0" />
 				{/if}
 
 				<button

@@ -335,6 +335,23 @@ describe('finalizeImage', () => {
 		expect(fetchObject.mock.calls.filter(([key]) => key === keys.originalKey)).toHaveLength(1);
 	});
 
+	it('keeps a well-formed placeholder, and drops a malformed one without refusing', async () => {
+		const hash = 'H5sGDYRliUeUV2pDZWioEFShsOr1';
+		const kept = uploaded(KEEPER);
+		await finalizeImage({ ...kept, name: 'a.jpg', placeholder: hash }, KEEPER);
+		expect((await rowFor(kept.originalKey))?.placeholder).toBe(hash);
+
+		// Cut short, it would decode to garbage: the photograph is recorded without one.
+		const cut = uploaded(KEEPER);
+		await finalizeImage({ ...cut, name: 'b.jpg', placeholder: hash.slice(0, 24) }, KEEPER);
+		expect((await rowFor(cut.originalKey))?.placeholder).toBeNull();
+
+		const none = uploaded(KEEPER);
+		await finalizeImage({ ...none, name: 'c.jpg' }, KEEPER);
+		expect((await rowFor(none.originalKey))?.placeholder).toBeNull();
+		expect(deleteScan).not.toHaveBeenCalled();
+	});
+
 	it('keeps no name when the device gave none, and caps a long one', async () => {
 		const blank = uploaded(KEEPER);
 		await finalizeImage({ ...blank, name: '   ' }, KEEPER);

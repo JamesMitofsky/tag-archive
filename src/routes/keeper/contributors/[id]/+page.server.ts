@@ -77,7 +77,7 @@ export const actions: Actions = {
 
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
-		if (!name) return fail(400, { error: 'Name is required.' });
+		if (!name) return fail(400, { error: 'Name required' });
 
 		try {
 			await db

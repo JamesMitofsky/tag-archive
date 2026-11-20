@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
@@ -11,8 +12,19 @@ vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).pr
 const { db } = await import('./index');
 const { migrateTestDatabase } = await import('./testing');
 const { loadPublicDataset } = await import('./queries');
-const { artefact, artefactProvenance, event, eventHost, image, imageSet, person } =
-	await import('./schema');
+const {
+	artefact,
+	artefactProvenance,
+	event,
+	eventFeatureImage,
+	eventHost,
+	image,
+	imageSet,
+	person
+} = await import('./schema');
+
+/** A well-formed ThumbHash (see #lib/images/placeholder). */
+const HASH = 'H5sGDYRliUeUV2pDZWioEFShsOr1';
 
 /** An image row carrying everything that must never be published. */
 function photo(
@@ -33,6 +45,7 @@ function photo(
 		bytes: 400_000,
 		width: 2560,
 		height: 1920,
+		placeholder: id === 3 ? null : HASH,
 		capturedAt,
 		capturedOffset: '+02:00',
 		metadata: {
@@ -88,6 +101,41 @@ beforeAll(async () => {
 		photo(5, 3, 0),
 		photo(6, null, 0)
 	]);
+
+	await db.insert(event).values([
+		{ id: 3, title: 'Featuring a vetted photograph', date: '2024-08-01' },
+		{ id: 4, title: 'Featuring a pending photograph', date: '2024-08-02' },
+		{ id: 5, title: 'Featuring a vetted page', date: '2024-08-03' },
+		{ id: 6, title: 'Featuring a pending page', date: '2024-08-04' },
+		{
+			id: 7,
+			title: 'Pending, featuring a vetted photograph',
+			date: '2024-08-05',
+			proposedAddition: true
+		}
+	]);
+	await db.insert(artefact).values({
+		id: 4,
+		artefact: 'Pending poster',
+		date: '2024',
+		fileUrls: ['https://bucket.test/submissions/pending-poster.webp'],
+		proposedAddition: true
+	});
+	await db
+		.update(artefact)
+		.set({ fileUrls: ['https://bucket.test/submissions/program.webp'] })
+		.where(eq(artefact.id, 1));
+	await db.insert(eventFeatureImage).values([
+		{ eventId: 3, imageId: 3 },
+		{ eventId: 4, imageId: 5 },
+		{ eventId: 5, artefactId: 1, artefactFileUrl: 'https://bucket.test/submissions/program.webp' },
+		{
+			eventId: 6,
+			artefactId: 4,
+			artefactFileUrl: 'https://bucket.test/submissions/pending-poster.webp'
+		},
+		{ eventId: 7, imageId: 2 }
+	]);
 });
 
 describe('loadPublicDataset', () => {
@@ -98,8 +146,33 @@ describe('loadPublicDataset', () => {
 
 	it('publishes vetted events only', async () => {
 		const { events } = await loadPublicDataset();
-		expect(events.map((e) => e.title)).toEqual(['Vetted Concert']);
-		expect(events[0].hosts).toEqual(['Vetted Host']);
+		expect(events.map((e) => e.title)).not.toContain('Pending Picnic');
+		expect(events.map((e) => e.title)).not.toContain('Pending, featuring a vetted photograph');
+		expect(events.find((e) => e.id === 1)?.hosts).toEqual(['Vetted Host']);
+	});
+
+	it("publishes an event's feature image only while its source is vetted", async () => {
+		const { events } = await loadPublicDataset();
+		const feature = new Map(events.map((e) => [e.id, e.featureImage]));
+		expect(feature.get(1)).toBeNull();
+		expect(feature.get(3)).toEqual({
+			url: 'https://bucket.test/images/3/display.webp',
+			width: 2560,
+			height: 1920
+		});
+		expect(feature.get(4)).toBeNull();
+		expect(feature.get(5)).toEqual({
+			url: 'https://bucket.test/submissions/program.webp',
+			width: null,
+			height: null
+		});
+		expect(feature.get(6)).toBeNull();
+
+		// Only what renders it: no ids, no labels, nothing of the original.
+		const blob = JSON.stringify(events);
+		for (const secret of ['original', 'IMG_000', 'imageId', 'artefactId', 'setId']) {
+			expect(blob).not.toContain(secret);
+		}
 	});
 
 	it("hides a pending event's title on a vetted artefact", async () => {
@@ -136,6 +209,7 @@ describe('loadPublicDataset', () => {
 				'capturedDate',
 				'height',
 				'id',
+				'placeholder',
 				'url',
 				'width'
 			]);
@@ -145,6 +219,7 @@ describe('loadPublicDataset', () => {
 			url: 'https://bucket.test/images/2/display.webp',
 			width: 2560,
 			height: 1920,
+			placeholder: HASH,
 			capturedDate: '2024-06-01'
 		});
 
@@ -159,6 +234,11 @@ describe('loadPublicDataset', () => {
 		const { images } = await loadPublicDataset();
 		const set = images.find((s) => s.id === 2);
 		expect(set?.images.map((i) => i.capturedDate)).toEqual([null]);
+	});
+
+	it('publishes a photograph that has no placeholder yet with null', async () => {
+		const { images } = await loadPublicDataset();
+		expect(images[0].images.map((i) => i.placeholder)).toEqual([HASH, null, HASH]);
 	});
 
 	it('lists photographs in display order', async () => {

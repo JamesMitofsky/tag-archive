@@ -108,6 +108,25 @@ Image rows are written when an upload is _finalized_, before any set exists, so
 still filling in, until it attaches them on save. Ones left unattached for a day
 are swept with their objects.
 
+**Feature images.** An event can feature one image the archive already holds,
+a photograph or one page of an artefact, chosen on the form that adds the event
+or, by an admin, on its edit page. `event_feature_image` holds the choice, one row per event (no row, no
+feature image):
+
+| Column              | Notes                                                                 |
+| ------------------- | --------------------------------------------------------------------- |
+| `event_id`          | Integer PK, the event (deleted with it)                               |
+| `image_id`          | The photograph (`image`); deleted with it, and so with its set        |
+| `artefact_id`       | Or the artefact (`artefact`); deleted with it                         |
+| `artefact_file_url` | The featured page: one of that artefact's `file_urls`, exactly stored |
+
+A CHECK keeps each row to exactly one source. A page dropped from the artefact,
+or a photograph let go of by its set, leaves the row behind, so readers resolve
+it against its source every time and show nothing when it no longer resolves
+(`src/lib/server/eventFeatures.ts`). The public dataset publishes an event's
+feature image only while its source is vetted too, and only as the URL and size
+that render it.
+
 Seed data lives in `src/lib/data/seed-data.json` (parsed from the original
 exports): artefacts, events, series and people. Editing the archive's seed =
 edit that file and re-seed.
@@ -467,17 +486,17 @@ The pass is checked twice, from one rule (`src/lib/access/gate.ts`):
   under `vite dev`, which doesn't run the middleware.
 
 Without a pass, a page view lands on `/locked`; anything else gets a 401. Always
-open: `/t`, `/locked`, `/unlock`, the sign-in endpoints (`/api/auth/*`), the cron endpoint,
-and the app bundles and decor the locked page is drawn with.
+open: `/t`, `/locked`, `/unlock`, the keeper sign-in page (`/keeper`), the sign-in
+endpoints (`/api/auth/*`), the cron endpoint, and the app bundles and decor those
+pages are drawn with.
 
 **The door bypasses the tag.** Any page opens without a pass when its URL carries
 `?listeningwith=thevoiceofthegarden` (case-insensitive value;
 `src/lib/access/door.server.ts`, server-only, so the phrase never ships in the
 browser bundle). Coming through the door counts as a tap: the visitor is handed a
 pass and an upload draft, then redirected to the same URL without the phrase, so
-the rest of the site opens behind it. Keepers bookmark the sign-in page through it,
-`/keeper?listeningwith=thevoiceofthegarden`, which is otherwise locked like
-everything else. A signed-in keeper who holds no pass is
+the rest of the site opens behind it. The sign-in page at `/keeper` needs no door:
+it is open to everyone, so a keeper can always reach it to sign in. A signed-in keeper who holds no pass is
 handed one on their next page view, and the same beat keeps it sliding, so a keeper
 is never locked out for being away. The signed-in area
 (`/keeper/*`) stays open at the gate so a keeper whose pass has lapsed still

@@ -1,8 +1,10 @@
 /**
  * The door: a way into the archive without tapping the garden's NFC tag. Any
  * page of the site opens to a visitor without an access pass when its URL
- * carries `?listeningwith=thevoiceofthegarden`. Keepers bookmark the sign-in
- * page through it (KEEPER_DOOR_URL); nobody else is shown it.
+ * carries `?listeningwith=thevoiceofthegarden`. Keepers may have the sign-in
+ * page bookmarked through it (KEEPER_DOOR_URL), from when the page was locked
+ * without a pass; it is open to everyone now (see ./gate). Nobody else is
+ * shown the phrase.
  *
  * Walking through the door is a tap in all but name: SvelteKit hands the
  * visitor a pass (kind `d`, see ./pass) and an upload draft, then sends them on
@@ -19,7 +21,7 @@
 export const DOOR_PARAM = 'listeningwith';
 const DOOR_PHRASE = 'thevoiceofthegarden';
 
-/** The keeper sign-in page, opened through the door. */
+/** The keeper sign-in page through the door, as older bookmarks have it. */
 export const KEEPER_DOOR_URL = `/keeper?${DOOR_PARAM}=${DOOR_PHRASE}`;
 
 /**

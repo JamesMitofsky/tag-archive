@@ -13,15 +13,21 @@
 // excluding them just skips an invocation for every bundle and decor request,
 // each of which Vercel bills as function time.
 //
-// Imports by relative path, not $lib: Vercel bundles this file on its own,
-// outside SvelteKit's build.
+// Imports by relative path, not #lib: Vercel builds this file on its own,
+// outside SvelteKit's build. It compiles each file of the gate separately and
+// ships it as .js, leaving import paths as written, so every relative import
+// on the way to the gate names the .js file (`./edge.js`, never `./edge.ts`).
+// A .ts path names a file the deployment does not have, and every request
+// then fails with MIDDLEWARE_INVOCATION_FAILED. The project-wide fix,
+// `rewriteRelativeImportExtensions`, is not an option: it rejects the `.ts`
+// paths in the `#lib/...` imports everywhere else. gate.spec.ts enforces this.
 //
 // The `middleware.ts` file convention, not `proxy.entrypoint` in vercel.json:
 // a Vercel CLI older than the `proxy` option builds the site without the gate,
 // silently, while every CLI builds this one.
 // The middleware helpers alone, not the package's root: keeps the bundle small.
 import { next } from '@vercel/functions/middleware';
-import { gateRequest, readCookie } from './src/lib/access/edge.ts';
+import { gateRequest, readCookie } from './src/lib/access/edge.js';
 
 export default async function middleware(request: Request): Promise<Response> {
 	try {

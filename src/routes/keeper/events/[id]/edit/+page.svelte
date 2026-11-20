@@ -13,6 +13,10 @@
 	import { createValidator } from '#lib/validation/client.svelte.ts';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
+	import FeatureImagePicker, {
+		type FeatureSelection
+	} from '#lib/components/FeatureImagePicker.svelte';
+	import { encodeFeatureRef } from '#lib/featureImage.ts';
 	import type { EventFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -59,6 +63,26 @@
 	let title = $state(seed ? seed.title : data.event.title);
 	// svelte-ignore state_referenced_locally
 	let date = $state(seed ? seed.date : data.event.date);
+
+	// The feature image, seeded from the choice as it resolves now. It survives a
+	// failed submit as component state, so it needs no echo of its own.
+	// svelte-ignore state_referenced_locally
+	const stored = data.featureImage;
+	let feature = $state<FeatureSelection | null>(
+		stored && {
+			ref: encodeFeatureRef(stored.ref),
+			url: stored.url,
+			width: stored.width,
+			height: stored.height,
+			label: stored.source.label
+		}
+	);
+	// The server's refusal of a choice holds only until another one is made.
+	const featureError = $derived(
+		errors.featureImage?.[0] !== undefined && (feature?.ref ?? '') === (echoed?.featureImage ?? '')
+			? errors.featureImage[0]
+			: undefined
+	);
 
 	let submitting = $state(false);
 	let deleting = $state(false);
@@ -205,6 +229,14 @@
 					<FieldError message={validator.error('description')} />
 				</div>
 
+				<FeatureImagePicker
+					name="featureImage"
+					bind:value={feature}
+					linked={data.linkedCandidates}
+					eventId={data.event.id}
+					error={featureError}
+				/>
+
 				<div>
 					<label for="url" class="block text-sm font-medium text-gray-700">Source URL</label>
 					<Input
@@ -220,7 +252,7 @@
 				</div>
 
 				{#if eventError && Object.keys(errors).length === 0}
-					<p class="font-friendly text-sm text-red-600" role="alert">{eventError}</p>
+					<FieldError message={eventError} class="mt-0" />
 				{/if}
 
 				<button

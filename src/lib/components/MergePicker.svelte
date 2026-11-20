@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FieldError from '#lib/components/FieldError.svelte';
 	import { enhance } from '$app/forms';
 	import ArrowsMergeIcon from 'phosphor-svelte/lib/ArrowsMergeIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
@@ -62,7 +63,7 @@
 		{/if}
 	</p>
 	{#if error}
-		<p class="mt-2 text-sm text-red-600" role="alert">{error}</p>
+		<FieldError message={error} class="mt-2" />
 	{/if}
 	<form
 		method="POST"

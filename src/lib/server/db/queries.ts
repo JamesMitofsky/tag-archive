@@ -2,6 +2,7 @@ import { and, desc, eq, exists, getTableColumns, inArray, like, or, sql } from '
 import { client, db } from './index';
 import { purgeArchiveCache } from '../cache';
 import { deleteUnreferencedImages } from '../uploads';
+import { featureImagesWhere, publicFeatureImage } from '../eventFeatures';
 import { stampInsert, stampUpdate } from './audit';
 import {
 	artefact,
@@ -16,6 +17,7 @@ import {
 } from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
 import type { EventItem } from '#lib/events.ts';
+import type { FeatureImage } from '#lib/featureImage.ts';
 import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
 import { isFullDate } from '#lib/partialDate.ts';
 
@@ -131,7 +133,9 @@ export async function attachHosts<T extends { id: number }>(
  * so the list can size its scrollbar and page the rest in lazily. Search mirrors
  * the old client-side filter: title, series name, description, location, date,
  * and host names (the last via an EXISTS over the host join). Ordered newest
- * first, matching the eager loader.
+ * first, matching the eager loader. Each row carries its feature image for the
+ * list's thumbnail (see ../eventFeatures), pending sources included, as keeper
+ * pages show them.
  */
 export async function searchEvents({
 	q,
@@ -141,7 +145,7 @@ export async function searchEvents({
 	q: string;
 	offset: number;
 	limit: number;
-}): Promise<{ rows: EventWithMeta[]; total: number }> {
+}): Promise<{ rows: EventListRow[]; total: number }> {
 	const term = q.trim().toLowerCase();
 	const filter = term
 		? or(
@@ -181,10 +185,25 @@ export async function searchEvents({
 			.where(filter)
 	]);
 
-	// Hosts need the slice's ids, so this stays a follow-up round-trip.
-	const rows = await attachHosts(slice);
+	// Hosts and feature images need the slice's ids, so they are one follow-up
+	// round-trip, together. Only the rendering fields of each image ride along:
+	// a thumbnail needs no source label or ids.
+	const ids = slice.map((row) => row.id);
+	const [withHosts, features] = await Promise.all([
+		attachHosts(slice),
+		ids.length === 0
+			? new Map<number, FeatureImage>()
+			: featureImagesWhere(inArray(event.id, ids), { vettedOnly: false })
+	]);
+	const rows = withHosts.map((row) => {
+		const feature = features.get(row.id);
+		return { ...row, featureImage: feature ? publicFeatureImage(feature) : null };
+	});
 	return { rows, total };
 }
+
+/** An event as the keeper list reads it: `EventWithMeta` plus its thumbnail's image. */
+export type EventListRow = EventWithMeta & { featureImage: FeatureImage | null };
 
 /** The public archive blob: everything the public pages search, client-side. */
 export type PublicDataset = {
@@ -211,12 +230,15 @@ export type PublicDataset = {
  *    an artefact's, and each photograph as a whitelist of fields (see
  *    `PublicImage`). An image row also holds the original's URL, its parsed
  *    metadata and its exact capture time, any of which can carry GPS or
- *    device details — so its columns are picked one by one, never spread.
+ *    device details — so its columns are picked one by one, never spread;
+ *  - an event's feature image: only while the photograph's set, or the
+ *    artefact the page belongs to, is itself vetted, and only as the URL and
+ *    size that render it — the photograph's display copy, never its original.
  */
 export async function loadPublicDataset(): Promise<PublicDataset> {
 	const vettedEvent = and(eq(artefact.eventId, event.id), eq(event.proposedAddition, false));
 	const vettedSetEvent = and(eq(imageSet.eventId, event.id), eq(event.proposedAddition, false));
-	const [artefactRows, eventRows, personRows, setRows, imageRows] = await Promise.all([
+	const [artefactRows, eventRows, personRows, setRows, imageRows, features] = await Promise.all([
 		db
 			.select({ ...getTableColumns(artefact), event: event.title })
 			.from(artefact)
@@ -270,12 +292,15 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 				url: image.url,
 				width: image.width,
 				height: image.height,
+				placeholder: image.placeholder,
 				capturedDate: sql<string | null>`substr(${image.capturedAt}, 1, 10)`
 			})
 			.from(image)
 			.innerJoin(imageSet, eq(image.setId, imageSet.id))
 			.where(eq(imageSet.proposedAddition, false))
-			.orderBy(image.setId, image.position, image.id)
+			.orderBy(image.setId, image.position, image.id),
+		// Vetted events' feature images, each only while its own source is vetted.
+		featureImagesWhere(eq(event.proposedAddition, false), { vettedOnly: true })
 	]);
 
 	const [artefacts, eventsWithHosts] = await Promise.all([
@@ -290,7 +315,9 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 		location: e.location,
 		description: e.description,
 		hosts: e.hosts,
-		url: e.url
+		url: e.url,
+		// Rendering fields only: which row it came from stays with the keepers.
+		featureImage: features.has(e.id) ? publicFeatureImage(features.get(e.id)!) : null
 	}));
 
 	const imagesBySet = new Map<number, PublicImage[]>();
@@ -303,6 +330,7 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 			url: row.url,
 			width: row.width,
 			height: row.height,
+			placeholder: row.placeholder,
 			capturedDate: row.capturedDate && isFullDate(row.capturedDate) ? row.capturedDate : null
 		});
 		imagesBySet.set(row.setId, list);

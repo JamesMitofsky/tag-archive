@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FieldError from '#lib/components/FieldError.svelte';
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import BackButton from '#lib/components/BackButton.svelte';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
@@ -116,7 +117,7 @@
 								Now {roleLabel(account.role)}
 							</p>
 						{:else if errorFor?.id === account.id}
-							<p class="mt-2 text-sm text-red-600" role="alert">{errorFor.message}</p>
+							<FieldError message={errorFor.message} class="mt-2" />
 						{/if}
 					</li>
 				{:else}

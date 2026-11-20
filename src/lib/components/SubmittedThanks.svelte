@@ -181,7 +181,7 @@
 				<FieldError message={contactValidator.error('email')} />
 			</div>
 			{#if contactError && Object.keys(contactErrors).length === 0}
-				<p class="font-friendly text-sm text-red-600" role="alert">{contactError}</p>
+				<FieldError message={contactError} class="mt-0" />
 			{/if}
 			<button
 				type="submit"

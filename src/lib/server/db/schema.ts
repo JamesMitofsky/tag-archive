@@ -340,6 +340,11 @@ export const image = sqliteTable(
 		bytes: integer('bytes').notNull(),
 		width: integer('width').notNull(),
 		height: integer('height').notNull(),
+		// The photograph's ThumbHash, base64 (see #lib/images/placeholder): the
+		// blur a print shows while its pixels load. NULL when the uploader's
+		// browser couldn't make one, or for a row not yet backfilled
+		// (scripts/backfill-placeholders.ts).
+		placeholder: text('placeholder'),
 		// Wall-clock capture time `YYYY-MM-DDTHH:MM:SS` (or `YYYY-MM-DD` when the
 		// photo only records a day, as some XMP dates do) from the photo's own
 		// metadata, as the camera recorded it (no time zone applied), or NULL.
@@ -371,6 +376,45 @@ export const imageSetContact = sqliteTable('image_set_contact', {
 	email: text('email'),
 	...auditColumns()
 });
+
+/**
+ * The one image an event features (see #lib/server/eventFeatures): either a
+ * photograph (`image_id`) or one page of an artefact's scans (`artefact_id`
+ * plus the page's URL, since an artefact's pages are URLs in its `file_urls`
+ * rather than rows). One row per event; no row means no feature image.
+ *
+ * A row of its own rather than columns on `event` so every way the source can
+ * go away takes the choice with it: deleting the event, the photograph (or the
+ * set it belongs to) or the artefact cascades here. What a cascade can't see is
+ * an artefact page dropped from `file_urls`, or a photograph detached from its
+ * set, so readers resolve the row against its source every time and treat a
+ * page or photograph that is no longer there as no feature image.
+ *
+ * The CHECK keeps the row to exactly one source, so it can never name both a
+ * photograph and a page, or a page without its artefact.
+ */
+export const eventFeatureImage = sqliteTable(
+	'event_feature_image',
+	{
+		eventId: integer('event_id')
+			.primaryKey()
+			.references(() => event.id, { onDelete: 'cascade' }),
+		imageId: integer('image_id').references(() => image.id, { onDelete: 'cascade' }),
+		artefactId: integer('artefact_id').references(() => artefact.id, { onDelete: 'cascade' }),
+		// The featured page: one of the artefact's `file_urls`, exactly as stored there.
+		artefactFileUrl: text('artefact_file_url'),
+		...auditColumns()
+	},
+	(t) => [
+		// A cascade from `image` or `artefact` looks rows up by these columns.
+		index('event_feature_image_image_id_idx').on(t.imageId),
+		index('event_feature_image_artefact_id_idx').on(t.artefactId),
+		check(
+			'event_feature_image_source_check',
+			sql`(${t.imageId} IS NOT NULL AND ${t.artefactId} IS NULL AND ${t.artefactFileUrl} IS NULL) OR (${t.imageId} IS NULL AND ${t.artefactId} IS NOT NULL AND ${t.artefactFileUrl} IS NOT NULL)`
+		)
+	]
+);
 
 /**
  * Fixed-window request counters for anonymous writes (see
@@ -447,7 +491,11 @@ export const eventRelations = relations(event, ({ one, many }) => ({
 	series: one(series, { fields: [event.seriesId], references: [series.id] }),
 	hosts: many(eventHost),
 	artefacts: many(artefact),
-	imageSets: many(imageSet)
+	imageSets: many(imageSet),
+	featureImage: one(eventFeatureImage, {
+		fields: [event.id],
+		references: [eventFeatureImage.eventId]
+	})
 }));
 export const personRelations = relations(person, ({ many }) => ({
 	artefacts: many(artefactProvenance),
@@ -504,6 +552,7 @@ export type NewImageSet = typeof imageSet.$inferInsert;
 export type Image = typeof image.$inferSelect;
 export type NewImage = typeof image.$inferInsert;
 export type ImageSetContact = typeof imageSetContact.$inferSelect;
+export type EventFeatureImage = typeof eventFeatureImage.$inferSelect;
 /**
  * Image set as the keeper views read it: linked event title flattened in (null
  * when unlinked) and its images in display order.

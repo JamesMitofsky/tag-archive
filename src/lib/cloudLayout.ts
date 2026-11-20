@@ -147,7 +147,22 @@ export interface Placed<T> {
 	/** Where this card flies out to when dismissed, in px. */
 	offX: number;
 	offY: number;
+	/**
+	 * Where it goes instead when the whole cloud is put away, when that is a
+	 * particular place rather than off-screen (see `spillFrom`). Offset from the
+	 * card's own position, like `offX`/`offY`.
+	 */
+	homeX?: number;
+	homeY?: number;
+	/** Flies the card in from `offX`/`offY`: any arrival, as a rule. */
 	enterStyle: string;
+	/**
+	 * Replaces `enterStyle` for the cloud's FIRST arrival only, when that comes
+	 * from somewhere other than off-screen (see `spillFrom`). A card rejoining
+	 * later, after a neighbor it scattered for is closed, comes back from where
+	 * it scattered to, which is `enterStyle`.
+	 */
+	arrivalStyle?: string;
 	style: string;
 }
 
@@ -210,8 +225,16 @@ export function cardMargin(cardW: number, cardH: number): { x: number; y: number
 	};
 }
 
-/** Card size and how many of them the field can hold. */
-export function measureCloud(f: FieldInput): CloudLayout {
+/**
+ * Card size and how many of them the field can hold.
+ *
+ * `fit` asks for room for exactly that many cards rather than for as many as
+ * look good: an opened packet must show everything it holds, so instead of
+ * capping the count, the cards shrink (never below the legibility floor) until
+ * the free area carries them all at the usual density. Past the floor they
+ * overlap more, which the hover-to-front stacking already copes with.
+ */
+export function measureCloud(f: FieldInput, fit?: number): CloudLayout {
 	const { fieldW, fieldH, fullViewport } = f;
 
 	// Stacked: tile into scrolling columns. The card width is whatever makes two
@@ -238,25 +261,40 @@ export function measureCloud(f: FieldInput): CloudLayout {
 		Math.min(fieldW * CARD_W_FRAC, (fieldH * CARD_H_FRAC) / A4),
 		CARD_MAX
 	);
+
+	if (fit === undefined) {
+		const at = surroundAt(f, cardW);
+		return { ...at, cap: clamp(CAP_MIN, at.room, CAP_MAX) };
+	}
+
+	// Shrink in coarse steps: a few pixels of card width are invisible, and each
+	// step costs a pass over the lattice.
+	for (let w = cardW; ; w = Math.max(CARD_MIN, w - FIT_STEP)) {
+		const at = surroundAt(f, w);
+		if (at.room >= fit || w === CARD_MIN) return { ...at, cap: Math.max(0, fit) };
+	}
+}
+
+/** Shrink step when fitting a given count (see `measureCloud`). */
+const FIT_STEP = 8;
+
+/** The surround layout at a given card width, with its uncapped room. */
+function surroundAt(f: FieldInput, cardW: number) {
 	const cardH = cardW * A4;
 
 	// Reach of a card's CENTRE, so that its swept box still lands inside the field.
 	const margin = cardMargin(cardW, cardH);
-	const availX = Math.max(1, fieldW / 2 - margin.x);
-	const availY = Math.max(1, fieldH / 2 - margin.y);
+	const availX = Math.max(1, f.fieldW / 2 - margin.x);
+	const availY = Math.max(1, f.fieldH / 2 - margin.y);
 
 	// How many cards the free part of the window can carry. Free area is measured
 	// the same way the placement measures it — by counting lattice slots a card
 	// can legally stand on — so the count and the placement can never disagree.
 	const slots = freeSlots(f, cardW, cardH, availX, availY);
 	const freeArea = slots.length * SLOT_STEP * SLOT_STEP;
-	const cap = clamp(
-		CAP_MIN,
-		Math.round((OCCUPANCY_SURROUND * freeArea) / (cardW * cardH)),
-		CAP_MAX
-	);
+	const room = Math.round((OCCUPANCY_SURROUND * freeArea) / (cardW * cardH));
 
-	return { mode: 'surround', cols: 1, cardW, cardH, cap, availX, availY };
+	return { mode: 'surround' as const, cols: 1, cardW, cardH, availX, availY, room };
 }
 
 /**
@@ -360,21 +398,75 @@ export function placeCloud<T extends { id: number }>(
 	const slots = pickSlots(freeSlots(f, layout.cardW, layout.cardH, availX, availY), n);
 
 	return items.map((item, idx) => {
-		const rnd = mulberry32(item.id * 2654435761 + 1);
 		const k = rankOf[idx];
-		const slot = slots[k] ?? { x: 0, y: 0 };
-		const dx = slot.x;
-		const dy = slot.y;
-
-		// Fly in from, and out to, whichever edge the card faces — scaled to the
-		// field, so a phone doesn't fling a card four screen-widths away.
-		const offX = Math.sign(dx || 1) * (0.6 + rnd() * 0.4) * f.fieldW;
-		const offY = Math.sign(dy || 1) * (0.55 + rnd() * 0.45) * f.fieldH;
-		const enterDelay = (Math.min(k, 12) * 0.05).toFixed(2); // staggered cascade
-		const enterStyle = `--ex:${offX.toFixed(0)}px;--ey:${offY.toFixed(0)}px;--edelay:${enterDelay}s`;
-
-		return { item, dx, dy, offX, offY, enterStyle, style: driftStyle(rnd) };
+		return placeAt(item, slots[k] ?? { x: 0, y: 0 }, f, item.id, k);
 	});
+}
+
+/**
+ * One card of the surround layout, standing at `at`. Its motion (where it flies
+ * from and to, and how it drifts) is drawn from `seed`, which is the card's own
+ * id as a rule; `pinAt` passes another one to keep a card looking the same while
+ * it changes identity.
+ */
+function placeAt<T>(
+	item: T,
+	at: { x: number; y: number },
+	f: FieldInput,
+	seed: number,
+	rank: number
+): Placed<T> {
+	const rnd = mulberry32(seed * 2654435761 + 1);
+	const dx = at.x;
+	const dy = at.y;
+
+	// Fly in from, and out to, whichever edge the card faces — scaled to the
+	// field, so a phone doesn't fling a card four screen-widths away.
+	const offX = Math.sign(dx || 1) * (0.6 + rnd() * 0.4) * f.fieldW;
+	const offY = Math.sign(dy || 1) * (0.55 + rnd() * 0.45) * f.fieldH;
+	const enterDelay = (Math.min(rank, 12) * 0.05).toFixed(2); // staggered cascade
+	const enterStyle = `--ex:${offX.toFixed(0)}px;--ey:${offY.toFixed(0)}px;--edelay:${enterDelay}s`;
+
+	return { item, dx, dy, offX, offY, enterStyle, style: driftStyle(rnd) };
+}
+
+/**
+ * A surround card held at a given spot rather than given a slot: an open
+ * packet's face, which stays exactly where the packet stood (see CardCloud).
+ *
+ * `seed` is the id of the card it stands in for, and it decides the drift, so
+ * that a card taking over another's element carries on the very same float:
+ * swapping drift parameters mid-animation would make it jump.
+ */
+export function pinAt<T>(
+	item: T,
+	at: { x: number; y: number },
+	f: FieldInput,
+	seed: number
+): Placed<T> {
+	return placeAt(item, at, f, seed, 0);
+}
+
+/**
+ * The box a card centred at `at` sweeps as it drifts and tilts, in viewport
+ * coordinates: a no-go zone that keeps the rest of a cloud off a pinned card.
+ * Only meaningful for the surround layout, where the field is the viewport.
+ */
+export function sweptRect(
+	f: FieldInput,
+	at: { x: number; y: number },
+	cardW: number,
+	cardH: number
+): Rect {
+	const m = cardMargin(cardW, cardH);
+	const halfX = m.x - EDGE_PAD;
+	const halfY = m.y - EDGE_PAD;
+	return {
+		left: f.fieldW / 2 + at.x - halfX,
+		top: f.fieldH / 2 + at.y - halfY,
+		width: 2 * halfX,
+		height: 2 * halfY
+	};
 }
 
 /**
@@ -419,4 +511,40 @@ function pickSlots(slots: { x: number; y: number }[], n: number): { x: number; y
 		if (near[best] < 0) break;
 	}
 	return picked;
+}
+
+/** Gap between successive cards leaving a packet, in seconds. */
+const SPILL_STAGGER = 0.025;
+/** Cards after this many all leave together, so a full packet doesn't dawdle. */
+const SPILL_STAGGER_MAX = 24;
+
+/**
+ * A placed cloud re-aimed at one point, for a packet opening: every card flies
+ * in FROM `origin` rather than from off-screen, so the packet's contents spill
+ * out of it across the sky, and `homeX`/`homeY` send each one back INTO it when
+ * the packet is put away. `origin` is a centre offset, like a card's `dx`/`dy`.
+ *
+ * Nothing fades on the way. The cards are coming out from under the packet's
+ * face, which stays put (see CardCloud), so they are fully there the whole time:
+ * hidden while they are behind it, and seen as they clear its edge. A card
+ * fading in would read as one materialising beside the packet instead
+ * (`--eo` is the opacity the entrance starts from).
+ *
+ * The spill goes in `arrivalStyle`, not `enterStyle`. It describes the moment
+ * the packet opens and nothing after it: a card that scatters off-screen while a
+ * neighbor is open (`offX`/`offY`, left alone here) has to come back from that
+ * same edge, or it would be seen leaving one way and returning from the middle.
+ */
+export function spillFrom<T>(placed: Placed<T>[], origin: { x: number; y: number }): Placed<T>[] {
+	return placed.map((p, k) => {
+		const homeX = origin.x - p.dx;
+		const homeY = origin.y - p.dy;
+		const delay = (Math.min(k, SPILL_STAGGER_MAX) * SPILL_STAGGER).toFixed(3);
+		return {
+			...p,
+			homeX,
+			homeY,
+			arrivalStyle: `--ex:${homeX.toFixed(0)}px;--ey:${homeY.toFixed(0)}px;--edelay:${delay}s;--eo:1`
+		};
+	});
 }

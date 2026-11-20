@@ -14,21 +14,18 @@
  *    production, and the only gate under `vite dev`, where the middleware
  *    doesn't run.
  *
- * Imports nothing but its siblings, by relative path, so the middleware bundle
- * can load it. Server and middleware only: the browser gets LOCKED_PATH from
+ * Imports nothing but its siblings, by relative path with a .js extension, so
+ * the middleware bundle can load it (see middleware.ts). Server and middleware only: the browser gets LOCKED_PATH from
  * ./paths.
  */
 
-import { opensDoor } from './door.server.ts';
-import { carriesKey, UNLOCK_PATH } from './key.server.ts';
-import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.ts';
+import { opensDoor } from './door.server.js';
+import { carriesKey, UNLOCK_PATH } from './key.server.js';
+import { CONTRIBUTE_PATH, isUnder, KEEPER_PATH, LOCKED_PATH, PRESENCE_PATH } from './paths.js';
 
 export { LOCKED_PATH };
 
 export type GateDecision = 'open' | 'unlock' | 'redirect' | 'refuse';
-
-/** The keeper sign-in page: closed without a pass, like any other page. */
-const KEEPER_GATE = KEEPER_PATH;
 
 /** Paths that are always open, exactly. */
 const OPEN_EXACT = new Set([
@@ -37,6 +34,12 @@ const OPEN_EXACT = new Set([
 	LOCKED_PATH,
 	// Where a navigation carrying an unlock key is checked (./key.server).
 	UNLOCK_PATH,
+	// The keeper sign-in page, so a keeper can always reach it to sign in, from
+	// anywhere, like the locked page. It shows nothing from the archive, and
+	// signing in still takes a one-time code emailed to an existing account.
+	// The keeper tools beneath it are open at the gate too (OPEN_PREFIXES) but
+	// guarded by session in hooks.server.ts (see #lib/server/keeperGuard).
+	KEEPER_PATH,
 	// The presence beat. Open here for the same reason as /keeper/ below: a
 	// signed-in keeper whose pass has lapsed must reach SvelteKit, where their
 	// session mints a new one. The route itself answers 401 to anyone without a
@@ -54,9 +57,8 @@ const OPEN_EXACT = new Set([
  */
 export const OPEN_PREFIXES = [
 	// Every route checks the keeper session (see keeperGuard), and an anonymous
-	// visit is sent to /keeper, which is locked without a pass. Open here so that a
-	// keeper whose pass has lapsed still reaches SvelteKit, where their session
-	// renews it.
+	// visit is sent to the sign-in page at /keeper. Open here so that a keeper
+	// whose pass has lapsed still reaches SvelteKit, where their session renews it.
 	'/keeper/',
 	'/api/auth/', // better-auth sign-in endpoints
 	'/api/cron/', // bearer-authenticated scheduled jobs
@@ -74,9 +76,6 @@ export function routePath(pathname: string): string {
 
 export function isOpenPath(pathname: string): boolean {
 	const route = routePath(pathname);
-	// `/keeper/` and `/keeper/__data.json` match the keeper prefix below, but they
-	// are the sign-in page all the same, which is locked like any other page.
-	if (route === KEEPER_GATE) return false;
 	return OPEN_EXACT.has(route) || OPEN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
