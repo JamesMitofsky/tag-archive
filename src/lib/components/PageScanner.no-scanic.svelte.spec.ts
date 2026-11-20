@@ -8,7 +8,7 @@ import PageScanner from './PageScanner.svelte';
 // finds the page: these tests are about the flow around detection, and a
 // second or two of inference per shot would only slow them.
 vi.mock('#lib/scanner/segment.ts', () => ({
-	warmSegmenter: () => {},
+	warmSegmenter: async () => false,
 	segmentCorners: async () => ({ status: 'unavailable' })
 }));
 

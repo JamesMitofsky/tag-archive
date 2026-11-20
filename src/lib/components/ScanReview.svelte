@@ -12,6 +12,7 @@
 	import CornerEditorSurface from './CornerEditorSurface.svelte';
 	import { cornerList, type CornerPoints } from '#lib/scanner/detect.ts';
 	import { releaseCanvas } from '#lib/scanner/image.ts';
+	import { describeRemaining } from '#lib/scanner/progress.ts';
 
 	// The crop step after a camera run: every photo just taken, one at a time,
 	// with the page found on the still photo and the corners there to correct.
@@ -20,6 +21,7 @@
 	let {
 		shots,
 		load,
+		estimate,
 		onChange,
 		onDiscard,
 		onDiscardAll,
@@ -38,6 +40,11 @@
 			corners: CornerPoints | null;
 			found: CornerPoints | null;
 		} | null>;
+		/**
+		 * Milliseconds until `load` will have the photo, counted down while it is
+		 * waited on. `null` while there is nothing to base a figure on yet.
+		 */
+		estimate?: (id: string) => number | null;
 		/** Every corner change, so moving between photos keeps corrections. */
 		onChange: (id: string, corners: CornerPoints) => void;
 		onDiscard: (id: string) => void;
@@ -75,6 +82,25 @@
 	let loadFailed = $state(false);
 	let editorFailed = $state(false);
 	const loading = $derived(!view && !loadFailed);
+	/**
+	 * What is left of the wait for the photo showing, so a wait of several
+	 * seconds reads as work under way with an end in sight, not as a stall.
+	 */
+	const remaining = $derived(loading && currentId && estimate ? estimate(currentId) : undefined);
+	/** The longest this photo's wait has been put at: what the bar fills against. */
+	let longest = $state(0);
+	$effect(() => {
+		if (typeof remaining === 'number' && remaining > untrack(() => longest)) longest = remaining;
+	});
+	const waitNote = $derived.by(() => {
+		if (remaining === undefined) return '';
+		// Detection itself is still loading: how long is the network's to say.
+		if (remaining === null) return 'Getting ready to find pages…';
+		return describeRemaining(remaining);
+	});
+	const waitDone = $derived(
+		typeof remaining === 'number' && longest > 0 ? Math.min(1, 1 - remaining / longest) : null
+	);
 	/** Just opened from the camera: Next/Done hold off a moment. */
 	let arriving = $state(true);
 	/**
@@ -97,6 +123,7 @@
 		let stale = false;
 		view = null;
 		current = null;
+		longest = 0;
 		loadFailed = false;
 		editorFailed = false;
 		settling = true;
@@ -327,8 +354,25 @@
 				class="absolute inset-0 h-full w-full object-contain {loadFailed ? '' : 'opacity-40'}"
 			/>
 			{#if !loadFailed}
-				<div class="absolute inset-0 flex items-center justify-center text-white/80">
+				<!-- Hidden from screen readers: the heading already says the page is
+				     being found, and a figure that changes every second would be read
+				     out every second. -->
+				<div
+					aria-hidden="true"
+					class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-white/80"
+				>
 					<CircleNotchIcon size={28} class="animate-spin" />
+					{#if waitNote}
+						<p data-testid="wait-note">{waitNote}</p>
+					{/if}
+					{#if waitDone !== null}
+						<div class="h-1 w-40 overflow-hidden rounded-full bg-white/20">
+							<div
+								class="h-full rounded-full bg-white/80 transition-[width] duration-300 ease-linear"
+								style:width="{Math.round(waitDone * 100)}%"
+							></div>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		{/if}
@@ -394,7 +438,11 @@
 			<span
 				class="flex size-12 items-center justify-center rounded-full bg-white text-black transition group-hover:bg-white/90"
 			>
-				{#if isLast}
+				{#if loading}
+					<!-- Held, and showing why: a dimmed arrow alone reads as a button
+					     that has stopped answering. -->
+					<CircleNotchIcon size={24} weight="bold" class="animate-spin" />
+				{:else if isLast}
 					<CheckIcon size={24} weight="bold" />
 				{:else}
 					<ArrowRightIcon size={24} weight="bold" />

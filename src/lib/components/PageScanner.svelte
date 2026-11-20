@@ -27,6 +27,7 @@
 		withExtension
 	} from '#lib/scanner/image.ts';
 	import { MAX_SCAN_BYTES, SCAN_TOO_LARGE } from '#lib/scanner/limits.ts';
+	import { remainingMs, typicalMs, type Waiting } from '#lib/scanner/progress.ts';
 	import { createSerialQueue } from '#lib/scanner/serial.ts';
 	import { decodeImage } from '#lib/images/decode.ts';
 	import { sniffImageType } from '#lib/imageType.ts';
@@ -274,6 +275,40 @@
 	/** Full-size image work, one photo at a time. */
 	const heavy = createSerialQueue();
 
+	// --- How long the page-finding still has to run, for the review's loader ---
+
+	/** Shots whose page hasn't been found yet, in the order they will be. */
+	let preparing = $state.raw<Waiting[]>([]);
+	/** How long finding the page took in each photo so far (ms). */
+	const durations: number[] = [];
+	let typical = $state(typicalMs(durations));
+	/** Detection has loaded (or given way to its fallback), so photos take their usual time. */
+	let detectionWarm = $state(false);
+	/** Ticks while anything is waiting, to count the estimate down. */
+	let clock = $state(Date.now());
+
+	$effect(() => {
+		if (preparing.length === 0) return;
+		clock = Date.now();
+		const timer = setInterval(() => (clock = Date.now()), 250);
+		return () => clearInterval(timer);
+	});
+
+	function stopWaiting(id: string) {
+		preparing = preparing.filter((item) => item.id !== id);
+	}
+
+	/**
+	 * Milliseconds until the page has been found in shot `id`: 0 once it has,
+	 * null while there is nothing to base a figure on (detection is still
+	 * loading and no photo has been timed).
+	 */
+	function estimateShot(id: string): number | null {
+		if (!preparing.some((item) => item.id === id)) return 0;
+		if (!detectionWarm && durations.length === 0) return null;
+		return remainingMs(preparing, id, typical, clock);
+	}
+
 	/** The shutter: keep the frame, find the page in it later. Nothing is uploaded yet. */
 	function onCaptured(frame: HTMLCanvasElement) {
 		const id = crypto.randomUUID();
@@ -289,7 +324,25 @@
 		original.catch(() => {});
 		originals.set(id, original);
 		// Queued now, so photos are prepared in the order they were shot.
-		const task = heavy.run(async () => prepareShot(id, await original));
+		preparing = [...preparing, { id, startedAt: null }];
+		const task = heavy.run(async () => {
+			const started = Date.now();
+			// Timed only at detection's usual speed: a photo that sat through the
+			// model's download says nothing about how long the next will take.
+			const timed = detectionWarm;
+			preparing = preparing.map((item) => (item.id === id ? { id, startedAt: started } : item));
+			try {
+				const result = await prepareShot(id, await original);
+				// Null: discarded before its turn, which took no time at all.
+				if (result && timed) {
+					durations.push(Date.now() - started);
+					typical = typicalMs(durations);
+				}
+				return result;
+			} finally {
+				stopWaiting(id);
+			}
+		});
 		// Failures surface where the photo is used (the review, the upload).
 		task.catch(() => {});
 		prepared.set(id, task);
@@ -340,6 +393,7 @@
 	}
 
 	function discardShot(id: string) {
+		stopWaiting(id);
 		prepared.delete(id);
 		edits.delete(id);
 		originals.delete(id);
@@ -354,6 +408,8 @@
 			edits.delete(shot.id);
 			originals.delete(shot.id);
 		}
+		// Their turns still come round, but each is skipped at once.
+		preparing = [];
 		shots = [];
 		stage = 'camera';
 	}
@@ -811,7 +867,7 @@
 		stage = 'camera';
 		// The live view doesn't run detection, so start loading it now, while the
 		// camera warms up, rather than on the first shot.
-		warmDetection();
+		void warmDetection().then(() => (detectionWarm = true));
 	}
 
 	// Block submit while any upload is in flight, or has failed: a failed page is
@@ -923,6 +979,7 @@
 		<ScanReview
 			{shots}
 			load={loadShot}
+			estimate={estimateShot}
 			onChange={(id, corners) => edits.set(id, corners)}
 			onDiscard={discardShot}
 			onDiscardAll={discardRun}

@@ -42,12 +42,15 @@ export function getScanner(): Promise<Scanner | null> {
 
 /**
  * Start loading what detection needs (the segmentation model and scanic), so
- * the first photo doesn't wait for a download.
+ * the first photo doesn't wait for a download. Resolves once detection will
+ * answer at its usual speed, whichever detector that turns out to be; until
+ * then, how long a photo will take is anyone's guess.
  */
-export function warmDetection(): void {
+export async function warmDetection(): Promise<void> {
 	if (!browser) return;
-	warmSegmenter();
-	void getScanner();
+	// getScanner never rejects; the segmenter shouldn't, but a warm-up must
+	// not be what breaks the camera.
+	await Promise.all([getScanner(), warmSegmenter().catch(() => false)]);
 }
 
 /**

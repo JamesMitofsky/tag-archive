@@ -93,9 +93,14 @@ function request(rgba?: Uint8ClampedArray, timeoutMs?: number): Promise<SegmentR
 	});
 }
 
-/** Start fetching the model and runtime, so the first photo doesn't wait for them. */
-export function warmSegmenter(): void {
-	void request();
+/**
+ * Start fetching the model and runtime, so the first photo doesn't wait for
+ * them. Resolves once photos will be answered promptly: true when the model
+ * is ready, false when it could not be loaded, or hasn't been in the time a
+ * photo would wait for it, so photos are going to the fallback instead.
+ */
+export async function warmSegmenter(): Promise<boolean> {
+	return (await request(undefined, TIMEOUT_MS)).ok;
 }
 
 /** `source` squashed to the square the model reads, as RGBA. */
