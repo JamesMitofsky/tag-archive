@@ -1,9 +1,10 @@
 <!--
-	Archive Stream, the iPad side: a frosted pane of slowly moving color that
+	Archive Stream, the iPad side: a pane of soft, blurry pools of color that
 	shows nothing of the archive. It is the water. One finger in it moves the
-	field on the projector. Its glow takes the color of whatever is in focus
-	there, and a ripple answers the finger at once, whatever the network is
-	doing, so the touch never feels unanswered.
+	field on the projector, and the pools move with the finger right here, at
+	once, whatever the network is doing, so the touch never feels unanswered.
+	After a flick they glide on and slow just as the projector's field does.
+	Their color is that of whatever is in focus on the wall.
 
 	One finger only: the first to touch owns the gesture and any others are
 	ignored, so a resting palm or a second hand can't make the field jitter.
@@ -15,7 +16,8 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { PUBLIC_INSTALLATION_RELAY_URL } from '$app/env/public';
-	import { releaseVelocity, type Sample } from '#lib/installation/physics.ts';
+	import { wrapDelta } from '#lib/installation/field.ts';
+	import { decay, releaseVelocity, TUNING, type Sample } from '#lib/installation/physics.ts';
 	import {
 		connectRelay,
 		readRelayConfig,
@@ -25,24 +27,31 @@
 
 	/** Seconds without a touch before the invitation shows again. */
 	const INVITE_AFTER = 30;
-	/** A new ripple once the finger has moved this far (px) since the last. */
-	const RIPPLE_EVERY = 46;
-	const MAX_RIPPLES = 14;
+	/** The water's own slow drift when nobody is touching it (px/s). */
+	const DRIFT = { x: 7, y: 3 };
 
-	type Ripple = { id: number; x: number; y: number };
+	/**
+	 * The pools of color. `u`, `v` place each on the wrapping water (0..1);
+	 * `size` is its diameter as a share of the screen's longer side; `depth`
+	 * is how far it moves for a finger's travel, so the pools slide past one
+	 * another like water rather than as one rigid sheet; `tone` picks its
+	 * color: the focus glow, a deeper shade of it, a paler wash, or the sky.
+	 */
+	const POOLS = [
+		{ u: 0.12, v: 0.2, size: 0.95, depth: 1, tone: 'deep' },
+		{ u: 0.55, v: 0.1, size: 0.8, depth: 0.82, tone: 'sky' },
+		{ u: 0.82, v: 0.55, size: 1.05, depth: 1.12, tone: 'deep' },
+		{ u: 0.35, v: 0.68, size: 0.85, depth: 0.9, tone: 'pale' },
+		{ u: 0.68, v: 0.88, size: 0.7, depth: 1.2, tone: 'sky' },
+		{ u: 0.05, v: 0.82, size: 0.75, depth: 0.75, tone: 'pale' },
+		{ u: 0.45, v: 0.38, size: 0.6, depth: 1.05, tone: 'glow' }
+	] as const;
 
 	let surface: HTMLElement | undefined = $state();
-	let ripples = $state<Ripple[]>([]);
+	const pools: HTMLElement[] = $state([]);
 	let inviting = $state(true);
 	let glow = $state<[number, number, number]>([148, 202, 231]);
 	let connection = $state<RelayState | 'unconfigured'>('connecting');
-
-	let nextRipple = 0;
-	function ripple(x: number, y: number) {
-		const id = nextRipple++;
-		ripples = [...ripples.slice(-(MAX_RIPPLES - 1)), { id, x, y }];
-		setTimeout(() => (ripples = ripples.filter((r) => r.id !== id)), 1400);
-	}
 
 	onMount(() => {
 		let relay: Relay | null = null;
@@ -94,12 +103,49 @@
 		// the iPad reports touches at up to 240 Hz, far more than the projector draws.
 		let finger: number | null = null;
 		let last = { x: 0, y: 0 };
-		let lastRipple = { x: 0, y: 0 };
 		let pendingX = 0;
 		let pendingY = 0;
 		let samples: Sample[] = [];
 		let lastTouch = performance.now();
 		let frame = 0;
+
+		// The water: how far it has been moved, and how fast it glides on.
+		const water = { x: 0, y: 0 };
+		let glide = { x: 0, y: 0 };
+		let viewW = window.innerWidth;
+		let viewH = window.innerHeight;
+		let lastFrame = performance.now();
+		const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+		const onResize = () => {
+			viewW = window.innerWidth;
+			viewH = window.innerHeight;
+		};
+		window.addEventListener('resize', onResize);
+
+		/**
+		 * Place every pool. The water wraps around a span one pool wider than
+		 * the screen on each side, so a pool leaves one edge wholly faded out
+		 * before it comes back in at the other, and the jump is never seen.
+		 */
+		const drawWater = (seconds: number) => {
+			const longer = Math.max(viewW, viewH);
+			const reach = longer * 0.6;
+			const spanW = viewW + 2 * reach;
+			const spanH = viewH + 2 * reach;
+			POOLS.forEach((pool, i) => {
+				const node = pools[i];
+				if (!node) return;
+				const size = pool.size * longer;
+				// A slow sway of its own, so the water is never quite still.
+				const swayX = still.matches ? 0 : Math.sin(seconds / (11 + i * 2) + i) * 18;
+				const swayY = still.matches ? 0 : Math.cos(seconds / (13 + i * 3) + i * 2) * 14;
+				const x = viewW / 2 + wrapDelta(pool.u * spanW + water.x * pool.depth + swayX, spanW);
+				const y = viewH / 2 + wrapDelta(pool.v * spanH + water.y * pool.depth + swayY, spanH);
+				node.style.width = `${size}px`;
+				node.style.height = `${size}px`;
+				node.style.transform = `translate3d(${x - size / 2}px, ${y - size / 2}px, 0)`;
+			});
+		};
 
 		const flush = () => {
 			if (pendingX !== 0 || pendingY !== 0) {
@@ -112,9 +158,20 @@
 				pendingY = 0;
 			}
 		};
-		const tick = () => {
+		const tick = (ms: number) => {
 			frame = requestAnimationFrame(tick);
+			const dt = Math.min(Math.max((ms - lastFrame) / 1000, 0), TUNING.maxStep);
+			lastFrame = ms;
 			flush();
+			if (finger === null) {
+				// Glide on after a flick, slowing as the projector's field does.
+				const keep = decay(TUNING.glideHalfLife, dt);
+				glide = { x: glide.x * keep, y: glide.y * keep };
+				const drift = still.matches ? { x: 0, y: 0 } : DRIFT;
+				water.x += (glide.x + drift.x) * dt;
+				water.y += (glide.y + drift.y) * dt;
+			}
+			drawWater(ms / 1000);
 			if (!inviting && finger === null && performance.now() - lastTouch > INVITE_AFTER * 1000) {
 				inviting = true;
 			}
@@ -128,11 +185,11 @@
 			finger = event.pointerId;
 			node.setPointerCapture(event.pointerId);
 			last = { x: event.clientX, y: event.clientY };
-			lastRipple = last;
 			samples = [{ t: event.timeStamp, ...last }];
 			lastTouch = performance.now();
 			inviting = false;
-			ripple(last.x, last.y);
+			// A finger in the water stops it gliding.
+			glide = { x: 0, y: 0 };
 			relay?.send({ t: 'down' });
 		};
 
@@ -148,14 +205,15 @@
 			const cutoff = event.timeStamp - 200;
 			while (samples.length > 2 && samples[0].t < cutoff) samples.shift();
 
-			pendingX += event.clientX - last.x;
-			pendingY += event.clientY - last.y;
+			const dx = event.clientX - last.x;
+			const dy = event.clientY - last.y;
+			pendingX += dx;
+			pendingY += dy;
+			// The water under the finger moves with it, drawn on the next frame.
+			water.x += dx;
+			water.y += dy;
 			last = { x: event.clientX, y: event.clientY };
 			lastTouch = performance.now();
-			if (Math.hypot(last.x - lastRipple.x, last.y - lastRipple.y) > RIPPLE_EVERY) {
-				lastRipple = last;
-				ripple(last.x, last.y);
-			}
 		};
 
 		const onUp = (event: PointerEvent) => {
@@ -167,6 +225,7 @@
 			const v =
 				event.type === 'pointercancel' ? { x: 0, y: 0 } : releaseVelocity(samples, event.timeStamp);
 			relay?.send({ t: 'up', vx: Math.round(v.x), vy: Math.round(v.y) });
+			glide = v;
 			lastTouch = performance.now();
 		};
 
@@ -178,6 +237,7 @@
 		return () => {
 			cancelAnimationFrame(frame);
 			relay?.close();
+			window.removeEventListener('resize', onResize);
 			void wakeLock?.release().catch(() => {});
 			document.removeEventListener('visibilitychange', onVisibility);
 			document.removeEventListener('gesturestart', refuse);
@@ -206,14 +266,10 @@
 
 <div class="pad" bind:this={surface} style:--glow="{glow[0]} {glow[1]} {glow[2]}">
 	<div class="water" aria-hidden="true">
-		<span class="current one"></span>
-		<span class="current two"></span>
-		<span class="current three"></span>
+		{#each POOLS as pool, i (i)}
+			<span class="pool {pool.tone}" bind:this={pools[i]}></span>
+		{/each}
 	</div>
-
-	{#each ripples as r (r.id)}
-		<span class="ripple" style:left="{r.x}px" style:top="{r.y}px" aria-hidden="true"></span>
-	{/each}
 
 	<p class="invite" class:shown={inviting}>Touch &amp; drag to navigate the Archive</p>
 
@@ -247,73 +303,38 @@
 		z-index: 50;
 	}
 
-	/* Three soft pools of color drifting slowly under frosted glass. */
+	/* Soft pools of color, each a radial gradient fading to nothing at its
+	   edge: blurry without a blur filter, so moving them every frame is cheap.
+	   The color is `color`, so a new focus color fades in over a second and a
+	   half, and the gradient follows it through `currentColor`. */
 	.water {
 		position: absolute;
-		inset: -20%;
-		filter: blur(70px) saturate(1.1);
+		inset: 0;
 	}
-	.current {
+	.pool {
 		position: absolute;
-		width: 70%;
-		height: 70%;
-		border-radius: 50%;
-		background: rgb(var(--glow) / 0.85);
-		transition: background-color 1.6s ease;
-		animation: drift 26s ease-in-out infinite alternate;
-	}
-	.current.one {
 		left: 0;
-		top: 5%;
-	}
-	.current.two {
-		right: 0;
-		top: 25%;
-		background: oklch(0.9 0.05 230 / 0.9);
-		animation-duration: 33s;
-		animation-delay: -9s;
-	}
-	.current.three {
-		left: 20%;
-		bottom: 0;
-		background: rgb(var(--glow) / 0.55);
-		animation-duration: 41s;
-		animation-delay: -17s;
-	}
-	@keyframes drift {
-		from {
-			translate: -8% -6%;
-			scale: 1;
-		}
-		to {
-			translate: 10% 8%;
-			scale: 1.15;
-		}
-	}
-
-	.ripple {
-		position: absolute;
-		width: 160px;
-		height: 160px;
-		margin: -80px 0 0 -80px;
+		top: 0;
 		border-radius: 50%;
-		border: 3px solid oklch(1 0 0 / 0.9);
-		/* A faint shadow ring and a soft inner glow, so it reads on pale glass too. */
-		box-shadow:
-			0 0 0 1px oklch(0.45 0.05 240 / 0.22),
-			inset 0 0 28px oklch(1 0 0 / 0.55);
-		pointer-events: none;
-		animation: ripple 1.4s ease-out forwards;
+		will-change: transform;
+		background: radial-gradient(circle closest-side, currentColor 15%, transparent);
+		transition: color 1.6s ease;
 	}
-	@keyframes ripple {
-		from {
-			scale: 0.15;
-			opacity: 0.9;
-		}
-		to {
-			scale: 1.6;
-			opacity: 0;
-		}
+	.pool.glow {
+		color: rgb(var(--glow));
+		opacity: 0.9;
+	}
+	.pool.deep {
+		color: color-mix(in oklch, rgb(var(--glow)), oklch(0.35 0.08 250) 30%);
+		opacity: 0.75;
+	}
+	.pool.pale {
+		color: rgb(var(--glow));
+		opacity: 0.55;
+	}
+	.pool.sky {
+		color: oklch(0.96 0.025 230);
+		opacity: 0.9;
 	}
 
 	.invite {
