@@ -359,6 +359,37 @@ describe('PageScanner.svelte', () => {
 				.toBeInTheDocument();
 		});
 
+		it('shows the corner being dragged in a magnifier on the far side, out from under the finger', async () => {
+			fakeCamera();
+			fakeServer();
+			await render(PageScanner, {});
+			await shootAndCrop(1);
+			const magnifier = () => document.querySelector<HTMLElement>('[data-crop-magnifier]')!;
+			const handle = (corner: string) =>
+				document.querySelector<HTMLElement>(`.scanic-handle[data-corner="${corner}"]`)!;
+			await vi.waitFor(() => expect(handle('topLeft')).not.toBeNull());
+			const press = (corner: string, type: string) =>
+				handle(corner).dispatchEvent(
+					new PointerEvent(type, { bubbles: true, pointerId: 1, clientX: 0, clientY: 0 })
+				);
+			// Hidden until a corner is held.
+			expect(magnifier().hasAttribute('data-active')).toBe(false);
+
+			// A corner on the left is shown top right, and one on the right top left:
+			// never beside or below the corner, where the hand is.
+			press('topLeft', 'pointerdown');
+			await vi.waitFor(() => expect(magnifier().hasAttribute('data-active')).toBe(true));
+			expect(magnifier().dataset.cropMagnifier).toBe('right');
+			// Something was drawn into it.
+			await vi.waitFor(() => expect((magnifier() as HTMLCanvasElement).width).toBeGreaterThan(0));
+			press('topLeft', 'pointerup');
+			await vi.waitFor(() => expect(magnifier().hasAttribute('data-active')).toBe(false));
+
+			press('bottomRight', 'pointerdown');
+			await vi.waitFor(() => expect(magnifier().dataset.cropMagnifier).toBe('left'));
+			press('bottomRight', 'pointerup');
+		});
+
 		it('says how to unblock the camera when permission was refused', async () => {
 			// Refused a moment after it is asked, as a tap on the prompt's Block is.
 			vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockImplementation(async () => {
