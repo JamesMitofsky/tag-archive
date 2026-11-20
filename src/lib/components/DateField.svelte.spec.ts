@@ -234,4 +234,32 @@ describe('DateField.svelte', () => {
 			await expect.poll(isOpen).toBe(false);
 		});
 	});
+
+	describe('setValue', () => {
+		it('fills the field as a pick would, and reports it', async () => {
+			const changes: string[] = [];
+			const { component } = await render(DateField, {
+				name: 'date',
+				label: 'Date',
+				allowPartial: true,
+				onChange: (iso: string) => changes.push(iso)
+			});
+
+			component.setValue('2021-06-12');
+
+			await expect.poll(() => submittedValue()).toBe('2021-06-12');
+			expect(triggerLabel()).toBe('June 12, 2021');
+			expect(changes).toEqual(['2021-06-12']);
+		});
+
+		it('ignores what it cannot read, and partial dates where they are not allowed', async () => {
+			const { component } = await render(DateField, { name: 'date', label: 'Date' });
+
+			component.setValue('not a date');
+			component.setValue('2021');
+
+			await expect.element(page.getByRole('button', { name: 'Pick a date' })).toBeInTheDocument();
+			expect(submittedValue()).toBe('');
+		});
+	});
 });

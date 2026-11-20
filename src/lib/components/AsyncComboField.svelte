@@ -16,7 +16,8 @@
 		label,
 		placeholder = 'Search or add…',
 		date,
-		value: initial = ''
+		value: initial = '',
+		onSelect
 	}: {
 		name: string;
 		label?: string;
@@ -25,6 +26,11 @@
 		date?: string;
 		value?: string;
 		pageSize?: number;
+		/**
+		 * Fires when an existing event is picked from the list (not for a typed-in
+		 * "Use …" entry), with the date shown on its row.
+		 */
+		onSelect?: (event: { name: string; date: string | null }) => void;
 	} = $props();
 
 	let open = $state(false);
@@ -65,6 +71,15 @@
 		void ensureLoaded();
 	}
 
+	// Typing reopens the list. Focus alone isn't enough: after a pick the input
+	// keeps focus with the list closed, and changing the event should not need
+	// a step out of the field and back in. The highlight goes back to where it
+	// starts, since the rows under it have just changed.
+	function onInput() {
+		activeIndex = -1;
+		onOpen();
+	}
+
 	function handleFocusOut(event: FocusEvent) {
 		const next = event.relatedTarget;
 		const container = event.currentTarget as HTMLElement;
@@ -75,6 +90,11 @@
 	function choose(val: string) {
 		search = val;
 		open = false;
+	}
+
+	function chooseItem(item: { name: string; date: string | null }) {
+		choose(item.name);
+		onSelect?.(item);
 	}
 
 	// --- Virtualized dropdown ------------------------------------------------
@@ -125,7 +145,7 @@
 				if (open && (activeIndex >= 0 || (activeIndex === -1 && showCustom))) {
 					event.preventDefault();
 					if (activeIndex === -1) choose(query);
-					else if (items[activeIndex]) choose(items[activeIndex]!.name);
+					else if (items[activeIndex]) chooseItem(items[activeIndex]!);
 				}
 				break;
 			case 'Escape':
@@ -155,6 +175,7 @@
 			autocomplete="off"
 			{placeholder}
 			bind:value={search}
+			oninput={onInput}
 			onkeydown={onKeydown}
 			class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none md:text-sm"
 		/>
@@ -212,7 +233,7 @@
 									onmousedown={(e) => {
 										if (!item) return;
 										e.preventDefault();
-										choose(item.name);
+										chooseItem(item);
 									}}
 									onmouseenter={() => (activeIndex = v.index)}
 									style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({v.start}px);"
