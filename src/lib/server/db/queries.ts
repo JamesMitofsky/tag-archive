@@ -214,19 +214,25 @@ export type PublicDataset = {
 };
 
 /**
- * Load the public archive blob — vetted rows only. Anything still carrying
- * `proposedAddition` is a submission nobody has reviewed yet (anonymous
- * contributions included), so it must not reach the public pages:
+ * Load the public archive blob. Artefacts and image sets still carrying
+ * `proposedAddition` are submissions nobody has reviewed yet (anonymous
+ * contributions included), so they must not reach the public pages. Events are
+ * the exception: every event is public whether or not it awaits review. An
+ * event's title and description are copied verbatim from ustreetcommunity.org,
+ * already public there, and the review flag only asks a keeper to double-check
+ * its hosts and series. Hiding a pending event would also keep it out of the
+ * event field on every artefact and image form, which reads this blob.
  *
- *  - artefacts and events: vetted rows only;
- *  - an artefact's event title: only when that event is itself vetted, so a
- *    vetted artefact can't leak the title of a pending event;
- *  - people: only names linked to at least one vetted artefact or event. A
- *    submission creates its provenance people immediately (find-or-create by
- *    name), so without this an unreviewed name would surface in the people
- *    list — and in the provenance autocomplete — before anyone vetted it;
- *  - image sets: vetted sets only, their event title under the same rule as
- *    an artefact's, and each photograph as a whitelist of fields (see
+ *  - artefacts: vetted rows only;
+ *  - events: every row, pending or vetted, each with its hosts;
+ *  - an artefact's event title: whenever it links one;
+ *  - people: only names linked to at least one vetted artefact or to any
+ *    event (an event's hosts are public with it). A submission creates its
+ *    provenance people immediately (find-or-create by name), so without this
+ *    an unreviewed name would surface in the people list — and in the
+ *    provenance autocomplete — before anyone vetted it;
+ *  - image sets: vetted sets only, with their event title as for an
+ *    artefact, and each photograph as a whitelist of fields (see
  *    `PublicImage`). An image row also holds the original's URL, its parsed
  *    metadata and its exact capture time, any of which can carry GPS or
  *    device details — so its columns are picked one by one, never spread;
@@ -235,15 +241,13 @@ export type PublicDataset = {
  *    size that render it — the photograph's display copy, never its original.
  */
 export async function loadPublicDataset(): Promise<PublicDataset> {
-	const vettedEvent = and(eq(artefact.eventId, event.id), eq(event.proposedAddition, false));
-	const vettedSetEvent = and(eq(imageSet.eventId, event.id), eq(event.proposedAddition, false));
 	const [artefactRows, eventRows, personRows, setRows, imageRows, features] = await Promise.all([
 		db
 			.select({ ...getTableColumns(artefact), event: event.title })
 			.from(artefact)
-			.leftJoin(event, vettedEvent)
+			.leftJoin(event, eq(artefact.eventId, event.id))
 			.where(eq(artefact.proposedAddition, false)),
-		db.select(getTableColumns(event)).from(event).where(eq(event.proposedAddition, false)),
+		db.select(getTableColumns(event)).from(event),
 		db
 			.select({ name: person.name })
 			.from(person)
@@ -265,8 +269,7 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 						db
 							.select({ one: sql`1` })
 							.from(eventHost)
-							.innerJoin(event, eq(event.id, eventHost.eventId))
-							.where(and(eq(eventHost.personId, person.id), eq(event.proposedAddition, false)))
+							.where(eq(eventHost.personId, person.id))
 					)
 				)
 			),
@@ -278,7 +281,7 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 				date: imageSet.date
 			})
 			.from(imageSet)
-			.leftJoin(event, vettedSetEvent)
+			.leftJoin(event, eq(imageSet.eventId, event.id))
 			.where(eq(imageSet.proposedAddition, false))
 			.orderBy(desc(imageSet.date), desc(imageSet.id)),
 		// Every photograph of every vetted set in one query, grouped below (no
@@ -298,8 +301,8 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 			.innerJoin(imageSet, eq(image.setId, imageSet.id))
 			.where(eq(imageSet.proposedAddition, false))
 			.orderBy(image.setId, image.position, image.id),
-		// Vetted events' feature images, each only while its own source is vetted.
-		featureImagesWhere(eq(event.proposedAddition, false), { vettedOnly: true })
+		// Every event's feature image, each only while its own source is vetted.
+		featureImagesWhere(undefined, { vettedOnly: true })
 	]);
 
 	const [artefacts, eventsWithHosts] = await Promise.all([
@@ -547,20 +550,18 @@ export async function deleteOrphanPeople(ids: number[]): Promise<void> {
  * Resolve a typed event title to an existing event's id. Events are dated
  * happenings sourced from the events export — a bare title here can't create
  * one, so an unknown title yields null (the row stays unlinked). A recurring
- * title resolves to its earliest event. With `vettedOnly`, only vetted events
- * match: an unvetted submitter can only link to the events they could have
- * seen. Keepers editing a row pass false.
+ * title resolves to its earliest event. Any event matches, pending or vetted:
+ * every event is public (see `loadPublicDataset`), so every submitter can see
+ * and pick it.
  */
-export async function resolveEventId(name: string, vettedOnly: boolean): Promise<number | null> {
+export async function resolveEventId(name: string): Promise<number | null> {
 	const trimmed = name.trim();
 	if (!trimmed) return null;
 
 	const [existing] = await db
 		.select({ id: event.id })
 		.from(event)
-		.where(
-			and(eq(event.title, trimmed), vettedOnly ? eq(event.proposedAddition, false) : undefined)
-		)
+		.where(eq(event.title, trimmed))
 		.orderBy(event.date)
 		.limit(1);
 	return existing?.id ?? null;

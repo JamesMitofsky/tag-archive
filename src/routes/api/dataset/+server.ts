@@ -2,8 +2,9 @@ import { loadPublicDataset } from '#lib/server/db/queries.ts';
 import type { RequestHandler } from './$types';
 
 /**
- * The entire public archive dataset as one blob: vetted artefacts, events, and
- * person names (see `loadPublicDataset` for exactly what "vetted" excludes).
+ * The entire public archive dataset as one blob: vetted artefacts and image
+ * sets, every event, and person names (see `loadPublicDataset` for exactly
+ * what it leaves out).
  * The dataset is small, so client components fetch this once and search it client-side.
  *
  * Cached in Vercel's CDN with a single `archive` tag; every keeper write purges

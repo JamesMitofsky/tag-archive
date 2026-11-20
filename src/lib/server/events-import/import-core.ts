@@ -127,8 +127,8 @@ export async function planImport(
 export type ApplyOptions = {
 	/**
 	 * Land the events (and any new series) as proposed additions, so they wait in
-	 * the keeper review queue and stay off the public site until an admin
-	 * approves them. False publishes them immediately.
+	 * the keeper review queue for an admin to check. The events are public
+	 * either way (see `loadPublicDataset`); false lands them already approved.
 	 */
 	proposed: boolean;
 	/** The keeper the rows are attributed to; null for an unattributed system write. */

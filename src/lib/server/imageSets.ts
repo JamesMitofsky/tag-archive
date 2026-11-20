@@ -211,8 +211,8 @@ function claimable(ids: number[]) {
  * names, in that order. Every image must exist, be unattached, and belong to
  * `owner` (see `ownsImage`): ids come from the browser, so this is checked
  * here, not trusted. Lands as a proposed addition unless an admin made it (see
- * `isProposedAddition`); a proposed set may only link a vetted event, the only
- * kind its submitter could have seen. The date follows the photographs.
+ * `isProposedAddition`). It may link any event, since every event is public.
+ * The date follows the photographs.
  *
  * Purges the public cache only when the new set is actually public, so
  * anonymous submissions can't trigger CDN purges at will.
@@ -231,7 +231,7 @@ export async function createImageSet(
 	if (!usable) return refused();
 
 	const proposed = isProposedAddition(actor.role);
-	const eventId = await resolveEventId(data.event, proposed);
+	const eventId = await resolveEventId(data.event);
 
 	// The date comes from the rows just read: a capture time never changes, and
 	// these are exactly the set's photographs once the attach below succeeds.
@@ -342,7 +342,7 @@ export async function updateImageSet(
 	// exactly the set's photographs once the write below lands.
 	const fields: SetFields = {
 		description: data.description.trim() || null,
-		eventId: await resolveEventId(data.event, false),
+		eventId: await resolveEventId(data.event),
 		dateAuto: data.dateAuto,
 		date: data.dateAuto
 			? earliestDay(
