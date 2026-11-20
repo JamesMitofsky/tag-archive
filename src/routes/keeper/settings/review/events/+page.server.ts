@@ -1,6 +1,9 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { approveProposed, listProposedEvents, rejectProposed } from '$lib/server/db/queries';
-import { idSchema } from '$lib/schemas';
+import { eq } from 'drizzle-orm';
+import { approveProposed, listProposedEvents, rejectProposed } from '#lib/server/db/queries.ts';
+import { event } from '#lib/server/db/schema.ts';
+import { featureImagesWhere } from '#lib/server/eventFeatures.ts';
+import { idSchema } from '#lib/schemas.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -8,9 +11,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(303, '/keeper');
 	if (locals.user.role !== 'admin') throw redirect(303, '/keeper/settings');
 
+	// Each event's feature image, so the reviewer sees what approving it would
+	// show. Pending sources included (vettedOnly false): the card says when the
+	// image itself still needs approving before it goes public.
+	const [events, features] = await Promise.all([
+		listProposedEvents(),
+		featureImagesWhere(eq(event.proposedAddition, true), { vettedOnly: false })
+	]);
+
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
-		events: await listProposedEvents()
+		events: events.map((item) => ({ ...item, featureImage: features.get(item.id) ?? null }))
 	};
 };
 

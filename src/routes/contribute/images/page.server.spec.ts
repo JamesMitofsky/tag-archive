@@ -3,28 +3,27 @@ import { asc, eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 	process.env.BETTER_AUTH_SECRET = 'test-secret';
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
-vi.mock('$env/dynamic/public', () => ({ env: {} }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 // A rejected set's photographs are deleted from storage: record that instead of calling R2.
 const deleteScan = vi.hoisted(() => vi.fn(async (_key: string) => {}));
-vi.mock('$lib/server/scans', async (importOriginal) => ({
-	...(await importOriginal<typeof import('$lib/server/scans')>()),
+vi.mock('#lib/server/scans.ts', async (importOriginal) => ({
+	...(await importOriginal<typeof import('#lib/server/scans.ts')>()),
 	deleteScan
 }));
-vi.mock('$lib/server/cache', () => ({ purgeArchiveCache: vi.fn(async () => {}) }));
+vi.mock('#lib/server/cache.ts', () => ({ purgeArchiveCache: vi.fn(async () => {}) }));
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { db } = await import('$lib/server/db');
-const { event, image, imageSet, user } = await import('$lib/server/db/schema');
-const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('$lib/server/drafts');
-const { consume, LIMITS } = await import('$lib/server/rateLimit');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { db } = await import('#lib/server/db/index.ts');
+const { event, image, imageSet, user } = await import('#lib/server/db/schema.ts');
+const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('#lib/server/drafts.ts');
+const { consume, LIMITS } = await import('#lib/server/rateLimit.ts');
 const { actions } = await import('./+page.server');
-type Image = import('$lib/server/db/schema').Image;
+type Image = import('#lib/server/db/schema.ts').Image;
 
 const ADMIN = { id: 'admin-1', role: 'admin', email: 'admin@example.org' };
 const CONTRIBUTOR = { id: 'keeper-1', role: 'contributor', email: 'keeper@example.org' };
@@ -93,7 +92,7 @@ function anonymousDraft() {
 }
 
 type ActionName = keyof typeof actions;
-/** An open access pass, as hooks.server.ts leaves it on `locals` ($lib/access/pass). */
+/** An open access pass, as hooks.server.ts leaves it on `locals` (#lib/access/pass). */
 const OPEN_PASS = { kind: 't' as const, issuedAt: 0, expiresAt: Number.MAX_SAFE_INTEGER };
 
 async function run(
@@ -170,7 +169,7 @@ describe('createImageSet (anonymous)', () => {
 
 	it('refuses with a draft but no open pass: the archive has drifted shut', async () => {
 		// The gate lets the enhanced post through so the form survives; the action
-		// must still turn it away once the pass has run out (see $lib/access/gate).
+		// must still turn it away once the pass has run out (see #lib/access/gate).
 		const { cookies, upload: add } = anonymousDraft();
 		const photo = await add();
 		const before = await countSets();

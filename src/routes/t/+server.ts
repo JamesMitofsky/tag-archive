@@ -1,20 +1,20 @@
 import { redirect } from '@sveltejs/kit';
-import { dev } from '$app/environment';
-import { LOCKED_PATH } from '$lib/access/gate';
-import { TAP_FLASH_COOKIE, type TapFlash } from '$lib/access/flash';
-import { issuePass, readPass } from '$lib/server/access';
-import { issueDraft } from '$lib/server/drafts';
-import { sdmKeys } from '$lib/server/nfc/keys';
-import { verifyTap } from '$lib/server/nfc/sdm';
-import { recordTap } from '$lib/server/nfc/taps';
-import { consume, LIMITS } from '$lib/server/rateLimit';
+import { dev } from '$app/env';
+import { LOCKED_PATH } from '#lib/access/gate.ts';
+import { TAP_FLASH_COOKIE, type TapFlash } from '#lib/access/flash.ts';
+import { issuePass, readPass } from '#lib/server/access.ts';
+import { issueDraft } from '#lib/server/drafts.ts';
+import { sdmKeys } from '#lib/server/nfc/keys.ts';
+import { verifyTap } from '#lib/server/nfc/sdm.ts';
+import { recordTap } from '#lib/server/nfc/taps.ts';
+import { consume, LIMITS } from '#lib/server/rateLimit.ts';
 import type { RequestHandler } from './$types';
 
 // Where the garden's NFC tag points. Every tap rewrites `e` (the tag's UID and
-// tap counter, encrypted) and `c` (a MAC over them) — see $lib/server/nfc/sdm.
+// tap counter, encrypted) and `c` (a MAC over them) — see #lib/server/nfc/sdm.
 // A genuine tap with a counter we haven't seen opens the whole site for as long
-// as it stays on the visitor's screen, plus a while ($lib/access/pass), and
-// starts or renews the visitor's upload draft ($lib/server/drafts), so
+// as it stays on the visitor's screen, plus a while (#lib/access/pass), and
+// starts or renews the visitor's upload draft (#lib/server/drafts), so
 // contributing needs no further check.
 //
 // Always answers with a redirect, so the one-time URL never lingers in the

@@ -145,6 +145,37 @@ export async function fileToCanvas(
 	}
 }
 
+/** `turns` as 0–3: any whole number of quarter turns, negative ones included. */
+export function quarterTurns(turns: number): 0 | 1 | 2 | 3 {
+	return (((Math.round(turns) % 4) + 4) % 4) as 0 | 1 | 2 | 3;
+}
+
+/**
+ * A copy of `source` turned `turns` quarter turns clockwise. The
+ * transform maps whole pixels onto whole pixels, so nothing is resampled and
+ * four turns give back the original exactly. `null` if no 2D context was had.
+ */
+export function rotateQuarterTurns(
+	source: HTMLCanvasElement,
+	turns: number
+): HTMLCanvasElement | null {
+	const quarter = quarterTurns(turns);
+	const { width, height } = source;
+	const sideways = quarter % 2 === 1;
+	const canvas = document.createElement('canvas');
+	canvas.width = sideways ? height : width;
+	canvas.height = sideways ? width : height;
+	const ctx = canvas.getContext('2d');
+	if (!ctx) return null;
+	// Exact integer matrices (x' = a·x + c·y + e, y' = b·x + d·y + f) rather
+	// than ctx.rotate, whose cos(π/2) is 6e-17 and not 0.
+	if (quarter === 1) ctx.setTransform(0, 1, -1, 0, height, 0);
+	else if (quarter === 2) ctx.setTransform(-1, 0, 0, -1, width, height);
+	else if (quarter === 3) ctx.setTransform(0, -1, 1, 0, 0, width);
+	ctx.drawImage(source, 0, 0);
+	return canvas;
+}
+
 /** Snapshot a canvas so the un-cropped original survives for later re-cropping. */
 export function cloneCanvas(source: HTMLCanvasElement): HTMLCanvasElement | null {
 	const canvas = document.createElement('canvas');

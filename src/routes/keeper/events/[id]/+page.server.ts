@@ -1,9 +1,10 @@
 import { error, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { attachHosts } from '$lib/server/db/queries';
-import { event, series } from '$lib/server/db/schema';
-import { idSchema } from '$lib/schemas';
+import { db } from '#lib/server/db/index.ts';
+import { attachHosts } from '#lib/server/db/queries.ts';
+import { loadFeatureImage } from '#lib/server/eventFeatures.ts';
+import { event, series } from '#lib/server/db/schema.ts';
+import { idSchema } from '#lib/schemas.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -22,10 +23,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.limit(1);
 	if (rows.length === 0) throw error(404, 'Event not found');
 
-	const [item] = await attachHosts(rows);
+	const [[item], featureImage] = await Promise.all([
+		attachHosts(rows),
+		// Keepers see pending rows anyway, so a pending source still shows here.
+		loadFeatureImage(id.data, { vettedOnly: false })
+	]);
 
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
-		event: item
+		event: item,
+		featureImage
 	};
 };

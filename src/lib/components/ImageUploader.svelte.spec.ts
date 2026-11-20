@@ -2,10 +2,16 @@ import { page } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import ImageUploader from './ImageUploader.svelte';
-import { sniffImageType } from '$lib/imageType';
-import type { UploadedImage } from '$lib/images/types';
-import { bytesOf, canvasPhoto, dimensionsOf, fakeImageServer, textFile } from '$lib/testing/images';
-import { paintedCanvas } from '$lib/testing/scanner';
+import { sniffImageType } from '#lib/imageType.ts';
+import type { UploadedImage } from '#lib/images/types.ts';
+import {
+	bytesOf,
+	canvasPhoto,
+	dimensionsOf,
+	fakeImageServer,
+	textFile
+} from '#lib/testing/images.ts';
+import { paintedCanvas } from '#lib/testing/scanner.ts';
 
 // Chromium encodes WebP natively. The WebKit (iPhone) path, which can't, is
 // covered in ImageUploader.webkit.svelte.spec.ts.
@@ -31,7 +37,7 @@ const picker = () => page.getByLabelText('Add photographs');
 
 describe('ImageUploader.svelte', () => {
 	it('takes several photographs at once, HEIC included', async () => {
-		render(ImageUploader, {});
+		await render(ImageUploader, {});
 		await expect.element(picker()).toBeInTheDocument();
 
 		const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -40,17 +46,17 @@ describe('ImageUploader.svelte', () => {
 	});
 
 	it('names its group with its label, marked required when it is', async () => {
-		render(ImageUploader, { label: 'Photographs', required: true });
+		await render(ImageUploader, { label: 'Photographs', required: true });
 
-		const group = page.getByRole('group', { name: 'Photographs' });
+		const group = page.getByRole('group', { name: 'Photographs required' });
 		await expect.element(group).toBeInTheDocument();
-		await expect.element(group.getByTitle('Required')).toHaveTextContent('*');
+		await expect.element(group.getByTitle('Required')).toMatchTextContent('*');
 	});
 
 	it('uploads each original untouched and a WebP display copy of it, then emits ids in order', async () => {
 		const server = fakeImageServer();
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 		const big = await canvasPhoto('big.png', { width: 3000, height: 2000 });
 		const small = await canvasPhoto('small.png');
 
@@ -94,7 +100,8 @@ describe('ImageUploader.svelte', () => {
 			expect(server.finalizing).toContainEqual({
 				originalKey: grant.originalKey,
 				displayKey: grant.displayKey,
-				name: file.name
+				name: file.name,
+				placeholder: expect.any(String)
 			});
 		}
 	});
@@ -103,7 +110,7 @@ describe('ImageUploader.svelte', () => {
 		const server = fakeImageServer();
 		server.control.holdPuts = true;
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 		await picker().upload([await canvasPhoto('first.png'), await canvasPhoto('second.png')]);
 		await vi.waitFor(() => expect(server.inFlight()).toHaveLength(2));
 
@@ -128,7 +135,7 @@ describe('ImageUploader.svelte', () => {
 		fakeImageServer();
 		const createObjectURL = vi.spyOn(URL, 'createObjectURL');
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 
 		await picker().upload(await canvasPhoto('IMG_0001.PNG'));
 		await vi.waitFor(() => expect(onChange).toHaveBeenCalledOnce());
@@ -147,7 +154,7 @@ describe('ImageUploader.svelte', () => {
 		const createObjectURL = vi.spyOn(URL, 'createObjectURL');
 		const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL');
 		const onChange = vi.fn();
-		const { unmount } = render(ImageUploader, { onChange });
+		const { unmount } = await render(ImageUploader, { onChange });
 
 		await picker().upload([await canvasPhoto('a.png'), await canvasPhoto('b.png')]);
 		await vi.waitFor(() => expect(onChange).toHaveBeenLastCalledWith([100, 101]));
@@ -162,7 +169,7 @@ describe('ImageUploader.svelte', () => {
 
 	it('emits the photographs it was given, and moves them', async () => {
 		const onChange = vi.fn();
-		render(ImageUploader, { initial: initialImages(), onChange });
+		await render(ImageUploader, { initial: initialImages(), onChange });
 
 		await expect.element(page.getByRole('img', { name: 'Photograph 3' })).toBeInTheDocument();
 		await expect
@@ -181,7 +188,7 @@ describe('ImageUploader.svelte', () => {
 	it('leaves deleting a photograph it was given to the form', async () => {
 		const server = fakeImageServer();
 		const onChange = vi.fn();
-		render(ImageUploader, { initial: initialImages(), onChange });
+		await render(ImageUploader, { initial: initialImages(), onChange });
 
 		await page.getByRole('button', { name: 'Remove photograph 2' }).click();
 
@@ -193,7 +200,7 @@ describe('ImageUploader.svelte', () => {
 	it('appends new photographs after the ones it was given', async () => {
 		const server = fakeImageServer();
 		const onChange = vi.fn();
-		render(ImageUploader, { initial: initialImages(), onChange });
+		await render(ImageUploader, { initial: initialImages(), onChange });
 
 		await picker().upload(await canvasPhoto('new.png'));
 
@@ -205,7 +212,7 @@ describe('ImageUploader.svelte', () => {
 	it('deletes an uploaded photograph when it is removed', async () => {
 		const server = fakeImageServer();
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 		await picker().upload([await canvasPhoto('keep.png'), await canvasPhoto('drop.png')]);
 		await vi.waitFor(() => expect(onChange).toHaveBeenLastCalledWith([100, 101]));
 
@@ -219,7 +226,7 @@ describe('ImageUploader.svelte', () => {
 		const server = fakeImageServer();
 		server.control.holdFinalize = true;
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 		await picker().upload(await canvasPhoto('late.png'));
 		await vi.waitFor(() => expect(server.finalizing).toHaveLength(1));
 
@@ -235,7 +242,7 @@ describe('ImageUploader.svelte', () => {
 		const server = fakeImageServer();
 		server.control.holdPuts = true;
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 		await picker().upload(await canvasPhoto('gone.png'));
 		await vi.waitFor(() => expect(server.puts).toHaveLength(1));
 
@@ -252,7 +259,7 @@ describe('ImageUploader.svelte', () => {
 		const server = fakeImageServer();
 		server.control.holdPuts = true;
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 		const names = ['1.png', '2.png', '3.png', '4.png', '5.png'];
 		await picker().upload(await Promise.all(names.map((name) => canvasPhoto(name))));
 
@@ -276,7 +283,7 @@ describe('ImageUploader.svelte', () => {
 		const server = fakeImageServer();
 		server.control.holdPuts = true;
 		let pending = false;
-		render(ImageUploader, {
+		await render(ImageUploader, {
 			get pending() {
 				return pending;
 			},
@@ -299,7 +306,7 @@ describe('ImageUploader.svelte', () => {
 		const server = fakeImageServer();
 		server.control.holdPuts = true;
 		let pending = false;
-		const { unmount } = render(ImageUploader, {
+		const { unmount } = await render(ImageUploader, {
 			get pending() {
 				return pending;
 			},
@@ -321,7 +328,7 @@ describe('ImageUploader.svelte', () => {
 		const server = fakeImageServer();
 		server.control.locked = true;
 		let failed = 0;
-		const { unmount } = render(ImageUploader, {
+		const { unmount } = await render(ImageUploader, {
 			get failed() {
 				return failed;
 			},
@@ -354,12 +361,12 @@ describe('ImageUploader.svelte', () => {
 	it('says once that the visit has lapsed, however many photographs it stopped', async () => {
 		const server = fakeImageServer();
 		server.control.locked = true;
-		render(ImageUploader, {});
+		await render(ImageUploader, {});
 
 		await picker().upload([await canvasPhoto('a.png'), await canvasPhoto('b.png')]);
 
 		const alert = page.getByRole('alert');
-		await expect.element(alert).toHaveTextContent('Visit the Cube to open the Archive.');
+		await expect.element(alert).toMatchTextContent('Visit the Cube to open the Archive.');
 		await expect.poll(() => alert.element().textContent?.split('Visit the Cube').length).toBe(2);
 		await expect.element(page.getByText('Not uploaded').first()).toBeInTheDocument();
 		expect(server.puts).toEqual([]);
@@ -369,7 +376,7 @@ describe('ImageUploader.svelte', () => {
 		const server = fakeImageServer();
 		server.control.locked = true;
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 		await picker().upload([await canvasPhoto('a.png'), await canvasPhoto('b.png')]);
 		await vi.waitFor(() => expect(page.getByText('Not uploaded').all()).toHaveLength(2));
 
@@ -386,7 +393,7 @@ describe('ImageUploader.svelte', () => {
 		const server = fakeImageServer();
 		server.control.locked = true;
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 		await picker().upload(await canvasPhoto('again.png'));
 		await expect.element(page.getByRole('alert')).toBeInTheDocument();
 
@@ -400,7 +407,7 @@ describe('ImageUploader.svelte', () => {
 	it('shows why a photograph failed on its tile, and lets it be removed', async () => {
 		const server = fakeImageServer();
 		server.control.holdPuts = true;
-		render(ImageUploader, {});
+		await render(ImageUploader, {});
 		await picker().upload(await canvasPhoto('refused.png'));
 		await vi.waitFor(() => expect(server.puts).toHaveLength(1));
 
@@ -409,7 +416,7 @@ describe('ImageUploader.svelte', () => {
 		const alert = page.getByRole('alert');
 		await expect
 			.element(alert)
-			.toHaveTextContent('refused.png: Storage refused the upload (AccessDenied)');
+			.toMatchTextContent('refused.png: Storage refused the upload (AccessDenied)');
 		await page.getByRole('button', { name: 'Remove photograph 1' }).click();
 		await expect.element(alert).not.toBeInTheDocument();
 		expect(server.deleted).toEqual([]);
@@ -418,13 +425,13 @@ describe('ImageUploader.svelte', () => {
 	it('refuses a file that is not a photograph without sending anything', async () => {
 		const server = fakeImageServer();
 		const onChange = vi.fn();
-		render(ImageUploader, { onChange });
+		await render(ImageUploader, { onChange });
 
 		await picker().upload(textFile('notes.txt'));
 
 		await expect
 			.element(page.getByRole('alert'))
-			.toHaveTextContent('notes.txt: Not a JPEG, PNG, WebP, GIF or HEIC photograph');
+			.toMatchTextContent('notes.txt: Not a JPEG, PNG, WebP, GIF or HEIC photograph');
 		await expect.element(page.getByRole('img', { name: 'Photograph 1' })).not.toBeInTheDocument();
 		await new Promise((resolve) => setTimeout(resolve, 50));
 		expect(server.requests).toEqual([]);
@@ -435,7 +442,7 @@ describe('ImageUploader.svelte', () => {
 	it('refuses photographs past its limit, and says so', async () => {
 		const server = fakeImageServer();
 		const onChange = vi.fn();
-		render(ImageUploader, { initial: initialImages().slice(0, 1), max: 3, onChange });
+		await render(ImageUploader, { initial: initialImages().slice(0, 1), max: 3, onChange });
 
 		await picker().upload([
 			await canvasPhoto('a.png'),
@@ -445,7 +452,7 @@ describe('ImageUploader.svelte', () => {
 
 		await expect
 			.element(page.getByRole('alert'))
-			.toHaveTextContent('A set holds at most 3 photographs, so 1 was not added.');
+			.toMatchTextContent('A set holds at most 3 photographs, so 1 was not added.');
 		await vi.waitFor(() =>
 			expect(onChange).toHaveBeenLastCalledWith([7, server.idOf('a.png'), server.idOf('b.png')])
 		);
@@ -455,7 +462,7 @@ describe('ImageUploader.svelte', () => {
 	it('takes photographs dropped on it', async () => {
 		const server = fakeImageServer();
 		const onChange = vi.fn();
-		const { container } = render(ImageUploader, { onChange });
+		const { container } = await render(ImageUploader, { onChange });
 		const zone = container.querySelector('[role="group"] > div')!;
 		const files = new DataTransfer();
 		files.items.add(await canvasPhoto('dropped.png'));

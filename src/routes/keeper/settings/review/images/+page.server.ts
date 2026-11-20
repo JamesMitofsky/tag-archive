@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { approveProposed, rejectProposed } from '$lib/server/db/queries';
-import { listProposedImageSets } from '$lib/server/imageSets';
-import { idSchema } from '$lib/schemas';
+import { approveProposed, rejectProposed } from '#lib/server/db/queries.ts';
+import { listProposedImageSets } from '#lib/server/imageSets.ts';
+import { idSchema } from '#lib/schemas.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Thumbnails per card; the rest are a click away on the set's own page. */

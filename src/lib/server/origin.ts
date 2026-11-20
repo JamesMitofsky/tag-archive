@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { VERCEL_ENV, VERCEL_URL, ORIGIN } from '$app/env/private';
 
 /**
  * The origin the site is being served from, for what needs it absolute: the
@@ -12,6 +12,6 @@ import { env } from '$env/dynamic/private';
  * the Preview environment's ORIGIN holds.
  */
 export function siteOrigin(): string | undefined {
-	if (env.VERCEL_ENV === 'preview' && env.VERCEL_URL) return `https://${env.VERCEL_URL}`;
-	return env.ORIGIN || undefined;
+	if (VERCEL_ENV === 'preview' && VERCEL_URL) return `https://${VERCEL_URL}`;
+	return ORIGIN || undefined;
 }

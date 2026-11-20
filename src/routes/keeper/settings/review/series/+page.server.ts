@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { approveProposed, listProposedSeries, rejectProposed } from '$lib/server/db/queries';
-import { idSchema } from '$lib/schemas';
+import { approveProposed, listProposedSeries, rejectProposed } from '#lib/server/db/queries.ts';
+import { idSchema } from '#lib/schemas.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {

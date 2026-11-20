@@ -1,12 +1,19 @@
-import { error, redirect, type Handle } from '@sveltejs/kit';
-import { sequence } from '@sveltejs/kit/hooks';
-import { building } from '$app/environment';
-import { withoutDoor } from '$lib/access/door.server';
-import { accessDecision, isDoorNavigation, LOCKED_PATH } from '$lib/access/gate';
-import { auth } from '$lib/server/auth';
-import { issuePass, keeperPass, readPass } from '$lib/server/access';
-import { issueDraft } from '$lib/server/drafts';
-import { anonymousKeeperAccess } from '$lib/server/keeperGuard';
+import { error, redirect } from '@sveltejs/kit';
+import { sequence, type Handle } from '@sveltejs/kit/hooks';
+import { building } from '$app/env';
+import { withoutDoor } from '#lib/access/door.server.ts';
+import {
+	accessDecision,
+	isDoorNavigation,
+	isKeyNavigation,
+	LOCKED_PATH
+} from '#lib/access/gate.ts';
+import { unlockUrl, withoutKey } from '#lib/access/key.server.ts';
+import { auth } from '#lib/server/auth.ts';
+import { isKeeperRole } from '#lib/roles.ts';
+import { issuePass, readPass, sessionPass } from '#lib/server/access.ts';
+import { issueDraft } from '#lib/server/drafts.ts';
+import { anonymousKeeperAccess, listenerKeeperAccess } from '#lib/server/keeperGuard.ts';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
@@ -20,17 +27,22 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 		console.error('[hooks] getSession failed', e);
 	}
 
+	// Only a keeper is `locals.user`, which every keeper check in the app reads
+	// (see #lib/roles). Any other signed-in account, a listener, is kept apart on
+	// `locals.listener`, so that no such check can let one through by forgetting
+	// to look at the role: the role is read here, once.
 	if (session) {
 		event.locals.session = session.session;
-		event.locals.user = session.user;
+		if (isKeeperRole(session.user.role)) event.locals.user = session.user;
+		else event.locals.listener = session.user;
 	}
 
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 
-// The site-wide access gate (see $lib/access/gate): the site opens to holders
+// The site-wide access gate (see #lib/access/gate): the site opens to holders
 // of an access pass — earned by tapping the garden's NFC tag or coming through
-// the door, or handed to a signed-in keeper — and kept alive by the presence
+// the door, or handed to a signed-in keeper or listener — and kept alive by the presence
 // beat while the site is on screen (src/routes/api/presence). In production the
 // middleware has already turned pass-less requests away; this is the same rule
 // again for everything that reaches SvelteKit, and the only gate under `vite dev`.
@@ -44,14 +56,17 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 		isEnhancedAction: event.request.headers.get('x-sveltekit-action') === 'true'
 	};
 
-	// Reading a pass costs one HMAC; a signed-in keeper without one is handed one
-	// here (never on a response the CDN might cache, see $lib/server/access).
+	// Reading a pass costs one HMAC; a signed-in account without one is handed
+	// one here (never on a response the CDN might cache, see #lib/server/access).
+	// That is what lets a keeper or a listener open the archive from anywhere.
 	let pass = await readPass(event.cookies);
-	if (event.locals.user) pass = await keeperPass(event.cookies, pass, request);
+
+	if (event.locals.user) pass = await sessionPass(event.cookies, pass, request, 'k');
+	else if (event.locals.listener) pass = await sessionPass(event.cookies, pass, request, 'l');
 
 	const gateRequest = { ...request, pathname: event.url.pathname, search: event.url.search };
 
-	// Through the door (see $lib/access/door.server), on any page: let the
+	// Through the door (see #lib/access/door.server), on any page: let the
 	// visitor in as a tap would — a pass, and a draft so /contribute works —
 	// then send them on to the same URL without the phrase, so the next click
 	// still finds the site open and the phrase leaves the address bar. Someone
@@ -63,6 +78,14 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 			issueDraft(event.cookies);
 		}
 		throw redirect(303, withoutDoor(event.url));
+	}
+
+	// With an unlock key (see #lib/access/key.server), on any page: only
+	// /unlock checks it against the database, so send the visitor there (the
+	// middleware already has, for a page view; this catches data loads, and everything under
+	// `vite dev`). Someone already holding a pass only loses the key.
+	if (isKeyNavigation(gateRequest)) {
+		throw redirect(303, pass ? withoutKey(event.url) : unlockUrl(event.url));
 	}
 
 	event.locals.pass = pass ?? undefined;
@@ -79,18 +102,26 @@ const guardAccess: Handle = async ({ event, resolve }) => {
 	throw error(401, 'Visit the Cube to open the Archive');
 };
 
-// The keeper sign-in gate (see $lib/server/keeperGuard): anonymous requests into
-// /keeper/* never reach route code.
+// The keeper sign-in gate (see #lib/server/keeperGuard): anonymous requests into
+// /keeper/* never reach route code, and a listener's reach only their settings.
 const guardKeeper: Handle = async ({ event, resolve }) => {
 	if (event.locals.user) return resolve(event);
 
-	const access = anonymousKeeperAccess({
+	const request = {
 		pathname: event.url.pathname,
 		method: event.request.method,
 		isDataRequest: event.isDataRequest,
 		accept: event.request.headers.get('accept'),
 		isEnhancedAction: event.request.headers.get('x-sveltekit-action') === 'true'
-	});
+	};
+	if (event.locals.listener) {
+		const access = listenerKeeperAccess(request);
+		if (access === 'redirect') throw redirect(303, '/keeper');
+		if (access === 'refuse') throw error(403, 'Listeners can’t use the keeper tools');
+		return resolve(event);
+	}
+
+	const access = anonymousKeeperAccess(request);
 	if (access === 'redirect') throw redirect(303, '/keeper');
 	if (access === 'refuse') throw error(401, 'Sign in to continue');
 	return resolve(event);

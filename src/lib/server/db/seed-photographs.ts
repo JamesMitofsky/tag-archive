@@ -18,13 +18,14 @@
  * `demo-…`), then seeds afresh. Local-only: refuses unless storage is the
  * local store and the database is not remote.
  *
- * Needs SvelteKit's `$env` and `$lib`, so it runs inside Vite rather than
+ * Needs SvelteKit's `$app/env` and `#lib`, so it runs inside Vite rather than
  * under tsx: `pnpm db:seed:photographs` (scripts/seed-photographs.mjs).
  */
 import { inArray, like, or, sql } from 'drizzle-orm';
-import { env } from '$env/dynamic/private';
-import { exifTiff, type ExifOptions } from '$lib/testing/exifJpeg';
-import type { ImageSetData } from '$lib/validation/imageSet';
+import { DATABASE_URL } from '$app/env/private';
+import { exifTiff, type ExifOptions } from '#lib/testing/exifJpeg.ts';
+import { placeholderFromRGBA } from '#lib/images/placeholder.ts';
+import type { ImageSetData } from '#lib/validation/imageSet.ts';
 import { db } from '.';
 import { image, imageSet, user } from './schema';
 import { encodePng, encodeWebp, paint, type Scene } from './demoPhotos';
@@ -226,7 +227,8 @@ async function upload(photo: DemoPhoto, name: string, owner: UploadOwner): Promi
 	const keys = imageKeys(owner.kind === 'keeper' ? '' : owner.prefix, 'image/png');
 	await putObject(keys.originalKey, encodePng(pixels, exifFor(photo)), 'image/png');
 	await putObject(keys.displayKey, await encodeWebp(pixels), 'image/webp');
-	const finalized = await finalizeImage({ ...keys, name }, owner);
+	const placeholder = placeholderFromRGBA(pixels.data, pixels.width, pixels.height);
+	const finalized = await finalizeImage({ ...keys, name, placeholder }, owner);
 	return finalized.id;
 }
 
@@ -245,7 +247,7 @@ function whoIs(who: DemoSet['who']): { actor: Actor; owner: UploadOwner } {
 }
 
 export async function seedPhotographs(): Promise<void> {
-	const url = env.DATABASE_URL ?? '';
+	const url = DATABASE_URL ?? '';
 	if (url.startsWith('libsql://') || url.startsWith('https://')) {
 		throw new Error(`Refusing to seed photographs into a remote database (${url}). Local-only.`);
 	}

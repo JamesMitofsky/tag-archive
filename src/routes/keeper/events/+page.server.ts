@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { searchEvents } from '$lib/server/db/queries';
+import { searchEvents } from '#lib/server/db/queries.ts';
 import type { PageServerLoad } from './$types';
 
 // Rows fetched per page, both here (first page) and by the lazy client fetches.

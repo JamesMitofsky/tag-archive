@@ -1,20 +1,20 @@
 <script lang="ts">
-	import { dateFieldValue } from '$lib/partialDate';
+	import { dateFieldValue } from '#lib/partialDate.ts';
 	import { enhance } from '$app/forms';
-	import { formatArtefactDate } from '$lib/formatDate';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import { formatArtefactDate } from '#lib/formatDate.ts';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
-	import DateField from '$lib/components/DateField.svelte';
-	import AsyncComboField from '$lib/components/AsyncComboField.svelte';
-	import ImageUploader from '$lib/components/ImageUploader.svelte';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { imageSetLabel } from '$lib/images/label';
-	import { createImageSetSuite, parseImageSetForm } from '$lib/validation/imageSet';
-	import { createValidator } from '$lib/validation/client.svelte';
-	import FieldError from '$lib/components/FieldError.svelte';
-	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
+	import DateField from '#lib/components/DateField.svelte';
+	import AsyncComboField from '#lib/components/AsyncComboField.svelte';
+	import ImageUploader from '#lib/components/ImageUploader.svelte';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { imageSetLabel } from '#lib/images/label.ts';
+	import { createImageSetSuite, parseImageSetForm } from '#lib/validation/imageSet.ts';
+	import { createValidator } from '#lib/validation/client.svelte.ts';
+	import FieldError from '#lib/components/FieldError.svelte';
+	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
 	import type { ImageSetFormValues } from './+page.server';
 	import type { ActionData, PageData } from './$types';
 
@@ -235,7 +235,7 @@
 				</div>
 
 				{#if setError && Object.keys(errors).length === 0}
-					<p class="font-friendly text-sm text-red-600" role="alert">{setError}</p>
+					<FieldError message={setError} class="mt-0" />
 				{/if}
 
 				{#if failedUploads > 0}

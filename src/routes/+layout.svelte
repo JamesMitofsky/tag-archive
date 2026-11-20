@@ -7,14 +7,14 @@
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { onNavigate } from '$app/navigation';
-	import { morph, morphNameForPair, reducedMotion } from '$lib/transitions.svelte';
-	import Sky from '$lib/components/Sky.svelte';
-	import SkyUnderlay from '$lib/components/SkyUnderlay.svelte';
-	import Drawing from '$lib/components/Drawing.svelte';
-	import PublicNav from '$lib/components/PublicNav.svelte';
-	import TapToast from '$lib/components/TapToast.svelte';
-	import Presence from '$lib/access/Presence.svelte';
-	import { KEEPER_PATH, LOCKED_PATH } from '$lib/access/paths';
+	import { morph, morphNameForPair, reducedMotion } from '#lib/transitions.svelte.ts';
+	import Sky from '#lib/components/Sky.svelte';
+	import SkyUnderlay from '#lib/components/SkyUnderlay.svelte';
+	import Drawing from '#lib/components/Drawing.svelte';
+	import PublicNav from '#lib/components/PublicNav.svelte';
+	import TapToast from '#lib/components/TapToast.svelte';
+	import Presence from '#lib/access/Presence.svelte';
+	import { KEEPER_PATH, LOCKED_PATH } from '#lib/access/paths.ts';
 
 	let { children } = $props();
 

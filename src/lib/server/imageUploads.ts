@@ -1,4 +1,4 @@
-import { json, type Cookies } from '@sveltejs/kit';
+import type { Cookies } from '@sveltejs/kit';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from './db';
 import { stampInsert } from './db/audit';
@@ -9,7 +9,8 @@ import { parseImageMetadata, type ParsedImageMetadata } from './imageMetadata';
 import { sniffImageType, type ImageType } from './imageType';
 import { deleteScan, fetchObject, keyFromUrl, urlForKey } from './scans';
 import { webpDimensions } from './webpDimensions';
-import type { UploadedImage } from '$lib/images/types';
+import { parsePlaceholder } from '#lib/images/placeholder.ts';
+import type { UploadedImage } from '#lib/images/types.ts';
 
 /**
  * The upload side of image sets: who may touch which uploaded photograph, and
@@ -40,7 +41,7 @@ export const UPLOAD_URL_TTL_S = 300;
  * Whose uploads a request may touch: a signed-in keeper (uploads at the bucket
  * root, rows attributed to them), or an anonymous contributor's draft session
  * (uploads under `submissions/<draft>/`, rows unattributed) — see
- * $lib/server/drafts.
+ * #lib/server/drafts.
  */
 export type UploadOwner = { kind: 'keeper'; userId: string } | { kind: 'draft'; prefix: string };
 
@@ -66,7 +67,10 @@ export function requestOwner(event: { locals: App.Locals; cookies: Cookies }): U
 
 /** 401 the uploader recognizes as "tap the tag again to keep going", as /api/scans answers it. */
 export function lockedResponse(): Response {
-	return json({ message: 'Visit the Cube to open the Archive.', code: 'locked' }, { status: 401 });
+	return Response.json(
+		{ message: 'Visit the Cube to open the Archive.', code: 'locked' },
+		{ status: 401 }
+	);
 }
 
 /**
@@ -335,7 +339,10 @@ async function readMetadata(bytes: Uint8Array): Promise<ParsedImageMetadata> {
  * Nothing the browser declared is trusted. The original must sniff as the
  * type its key names and fit MAX_ORIGINAL_BYTES; the display copy must be a
  * WebP within MAX_DISPLAY_BYTES and MAX_DISPLAY_DIM, carrying no EXIF or XMP
- * (it is the copy pages publish). Cheap checks run first —
+ * (it is the copy pages publish). The one declared thing kept is the
+ * placeholder, and only when it is a well-formed ThumbHash: it is a blur of
+ * pixels the uploader chose anyway (see #lib/images/placeholder), so there is
+ * nothing for it to misrepresent. Cheap checks run first —
  * the original's leading bytes, then the display copy — so a bad upload is
  * refused before its original is downloaded in full.
  *
@@ -414,6 +421,8 @@ export async function finalizeImage(body: unknown, owner: UploadOwner): Promise<
 			bytes: display.length,
 			width: dimensions.width,
 			height: dimensions.height,
+			// Cosmetic, so a malformed one is dropped rather than refusing the upload.
+			placeholder: parsePlaceholder(fields.placeholder),
 			capturedAt,
 			capturedOffset,
 			metadata,

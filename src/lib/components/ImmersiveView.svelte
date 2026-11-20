@@ -67,17 +67,21 @@
 			// without one (its history manipulation intervention), so an entry
 			// pushed after a back gesture would send the next back out of the app.
 			if (navigator.userActivation && !navigator.userActivation.isActive) return;
-			try {
-				if (owned === 0) token = `${id}:${crypto.randomUUID()}`;
-				while (owned < target) {
-					pushState('', { ...page.state, immersive: token!, immersiveStep: owned });
-					owned += 1;
-				}
-			} catch {
-				// No router, as when the component is rendered on its own: back just
-				// isn't intercepted.
-				if (owned === 0) token = null;
+			const before = owned;
+			if (owned === 0) token = `${id}:${crypto.randomUUID()}`;
+			const pushes: Promise<void>[] = [];
+			while (owned < target) {
+				// Started in order, so the entries land in order.
+				pushes.push(pushState('', { ...page.state, immersive: token!, immersiveStep: owned }));
+				owned += 1;
 			}
+			// pushState rejects without a router, as when the component is rendered
+			// on its own: back just isn't intercepted, so forget the entries it never
+			// made.
+			Promise.all(pushes).catch(() => {
+				owned = before;
+				if (owned === 0) token = null;
+			});
 		} else if (target < owned) {
 			// Unwound before it lands, so the popstate this causes finds nothing to do.
 			const extra = owned - target;
@@ -93,8 +97,8 @@
 
 	// Runs after SvelteKit's own popstate handler, which has already set
 	// `page.state` to the entry now current. Watching `page.state` itself would
-	// not do: a form submit's `invalidateAll` resets it without anyone pressing
-	// back.
+	// not do: it can change without anyone pressing back (SvelteKit 2's
+	// `invalidateAll` reset it on every form submit).
 	function onPopState() {
 		const at = depthOf(page.state);
 		if (at === owned) return;

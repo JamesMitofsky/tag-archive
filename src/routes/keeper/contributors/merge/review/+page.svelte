@@ -1,6 +1,6 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
-	import MergePicker from '$lib/components/MergePicker.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import MergePicker from '#lib/components/MergePicker.svelte';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

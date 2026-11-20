@@ -3,19 +3,18 @@ import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 	process.env.BETTER_AUTH_SECRET = 'test-secret';
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
-vi.mock('$env/dynamic/public', () => ({ env: {} }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { db } = await import('$lib/server/db');
-const { artefact, event, user } = await import('$lib/server/db/schema');
-const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('$lib/server/drafts');
-const { UNDATED } = await import('$lib/partialDate');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { db } = await import('#lib/server/db/index.ts');
+const { artefact, event, user } = await import('#lib/server/db/schema.ts');
+const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('#lib/server/drafts.ts');
+const { UNDATED } = await import('#lib/partialDate.ts');
 const { actions } = await import('./+page.server');
 
 const ADMIN = { id: 'admin-1', role: 'admin', email: 'admin@example.org' };
@@ -47,7 +46,7 @@ function anonymousDraft() {
 }
 
 type ActionName = keyof typeof actions;
-/** An open access pass, as hooks.server.ts leaves it on `locals` ($lib/access/pass). */
+/** An open access pass, as hooks.server.ts leaves it on `locals` (#lib/access/pass). */
 const OPEN_PASS = { kind: 't' as const, issuedAt: 0, expiresAt: Number.MAX_SAFE_INTEGER };
 
 async function run(
@@ -95,7 +94,7 @@ describe('createArtefact (anonymous)', () => {
 
 	it('refuses with a draft but no open pass: the archive has drifted shut', async () => {
 		// The gate lets the enhanced post through so the form survives; the action
-		// must still turn it away once the pass has run out (see $lib/access/gate).
+		// must still turn it away once the pass has run out (see #lib/access/gate).
 		const { cookies, upload } = anonymousDraft();
 		const result = await run('createArtefact', minimal([upload('p')]), { cookies, pass: null });
 		expect(isActionFailure(result) && result.status).toBe(401);

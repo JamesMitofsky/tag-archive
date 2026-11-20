@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 	import UserPlusIcon from 'phosphor-svelte/lib/UserPlusIcon';
 	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
+	import KeyIcon from 'phosphor-svelte/lib/KeyIcon';
+	import UserGearIcon from 'phosphor-svelte/lib/UserGearIcon';
+	import { roleLabel } from '#lib/roles.ts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -54,6 +57,7 @@
 
 		<article class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8">
 			<p class="text-lg text-gray-800">{data.user.email}</p>
+			<p class="mt-1 text-sm text-gray-600">{roleLabel(data.user.role)}</p>
 
 			{#if data.user.role === 'admin'}
 				<div class="mt-6 space-y-3 pt-6">
@@ -82,6 +86,26 @@
 						<span class="flex items-center gap-2">
 							<UsersIcon size={18} />
 							Contributors
+						</span>
+						<ArrowRightIcon size={18} class="text-gray-400" />
+					</a>
+					<a
+						href="/keeper/settings/keys"
+						class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-4 py-3 text-sm text-gray-800 transition hover:bg-gray-50"
+					>
+						<span class="flex items-center gap-2">
+							<KeyIcon size={18} />
+							Unlock keys
+						</span>
+						<ArrowRightIcon size={18} class="text-gray-400" />
+					</a>
+					<a
+						href="/keeper/settings/accounts"
+						class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-4 py-3 text-sm text-gray-800 transition hover:bg-gray-50"
+					>
+						<span class="flex items-center gap-2">
+							<UserGearIcon size={18} />
+							Accounts
 						</span>
 						<ArrowRightIcon size={18} class="text-gray-400" />
 					</a>

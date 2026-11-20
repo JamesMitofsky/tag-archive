@@ -28,8 +28,8 @@ const db = drizzle(client, { schema: { user, session, account, verification } })
 // Archive data (six normalised tables) — shared with the prod importer.
 const summary = await seedArchive(db);
 
-// Auth reset is local-only: wipe the auth tables and reinstate two known test
-// accounts. Prod never does this (real accounts come from the OTP flow).
+// Auth reset is local-only: wipe the auth tables and reinstate one known test
+// account per role (see #lib/roles). Prod never does this (real accounts come from the OTP flow).
 await db.delete(session);
 await db.delete(account);
 await db.delete(verification);
@@ -49,6 +49,13 @@ const users: (typeof user.$inferInsert)[] = [
 		email: 'contributor@test.com',
 		emailVerified: true,
 		role: 'contributor'
+	},
+	{
+		id: 'seed-listener',
+		name: 'Test Listener',
+		email: 'listener@test.com',
+		emailVerified: true,
+		role: 'listener'
 	}
 ];
 await db.insert(user).values(users);

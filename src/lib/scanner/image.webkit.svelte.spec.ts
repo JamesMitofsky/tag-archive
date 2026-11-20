@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_DIM, encodedExtension, encodedImageType, encodeImage } from './image';
-import { paintedCanvas, simulateWebKitCanvas } from '$lib/testing/scanner';
+import { paintedCanvas, simulateWebKitCanvas } from '#lib/testing/scanner.ts';
 
 // Every test here runs against a WebKit-style canvas, so the once-per-page
 // encode-type probe sees no WebP support whichever test triggers it first.

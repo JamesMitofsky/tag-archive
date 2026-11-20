@@ -1,8 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq, inArray, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { mergePeople } from '$lib/server/db/queries';
-import { artefactProvenance, eventHost, person } from '$lib/server/db/schema';
+import { db } from '#lib/server/db/index.ts';
+import { mergePeople } from '#lib/server/db/queries.ts';
+import { artefactProvenance, eventHost, person } from '#lib/server/db/schema.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Parse a `1,2,3` id list into a deduped set of positive integers. */

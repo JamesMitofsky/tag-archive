@@ -3,12 +3,12 @@ import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 await vi.hoisted(async () => {
-	const { useTestDatabaseUrl } = await import('$lib/server/db/testing');
+	const { useTestDatabaseUrl } = await import('#lib/server/db/testing.ts');
 	useTestDatabaseUrl();
 	process.env.BETTER_AUTH_SECRET = 'test-secret';
 	process.env.R2_PUBLIC_URL = 'https://bucket.test';
 });
-vi.mock('$env/dynamic/private', () => ({ env: process.env }));
+vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).privateEnv());
 
 /**
  * An in-memory bucket behind `fetchObject`, answering as S3 does: 404 → null,
@@ -48,8 +48,8 @@ const deleteScan = vi.hoisted(() =>
 		store.objects.delete(key);
 	})
 );
-vi.mock('$lib/server/scans', async (importOriginal) => ({
-	...(await importOriginal<typeof import('$lib/server/scans')>()),
+vi.mock('#lib/server/scans.ts', async (importOriginal) => ({
+	...(await importOriginal<typeof import('#lib/server/scans.ts')>()),
 	fetchObject,
 	deleteScan
 }));
@@ -60,13 +60,13 @@ const PARSED = {
 	metadata: { exif: { Make: 'Test Camera' } }
 };
 const parseImageMetadata = vi.hoisted(() => vi.fn());
-vi.mock('$lib/server/imageMetadata', () => ({ parseImageMetadata }));
+vi.mock('#lib/server/imageMetadata.ts', () => ({ parseImageMetadata }));
 
-const { migrateTestDatabase } = await import('$lib/server/db/testing');
-const { db } = await import('$lib/server/db');
-const { image, imageSet, user } = await import('$lib/server/db/schema');
-const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('$lib/server/drafts');
-const { imageKeys } = await import('$lib/server/imageKeys');
+const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
+const { db } = await import('#lib/server/db/index.ts');
+const { image, imageSet, user } = await import('#lib/server/db/schema.ts');
+const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('#lib/server/drafts.ts');
+const { imageKeys } = await import('#lib/server/imageKeys.ts');
 const {
 	deleteUnattachedImage,
 	finalizeImage,
@@ -333,6 +333,23 @@ describe('finalizeImage', () => {
 		await finalizeImage(keys, KEEPER);
 		expect((await rowFor(keys.originalKey))?.originalBytes).toBe(200 * 1024);
 		expect(fetchObject.mock.calls.filter(([key]) => key === keys.originalKey)).toHaveLength(1);
+	});
+
+	it('keeps a well-formed placeholder, and drops a malformed one without refusing', async () => {
+		const hash = 'H5sGDYRliUeUV2pDZWioEFShsOr1';
+		const kept = uploaded(KEEPER);
+		await finalizeImage({ ...kept, name: 'a.jpg', placeholder: hash }, KEEPER);
+		expect((await rowFor(kept.originalKey))?.placeholder).toBe(hash);
+
+		// Cut short, it would decode to garbage: the photograph is recorded without one.
+		const cut = uploaded(KEEPER);
+		await finalizeImage({ ...cut, name: 'b.jpg', placeholder: hash.slice(0, 24) }, KEEPER);
+		expect((await rowFor(cut.originalKey))?.placeholder).toBeNull();
+
+		const none = uploaded(KEEPER);
+		await finalizeImage({ ...none, name: 'c.jpg' }, KEEPER);
+		expect((await rowFor(none.originalKey))?.placeholder).toBeNull();
+		expect(deleteScan).not.toHaveBeenCalled();
 	});
 
 	it('keeps no name when the device gave none, and caps a long one', async () => {

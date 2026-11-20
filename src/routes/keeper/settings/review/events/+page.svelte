@@ -1,7 +1,8 @@
 <script lang="ts">
-	import BackButton from '$lib/components/BackButton.svelte';
-	import ReviewActions from '$lib/components/ReviewActions.svelte';
-	import { formatDate } from '$lib/formatDate';
+	import BackButton from '#lib/components/BackButton.svelte';
+	import ReviewActions from '#lib/components/ReviewActions.svelte';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
+	import { formatDate } from '#lib/formatDate.ts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -48,6 +49,34 @@
 							</p>
 							{#if item.location}
 								<p class="mt-0.5 text-sm text-gray-500">{item.location}</p>
+							{/if}
+							{#if item.featureImage}
+								{@const feature = item.featureImage}
+								<figure class="mt-3">
+									<OptimizedImage
+										src={feature.url}
+										alt={item.title}
+										width={feature.width ?? undefined}
+										height={feature.height ?? undefined}
+										sizes="(max-width: 672px) calc(100vw - 4rem), 576px"
+										class="max-h-64 w-full rounded-sm bg-gray-50 object-contain"
+									/>
+									<figcaption class="mt-1.5 text-xs text-gray-500">
+										Feature image from
+										<a
+											href={feature.source.kind === 'artefact'
+												? `/keeper/artefacts/${feature.source.artefactId}`
+												: `/keeper/images/${feature.source.setId}`}
+											class="underline-offset-2 hover:text-gray-900 hover:underline"
+										>
+											{feature.source.kind === 'artefact' ? 'the artefact' : 'the photographs'}
+											“{feature.source.label}”
+										</a>{#if feature.source.proposed}<span class="text-amber-700">
+												, which is awaiting review too. The image shows publicly only once that is
+												approved as well.
+											</span>{/if}
+									</figcaption>
+								</figure>
 							{/if}
 							{#if item.description}
 								<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">

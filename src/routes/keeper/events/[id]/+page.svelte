@@ -1,16 +1,26 @@
 <script lang="ts">
-	import { formatDate } from '$lib/formatDate';
-	import BackButton from '$lib/components/BackButton.svelte';
+	import { formatDate } from '#lib/formatDate.ts';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
-	import { morphName } from '$lib/transitions.svelte';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
+	import { morphName } from '#lib/transitions.svelte.ts';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	const item = $derived(data.event);
+	const feature = $derived(data.featureImage);
+	// Where the feature image lives, so the caption can lead back to it.
+	const featureHref = $derived(
+		feature === null
+			? null
+			: feature.source.kind === 'artefact'
+				? `/keeper/artefacts/${feature.source.artefactId}`
+				: `/keeper/images/${feature.source.setId}`
+	);
 
 	// When arriving from another keeper list (e.g. a series page), `?from` carries
 	// that origin so Back returns there instead of the default events list.
@@ -50,6 +60,27 @@
 			style="view-transition-name:{morphName('event', item.id)}"
 			class="rounded-sm bg-white/95 p-6 text-gray-900 shadow-xl ring-1 ring-black/5 sm:p-8"
 		>
+			{#if feature}
+				<figure class="mb-5">
+					<OptimizedImage
+						src={feature.url}
+						alt={item.title}
+						width={feature.width ?? undefined}
+						height={feature.height ?? undefined}
+						sizes="(max-width: 672px) calc(100vw - 5rem), 576px"
+						loading="eager"
+						class="max-h-[28rem] w-full rounded-sm bg-gray-50 object-contain"
+					/>
+					<figcaption class="mt-2 text-xs text-gray-500">
+						From
+						<a href={featureHref} class="underline-offset-2 hover:text-gray-900 hover:underline">
+							{feature.source.kind === 'artefact' ? 'the artefact' : 'the photographs'}
+							“{feature.source.label}”
+						</a>
+					</figcaption>
+				</figure>
+			{/if}
+
 			<p
 				style="view-transition-name:{morphName('event', item.id)}-meta"
 				class="text-sm text-gray-500"

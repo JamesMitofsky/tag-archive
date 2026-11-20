@@ -1,8 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
-import { auth } from '$lib/server/auth';
-import { KEEPER_DOOR_URL } from '$lib/access/door.server';
-import { ASSIGNABLE_ROLES, createNewUserSuite, parseCreateUserForm } from '$lib/validation/auth';
+import { auth } from '#lib/server/auth.ts';
+import { KEEPER_PATH } from '#lib/access/paths.ts';
+import { ASSIGNABLE_ROLES, createNewUserSuite, parseCreateUserForm } from '#lib/validation/auth.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -51,12 +51,13 @@ export const actions: Actions = {
 		// fires the account-created email via the magicLink plugin's sendMagicLink
 		// callback. Non-fatal: the account already exists, so a send failure must
 		// not turn a success into an error. callbackURL/errorCallbackURL both point
-		// at /keeper so an expired link simply lands them on the sign-in page —
-		// through its door, since a new keeper has no access pass yet, and on
-		// success the edge sees only the fresh session cookie, not a pass.
+		// at /keeper so an expired link simply lands them on the sign-in page. The
+		// page is open without an access pass (#lib/access/gate), which a new
+		// keeper doesn't hold yet; on success their fresh session mints one there
+		// (hooks.server.ts).
 		try {
 			await auth.api.signInMagicLink({
-				body: { email, callbackURL: KEEPER_DOOR_URL, errorCallbackURL: KEEPER_DOOR_URL },
+				body: { email, callbackURL: KEEPER_PATH, errorCallbackURL: KEEPER_PATH },
 				headers: request.headers
 			});
 		} catch (e) {

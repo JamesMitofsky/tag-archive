@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { mintPass, PASS_TTL_MS, verifyPass } from './pass';
 import { PRESENCE_INTERVAL_MS } from './paths';
 
-vi.mock('$env/dynamic/private', () => ({ env: { BETTER_AUTH_SECRET: 'test-secret' } }));
+vi.mock('$app/env/private', async () =>
+	(await import('#lib/testing/env.ts')).privateEnv({ BETTER_AUTH_SECRET: 'test-secret' })
+);
 
 const SECRET = 'test-secret';
 
@@ -10,7 +12,7 @@ describe('access pass', () => {
 	it('stays open 20 minutes past the last beat, and beats often enough to keep it so', () => {
 		expect(PASS_TTL_MS).toBe(20 * 60 * 1000);
 		// A beat or two lost to a flaky signal must not shut the site on someone
-		// still looking at it (see $lib/access/presence).
+		// still looking at it (see #lib/access/presence).
 		expect(PRESENCE_INTERVAL_MS * 3).toBeLessThanOrEqual(PASS_TTL_MS);
 	});
 
@@ -21,7 +23,7 @@ describe('access pass', () => {
 		expect(await verifyPass(SECRET, token, 1_000 + PASS_TTL_MS)).toBeNull();
 	});
 
-	it.each(['t', 'd', 'k'] as const)('accepts a pass of kind %s', async (kind) => {
+	it.each(['t', 'd', 'r', 'k', 'l'] as const)('accepts a pass of kind %s', async (kind) => {
 		const { token, pass } = await mintPass(SECRET, kind, 0);
 		expect(await verifyPass(SECRET, token, 1)).toEqual(pass);
 	});
@@ -60,10 +62,10 @@ describe('access pass', () => {
 		expect(await verifyPass('', token, 1)).toBeNull();
 	});
 
-	it('signs exactly as $lib/server/signing does for purpose "access"', async () => {
+	it('signs exactly as #lib/server/signing does for purpose "access"', async () => {
 		// The edge gate (Web Crypto) and the server (node:crypto) must agree on
 		// every signature; this pins the shared key derivation.
-		const { sign } = await import('$lib/server/signing');
+		const { sign } = await import('#lib/server/signing.ts');
 		const { token } = await mintPass(SECRET, 'k', 42, 1000);
 		const payload = token.slice(0, token.lastIndexOf('.'));
 		expect(token.slice(token.lastIndexOf('.') + 1)).toBe(sign('access', payload));

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0ab6d021-31e9-4cd2-9024-c141ab38492e",
+  "id": "b705225e-66c2-4597-b91d-38db6c25e099",
   "prevId": "85475f6b-d3b5-4fd1-8c11-753a91a98f04",
   "tables": {
     "artefact": {
@@ -944,6 +944,107 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "image_set_contact": {
+      "name": "image_set_contact",
+      "columns": {
+        "set_id": {
+          "name": "set_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "image_set_contact_set_id_image_set_id_fk": {
+          "name": "image_set_contact_set_id_image_set_id_fk",
+          "tableFrom": "image_set_contact",
+          "tableTo": "image_set",
+          "columnsFrom": [
+            "set_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "image_set_contact_created_by_user_id_fk": {
+          "name": "image_set_contact_created_by_user_id_fk",
+          "tableFrom": "image_set_contact",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "image_set_contact_updated_by_user_id_fk": {
+          "name": "image_set_contact_updated_by_user_id_fk",
+          "tableFrom": "image_set_contact",
+          "tableTo": "user",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "nfc_tag": {
       "name": "nfc_tag",
       "columns": {
@@ -1123,6 +1224,47 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "remote_key": {
+      "name": "remote_key",
+      "columns": {
+        "unlock_key": {
+          "name": "unlock_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "remote_key_unlock_key_lower_idx": {
+          "name": "remote_key_unlock_key_lower_idx",
+          "columns": [
+            "lower(\"unlock_key\")"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "remote_key_unlock_key_check": {
+          "name": "remote_key_unlock_key_check",
+          "value": "\"remote_key\".\"unlock_key\" <> '' AND \"remote_key\".\"unlock_key\" = trim(\"remote_key\".\"unlock_key\")"
+        },
+        "remote_key_expires_at_check": {
+          "name": "remote_key_expires_at_check",
+          "value": "\"remote_key\".\"expires_at\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' AND julianday(\"remote_key\".\"expires_at\") IS NOT NULL"
+        }
+      }
+    },
     "series": {
       "name": "series",
       "columns": {
@@ -1233,6 +1375,107 @@
         "series_updated_by_user_id_fk": {
           "name": "series_updated_by_user_id_fk",
           "tableFrom": "series",
+          "tableTo": "user",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "submission_contact": {
+      "name": "submission_contact",
+      "columns": {
+        "artefact_id": {
+          "name": "artefact_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "submission_contact_artefact_id_artefact_id_fk": {
+          "name": "submission_contact_artefact_id_artefact_id_fk",
+          "tableFrom": "submission_contact",
+          "tableTo": "artefact",
+          "columnsFrom": [
+            "artefact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "submission_contact_created_by_user_id_fk": {
+          "name": "submission_contact_created_by_user_id_fk",
+          "tableFrom": "submission_contact",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "submission_contact_updated_by_user_id_fk": {
+          "name": "submission_contact_updated_by_user_id_fk",
+          "tableFrom": "submission_contact",
           "tableTo": "user",
           "columnsFrom": [
             "updated_by"
@@ -1572,12 +1815,7 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {
-        "user_role_check": {
-          "name": "user_role_check",
-          "value": "\"user\".\"role\" in ('admin', 'contributor')"
-        }
-      }
+      "checkConstraints": {}
     },
     "verification": {
       "name": "verification",
@@ -1650,6 +1888,14 @@
     "columns": {}
   },
   "internal": {
-    "indexes": {}
+    "indexes": {
+      "remote_key_unlock_key_lower_idx": {
+        "columns": {
+          "lower(\"unlock_key\")": {
+            "isExpression": true
+          }
+        }
+      }
+    }
   }
 }

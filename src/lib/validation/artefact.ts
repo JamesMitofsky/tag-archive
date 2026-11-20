@@ -1,5 +1,5 @@
-import { readDateField } from '$lib/partialDate';
-import { PROGRAM_AREAS } from '$lib/programAreas';
+import { readDateField } from '#lib/partialDate.ts';
+import { PROGRAM_AREAS } from '#lib/programAreas.ts';
 import { check, defineSuite, isHttpUrl, isPartialDate, maxLen, splitList, str } from './helpers';
 
 /** Normalised artefact form values — validated, then used for the DB write. */
@@ -43,7 +43,7 @@ export type ArtefactSuiteOptions = {
 export function createArtefactSuite({ requireLocation = true }: ArtefactSuiteOptions = {}) {
 	return defineSuite<ArtefactData>((data) => {
 		const title = data.artefact ?? '';
-		check('artefact', 'Title is required', title.length > 0);
+		check('artefact', 'Title required', title.length > 0);
 		check('artefact', 'Keep the title under 200 characters', title.length <= 200);
 
 		maxLen('event', data.event ?? '', 200, 'event');
@@ -61,7 +61,7 @@ export function createArtefactSuite({ requireLocation = true }: ArtefactSuiteOpt
 		maxLen('description', data.description ?? '', 2000, 'description');
 		check(
 			'location',
-			'Archival storage location is required',
+			'Archival storage location required',
 			!requireLocation || (data.location ?? '').trim().length > 0
 		);
 		maxLen('location', data.location ?? '', 200, 'location');
@@ -79,4 +79,34 @@ export function createArtefactSuite({ requireLocation = true }: ArtefactSuiteOpt
 
 		check('provenance', 'List at most 50 contributors', (data.provenance ?? []).length <= 50);
 	});
+}
+
+/** Raw (unvalidated) form values echoed back so a failed submit keeps input. */
+export type ArtefactFormValues = {
+	artefact: string;
+	event: string;
+	date: string;
+	description: string;
+	location: string;
+	fileUrls: string[];
+	/** Comma-separated in the form; kept raw so a failed submit doesn't lose it. */
+	provenance: string;
+	programArea: string[];
+};
+
+/**
+ * What a failed artefact submit echoes back: the fields as typed (not as
+ * normalised by `parseArtefactForm`), except the lists, which only exist parsed.
+ */
+export function echoArtefactForm(fd: FormData, data: ArtefactData): ArtefactFormValues {
+	return {
+		artefact: String(fd.get('artefact') ?? ''),
+		event: String(fd.get('event') ?? ''),
+		date: String(fd.get('date') ?? ''),
+		description: String(fd.get('description') ?? ''),
+		location: String(fd.get('location') ?? ''),
+		fileUrls: data.fileUrls,
+		provenance: String(fd.get('provenance') ?? ''),
+		programArea: data.programArea
+	};
 }

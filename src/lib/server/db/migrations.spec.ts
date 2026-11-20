@@ -181,9 +181,81 @@ describe('0009_images', () => {
 	});
 });
 
-describe('0010_drop_submission_contacts', () => {
+describe('0011_listener_role', () => {
 	let client: Client;
-	// Every table 0009 leaves behind that 0010 keeps, auth included.
+	// The tables that point at `user`: a rebuild with foreign keys enforced would
+	// empty the cascading ones (session, account) as it dropped the old table.
+	const dependents = ['user', 'session', 'account', 'artefact', 'remote_key'];
+	const before = new Map<string, number>();
+
+	beforeAll(async () => {
+		client = createClient({ url: `file:${join(work, 'replay-0011.db')}` });
+		await migrateThrough(client, '0010_remote_keys');
+
+		await client.batch(
+			[
+				"INSERT INTO user (id, name, email, role) VALUES ('u1', 'Admin', 'a@example.org', 'admin'), ('u2', 'Keeper', 'c@example.org', 'contributor')",
+				"INSERT INTO session (id, expires_at, token, updated_at, user_id) VALUES ('s1', 0, 't1', 0, 'u1'), ('s2', 0, 't2', 0, 'u2')",
+				"INSERT INTO account (id, account_id, provider_id, user_id, updated_at) VALUES ('ac1', 'a', 'email', 'u1', 0)",
+				"INSERT INTO artefact (id, artefact, date, created_by, updated_by) VALUES (1, 'Program', '2024', 'u1', 'u2')",
+				"INSERT INTO remote_key (unlock_key, expires_at) VALUES ('tobyshorin', '2999-01-01')"
+			],
+			'write'
+		);
+		// Before the migration the role is still held to the two keeper roles.
+		await expect(
+			client.execute(
+				"INSERT INTO user (id, name, email, role) VALUES ('early', 'L', 'early@example.org', 'listener')"
+			)
+		).rejects.toThrow(/CHECK/);
+		for (const table of dependents) before.set(table, await count(client, table));
+
+		await migrateThrough(client, '0011_listener_role');
+	});
+
+	afterAll(() => client.close());
+
+	it('keeps every account, session and sign-in, and what they made', async () => {
+		for (const table of dependents) {
+			expect(before.get(table), table).toBeGreaterThan(0);
+			expect(await count(client, table), table).toBe(before.get(table));
+		}
+		const roles = await client.execute('SELECT id, role FROM user ORDER BY id');
+		expect(roles.rows.map((r) => [r.id, r.role])).toEqual([
+			['u1', 'admin'],
+			['u2', 'contributor']
+		]);
+	});
+
+	it('takes a listener, and no role at all, but no role the app does not know', async () => {
+		await client.execute("UPDATE user SET role = 'listener' WHERE id = 'u2'");
+		await client.execute(
+			"INSERT INTO user (id, name, email, role) VALUES ('u3', 'New', 'n@example.org', NULL)"
+		);
+		await expect(
+			client.execute("UPDATE user SET role = 'superuser' WHERE id = 'u2'")
+		).rejects.toThrow(/CHECK/);
+		const row = await client.execute("SELECT role FROM user WHERE id = 'u2'");
+		expect(row.rows[0].role).toBe('listener');
+	});
+
+	it('still refuses a second account with the same email', async () => {
+		await expect(
+			client.execute("INSERT INTO user (id, name, email) VALUES ('u4', 'Dup', 'a@example.org')")
+		).rejects.toThrow(/UNIQUE/);
+	});
+
+	it('still deletes an account’s sessions with it', async () => {
+		await client.execute("DELETE FROM user WHERE id = 'u3'");
+		await client.execute('DELETE FROM artefact WHERE id = 1');
+		await client.execute("DELETE FROM user WHERE id = 'u2'");
+		expect(await count(client, 'session')).toBe(1);
+	});
+});
+
+describe('0014_drop_submission_contacts', () => {
+	let client: Client;
+	// Every table 0013 leaves behind that 0014 keeps, auth included.
 	const kept = [
 		'user',
 		'series',
@@ -193,8 +265,10 @@ describe('0010_drop_submission_contacts', () => {
 		'artefact_provenance',
 		'image_set',
 		'image',
+		'event_feature_image',
 		'rate_limit',
-		'nfc_tag'
+		'nfc_tag',
+		'remote_key'
 	];
 	const before = new Map<string, number>();
 
@@ -207,8 +281,8 @@ describe('0010_drop_submission_contacts', () => {
 		).rows.length > 0;
 
 	beforeAll(async () => {
-		client = createClient({ url: `file:${join(work, 'replay-0010.db')}` });
-		await migrateThrough(client, '0009_images');
+		client = createClient({ url: `file:${join(work, 'replay-0014.db')}` });
+		await migrateThrough(client, '0013_image_placeholders');
 
 		await client.batch(
 			[
@@ -223,14 +297,16 @@ describe('0010_drop_submission_contacts', () => {
 				`INSERT INTO image (id, set_id, url, original_url, original_type, original_bytes, bytes, width, height)
 					VALUES (1, 1, 'https://b.test/1.webp', 'https://b.test/1.jpg', 'image/jpeg', 100, 50, 4, 3)`,
 				"INSERT INTO image_set_contact (set_id, name) VALUES (1, 'Grace')",
+				'INSERT INTO event_feature_image (event_id, image_id) VALUES (1, 1)',
 				"INSERT INTO rate_limit (key, window_start, count) VALUES ('submit-ip:abc', 0, 3)",
-				"INSERT INTO nfc_tag (uid, last_counter, first_seen_at, last_seen_at) VALUES ('04A1B2C3D4E5F6', 7, 0, 0)"
+				"INSERT INTO nfc_tag (uid, last_counter, first_seen_at, last_seen_at) VALUES ('04A1B2C3D4E5F6', 7, 0, 0)",
+				"INSERT INTO remote_key (unlock_key, expires_at) VALUES ('tobyshorin', '2999-01-01')"
 			],
 			'write'
 		);
 		for (const table of kept) before.set(table, await count(client, table));
 
-		await migrateThrough(client, '0010_drop_submission_contacts');
+		await migrateThrough(client, '0014_drop_submission_contacts');
 	});
 
 	afterAll(() => client.close());

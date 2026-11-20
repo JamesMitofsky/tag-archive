@@ -36,7 +36,7 @@ export function parseSeriesForm(fd: FormData): SeriesData {
 export function createSeriesSuite() {
 	return defineSuite<SeriesData>((data) => {
 		const name = data.name ?? '';
-		check('name', 'Name is required', name.length > 0);
+		check('name', 'Name required', name.length > 0);
 		check('name', 'Keep the name under 200 characters', name.length <= 200);
 
 		maxLen('description', data.description ?? '', 2000, 'description');

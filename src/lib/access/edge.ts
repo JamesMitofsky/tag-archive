@@ -1,5 +1,6 @@
-import { accessDecision, LOCKED_PATH } from './gate.ts';
-import { PASS_COOKIE, verifyPass } from './pass.ts';
+import { accessDecision, LOCKED_PATH } from './gate.js';
+import { unlockUrl } from './key.server.js';
+import { PASS_COOKIE, verifyPass } from './pass.js';
 
 /**
  * The value of cookie `name` on `request`, or undefined. Routing Middleware
@@ -56,15 +57,17 @@ export async function gateRequest(
 	if (decision === 'open') return undefined;
 
 	// No secret means no pass can be checked: everything but the open paths stays
-	// locked (fail closed), and the keeper sign-in still works.
+	// locked (fail closed), and the keeper sign-in, an open path, still works.
 	if (!secret) console.error('[access-gate] BETTER_AUTH_SECRET is not set');
 	if (await verifyPass(secret ?? '', cookie(PASS_COOKIE), now)) return undefined;
 
 	const headers = { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' };
-	if (decision === 'redirect') {
+	if (decision === 'unlock' || decision === 'redirect') {
+		// The key rides in the Location; keep it out of any Referer from here on.
+		const location = decision === 'unlock' ? unlockUrl(url) : LOCKED_PATH;
 		return new Response(null, {
 			status: 303,
-			headers: { ...headers, location: LOCKED_PATH }
+			headers: { ...headers, 'referrer-policy': 'no-referrer', location }
 		});
 	}
 	return Response.json(

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { beforeNavigate, goto } from '$app/navigation';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
 
 	// Warns before leaving a form with unsaved edits. Snapshots the form's fields on
 	// mount and compares against them lazily at navigation time, so it needs no
@@ -9,11 +9,20 @@
 	let {
 		form,
 		enabled = true,
+		dirty = false,
+		onDiscard,
 		title = 'Discard unsaved changes?',
 		description = 'You have unsaved changes. If you leave now, they will be lost.'
 	}: {
 		form?: HTMLFormElement;
 		enabled?: boolean;
+		/**
+		 * Unsaved work the form's fields don't show: photos taken but not yet
+		 * added as pages, pages still uploading. Counts as a change on its own.
+		 */
+		dirty?: boolean;
+		/** The user chose to leave and lose the changes. */
+		onDiscard?: () => void;
 		title?: string;
 		description?: string;
 	} = $props();
@@ -36,7 +45,7 @@
 	}
 
 	function isDirty(): boolean {
-		return enabled && snapshot !== null && serialize() !== snapshot;
+		return enabled && (dirty || (snapshot !== null && serialize() !== snapshot));
 	}
 
 	$effect(() => {
@@ -66,6 +75,7 @@
 	function leave() {
 		showPrompt = false;
 		confirmedLeave = true;
+		onDiscard?.();
 		if (pendingUrl) goto(pendingUrl);
 	}
 

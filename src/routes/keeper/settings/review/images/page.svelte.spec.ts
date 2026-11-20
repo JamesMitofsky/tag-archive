@@ -2,7 +2,7 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
-import { paintedCanvas } from '$lib/testing/scanner';
+import { paintedCanvas } from '#lib/testing/scanner.ts';
 
 // Rendered without a running app: stand in for what SvelteKit would provide.
 vi.mock('$app/forms', () => ({ enhance: () => ({ destroy() {} }) }));
@@ -24,7 +24,7 @@ function renderReview(sets: unknown[]) {
 
 describe('/keeper/settings/review/images', () => {
 	it('shows each set with a glance at its photographs and who sent it', async () => {
-		renderReview([
+		await renderReview([
 			{
 				id: 3,
 				description: 'Front row',
@@ -60,7 +60,7 @@ describe('/keeper/settings/review/images', () => {
 	});
 
 	it('says when nothing is waiting', async () => {
-		renderReview([]);
+		await renderReview([]);
 		await expect.element(page.getByText('No images awaiting review.')).toBeVisible();
 	});
 });

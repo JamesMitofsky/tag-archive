@@ -1,9 +1,9 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { desc, eq, getTableColumns } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { purgeArchiveCache } from '$lib/server/cache';
-import { attachHosts, attachProvenance } from '$lib/server/db/queries';
-import { stampUpdate } from '$lib/server/db/audit';
+import { db } from '#lib/server/db/index.ts';
+import { purgeArchiveCache } from '#lib/server/cache.ts';
+import { attachHosts, attachProvenance } from '#lib/server/db/queries.ts';
+import { stampUpdate } from '#lib/server/db/audit.ts';
 import {
 	artefact,
 	artefactProvenance,
@@ -11,8 +11,8 @@ import {
 	eventHost,
 	person,
 	series
-} from '$lib/server/db/schema';
-import { idSchema } from '$lib/schemas';
+} from '#lib/server/db/schema.ts';
+import { idSchema } from '#lib/schemas.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -77,7 +77,7 @@ export const actions: Actions = {
 
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
-		if (!name) return fail(400, { error: 'Name is required.' });
+		if (!name) return fail(400, { error: 'Name required' });
 
 		try {
 			await db

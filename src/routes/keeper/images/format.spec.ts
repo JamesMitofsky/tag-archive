@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { imageSetLabel } from '$lib/images/label';
+import { imageSetLabel } from '#lib/images/label.ts';
 import { formatCapturedAt, formatFileSize, formatImageType, formatSetMeta } from './format';
 
 describe('formatCapturedAt', () => {

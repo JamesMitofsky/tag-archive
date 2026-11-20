@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { env } from '$env/dynamic/private';
+import { BETTER_AUTH_SECRET } from '$app/env/private';
 
 /**
  * Purpose-bound HMAC keys derived from BETTER_AUTH_SECRET, so features that
@@ -8,7 +8,7 @@ import { env } from '$env/dynamic/private';
  * replayed as another, because each purpose gets its own key.
  */
 function key(purpose: string): Buffer {
-	const secret = env.BETTER_AUTH_SECRET;
+	const secret = BETTER_AUTH_SECRET;
 	if (!secret) throw new Error('BETTER_AUTH_SECRET is not set');
 	return createHmac('sha256', secret).update(`tag-archive:${purpose}`).digest();
 }
