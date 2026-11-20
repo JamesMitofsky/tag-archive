@@ -64,8 +64,7 @@ export const OPEN_PREFIXES = [
 	'/api/cron/', // bearer-authenticated scheduled jobs
 	'/_app/', // the app's code bundles
 	'/drawing/', // hand-drawn decor
-	'/clouds/', // sky decor
-	'/email/' // images in sign-in emails, fetched by mail clients without cookies
+	'/clouds/' // sky decor
 ];
 
 /** Strip what SvelteKit appends for client-side data loads (`/x/__data.json`). */

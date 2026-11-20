@@ -51,7 +51,7 @@ export default async function middleware(request: Request): Promise<Response> {
 export const config = {
 	// Everything except the always-open prefixes above. Kept a literal: Vercel
 	// reads it from the source at build time.
-	matcher: ['/((?!_app/|drawing/|clouds/|email/|favicon\\.png$).*)'],
+	matcher: ['/((?!_app/|drawing/|clouds/|favicon\\.png$).*)'],
 	// Stated, not left to the default, which has changed before: the gate needs
 	// only Web Crypto, but runs the same everywhere this way.
 	runtime: 'nodejs'
