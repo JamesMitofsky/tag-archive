@@ -81,7 +81,7 @@ export const eventSourceSchema = z
 		location: z.string().nullable(),
 		description: z.string().nullable(),
 		hosts: z.array(z.string().trim().min(1)),
-		url: z.string().url().nullable(),
+		url: z.url().nullable(),
 		mayHaveException: z.boolean().optional(),
 		possibleExceptionDescription: z.string().optional()
 	})

@@ -1,4 +1,4 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { idSchema } from '#lib/schemas.ts';
 import { listFeatureCandidates } from '#lib/server/eventFeatures.ts';
 import type { RequestHandler } from './$types';
@@ -26,5 +26,5 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	// Bounded so a crafted URL can't make the LIKE patterns arbitrarily long.
 	const q = (url.searchParams.get('q') ?? '').slice(0, 200);
-	return json(await listFeatureCandidates(eventId, { linked: false, q }));
+	return Response.json(await listFeatureCandidates(eventId, { linked: false, q }));
 };

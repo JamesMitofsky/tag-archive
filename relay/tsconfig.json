@@ -1,0 +1,19 @@
+{
+	// The relay is a Cloudflare Worker, not part of the SvelteKit app, so it
+	// doesn't extend the root tsconfig (whose DOM and $app types don't apply).
+	// Its runtime types come from worker-configuration.d.ts, which
+	// `npx wrangler types` writes here; rerun it after changing wrangler.jsonc
+	// or its compatibility_date.
+	"compilerOptions": {
+		"target": "esnext",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"lib": ["esnext"],
+		"types": ["./worker-configuration.d.ts"],
+		"strict": true,
+		"noEmit": true,
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true
+	},
+	"include": ["src"]
+}

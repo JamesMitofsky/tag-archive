@@ -150,7 +150,7 @@ ${examples}`;
  * (`events:curate --handoff` / `--decisions`). Strict, so a decision that
  * tries to carry a `title` or `description` is rejected rather than ignored.
  */
-export const decisionSchema = curationSchema.extend({ url: z.string().url() }).strict();
+export const decisionSchema = curationSchema.extend({ url: z.url() }).strict();
 export const decisionsFileSchema = z.array(decisionSchema);
 export type Decision = z.infer<typeof decisionSchema>;
 
