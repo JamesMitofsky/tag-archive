@@ -25,8 +25,6 @@
 		type RelayState
 	} from '#lib/installation/relay.ts';
 
-	/** Seconds without a touch before the invitation shows again. */
-	const INVITE_AFTER = 30;
 	/** The water's own slow drift when nobody is touching it (px/s). */
 	const DRIFT = { x: 7, y: 3 };
 
@@ -49,7 +47,6 @@
 
 	let surface: HTMLElement | undefined = $state();
 	const pools: HTMLElement[] = $state([]);
-	let inviting = $state(true);
 	let connection = $state<RelayState | 'unconfigured'>('connecting');
 
 	onMount(() => {
@@ -104,7 +101,6 @@
 		let pendingX = 0;
 		let pendingY = 0;
 		let samples: Sample[] = [];
-		let lastTouch = performance.now();
 		let frame = 0;
 
 		// The water: how far it has been moved, and how fast it glides on.
@@ -172,9 +168,6 @@
 				water.y += (glide.y + drift.y) * dt;
 			}
 			drawWater(ms / 1000);
-			if (!inviting && finger === null && performance.now() - lastTouch > INVITE_AFTER * 1000) {
-				inviting = true;
-			}
 		};
 		frame = requestAnimationFrame(tick);
 
@@ -186,8 +179,6 @@
 			node.setPointerCapture(event.pointerId);
 			last = { x: event.clientX, y: event.clientY };
 			samples = [{ t: event.timeStamp, ...last }];
-			lastTouch = performance.now();
-			inviting = false;
 			// A finger in the water stops it gliding.
 			glide = { x: 0, y: 0 };
 			relay?.send({ t: 'down' });
@@ -213,7 +204,6 @@
 			water.x += dx;
 			water.y += dy;
 			last = { x: event.clientX, y: event.clientY };
-			lastTouch = performance.now();
 		};
 
 		const onUp = (event: PointerEvent) => {
@@ -226,7 +216,6 @@
 				event.type === 'pointercancel' ? { x: 0, y: 0 } : releaseVelocity(samples, event.timeStamp);
 			relay?.send({ t: 'up', vx: Math.round(v.x), vy: Math.round(v.y) });
 			glide = v;
-			lastTouch = performance.now();
 		};
 
 		node.addEventListener('pointerdown', onDown);
@@ -270,8 +259,6 @@
 			<span class="pool {pool.tone}" bind:this={pools[i]}></span>
 		{/each}
 	</div>
-
-	<p class="invite" class:shown={inviting}>Touch &amp; drag to navigate the Archive</p>
 
 	<!-- For whoever is running the night, not the visitors: a tiny mark in the
 	     corner that shows only when the connection is down. -->
@@ -329,28 +316,6 @@
 	.pool.deep {
 		color: oklch(0.78 0.08 236);
 		opacity: 0.55;
-	}
-
-	.invite {
-		position: absolute;
-		inset: auto 0 12%;
-		margin: 0;
-		text-align: center;
-		font-family: var(--font-friendly);
-		font-size: clamp(1.4rem, 3.4vw, 2.4rem);
-		color: oklch(0.42 0.06 70);
-		opacity: 0;
-		transition: opacity 1.2s ease;
-		pointer-events: none;
-	}
-	.invite.shown {
-		opacity: 0.85;
-		animation: breathe 5s ease-in-out infinite;
-	}
-	@keyframes breathe {
-		50% {
-			opacity: 0.5;
-		}
 	}
 
 	.status {

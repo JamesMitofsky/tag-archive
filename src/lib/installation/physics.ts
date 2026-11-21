@@ -7,7 +7,9 @@
  * what turns network jitter into something that feels like viscosity. Once the
  * finger lifts, the field glides on with friction. As it slows, a magnet draws
  * the nearest item into the lens, so a released swipe always lands on
- * something. Left alone long enough, a slow current carries the field along.
+ * something. Left alone long enough, a slow current carries the field along
+ * and the lens rests, so the screen returns to a wash of the archive drifting
+ * by. The field starts that way too, since nobody has steered it yet.
  *
  * Pure and free of the DOM, so the feel can be tested and tuned in isolation.
  * Positions are world pixels on the projector. `cam` is the world point at the
@@ -29,13 +31,16 @@ export const TUNING = {
 	magnetSpeed: 150,
 	/** The magnet's spring (1/s): settles in about 1.2 s, without overshoot. */
 	magnetOmega: 3.6,
-	/** Seconds without a touch before the current starts. */
-	idleAfter: 30,
+	/** Seconds without a touch before the current starts and the lens rests. */
+	idleAfter: 60,
 	/** The current's speed (px/s) and how gently it gathers (half-life, s). */
 	currentSpeed: 26,
 	currentHalfLife: 2.5,
 	/** The current's heading: down and to the right, like a slow stream. */
 	currentHeading: { x: 0.92, y: 0.38 },
+	/** How quickly the lens wakes at a touch, and rests once the current takes over (half-lives, s). */
+	lensWakeHalfLife: 0.2,
+	lensRestHalfLife: 1.2,
 	/** Slower than this (px/s), a glide with nothing to catch simply stops. */
 	restSpeed: 2,
 	/** The longest frame stepped at once (s): a hitch must not fling the field. */
@@ -128,6 +133,12 @@ export type Sim = {
 	/** How fast the shown field is moving (px/s). */
 	readonly speed: number;
 	readonly mode: Mode;
+	/**
+	 * How much the lens is at work, 0..1: 1 while someone is steering or the
+	 * field settles from their last swipe, easing to 0 once the current takes
+	 * over, so nothing drifting by is drawn into focus.
+	 */
+	readonly lens: number;
 	/** A finger touched down. `now` is in seconds. */
 	down(now: number): void;
 	/** The finger moved by (dx, dy) of its own px; `gain` scales it to the projector. */
@@ -142,15 +153,17 @@ export type Sim = {
 	shift(dx: number, dy: number): void;
 };
 
-export function createSim(start: Vec, tuning: Tuning = TUNING, now = 0): Sim {
+export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 	const cam = { ...start };
 	const camVel = { x: 0, y: 0 };
 	const target = { ...start };
 	let vel: Vec = { x: 0, y: 0 };
-	let mode: Mode = 'glide';
+	// Nobody has steered yet, so the field starts in the current, lens at rest.
+	let mode: Mode = 'current';
 	let anchor: Vec | null = null;
-	let lastInput = now;
+	let lastInput = -Infinity;
 	let speed = 0;
+	let lens = 0;
 
 	return {
 		get cam() {
@@ -161,6 +174,9 @@ export function createSim(start: Vec, tuning: Tuning = TUNING, now = 0): Sim {
 		},
 		get mode() {
 			return mode;
+		},
+		get lens() {
+			return lens;
 		},
 		down(t) {
 			mode = 'touch';
@@ -230,6 +246,12 @@ export function createSim(start: Vec, tuning: Tuning = TUNING, now = 0): Sim {
 			[cam.x, camVel.x] = springStep(cam.x, camVel.x, target.x, tuning.followOmega, dt);
 			[cam.y, camVel.y] = springStep(cam.y, camVel.y, target.y, tuning.followOmega, dt);
 			speed = length(camVel);
+
+			const goal = mode === 'current' ? 0 : 1;
+			const keep = decay(goal ? tuning.lensWakeHalfLife : tuning.lensRestHalfLife, dt);
+			lens = goal + (lens - goal) * keep;
+			// Land exactly, so a resting lens draws nothing at all into focus.
+			if (Math.abs(lens - goal) < 0.001) lens = goal;
 		},
 		shift(dx, dy) {
 			cam.x += dx;
