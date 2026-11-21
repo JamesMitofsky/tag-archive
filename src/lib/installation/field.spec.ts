@@ -3,14 +3,22 @@ import {
 	bloomScale,
 	calmness,
 	carryCamera,
+	floorZoom,
 	focusAmount,
 	focusScale,
+	groupBySeason,
+	isPicture,
+	itemScale,
 	layoutField,
 	nearestItem,
 	offsetFrom,
 	openHeight,
 	orderByCluster,
 	parting,
+	roomNeeded,
+	thinningRoom,
+	thinningStarts,
+	widestZoom,
 	wrapDelta,
 	type FieldItem
 } from './field';
@@ -54,6 +62,15 @@ describe('wrapDelta', () => {
 });
 
 describe('orderByCluster', () => {
+	it('dates a cluster by its finest date, not an earlier year-only one', () => {
+		const ordered = orderByCluster([
+			item('mid', 'b', '2019-03'),
+			item('coarse', 'a', '2019'),
+			item('fine', 'a', '2019-07-04')
+		]).map((i) => i.id);
+		expect(ordered).toEqual(['mid', 'coarse', 'fine']);
+	});
+
 	it('keeps clusters together, in date order, undated last', () => {
 		const ordered = orderByCluster([
 			item('late', 'b', '2020'),
@@ -63,6 +80,25 @@ describe('orderByCluster', () => {
 			item('early-2', 'a', '2012')
 		]).map((i) => i.id);
 		expect(ordered).toEqual(['early', 'early-2', 'late', 'late-2', 'undated']);
+	});
+});
+
+describe('groupBySeason', () => {
+	it('gathers clusters into seasons, in date order, never splitting a cluster', () => {
+		const groups = groupBySeason([
+			item('undated', 'u', null),
+			item('july', 'a', '2024-07-04'),
+			item('july-photo', 'a', '2024-09-02'),
+			item('december', 'b', '2023-12-10'),
+			item('february', 'c', '2024-02'),
+			item('year', 'd', '2024')
+		]);
+		expect(groups.map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
+			['2024', ['year']],
+			['Winter 2024', ['december', 'february']],
+			['Summer 2024', ['july', 'july-photo']],
+			['Undated', ['undated']]
+		]);
 	});
 });
 
@@ -91,10 +127,58 @@ describe('layoutField', () => {
 		expect(small.height).toBeGreaterThan(viewH);
 	});
 
-	it('shows about the asked number of items per screen', () => {
+	it('shows about the asked number of items per screen over an island, fewer on average', () => {
 		const perScreen = (400 * viewW * viewH) / (world.width * world.height);
-		expect(perScreen).toBeGreaterThan(16);
-		expect(perScreen).toBeLessThan(26);
+		// The channels between islands are open water, so well under the default 37.
+		expect(perScreen).toBeGreaterThan(13);
+		expect(perScreen).toBeLessThan(37);
+		// Around a bubble, a screen's worth of island holds about the asked number,
+		// a little under it for the empty cells.
+		const summer = layoutField(
+			Array.from({ length: 300 }, (_, i) => item(`s${i}`, `c${i}`, '2024-07-01')),
+			{ viewW, viewH }
+		);
+		const [group] = summer.groups;
+		const near = summer.placed.filter((p) => {
+			const o = offsetFrom(group, p, summer);
+			return Math.abs(o.x) < viewW / 2 && Math.abs(o.y) < viewH / 2;
+		});
+		expect(near.length).toBeGreaterThan(28);
+		expect(near.length).toBeLessThan(37);
+	});
+
+	it('gives each season one bubble, in date order', () => {
+		const labels = world.groups.map((g) => g.label);
+		expect(labels).toEqual(groupBySeason(many(400)).map((g) => g.label));
+		expect(labels.length).toBeGreaterThan(5);
+		expect([...labels].sort()).toEqual(labels);
+	});
+
+	it('keeps the water clear at each bubble', () => {
+		for (const group of world.groups) {
+			for (const p of world.placed) {
+				const o = offsetFrom(group, p, world);
+				// The bubble's three cells, less how far an item may be nudged and its half-size.
+				const clear = Math.abs(o.y) < world.cell * 0.4 && Math.abs(o.x) < world.cell * 1.4;
+				expect(clear).toBe(false);
+			}
+		}
+	});
+
+	it('parts the seasons by open water, wider than the gaps within one', () => {
+		const seasonOf = new Map(
+			groupBySeason(many(400)).flatMap((g) => g.items.map((i) => [i.id, g.key]))
+		);
+		let closest = Infinity;
+		for (const p of world.placed) {
+			for (const q of world.placed) {
+				if (seasonOf.get(p.item.id) === seasonOf.get(q.item.id)) continue;
+				const o = offsetFrom(p, q, world);
+				closest = Math.min(closest, Math.hypot(o.x, o.y));
+			}
+		}
+		// Within an island, neighbors sit about a cell apart.
+		expect(closest).toBeGreaterThan(world.cell * 1.3);
 	});
 
 	it('is the same every time', () => {
@@ -363,5 +447,93 @@ describe('buildFieldItems', () => {
 	it('uses a photograph’s own shape and placeholder', () => {
 		expect(byId.get('p9')!.aspect).toBeCloseTo(4 / 3);
 		expect(byId.get('p9')!.placeholder).toBe('abc');
+	});
+});
+
+describe('thinningRoom', () => {
+	const world = layoutField(
+		many(300).map((it, i) => (i % 5 === 0 ? { ...it, kind: 'event' as const, src: null } : it)),
+		{ viewW: 1600, viewH: 900 }
+	);
+	const tierOf = (p: (typeof world.placed)[number]) => (isPicture(p.item) ? 0 : 1);
+	const room = thinningRoom(world, tierOf);
+
+	it('gives one item infinite room and every other a finite one', () => {
+		const infinite = [...room].filter((r) => r === Infinity);
+		expect(infinite).toHaveLength(1);
+		expect([...room].every((r) => r > 0)).toBe(true);
+	});
+
+	it('keeps whatever is shown at a given room at least that far apart', () => {
+		for (const need of [world.cell * 0.8, world.cell * 1.5, world.cell * 3]) {
+			const kept = world.placed.filter((_, i) => room[i] >= need);
+			expect(kept.length).toBeGreaterThan(0);
+			for (let a = 0; a < kept.length; a++) {
+				for (let b = a + 1; b < kept.length; b++) {
+					const o = offsetFrom(kept[a], kept[b], world);
+					expect(Math.hypot(o.x, o.y)).toBeGreaterThanOrEqual(need - 1e-6);
+				}
+			}
+		}
+	});
+
+	it('thins evenly rather than leaving bare patches', () => {
+		// Farthest-point sampling covers as it thins: every picture left out is
+		// within the room of one that stays.
+		for (const need of [world.cell * 1.2, world.cell * 2, world.cell * 3]) {
+			const pictures = world.placed.flatMap((p, i) => (isPicture(p.item) ? [i] : []));
+			const kept = pictures.filter((i) => room[i] >= need);
+			for (const i of pictures) {
+				const nearest = Math.min(
+					...kept.map((k) => {
+						const o = offsetFrom(world.placed[i], world.placed[k], world);
+						return Math.hypot(o.x, o.y);
+					})
+				);
+				expect(nearest).toBeLessThan(need);
+			}
+		}
+	});
+
+	it('places every picture before any card, so cards thin first', () => {
+		const order = world.placed
+			.map((p, i) => ({ picture: isPicture(p.item), room: room[i] }))
+			.sort((a, b) => b.room - a.room);
+		// A card's room is measured to the pictures too, so it is never more than
+		// the gap to its nearest picture, while pictures are measured only to each other.
+		const cards = order.filter((o) => !o.picture);
+		const leastPicture = Math.min(...order.filter((o) => o.picture).map((o) => o.room));
+		expect(cards.length).toBeGreaterThan(0);
+		for (const card of cards) expect(card.room).toBeLessThanOrEqual(world.cell * 1.6);
+		expect(leastPicture).toBeGreaterThan(world.cell * 0.5);
+	});
+});
+
+describe('zoom levels', () => {
+	it('lets pictures shrink with the zoom down to the floor, then only slowly', () => {
+		expect(itemScale(1, 0.5)).toBe(1);
+		expect(itemScale(0.5, 0.5)).toBe(0.5);
+		expect(itemScale(0.25, 0.5)).toBeGreaterThan(0.4);
+		expect(itemScale(0.25, 0.5)).toBeLessThan(0.5);
+	});
+
+	it('puts the floor where a cell is a set share of the screen, never above 1', () => {
+		expect(floorZoom(200, 1000, 0.1)).toBeCloseTo(0.5);
+		expect(floorZoom(50, 1000, 0.1)).toBe(1);
+	});
+
+	it('needs a fixed room on screen, so more world as it zooms out', () => {
+		expect(roomNeeded(1, 1000, 0.1)).toBeCloseTo(100);
+		expect(roomNeeded(0.25, 1000, 0.1)).toBeCloseTo(400);
+	});
+
+	it('begins thinning where the least room stops being enough', () => {
+		const zoom = thinningStarts([300, 150, 600], 1000);
+		expect(roomNeeded(zoom, 1000)).toBeCloseTo(150);
+		expect(thinningStarts([], 1000)).toBe(0);
+	});
+
+	it('zooms no farther out than one world fits the screen', () => {
+		expect(widestZoom({ width: 4000, height: 2000 }, 1000, 800, 100)).toBeCloseTo(0.5);
 	});
 });

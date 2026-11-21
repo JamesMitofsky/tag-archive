@@ -104,15 +104,17 @@ describe('createSim', () => {
 
 	it('glides on after release and slows to rest', () => {
 		const sim = createSim({ x: 0, y: 0 });
+		// A brisk flick, fast enough to glide well clear of the magnet's speed.
+		const flick = 4000;
 		sim.down(0);
-		sim.up(1000, 0, 0);
+		sim.up(flick, 0, 0);
 		const t = run(sim, 0, 0.5);
 		const midway = sim.cam.x;
 		expect(midway).toBeLessThan(-100);
 		run(sim, t, 6);
 		expect(sim.speed).toBeLessThan(1);
 		// It travelled no further than the friction allows: v0 · halfLife / ln 2.
-		const most = (1000 * TUNING.gain * TUNING.fling * TUNING.glideHalfLife) / Math.LN2;
+		const most = (flick * TUNING.gain * TUNING.fling * TUNING.glideHalfLife) / Math.LN2;
 		expect(Math.abs(sim.cam.x)).toBeLessThan(most * 1.05);
 	});
 
@@ -239,5 +241,88 @@ describe('createSim', () => {
 		expect(sim.mode).toBe('magnet');
 		expect(sim.cam.x).toBeCloseTo(520, 0);
 		expect(sim.cam.y).toBeCloseTo(-200, 0);
+	});
+});
+
+describe('createSim zoom', () => {
+	it('zooms by the pinch raised to its gain, and the shown scale follows', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		expect(sim.scale).toBe(1);
+		sim.down(0);
+		sim.pinch(0.5, 0, 1);
+		expect(sim.zooming).toBe(true);
+		run(sim, 0, 1);
+		expect(sim.scale).toBeCloseTo(0.5, 3);
+		expect(sim.zooming).toBe(false);
+		sim.pinch(2, 1);
+		run(sim, 1, 1);
+		expect(sim.scale).toBeCloseTo(0.5 * Math.pow(2, TUNING.zoomGain), 3);
+	});
+
+	it('follows the pinch smoothly rather than jumping', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.pinch(2, 0, 1);
+		sim.step(1 / 60, 1 / 60, nothing);
+		expect(sim.scale).toBeGreaterThan(1);
+		expect(sim.scale).toBeLessThan(1.1);
+	});
+
+	it('stays within its range, which the page may narrow', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.pinch(1000, 0, 1);
+		run(sim, 0, 1);
+		expect(sim.scale).toBeCloseTo(TUNING.maxZoom, 3);
+		sim.setZoomRange(0.5, 1.5);
+		run(sim, 1, 1);
+		expect(sim.scale).toBeCloseTo(1.5, 3);
+		sim.pinch(0.001, 2, 1);
+		run(sim, 2, 1);
+		expect(sim.scale).toBeCloseTo(0.5, 3);
+	});
+
+	it('moves the field by the finger’s travel on screen, whatever the zoom', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.pinch(0.25, 0, 1);
+		run(sim, 0, 1);
+		sim.drag(10, 0, 1, 1);
+		run(sim, 1, 0.5);
+		// 10 screen px is 40 world px at a quarter of the size.
+		expect(sim.cam.x).toBeCloseTo(-40, 0);
+	});
+
+	it('flings and measures speed on screen, whatever the zoom', () => {
+		const flung = (zoom: number) => {
+			const sim = createSim({ x: 0, y: 0 });
+			sim.pinch(zoom, 0, 1);
+			run(sim, 0, 1);
+			sim.up(-400, 0, 1, 1);
+			run(sim, 1, 0.3);
+			return sim;
+		};
+		const near = flung(1);
+		const far = flung(0.5);
+		expect(near.speed).toBeGreaterThan(10);
+		expect(far.speed).toBeCloseTo(near.speed, 1);
+		// Twice the world travel for the same sweep across the screen.
+		expect(far.cam.x).toBeCloseTo(near.cam.x * 2, 1);
+	});
+
+	it('wakes a resting field without holding it as a touch', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		expect(sim.mode).toBe('current');
+		sim.pinch(1.2, 0, 1);
+		run(sim, 0, 3);
+		expect(sim.mode).not.toBe('current');
+		expect(sim.mode).not.toBe('touch');
+		expect(sim.lens).toBeGreaterThan(0.9);
+	});
+
+	it('ignores a pinch that is not a number', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.pinch(Number.NaN, 0, 1);
+		sim.pinch(0, 0, 1);
+		sim.pinch(Infinity, 0, 1);
+		run(sim, 0, 1);
+		expect(sim.scale).toBe(1);
 	});
 });

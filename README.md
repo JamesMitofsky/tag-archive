@@ -603,7 +603,9 @@ it.
 
 An event mode: a projector shows the whole public archive as a field on water,
 and a frosted iPad is the only control. One finger moves the water under a fixed
-lens, and whatever drifts into it blooms. The pages are `/installation` (the
+lens, and whatever drifts into it blooms. Two fingers pinch the field closer or
+farther. Zoomed out, the lens rests, the event cards go, and the pictures thin
+out evenly rather than shrinking to specks. The pages are `/installation` (the
 projector) and `/installation/pad` (the iPad), joined by a small Cloudflare
 Worker relay. Setup, deployment and the night's checklist are in
 [relay/README.md](relay/README.md).
