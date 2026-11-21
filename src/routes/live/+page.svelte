@@ -287,23 +287,6 @@
 {/snippet}
 
 <main class="flex min-h-dvh flex-col items-center gap-8 px-4 pt-chrome pb-12">
-	<header class="flex flex-col items-center gap-1 text-center" data-cloud-block>
-		<p
-			class="rounded-full bg-white/70 px-3 py-1 text-sm font-medium text-gray-800 shadow-xs ring-1 ring-black/5 backdrop-blur-xs"
-			role="status"
-		>
-			{#if status === 'retrying'}
-				Reconnecting…
-			{:else if status === 'connecting'}
-				Connecting…
-			{:else}
-				Live
-			{/if}
-		</p>
-		<h1 class="text-2xl font-semibold text-gray-900">New in the Archive</h1>
-		<p class="text-sm text-gray-600">Artefacts appear here the moment they join the archive.</p>
-	</header>
-
 	<!-- The stage keeps its size while empty, so the plane always has somewhere
 	     to land and the row beneath never jumps. -->
 	<section
@@ -370,9 +353,9 @@
 
 	{#if earlier.length > 0}
 		<section aria-label="Earlier arrivals" class="w-full max-w-5xl">
-			<h2 class="mb-3 text-center text-sm font-medium tracking-wide text-gray-700 uppercase">
+			<div class="mb-3 text-center text-sm font-medium tracking-wide text-gray-700 uppercase">
 				Earlier
-			</h2>
+			</div>
 			<ul class="flex flex-wrap justify-center gap-4">
 				{#each earlier as item (item.id)}
 					<li
