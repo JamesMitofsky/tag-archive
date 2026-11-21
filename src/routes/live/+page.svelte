@@ -287,22 +287,16 @@
 {/snippet}
 
 <main class="flex min-h-dvh flex-col items-center gap-8 px-4 pt-chrome pb-12">
-	<header class="flex flex-col items-center gap-1 text-center" data-cloud-block>
-		<p
-			class="rounded-full bg-white/70 px-3 py-1 text-sm font-medium text-gray-800 shadow-xs ring-1 ring-black/5 backdrop-blur-xs"
-			role="status"
-		>
-			{#if status === 'retrying'}
-				Reconnecting…
-			{:else if status === 'connecting'}
-				Connecting…
-			{:else}
-				Live
-			{/if}
-		</p>
-		<h1 class="text-2xl font-semibold text-gray-900">New in the Archive</h1>
-		<p class="text-sm text-gray-600">Artefacts appear here the moment they join the archive.</p>
-	</header>
+	<!-- No visible header: the stage speaks for itself. The heading and the
+	     connection status stay for screen readers. -->
+	<h1 class="sr-only">New in the Archive</h1>
+	<p class="sr-only" role="status">
+		{#if status === 'retrying'}
+			Reconnecting…
+		{:else if status === 'connecting'}
+			Connecting…
+		{/if}
+	</p>
 
 	<!-- The stage keeps its size while empty, so the plane always has somewhere
 	     to land and the row beneath never jumps. -->
