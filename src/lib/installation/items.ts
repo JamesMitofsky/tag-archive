@@ -11,12 +11,18 @@
  * Titles are carried exactly as the archive holds them. An event's title is
  * the source page's own words (see AGENTS.md), so nothing here shortens or
  * tidies it.
+ *
+ * The operator can leave whole kinds out (see ./kinds). That is decided here
+ * rather than by filtering the result, because the kinds lean on each other:
+ * artefacts and photographs still gather by event when the events themselves
+ * are hidden, and an event gets its own picture back when the artefact or
+ * photograph that would have shown it is.
  */
 
 import type { EventItem } from '#lib/events.ts';
 import { fileExt } from '#lib/fileType.ts';
 import type { PublicImageSet } from '#lib/images/types.ts';
-import { A4_ASPECT, CARD_ASPECT, type FieldItem } from './field.ts';
+import { A4_ASPECT, CARD_ASPECT, type FieldItem, type FieldKind } from './field.ts';
 
 /** What the field needs of an artefact (a slice of `ArtefactWithEvent`). */
 export type FieldArtefact = {
@@ -71,12 +77,15 @@ export function buildFieldItems(data: {
 	artefacts: readonly FieldArtefact[];
 	events: readonly EventItem[];
 	imageSets: readonly PublicImageSet[];
+	/** The kinds to show; all of them when left out. */
+	kinds?: ReadonlySet<FieldKind>;
 }): FieldItem[] {
+	const wants = (kind: FieldKind) => !data.kinds || data.kinds.has(kind);
 	const items: FieldItem[] = [];
 	const shown = new Set<string>();
 	const clusterOf = eventClusters(data.events);
 
-	for (const artefact of data.artefacts) {
+	for (const artefact of wants('artefact') ? data.artefacts : []) {
 		const cluster = clusterOf(artefact.event, artefact.date) ?? `artefact:${artefact.id}`;
 		artefact.fileUrls.forEach((url, page) => {
 			if (!RASTER.has(fileExt(url))) return;
@@ -94,7 +103,7 @@ export function buildFieldItems(data: {
 		});
 	}
 
-	for (const set of data.imageSets) {
+	for (const set of wants('photo') ? data.imageSets : []) {
 		const cluster = clusterOf(set.event, set.date) ?? `set:${set.id}`;
 		for (const image of set.images) {
 			shown.add(image.url);
@@ -111,7 +120,7 @@ export function buildFieldItems(data: {
 		}
 	}
 
-	for (const event of data.events) {
+	for (const event of wants('event') ? data.events : []) {
 		// An event featuring a picture the field already shows becomes a card, so
 		// the same picture doesn't float twice side by side.
 		const feature = event.featureImage;
