@@ -186,6 +186,7 @@
 						placeholder="Search events"
 						date={dateAuto ? (data.photographDate ?? undefined) : formDate}
 						value={echoed?.event ?? data.set.event ?? ''}
+						eventId={echoed ? echoed.eventId : data.set.eventId}
 					/>
 					<FieldError message={validator.error('event')} />
 				</div>

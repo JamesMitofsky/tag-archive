@@ -5,22 +5,28 @@
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { formatDateShort } from '#lib/formatDate.ts';
 	import { loadEvents } from '#lib/dataset.ts';
-	import { filterAndSortEvents } from '#lib/search.ts';
+	import { filterAndSortEvents, type EventOption } from '#lib/search.ts';
 	import type { EventItem } from '#lib/events.ts';
 
-	// Searchable single-select for event titles backed by the local dataset.
-	// Filtered in-memory and sorted by date proximity to `date` (if provided).
+	// Searchable single-select for events backed by the local dataset. Filtered
+	// in-memory and sorted by date proximity to `date` (if provided).
 	//
 	// Existing events only. Events come from ustreetcommunity.org, word for word
 	// (see AGENTS.md), so a title typed here can't create one: the server links
 	// a known title and drops anything else. The field used to offer "Use …" for
 	// any text, which then saved as no event at all, without a word.
+	//
+	// Each dated occurrence of a recurring title is its own row, and two hidden
+	// fields go to the server: `{name}`, the settled title, and `{name}Id`, the
+	// id of the occurrence it settled on, so the server links that very day
+	// rather than the title's earliest.
 	let {
 		name,
 		label,
 		placeholder = 'Search events',
 		date,
 		value: initial = '',
+		eventId: initialId = null,
 		onSelect
 	}: {
 		name: string;
@@ -29,9 +35,14 @@
 		date?: string;
 		value?: string;
 		/**
-		 * Fires when an event is picked from the list, with the date shown on its row.
+		 * The occurrence `value` already names: the linked event on an edit page,
+		 * or the one a failed submit or a kept draft had picked.
 		 */
-		onSelect?: (event: { name: string; date: string | null }) => void;
+		eventId?: number | string | null;
+		/**
+		 * Fires when an event is picked from the list, with the occurrence on its row.
+		 */
+		onSelect?: (event: EventOption) => void;
 	} = $props();
 
 	let open = $state(false);
@@ -42,6 +53,19 @@
 	// names no event never gets here.
 	// svelte-ignore state_referenced_locally
 	let chosen = $state(initial);
+
+	/** The occurrence picked, and the title it was picked under. */
+	// Seeded once, like `search`: from here the box owns it.
+	// svelte-ignore state_referenced_locally
+	let picked = $state.raw<{ id: number; name: string } | null>(seedPick(initialId, initial));
+	function seedPick(id: number | string | null, title: string) {
+		const n = typeof id === 'string' ? Number(id.trim()) : id;
+		return n !== null && Number.isSafeInteger(n) && n > 0 && title.trim()
+			? { id: n, name: title.trim() }
+			: null;
+	}
+	/** What `{name}Id` posts: the occurrence picked, while it is the settled event. */
+	const pickedId = $derived(picked && picked.name === chosen.trim() ? picked.id : null);
 
 	let allEvents = $state<EventItem[]>([]);
 	let loading = $state(false);
@@ -91,8 +115,14 @@
 	 * the field never shows text that won't be saved.
 	 */
 	function settle() {
-		if (query === '') chosen = '';
-		else if (exact) chooseItem(exact);
+		if (query === '') {
+			chosen = '';
+			picked = null;
+		} else if (chosen && query.toLowerCase() === chosen.trim().toLowerCase()) {
+			// Still the event it held: keep the occurrence picked, which the
+			// title alone would move to whichever listed day sorts first.
+			search = chosen;
+		} else if (exact) chooseItem(exact);
 		else search = chosen;
 	}
 
@@ -111,10 +141,18 @@
 		open = false;
 	}
 
-	function chooseItem(item: { name: string; date: string | null }) {
+	function chooseItem(item: EventOption) {
+		picked = { id: item.id, name: item.name };
 		choose(item.name);
 		onSelect?.(item);
 	}
+
+	// The linked occurrence's date, shown in the box so a recurring title says
+	// which of its days it is. Unknown until the dataset has loaded, or for an
+	// event that left it: the link holds, there is just no date to show.
+	const pickedDate = $derived(
+		pickedId === null ? null : (allEvents.find((e) => e.id === pickedId)?.date ?? null)
+	);
 
 	// --- Virtualized dropdown ------------------------------------------------
 	let scrollEl = $state<HTMLDivElement>();
@@ -197,8 +235,18 @@
 			bind:value={search}
 			oninput={onInput}
 			onkeydown={onKeydown}
-			class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none md:text-sm"
+			class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none md:text-sm {pickedDate
+				? 'pe-24'
+				: ''}"
 		/>
+		{#if pickedDate}
+			<span
+				data-testid="{name}-picked-date"
+				class="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs text-muted-foreground"
+			>
+				{formatDateShort(pickedDate)}
+			</span>
+		{/if}
 
 		{#if open}
 			<div
@@ -262,5 +310,6 @@
 	</div>
 </div>
 
-<!-- Resolved value the server action reads. -->
+<!-- Resolved values the server action reads: the settled title, and its occurrence. -->
 <input type="hidden" {name} value={chosen} />
+<input type="hidden" name="{name}Id" value={pickedId ?? ''} />

@@ -282,6 +282,7 @@ export async function seedPhotographs(): Promise<void> {
 		const data: ImageSetData = {
 			description: set.description,
 			event: event?.title ?? '',
+			eventId: null,
 			imageIds,
 			date: null,
 			dateAuto: true

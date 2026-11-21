@@ -151,6 +151,7 @@
 			label="Event"
 			placeholder="Search events"
 			value={echoed?.event ?? ''}
+			eventId={echoed?.eventId}
 		/>
 		<FieldError message={validator.error('event')} />
 	</div>

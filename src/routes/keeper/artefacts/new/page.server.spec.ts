@@ -12,11 +12,12 @@ vi.mock('$app/env/private', async () => (await import('#lib/testing/env.ts')).pr
 
 const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
 const { db } = await import('#lib/server/db/index.ts');
-const { artefact, user } = await import('#lib/server/db/schema.ts');
+const { artefact, event, user } = await import('#lib/server/db/schema.ts');
 const { load, actions } = await import('./+page.server');
 const add = await import('../add/+page.server');
 
 const ADMIN = { id: 'admin-1', role: 'admin', email: 'admin@example.org' };
+const TEMPERANCE = 'Temperance Alley Beautification';
 const CONTRIBUTOR = { id: 'contributor-1', role: 'contributor', email: 'c@example.org' };
 
 beforeAll(async () => {
@@ -26,6 +27,16 @@ beforeAll(async () => {
 		{ ...CONTRIBUTOR, name: 'Contributor' }
 	]);
 	await db.insert(artefact).values({ artefact: 'Kept', date: '2024', location: 'Binder 3' });
+	await db.insert(event).values([
+		// A recurring title: one row per Saturday. Inserted out of date order, so
+		// "earliest" can't pass by being the lowest id.
+		{ id: 12, title: TEMPERANCE, date: '2021-05-01' },
+		{ id: 10, title: TEMPERANCE, date: '2021-04-17' },
+		{ id: 11, title: TEMPERANCE, date: '2021-04-24' },
+		{ id: 13, title: TEMPERANCE, date: '2021-05-08' },
+		{ id: 14, title: TEMPERANCE, date: '2021-05-15', proposedAddition: true },
+		{ id: 20, title: 'Morning Meditation', date: '2021-06-16' }
+	]);
 });
 
 async function caught(run: () => unknown) {
@@ -135,6 +146,45 @@ describe('/keeper/artefacts/new createArtefact', () => {
 		expect(await row(id)).toMatchObject({
 			proposedAddition: true,
 			createdBy: CONTRIBUTOR.id
+		});
+	});
+});
+
+describe('/keeper/artefacts/new createArtefact, linking a recurring event', () => {
+	const linked = async (fields: Record<string, string>, who = ADMIN) =>
+		(await row(createdId(await create({ ...filled, ...fields }, who)))).eventId;
+
+	it('links the occurrence picked from the list', async () => {
+		expect(await linked({ event: TEMPERANCE, eventId: '12' })).toBe(12);
+		expect(await linked({ event: TEMPERANCE, eventId: '13' })).toBe(13);
+	});
+
+	it('resolves a title without an id (an old draft) to its earliest occurrence', async () => {
+		expect(await linked({ event: TEMPERANCE })).toBe(10);
+		expect(await linked({ event: TEMPERANCE, eventId: '' })).toBe(10);
+	});
+
+	it('falls back to the title when the id does not name an event of that title', async () => {
+		// Another title's id: stale (a draft outlived a reseed) or forged.
+		expect(await linked({ event: TEMPERANCE, eventId: '20' })).toBe(10);
+		expect(await linked({ event: TEMPERANCE, eventId: '9999' })).toBe(10);
+		expect(await linked({ event: TEMPERANCE, eventId: 'not-an-id' })).toBe(10);
+		// And an id never links an event whose title the form doesn't name.
+		expect(await linked({ event: 'No such event', eventId: '12' })).toBeNull();
+	});
+
+	it("links a contributor's pick too, pending occurrences included (every event is public)", async () => {
+		expect(await linked({ event: TEMPERANCE, eventId: '12' }, CONTRIBUTOR)).toBe(12);
+		expect(await linked({ event: TEMPERANCE, eventId: '14' }, CONTRIBUTOR)).toBe(14);
+	});
+
+	it('echoes the picked occurrence back with a refused form', async () => {
+		const result = await create(
+			{ ...filled, location: '', event: TEMPERANCE, eventId: '12' },
+			ADMIN
+		);
+		expect(isActionFailure(result) && result.data).toMatchObject({
+			values: { event: TEMPERANCE, eventId: '12' }
 		});
 	});
 });

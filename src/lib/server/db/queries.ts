@@ -588,22 +588,41 @@ export async function deleteOrphanPeople(ids: number[]): Promise<void> {
 }
 
 /**
- * Resolve a typed event title to an existing event's id. Events are dated
+ * Resolve a form's event to an existing event's id. Events are dated
  * happenings sourced from the events export — a bare title here can't create
- * one, so an unknown title yields null (the row stays unlinked). A recurring
- * title resolves to its earliest event. Any event matches, pending or vetted:
- * every event is public (see `loadPublicDataset`), so every submitter can see
- * and pick it.
+ * one, so an unknown title yields null (the row stays unlinked). Any event
+ * matches, pending or vetted: every event is public (see `loadPublicDataset`),
+ * so every submitter can see and pick it.
+ *
+ * A recurring title is one event row per date, so the picker also posts the id
+ * of the occurrence chosen (`pickedId`). That id wins, but only while it still
+ * names an event with exactly this title: a stale id (the text was changed
+ * after the pick, a draft outlived a reseed) or a forged one can't link a row
+ * the title doesn't describe. Without a usable id (a form or draft from before
+ * the picker sent one) the title alone resolves, to its earliest occurrence:
+ * the lowest id among same-day repeats, so it's stable.
  */
-export async function resolveEventId(name: string): Promise<number | null> {
+export async function resolveEventId(
+	name: string,
+	pickedId: number | null = null
+): Promise<number | null> {
 	const trimmed = name.trim();
 	if (!trimmed) return null;
+
+	if (pickedId !== null) {
+		const [picked] = await db
+			.select({ id: event.id })
+			.from(event)
+			.where(and(eq(event.id, pickedId), eq(event.title, trimmed)))
+			.limit(1);
+		if (picked) return picked.id;
+	}
 
 	const [existing] = await db
 		.select({ id: event.id })
 		.from(event)
 		.where(eq(event.title, trimmed))
-		.orderBy(event.date)
+		.orderBy(event.date, event.id)
 		.limit(1);
 	return existing?.id ?? null;
 }
