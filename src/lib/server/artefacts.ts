@@ -21,7 +21,7 @@ const nullIfEmpty = (value: string) => (value === '' ? null : value);
  */
 export async function createArtefact(data: ArtefactData, actor: Actor): Promise<number> {
 	const proposed = isProposedAddition(actor.role);
-	const eventId = await resolveEventId(data.event, proposed, data.eventId);
+	const eventId = await resolveEventId(data.event, data.eventId);
 	const personIds = await resolvePersonIds(data.provenance, actor.userId);
 
 	// id is AUTOINCREMENT — omit it and SQLite assigns the next one.
@@ -55,9 +55,9 @@ export async function createArtefact(data: ArtefactData, actor: Actor): Promise<
 }
 
 /**
- * Distinct previously-used storage locations, so anything typed in before
- * resurfaces as a picker option. Vetted rows only: a location typed into an
- * unreviewed submission isn't suggested to anyone until a keeper approves it.
+ * Distinct previously-used storage locations, so any location already stored
+ * beyond the presets still shows as a radio choice. Vetted rows only: a location
+ * on an unreviewed submission isn't offered to anyone until a keeper approves it.
  * Non-empty, sorted for a stable UI.
  */
 export async function knownLocations(): Promise<string[]> {

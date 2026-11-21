@@ -9,8 +9,8 @@ export type ImageSetData = {
 	description: string;
 	event: string;
 	/**
-	 * The event occurrence picked from the list; null for a typed-in title,
-	 * which the server resolves by title alone (see `ArtefactData.eventId`).
+	 * The event occurrence the field settled on; null when none came with the
+	 * title, which the server then resolves alone (see `ArtefactData.eventId`).
 	 */
 	eventId: number | null;
 	/** Uploaded image ids (see /api/images/finalize), in display order. */

@@ -2,15 +2,17 @@
  * Canonical TAG program areas — the single source of truth used app-wide.
  *
  * `artefact.programArea` is a free-form JSON string array in the DB, but every
- * value seen in the source export maps to one of these six. Import from here
- * (`#lib/programAreas.ts`) instead of hardcoding strings/colours anywhere else so
- * labels, ordering, and colours stay consistent across UI.
+ * value seen in the source export maps to one of these. Import from here
+ * (`#lib/programAreas.ts`) instead of hardcoding strings/colors anywhere else so
+ * labels, ordering, and colors stay consistent across UI.
  */
 
 import type { Component } from 'svelte';
 import HammerIcon from 'phosphor-svelte/lib/HammerIcon';
 import BookOpenIcon from 'phosphor-svelte/lib/BookOpenIcon';
 import ShapesIcon from 'phosphor-svelte/lib/ShapesIcon';
+import ConfettiIcon from 'phosphor-svelte/lib/ConfettiIcon';
+import HandshakeIcon from 'phosphor-svelte/lib/HandshakeIcon';
 import { Spotlight as SpotlightIcon } from '@lucide/svelte';
 import UsersThreeIcon from 'phosphor-svelte/lib/UsersThreeIcon';
 import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
@@ -20,6 +22,8 @@ export const PROGRAM_AREAS = [
 	'DIY',
 	'Learning Landscape',
 	'Playground',
+	'Seasonal Celebrations',
+	'Service',
 	'Spotlight',
 	'TAG Committee',
 	'Wellbeing'
@@ -30,14 +34,14 @@ export type ProgramArea = (typeof PROGRAM_AREAS)[number];
 export interface ProgramAreaMeta {
 	/** Canonical label as stored/displayed. */
 	label: ProgramArea;
-	/** Tailwind classes for a pill (background + text). Colour carries meaning. */
+	/** Tailwind classes for a pill (background + text). Color carries meaning. */
 	pill: string;
-	/** Solid accent colour (e.g. dots, borders). */
+	/** Solid accent color (e.g. dots, borders). */
 	accent: string;
 	/**
 	 * The accent's hue as a watercolor wash: a CSS color, lighter and less
 	 * saturated than the Tailwind 500 it follows, so it sits on the painted
-	 * sky the way the clouds do. For decoration that paints with all six areas
+	 * sky the way the clouds do. For decoration that paints with every area
 	 * at once (the sign-in confetti), not for anything that labels an area.
 	 */
 	wash: string;
@@ -66,6 +70,20 @@ export const PROGRAM_AREA_META: Record<ProgramArea, ProgramAreaMeta> = {
 		accent: 'bg-sky-500',
 		wash: 'oklch(0.7 0.1 237)',
 		icon: ShapesIcon
+	},
+	'Seasonal Celebrations': {
+		label: 'Seasonal Celebrations',
+		pill: 'bg-orange-500/15 text-orange-800',
+		accent: 'bg-orange-500',
+		wash: 'oklch(0.74 0.13 48)',
+		icon: ConfettiIcon
+	},
+	Service: {
+		label: 'Service',
+		pill: 'bg-lime-500/15 text-lime-800',
+		accent: 'bg-lime-500',
+		wash: 'oklch(0.78 0.13 131)',
+		icon: HandshakeIcon
 	},
 	Spotlight: {
 		label: 'Spotlight',

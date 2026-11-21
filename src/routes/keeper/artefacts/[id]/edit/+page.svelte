@@ -9,8 +9,8 @@
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '#lib/programAreas.ts';
 	import DateField from '#lib/components/DateField.svelte';
-	import ComboField from '#lib/components/ComboField.svelte';
 	import AsyncComboField from '#lib/components/AsyncComboField.svelte';
+	import LocationRadioField from '#lib/components/LocationRadioField.svelte';
 	import TagsField from '#lib/components/TagsField.svelte';
 	import PageScanner from '#lib/components/PageScanner.svelte';
 	import { Input } from '#lib/components/ui/input/index.ts';
@@ -70,9 +70,6 @@
 					.filter(Boolean)
 			: [...data.artefact.provenance]
 	);
-
-	// Location: preset options, but the combobox also accepts a typed-in custom value.
-	const LOCATION_OPTIONS = ['Binder', 'Bin'];
 
 	// The attached scans' public URLs. Seeded from the echoed values or the artefact.
 	// svelte-ignore state_referenced_locally
@@ -188,7 +185,7 @@
 					<AsyncComboField
 						name="event"
 						label="Event"
-						placeholder="Search or add an event"
+						placeholder="Search events"
 						date={formDate}
 						value={echoed?.event ?? data.artefact.event ?? ''}
 						eventId={echoed ? echoed.eventId : data.artefact.eventId}
@@ -216,15 +213,17 @@
 				<fieldset>
 					<legend class="block text-sm font-medium text-gray-700">Program areas</legend>
 					<!-- Unconventional multiselect: each area is a compact card that
-					     toggles a hidden checkbox. Card carries the area's colour identity; a primary
-					     ring + check badge signals selection. -->
-					<div class="mt-1.5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+					     toggles a hidden checkbox. Card carries the area's color identity; a primary
+					     ring + check badge signals selection.
+					     Cards wrap in a centered flex row rather than a grid, so an odd
+					     card out on the last row sits in the middle instead of the left. -->
+					<div class="mt-1.5 flex flex-wrap justify-center gap-3">
 						{#each PROGRAM_AREAS as area (area)}
 							{@const meta = PROGRAM_AREA_META[area]}
 							{@const Icon = meta.icon}
 							{@const selected = selectedAreas.includes(area)}
 							<label
-								class="relative flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg px-2 py-3 text-center text-white transition select-none {meta.accent} {selected
+								class="relative flex basis-[calc((100%_-_0.75rem)/2)] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg px-2 py-3 text-center text-white transition select-none sm:basis-[calc((100%_-_1.5rem)/3)] {meta.accent} {selected
 									? 'shadow-md ring-2 ring-white/80'
 									: 'opacity-75 hover:opacity-40'}"
 							>
@@ -274,11 +273,8 @@
 				</div>
 
 				<div>
-					<ComboField
-						name="location"
+					<LocationRadioField
 						label="Archival storage location *"
-						placeholder="Search or add a location"
-						options={LOCATION_OPTIONS}
 						value={echoed?.location ?? data.artefact.location ?? ''}
 					/>
 					<FieldError message={validator.error('location')} />

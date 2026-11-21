@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
@@ -21,8 +21,7 @@ vi.mock('$app/navigation', () => ({
 	afterNavigate: () => {},
 	beforeNavigate: () => {},
 	goto: vi.fn(),
-	onNavigate: () => {},
-	pushState: vi.fn()
+	onNavigate: () => {}
 }));
 vi.mock('$app/state', () => ({
 	page: { url: new URL('http://localhost/keeper/artefacts/new'), state: {} }
@@ -59,6 +58,59 @@ describe('/keeper/artefacts/new', () => {
 		// Its own action, not the public one at /contribute.
 		expect(form?.getAttribute('action')).toBe('?/createArtefact');
 		await expect.element(page.getByText('Archival storage location *')).toBeInTheDocument();
+	});
+
+	it('picks the storage location from radio buttons, presets first', async () => {
+		await render(NewArtefactPage, {
+			data: { locations: ['binder', 'Binder 3'] },
+			form: null
+		} as unknown as Props);
+
+		const group = page.getByRole('group', { name: 'Archival storage location *' });
+		const radios = [...document.querySelectorAll<HTMLInputElement>('input[name="location"]')];
+		// A location in use that only differs by case is the preset, not a second radio.
+		expect(radios.map((r) => r.parentElement?.textContent?.trim())).toEqual([
+			'Binder',
+			'Bin',
+			'Binder 3',
+			'Other…'
+		]);
+		// Required for keepers, so nothing is picked for them and there is no “Not sure”.
+		expect(radios.some((r) => r.checked)).toBe(false);
+		expect(group.getByRole('radio', { name: 'Not sure' }).query()).toBeNull();
+
+		await group.getByRole('radio', { name: 'Bin', exact: true }).click();
+		await expect.element(group.getByRole('radio', { name: 'Bin', exact: true })).toBeChecked();
+		expect(new FormData(document.querySelector('form')!).get('location')).toBe('Bin');
+	});
+
+	it('takes a location typed into “Other…”, in an existing spelling when it names one', async () => {
+		await render(NewArtefactPage, {
+			data: { locations: [] },
+			form: null
+		} as unknown as Props);
+		const posted = () => new FormData(document.querySelector('form')!).getAll('location');
+
+		const textbox = page.getByRole('textbox', { name: 'Other storage location' });
+		expect(textbox.query()).toBeNull();
+
+		await page.getByRole('radio', { name: 'Other…' }).click();
+		await expect.element(textbox).toHaveFocus();
+		await textbox.fill('Flat file drawer');
+		expect(posted()).toEqual(['Flat file drawer']);
+
+		await textbox.fill('bin');
+		expect(posted()).toEqual(['Bin']);
+
+		// Emptied, it is no location at all, which a keeper may not save.
+		await textbox.fill('');
+		await page.getByRole('button', { name: 'Add artefact' }).click();
+		await expect.element(page.getByText('Archival storage location required')).toBeInTheDocument();
+
+		// Picking a preset closes the text box.
+		await page.getByRole('radio', { name: 'Binder' }).click();
+		expect(textbox.query()).toBeNull();
+		expect(posted()).toEqual(['Binder']);
 	});
 
 	it('says what is missing when the button is pressed on an empty form', async () => {
@@ -107,6 +159,7 @@ describe('/keeper/artefacts/new', () => {
 			.toHaveValue('Found in the blue folder');
 		await expect.element(page.getByRole('img', { name: 'Page 1' })).toBeInTheDocument();
 		await expect.element(page.getByText('Ada Example')).toBeInTheDocument();
+		await expect.element(page.getByRole('radio', { name: 'Binder 3' })).toBeChecked();
 
 		await page.getByRole('button', { name: 'Start over' }).click();
 
@@ -124,28 +177,21 @@ describe('/keeper/artefacts/new', () => {
 			document.querySelector<HTMLInputElement>('input[type="hidden"][name="date"]')?.value;
 
 		// The event comes before the date.
-		const combo = page.getByPlaceholder('Search or add an event');
+		const combo = page.getByPlaceholder('Search events');
 		const fields = [...document.querySelectorAll('form [data-field]')];
 		const eventIndex = fields.findIndex((el) => el.querySelector('[role="combobox"]'));
 		const dateIndex = fields.findIndex((el) => el.querySelector('[data-popover-trigger]'));
 		expect(eventIndex).toBeGreaterThanOrEqual(0);
 		expect(eventIndex).toBeLessThan(dateIndex);
 
-		// The list opens on focus, so step out of the field and back in, as a
-		// keeper would, to choose again.
-		const pickAnother = async () => {
-			await page.getByRole('textbox', { name: /^Title/ }).click();
-			await combo.click();
-			await combo.fill('');
-		};
-
 		await combo.click();
 		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
 		await expect.poll(date).toBe('2021-06-12');
 		await expect.element(page.getByRole('button', { name: 'June 12, 2021' })).toBeInTheDocument();
 
-		// Another event moves a date it filled in itself.
-		await pickAnother();
+		// Another event moves a date it filled in itself. Typing straight after a
+		// pick, with the field still focused, brings the list back.
+		await combo.fill('Morning');
 		await page.getByRole('option', { name: /Morning Meditation/ }).click();
 		await expect.poll(date).toBe('2021-06-16');
 
@@ -154,7 +200,7 @@ describe('/keeper/artefacts/new', () => {
 		await page.getByRole('button', { name: 'Year', exact: true }).click();
 		await page.getByRole('button', { name: '2019', exact: true }).click();
 		await expect.poll(date).toBe('2019');
-		await pickAnother();
+		await combo.fill('Symphonic');
 		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
 		await expect.element(combo).toHaveValue('Symphonic Steep');
 		expect(date()).toBe('2019');
@@ -168,7 +214,7 @@ describe('/keeper/artefacts/new', () => {
 		const hidden = (name: string) =>
 			document.querySelector<HTMLInputElement>(`input[type="hidden"][name="${name}"]`)?.value;
 
-		const combo = page.getByPlaceholder('Search or add an event');
+		const combo = page.getByPlaceholder('Search events');
 		await combo.click();
 		await combo.fill('Temperance');
 		// One row per Saturday, not one for the title.
@@ -185,9 +231,30 @@ describe('/keeper/artefacts/new', () => {
 		await expect.poll(() => hidden('date')).toBe('2021-05-01');
 		await expect.element(page.getByTestId('event-picked-date')).toHaveTextContent('May 1, 2021');
 
-		// Change the text and it no longer names that day: the title alone goes.
+		// Passing through the field without a change keeps that day, even once
+		// the list would put another Saturday first: with the date moved to 2019,
+		// April 17 now sorts nearest.
+		const leave = () => page.getByRole('textbox', { name: /^Title/ }).click();
+		await page.getByRole('button', { name: 'May 1, 2021', exact: true }).click();
+		await page.getByRole('button', { name: 'Year', exact: true }).click();
+		await page.getByRole('button', { name: '2019', exact: true }).click();
+		await expect.poll(() => hidden('date')).toBe('2019');
+		await combo.click();
+		await leave();
+		expect(hidden('eventId')).toBe('12');
+		await expect.element(page.getByTestId('event-picked-date')).toHaveTextContent('May 1, 2021');
+
+		// Text that names no event goes back to that day on leaving the field.
 		await combo.fill(`${TEMPERANCE} cleanup`);
+		await leave();
+		await expect.element(combo).toHaveValue(TEMPERANCE);
+		expect(hidden('eventId')).toBe('12');
+
+		// Emptied, it links nothing.
+		await combo.fill('');
+		await leave();
 		await expect.poll(() => hidden('eventId')).toBe('');
+		expect(hidden('event')).toBe('');
 		expect(page.getByTestId('event-picked-date').query()).toBeNull();
 	});
 
@@ -196,7 +263,7 @@ describe('/keeper/artefacts/new', () => {
 			data: { locations: [] },
 			form: null
 		} as unknown as Props);
-		const combo = page.getByPlaceholder('Search or add an event');
+		const combo = page.getByPlaceholder('Search events');
 		await combo.click();
 		await combo.fill('Temperance');
 		await page.getByRole('option', { name: `${TEMPERANCE} May 1, 2021` }).click();
@@ -239,9 +306,82 @@ describe('/keeper/artefacts/new', () => {
 			form: null
 		} as unknown as Props);
 
-		await expect.element(page.getByPlaceholder('Search or add an event')).toHaveValue(TEMPERANCE);
+		await expect.element(page.getByPlaceholder('Search events')).toHaveValue(TEMPERANCE);
 		expect(
 			document.querySelector<HTMLInputElement>('input[type="hidden"][name="eventId"]')?.value
 		).toBe('');
+	});
+});
+
+describe('/keeper/artefacts/new provenance', () => {
+	const provenance = () => page.getByPlaceholder('Jane Doe');
+
+	it('offers the names the page loaded, not only the public dataset', async () => {
+		await render(NewArtefactPage, {
+			data: { locations: [], people: ['Awaiting Review'] },
+			form: null
+		} as unknown as Props);
+
+		await provenance().click();
+		await expect.element(page.getByRole('option', { name: /Awaiting Review/ })).toBeVisible();
+	});
+
+	it('offers a name submitted earlier in this tab', async () => {
+		sessionStorage.setItem('remembered-people', JSON.stringify(['From Last Time']));
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		await provenance().fill('last');
+		await expect.element(page.getByRole('option', { name: /From Last Time/ })).toBeVisible();
+	});
+
+	it('still offers a new name after its tag is removed', async () => {
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		await provenance().fill('Brand New');
+		await userEvent.keyboard('{Enter}');
+		await page.getByRole('button', { name: 'Remove Brand New' }).click();
+
+		await provenance().fill('brand');
+		await expect.element(page.getByRole('option', { name: /Brand New\s*New/ })).toBeVisible();
+	});
+});
+
+describe('/keeper/artefacts/new event', () => {
+	const combo = () => page.getByPlaceholder('Search events');
+	const submitted = () =>
+		document.querySelector<HTMLInputElement>('input[type="hidden"][name="event"]')?.value;
+
+	it('offers only existing events, and drops typed text that names none', async () => {
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		await combo().fill('A Picnic Nobody Listed');
+		await expect.element(page.getByText('No event by that name.')).toBeVisible();
+		expect(page.getByRole('option', { name: /Use/ }).query()).toBeNull();
+
+		await page.getByRole('textbox', { name: /^Title/ }).click();
+		await expect.element(combo()).toHaveValue('');
+		expect(submitted()).toBe('');
+	});
+
+	it('takes a title typed out in full as that event', async () => {
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		await combo().fill('morning meditation');
+		await page.getByRole('textbox', { name: /^Title/ }).click();
+
+		await expect.element(combo()).toHaveValue('Morning Meditation');
+		expect(submitted()).toBe('Morning Meditation');
+	});
+
+	it('keeps the event it held when the text is changed to nothing it knows', async () => {
+		await render(NewArtefactPage, { data: { locations: [] }, form: null } as unknown as Props);
+
+		await combo().click();
+		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
+		await combo().fill('Symphonic Steeple');
+		await page.getByRole('textbox', { name: /^Title/ }).click();
+
+		await expect.element(combo()).toHaveValue('Symphonic Steep');
+		expect(submitted()).toBe('Symphonic Steep');
 	});
 });

@@ -87,6 +87,15 @@ describe('/keeper/artefacts/new load', () => {
 		expect(data).toMatchObject({ locations: ['Binder 3'] });
 	});
 
+	it('offers a name from the last artefact on the next, even one awaiting review', async () => {
+		// A contributor's artefact is a proposed addition, so the public dataset
+		// leaves its people out until an admin vets it.
+		createdId(await create({ ...filled, provenance: 'Newly Named' }, CONTRIBUTOR));
+
+		const data = await load({ locals: { user: CONTRIBUTOR } } as never);
+		expect(data).toMatchObject({ people: expect.arrayContaining(['Newly Named']) });
+	});
+
 	it('sends anyone without a session to sign in', async () => {
 		const result = await caught(() => load({ locals: {} } as never));
 		expect(isRedirect(result) && result.location).toBe('/keeper');
@@ -150,13 +159,13 @@ describe('/keeper/artefacts/new createArtefact, linking a recurring event', () =
 		expect(await linked({ event: TEMPERANCE, eventId: '13' })).toBe(13);
 	});
 
-	it('resolves a typed-in title, or an old draft without the id, to its earliest occurrence', async () => {
+	it('resolves a title without an id (an old draft) to its earliest occurrence', async () => {
 		expect(await linked({ event: TEMPERANCE })).toBe(10);
 		expect(await linked({ event: TEMPERANCE, eventId: '' })).toBe(10);
 	});
 
 	it('falls back to the title when the id does not name an event of that title', async () => {
-		// Another title's id: the text was changed after the pick, or the id forged.
+		// Another title's id: stale (a draft outlived a reseed) or forged.
 		expect(await linked({ event: TEMPERANCE, eventId: '20' })).toBe(10);
 		expect(await linked({ event: TEMPERANCE, eventId: '9999' })).toBe(10);
 		expect(await linked({ event: TEMPERANCE, eventId: 'not-an-id' })).toBe(10);
@@ -164,11 +173,9 @@ describe('/keeper/artefacts/new createArtefact, linking a recurring event', () =
 		expect(await linked({ event: 'No such event', eventId: '12' })).toBeNull();
 	});
 
-	it("keeps a contributor's proposed artefact to vetted occurrences, by id as by title", async () => {
+	it("links a contributor's pick too, pending occurrences included (every event is public)", async () => {
 		expect(await linked({ event: TEMPERANCE, eventId: '12' }, CONTRIBUTOR)).toBe(12);
-		expect(await linked({ event: TEMPERANCE, eventId: '14' }, CONTRIBUTOR)).toBe(10);
-		// An admin may link the pending one.
-		expect(await linked({ event: TEMPERANCE, eventId: '14' })).toBe(14);
+		expect(await linked({ event: TEMPERANCE, eventId: '14' }, CONTRIBUTOR)).toBe(14);
 	});
 
 	it('echoes the picked occurrence back with a refused form', async () => {

@@ -145,13 +145,22 @@ Finished catalogue entries, as examples of how hosts, series and flags are decid
 ${examples}`;
 }
 
-/** The per-event message: the page as code read it. */
-export function buildUserMessage(raw: RawEvent): string {
+/**
+ * One curation decided outside the API, by the Claude Code session itself
+ * (`events:curate --handoff` / `--decisions`). Strict, so a decision that
+ * tries to carry a `title` or `description` is rejected rather than ignored.
+ */
+export const decisionSchema = curationSchema.extend({ url: z.string().url() }).strict();
+export const decisionsFileSchema = z.array(decisionSchema);
+export type Decision = z.infer<typeof decisionSchema>;
+
+/** The page as code read it: what the curator, API or session, sees. */
+export function pageForCuration(raw: RawEvent) {
 	const weekday = new Date(`${raw.date}T12:00:00Z`).toLocaleDateString('en-US', {
 		weekday: 'long',
 		timeZone: 'UTC'
 	});
-	const page = {
+	return {
 		title: raw.title,
 		date: raw.date,
 		weekday,
@@ -162,7 +171,11 @@ export function buildUserMessage(raw: RawEvent): string {
 		excerpt: raw.excerptText,
 		body: raw.bodyText
 	};
-	return `Catalogue this event page:\n\n${JSON.stringify(page, null, 2)}`;
+}
+
+/** The per-event message: the page as code read it. */
+export function buildUserMessage(raw: RawEvent): string {
+	return `Catalogue this event page:\n\n${JSON.stringify(pageForCuration(raw), null, 2)}`;
 }
 
 /**

@@ -7,23 +7,22 @@
 	// Sign-in is the only OTP flow: this app is passwordless (no email-verification
 	// or forget-password codes), so the copy is fixed rather than keyed off a type.
 	//
-	// `logoUrl` is an absolute URL to the handwritten wordmark PNG (built from
-	// siteOrigin() at the call site). Email clients can't resolve relative paths, so
-	// the header image must be fully-qualified.
-	let { otp, logoUrl }: { otp: string; logoUrl: string } = $props();
+	// `logoSrc` is the handwritten wordmark's `<img src>`: `cid:…` in a sent email,
+	// where the PNG travels as an inline attachment (see ../email.ts), and a data
+	// URI in the dev gallery, which renders in a browser.
+	let { otp, logoSrc }: { otp: string; logoSrc: string } = $props();
 
 	// Split into two groups of three for readability. Falls back to the whole
 	// string if it isn't the expected 6 chars.
 	const otpGroups = otp.length === 6 ? [otp.slice(0, 3), otp.slice(3)] : [otp];
 
-	const intro = 'Use this code to connect';
-
 	// Landing-page palette (layout.css / Sky.svelte tokens → email-safe hex).
+	// Everything sits straight on the sky, so every line of text is navy: it
+	// reads at 7.4:1 there, where the site's gray muted text manages only 2.6:1.
 	const sky = '#8ecbe6'; // Sky.svelte watercolor-paper backdrop
-	const muted = '#757575'; // --muted-foreground
-	const primarySoft = '#e3f2f9'; // light-blue code well (tint of --primary)
-	const primaryBorder = '#a7d8ea'; // --primary
 	const navy = '#22304a'; // --primary-foreground
+	const frost = 'rgba(255,255,255,0.45)'; // translucent white code well
+	const frostOnSky = '#c1e2f1'; // the same frost flattened onto the sky
 
 	// Palatino-first serif stack mirrors layout.css --font-sans, with web-safe
 	// Georgia/serif fallbacks for clients lacking the primary faces.
@@ -50,58 +49,55 @@
 			{otp} is your TAG Archive code — expires in 5 minutes.
 		</div>
 
-		<!-- Full-bleed sky, table-based for Outlook. -->
+		<!-- Full-bleed sky, table-based for Outlook (bgcolor for clients that drop
+		     the inline background). -->
 		<table
 			role="presentation"
 			width="100%"
 			cellpadding="0"
 			cellspacing="0"
+			bgcolor={sky}
 			style="background-color:{sky};"
 		>
 			<tbody>
 				<tr>
-					<td align="center" style="padding:40px 16px;">
-						<!-- Floating white card, echoing the artefact cards on the landing page. -->
+					<td align="center" style="padding:48px 24px;">
 						<table
 							role="presentation"
 							width="100%"
 							cellpadding="0"
 							cellspacing="0"
-							style="max-width:440px; background-color:#ffffff; border-radius:8px; border:1px solid rgba(0,0,0,0.05); box-shadow:0 10px 25px rgba(0,0,0,0.12);"
+							style="max-width:400px;"
 						>
 							<tbody>
 								<tr>
-									<td style="padding:32px 32px 24px 32px;">
-										<!-- Wordmark: handwritten Temperance Alley Archive header. -->
+									<td align="center">
+										<!-- Wordmark: handwritten TAG Archive, black ink on the sky. -->
 										<img
-											src={logoUrl}
+											src={logoSrc}
 											alt="TAG Archive"
-											width="320"
-											height="85"
-											style="display:block; width:320px; max-width:100%; height:auto; margin:0 0 20px 0; border:0;"
+											width="280"
+											height="75"
+											style="display:block; width:280px; max-width:100%; height:auto; margin:0 auto 32px auto; border:0;"
 										/>
 
-										<p
-											style="margin:0 0 24px 0; font-family:{serif}; font-size:15px; line-height:1.5; color:{muted};"
-										>
-											{intro}
-										</p>
-
-										<!-- Code well: auto-width table, centered, so it hugs the digits
-								     instead of stretching to the card edges. -->
+										<!-- Code well: a frosted slip on the sky, auto-width so it hugs the
+										     digits instead of stretching to the column's edges. The hex is
+										     that frost already laid over the sky, for clients that drop
+										     rgba(); the rest read the rgba() background-color after it. -->
 										<table role="presentation" align="center" cellpadding="0" cellspacing="0">
 											<tbody>
 												<tr>
 													<td
 														align="center"
-														style="padding:18px 12px; background-color:{primarySoft}; border:1px solid {primaryBorder}; border-radius:8px;"
+														style="padding:18px 20px; background:{frostOnSky}; background-color:{frost}; border-radius:10px; box-shadow:0 2px 6px rgba(34,48,74,0.08);"
 													>
 														<!-- Tight letter-spacing within each group, a wide gap between
-											     groups. padding-left on the first group balances the trailing
-											     letter-spacing of the last, keeping the row centered. -->
+														     groups. padding-left on the first group balances the trailing
+														     letter-spacing of the last, keeping the row centered. -->
 														{#each otpGroups as group, i (i)}
 															<span
-																style="font-family:{sans}; font-size:30px; font-weight:600; letter-spacing:0.25em; color:{navy}; {i ===
+																style="font-family:{sans}; font-size:32px; font-weight:600; letter-spacing:0.25em; color:{navy}; {i ===
 																0
 																	? 'padding-left:0.25em;'
 																	: 'margin-left:0.5em;'}"
@@ -115,20 +111,20 @@
 										</table>
 
 										<p
-											style="margin:24px 0 0 0; text-align:center; font-family:{serif}; font-size:13px; line-height:1.5; color:{muted};"
+											style="margin:20px 0 0 0; text-align:center; font-family:{serif}; font-size:14px; line-height:1.5; color:{navy};"
 										>
 											Expires in 5 minutes
+										</p>
+
+										<p
+											style="margin:40px 0 0 0; text-align:center; font-family:{serif}; font-size:12px; line-height:1.5; color:{navy};"
+										>
+											If you didn't request this, you can safely ignore this email.
 										</p>
 									</td>
 								</tr>
 							</tbody>
 						</table>
-
-						<p
-							style="margin:20px 0 0 0; text-align:center; font-family:{serif}; font-size:12px; line-height:1.5; color:{navy}; opacity:0.7;"
-						>
-							If you didn't request this, you can safely ignore this email.
-						</p>
 					</td>
 				</tr>
 			</tbody>

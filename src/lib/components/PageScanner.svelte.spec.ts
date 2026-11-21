@@ -12,6 +12,15 @@ import {
 	widthOf
 } from '#lib/testing/scanner.ts';
 
+// The page-finding model has its own test (scanner/segment.svelte.spec.ts).
+// Here it stands down, as on a device that can't run it, and the edge detector
+// finds the page: these tests are about the flow around detection, and a
+// second or two of inference per shot would only slow them.
+vi.mock('#lib/scanner/segment.ts', () => ({
+	warmSegmenter: async () => false,
+	segmentCorners: async () => ({ status: 'unavailable' })
+}));
+
 // Chromium encodes WebP. The WebKit (iPhone) path, which can't, is covered in
 // PageScanner.webkit.svelte.spec.ts.
 

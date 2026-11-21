@@ -19,11 +19,9 @@ vi.mock('#lib/server/cache.ts', () => ({ purgeArchiveCache: vi.fn(async () => {}
 
 const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
 const { db } = await import('#lib/server/db/index.ts');
-const { event, image, imageSet, imageSetContact, user } = await import('#lib/server/db/schema.ts');
+const { event, image, imageSet, user } = await import('#lib/server/db/schema.ts');
 const { DRAFT_COOKIE, mintDraftToken, submissionPrefix } = await import('#lib/server/drafts.ts');
-const { approveProposed, rejectProposed } = await import('#lib/server/db/queries.ts');
 const { consume, LIMITS } = await import('#lib/server/rateLimit.ts');
-const { sign, verify } = await import('#lib/server/signing.ts');
 const { actions } = await import('./+page.server');
 type Image = import('#lib/server/db/schema.ts').Image;
 
@@ -133,7 +131,7 @@ const fields = (images: Pick<Image, 'id'>[], extra: Record<string, string> = {})
 	...extra
 });
 
-type Submitted = { id: number; token: string };
+type Submitted = { id: number };
 const submittedOf = (result: unknown) => (result as { submitted: Submitted }).submitted;
 
 async function setRow(id: number) {
@@ -246,7 +244,8 @@ describe('createImageSet (anonymous)', () => {
 			}),
 			{ cookies }
 		);
-		const { id, token } = submittedOf(result);
+		const { id } = submittedOf(result);
+		expect(result).toEqual({ submitted: { id } });
 		expect(await setRow(id)).toMatchObject({
 			proposedAddition: true,
 			createdBy: null,
@@ -260,9 +259,6 @@ describe('createImageSet (anonymous)', () => {
 			[undated.id, 1],
 			[earliest.id, 2]
 		]);
-		// The token opens this set's contact form, and nothing else.
-		expect(verify('contact-image-set', String(id), token)).toBe(true);
-		expect(verify('contact', String(id), token)).toBe(false);
 	});
 
 	it('follows the photographs for the date even without the hidden dateAuto field', async () => {
@@ -294,13 +290,13 @@ describe('createImageSet (anonymous)', () => {
 		expect((await setRow(id))?.date).toBeNull();
 	});
 
-	it('only links an anonymous submission to vetted events', async () => {
+	it('links an anonymous submission to an event still awaiting review', async () => {
 		const { cookies, upload: add } = anonymousDraft();
 		const result = await run('createImageSet', fields([await add()], { event: 'Pending Picnic' }), {
 			cookies
 		});
 		const { id } = submittedOf(result);
-		expect((await setRow(id))?.eventId).toBeNull();
+		expect((await setRow(id))?.eventId).toBe(2);
 	});
 
 	it('leaves the set unlinked when no event has the title typed', async () => {
@@ -338,7 +334,7 @@ describe('createImageSet (signed in)', () => {
 	it("lands an admin's set vetted and attributed, then redirects to it", async () => {
 		const first = await upload({ userId: ADMIN.id }, '2022-01-02T03:04:05');
 		const second = await upload({ userId: ADMIN.id });
-		// Keepers write without a draft session; an admin may link any event.
+		// Keepers write without a draft session.
 		const result = await run(
 			'createImageSet',
 			fields([second, first], { event: 'Pending Picnic' }),
@@ -359,7 +355,7 @@ describe('createImageSet (signed in)', () => {
 
 	it("lands a contributor's set for review, still on its keeper page", async () => {
 		const photo = await upload({ userId: CONTRIBUTOR.id });
-		// Under review, it may only link the events its submitter could have seen.
+		// Every event is public, so a set under review may link one under review too.
 		const id = createdId(
 			await run('createImageSet', fields([photo], { event: 'Pending Picnic' }), {
 				as: CONTRIBUTOR
@@ -368,7 +364,7 @@ describe('createImageSet (signed in)', () => {
 		expect(await setRow(id)).toMatchObject({
 			proposedAddition: true,
 			createdBy: CONTRIBUTOR.id,
-			eventId: null
+			eventId: 2
 		});
 	});
 
@@ -382,103 +378,5 @@ describe('createImageSet (signed in)', () => {
 			expect(isActionFailure(result) && result.status).toBe(400);
 			expect(await countSets()).toBe(before);
 		}
-	});
-});
-
-describe('connect (optional contact side path)', () => {
-	async function submit(): Promise<Submitted> {
-		const { cookies, upload: add } = anonymousDraft();
-		return submittedOf(await run('createImageSet', fields([await add()]), { cookies }));
-	}
-
-	async function contactOf(setId: number) {
-		return db.select().from(imageSetContact).where(eq(imageSetContact.setId, setId)).get();
-	}
-
-	it('stores contact details for the set the token belongs to', async () => {
-		const other = await submit();
-		const { id, token } = await submit();
-		const result = await run('connect', {
-			setId: String(id),
-			token,
-			name: 'Ada',
-			email: 'Ada@Example.org'
-		});
-		expect(result).toMatchObject({ connected: true, submitted: { id, token } });
-		expect(await contactOf(id)).toMatchObject({
-			name: 'Ada',
-			email: 'ada@example.org',
-			createdBy: null
-		});
-		expect(await contactOf(other.id)).toBeUndefined();
-	});
-
-	it('replaces details left earlier rather than adding a second row', async () => {
-		const { id, token } = await submit();
-		await run('connect', { setId: String(id), token, name: 'Ada' });
-		const result = await run('connect', { setId: String(id), token, email: 'ada@example.org' });
-		expect(result).toMatchObject({ connected: true });
-		expect(await contactOf(id)).toMatchObject({ name: null, email: 'ada@example.org' });
-		const rows = await db.select().from(imageSetContact).where(eq(imageSetContact.setId, id));
-		expect(rows).toHaveLength(1);
-	});
-
-	it("refuses another set's token, so nobody can attach to another's submission", async () => {
-		const first = await submit();
-		const second = await submit();
-		const result = await run('connect', {
-			setId: String(second.id),
-			token: first.token,
-			name: 'Mallory'
-		});
-		expect(isActionFailure(result) && result.status).toBe(403);
-		expect(await contactOf(second.id)).toBeUndefined();
-	});
-
-	it("refuses an artefact's contact token for the image set with the same id", async () => {
-		// Ids are only unique per table: the artefact form's token for "7" must
-		// not open image set 7.
-		const { id } = await submit();
-		const result = await run('connect', {
-			setId: String(id),
-			token: sign('contact', String(id)),
-			name: 'Mallory'
-		});
-		expect(isActionFailure(result) && result.status).toBe(403);
-		expect(await contactOf(id)).toBeUndefined();
-	});
-
-	it('requires at least a name or an email, keeping the thank-you on screen', async () => {
-		const { id, token } = await submit();
-		const result = await run('connect', { setId: String(id), token, name: '', email: '' });
-		expect(isActionFailure(result) && result.status).toBe(400);
-		expect(isActionFailure(result) && result.data).toMatchObject({ submitted: { id, token } });
-	});
-
-	it('is rate limited per address, keeping the thank-you on screen', async () => {
-		const ip = '203.0.113.51';
-		const { id, token } = await submit();
-		await exhaust('connect-ip', ip, LIMITS.connectPerIp);
-		const result = await run('connect', { setId: String(id), token, name: 'Ada' }, { ip });
-		expect(isActionFailure(result) && result.status).toBe(429);
-		expect(isActionFailure(result) && result.data).toMatchObject({ submitted: { id, token } });
-		expect(await contactOf(id)).toBeUndefined();
-	});
-
-	it('closes once a keeper has approved the set', async () => {
-		const { id, token } = await submit();
-		await approveProposed('imageSet', id, ADMIN.id);
-		const result = await run('connect', { setId: String(id), token, name: 'Late' });
-		expect(isActionFailure(result) && result.status).toBe(410);
-		expect(await contactOf(id)).toBeUndefined();
-	});
-
-	it('closes once a keeper has rejected the set', async () => {
-		const { id, token } = await submit();
-		await rejectProposed('imageSet', id, ADMIN.id);
-		expect(await setRow(id)).toBeUndefined();
-		expect(deleteScan).toHaveBeenCalled();
-		const result = await run('connect', { setId: String(id), token, name: 'Late' });
-		expect(isActionFailure(result) && result.status).toBe(410);
 	});
 });

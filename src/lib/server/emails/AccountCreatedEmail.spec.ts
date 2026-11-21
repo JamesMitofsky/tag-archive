@@ -7,12 +7,12 @@ describe('AccountCreatedEmail', () => {
 		const { body } = render(AccountCreatedEmail, {
 			props: {
 				signInUrl: 'https://archive.test/keeper',
-				logoUrl: 'https://archive.test/email/logo.png'
+				logoSrc: 'cid:tag-archive-wordmark'
 			}
 		});
 		expect(body).toContain('An account has been created for this email');
 		expect(body).toContain('https://archive.test/keeper');
-		expect(body).toContain('https://archive.test/email/logo.png');
+		expect(body).toContain('src="cid:tag-archive-wordmark"');
 		// Email-safe: inline styles, no Tailwind classes or oklch() leaking through.
 		expect(body).toContain('style=');
 		expect(body).not.toContain('oklch(');

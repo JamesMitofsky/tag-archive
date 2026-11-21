@@ -1,5 +1,4 @@
 import adapter, { type Config as AdapterConfig } from '@sveltejs/adapter-vercel';
-import { mdsvex } from 'mdsvex';
 import { CDN_WIDTHS } from './src/lib/images/cdnWidths.js';
 import { defineConfig } from 'vitest/config';
 
@@ -54,9 +53,6 @@ function bucketImagePattern() {
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
-		// A Vite plugin since mdsvex 1.0, ahead of sveltekit(): it registers .svx
-		// and .md with SvelteKit itself, so sveltekit() doesn't list them.
-		mdsvex({ extensions: ['.svx', '.md'] }),
 		// SvelteKit 3 takes its config here; svelte.config.js is no longer read.
 		sveltekit({
 			compilerOptions: {
@@ -106,7 +102,7 @@ export default defineConfig({
 		// `new URL(…, import.meta.url)`, which pre-bundling into .vite/deps
 		// breaks in dev; heic-to is a 3 MB self-contained libheif build that
 		// gains nothing from pre-bundling but a slower cold start.
-		exclude: ['@jsquash/webp', 'heic-to']
+		exclude: ['@jsquash/webp', 'heic-to', 'onnxruntime-web']
 	},
 	build: {
 		// Declare a browser floor for the CSS minifier. Without it, esbuild treats a

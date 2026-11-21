@@ -7,7 +7,7 @@ import { drizzle } from 'drizzle-orm/libsql';
 import { migrate } from 'drizzle-orm/libsql/migrator';
 import { beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../db/schema';
-import { applyImport, planImport, type ImportEvent } from './import-core';
+import { applyImport, planImport, seedAdditions, type ImportEvent } from './import-core';
 
 const { event, eventHost, person, series } = schema;
 
@@ -106,6 +106,34 @@ describe('planImport', () => {
 		});
 		expect(plan.newSeries).toEqual(['Music in the Garden']);
 		expect(plan.newPeople).toEqual(['Shushan']);
+	});
+});
+
+describe('seedAdditions', () => {
+	// The seed mirrors the database set up above.
+	const seedEvents = [
+		{ ...entry({ url: 'https://x/yoga-1' }), title: 'Yoga in the Garden', date: '2026-07-28' },
+		{ ...entry({ url: 'https://x/unused' }), title: 'Field Trip', date: '2026-05-12', url: null }
+	];
+	const entries = [
+		entry({ url: 'https://x/new' }),
+		entry({ url: 'https://x/yoga-1', title: 'Yoga in the Garden' }),
+		// The seed's copy of this event under another (here, no) URL.
+		entry({ url: 'https://x/field-trip', title: 'field trip!', date: '2026-05-12' }),
+		entry({ url: 'https://x/later', date: '2026-10-20' }),
+		entry({ url: 'https://x/new' })
+	];
+
+	it('adds only what the import inserts, so the seed gets no duplicates', async () => {
+		const plan = await planImport(db, entries, options);
+		const added = seedAdditions(seedEvents, entries, options);
+		expect(added.map((e) => e.url)).toEqual(['https://x/new']);
+		expect(added).toEqual(plan.insert);
+	});
+
+	it('keeps upcoming events when they are allowed', () => {
+		const added = seedAdditions(seedEvents, entries, { ...options, includeUpcoming: true });
+		expect(added.map((e) => e.url)).toEqual(['https://x/new', 'https://x/later']);
 	});
 });
 

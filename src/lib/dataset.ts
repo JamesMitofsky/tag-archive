@@ -1,13 +1,15 @@
 /**
- * Client loaders for the public archive blob. The public pages fetch `/api/dataset`
+ * Client loaders for the public archive. The public pages fetch `/api/dataset`
  * (the whole, small, edge-cached dataset) and take their slice; the browser caches
- * the response, so visiting several downloads it at most once.
+ * the response, so visiting several downloads it at most once. /live instead
+ * polls `/api/live`, a short feed of the latest arrivals.
  */
 import { goto } from '$app/navigation';
 import { LOCKED_PATH } from '#lib/access/paths.ts';
 import { sendBeat } from '#lib/access/presence.ts';
 import type { ArtefactWithEvent } from '#lib/server/db/schema.ts';
 import type { EventItem } from '#lib/events.ts';
+import type { LiveArrival } from '#lib/live.ts';
 import type { PublicImageSet } from '#lib/images/types.ts';
 
 type Dataset = {
@@ -20,26 +22,43 @@ type Dataset = {
 const EMPTY: Dataset = { artefacts: [], events: [], people: [], images: [] };
 
 /**
- * Partial, because a blob cached before a slice existed (at the edge, or in the
- * browser) arrives without that key: each loader defaults its own slice to empty.
+ * GET a gated archive path. A 401 means the gate turned us away: the pass lapsed
+ * while the tab was away, or a keeper's ran out between visits. One beat settles
+ * which — it hands a signed-in keeper a new pass (see #lib/server/access) and
+ * does nothing for anyone else — so try once more, and if the archive really has
+ * drifted shut, show the locked page and answer null.
  */
-async function fetchDataset(): Promise<Partial<Dataset>> {
-	let res = await fetch('/api/dataset');
+async function gatedFetch(path: string): Promise<Response | null> {
+	let res = await fetch(path);
 	if (res.status === 401) {
-		// The gate turned us away: the pass lapsed while the tab was away, or a
-		// keeper's ran out between visits. One beat settles which — it hands a
-		// signed-in keeper a new pass (see #lib/server/access) and does nothing for
-		// anyone else — so try once more, and if the archive really has drifted
-		// shut, show the locked page rather than an empty cloud.
 		await sendBeat().catch(() => {});
-		res = await fetch('/api/dataset');
+		res = await fetch(path);
 		if (res.status === 401) {
 			await goto(LOCKED_PATH);
-			return EMPTY;
+			return null;
 		}
 	}
-	if (!res.ok) throw new Error(`dataset fetch failed: ${res.status}`);
-	return res.json();
+	if (!res.ok) throw new Error(`${path} fetch failed: ${res.status}`);
+	return res;
+}
+
+/**
+ * Partial, because a blob cached before a slice existed (at the edge, or in the
+ * browser) arrives without that key: each loader defaults its own slice to empty.
+ * A locked archive shows the locked page rather than an empty cloud.
+ */
+async function fetchDataset(): Promise<Partial<Dataset>> {
+	const res = await gatedFetch('/api/dataset');
+	return res ? res.json() : EMPTY;
+}
+
+/**
+ * The /live feed (#lib/live), newest first; null when the archive has drifted
+ * shut and the page is on its way to the locked page.
+ */
+export async function loadLiveFeed(): Promise<LiveArrival[] | null> {
+	const res = await gatedFetch('/api/live');
+	return res ? res.json() : null;
 }
 
 export async function loadArtefacts(): Promise<ArtefactWithEvent[]> {

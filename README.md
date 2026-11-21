@@ -36,7 +36,7 @@ photographs uploaded through the app's own finalize and image-set code, so they
 carry real EXIF capture dates and land like any upload. Four are published on
 `/images` (several photographs at an event, a single photograph, a set with no
 event, an undated set); two wait in the review queue (one from the test
-contributor, one anonymous with contact details). Each run replaces the last
+contributor, one anonymous). Each run replaces the last
 run's sets (their photographs are named `demo-…`); re-seed by hand with
 `pnpm db:seed:photographs`.
 
@@ -49,8 +49,11 @@ names below are as SQLite and Drizzle Studio show them. Every archive table
 carries audit columns (`created_at` / `updated_at`, `created_by` / `updated_by`);
 only the bookkeeping tables `rate_limit`, `nfc_tag` and `remote_key` don't. `artefact`,
 `event`, `series` and `image_set` also carry `proposed_addition`: true on a row
-anyone but an admin created, until an admin vets it in the review queue, and
-kept off the public site until then.
+anyone but an admin created, until an admin vets it in the review queue. A
+proposed artefact or image set is kept off the public site until then. A
+proposed event is public all the same, on `/events` and in every form's event
+field: its text is the source page's own, and the flag only asks a keeper to
+check it.
 
 **Artefacts** are the archive's scanned items, one row each in `artefact`:
 
@@ -67,8 +70,7 @@ kept off the public site until then.
 
 Provenance (who an artefact came from) is `person` rows linked through
 `artefact_provenance`; events (grouped into a `series` when they recur) list
-their hosts in `event_host`. A public submitter's optional contact details sit
-in `submission_contact`, never published.
+their hosts in `event_host`.
 
 **Image sets** are photographs uploaded together (see [Photographs](#photographs)).
 A set has no title, location or program areas; its label is derived
@@ -99,9 +101,6 @@ line, else "N photographs"). Three tables:
 | `bytes` / `width` / `height`      | Size and pixel dimensions of the display copy                                           |
 | `captured_at` / `captured_offset` | Wall-clock capture time (or just the day) and UTC offset, from the photo's own metadata |
 | `metadata`                        | The original's parsed EXIF / GPS / XMP / IPTC, JSON; never published                    |
-
-`image_set_contact` — a public submitter's optional name and email for a set,
-the twin of `submission_contact`; never published.
 
 Image rows are written when an upload is _finalized_, before any set exists, so
 **unattached rows** (`set_id` NULL) are normal: they belong to a form someone is
@@ -192,10 +191,11 @@ description differs from its saved page. See
 - **Import** is insert-only and safe to re-run. It skips URLs the database
   already holds, events matching an existing title and date, and events dated
   after today (`--include-upcoming` keeps them). It writes everything in one
-  transaction. The events land in the keeper review queue
-  (`/keeper/settings/review/events`), and approving one publishes it. `--publish`
-  skips the queue and purges the site cache itself (needs `VERCEL_TOKEN` and a
-  `vercel link`ed checkout).
+  transaction. The events are public as soon as they land, and they also wait
+  in the keeper review queue (`/keeper/settings/review/events`) for an admin to
+  check; `--publish` lands them already approved. Importing to a remote
+  database purges the site cache afterwards, so it needs `VERCEL_TOKEN` and a
+  `vercel link`ed checkout.
   `--write-seed` appends the entries to `src/lib/data/seed-data.json` so local dev
   matches.
 
@@ -254,9 +254,9 @@ queue. Anonymous writes are guarded by:
   `/api/cron/sweep-submissions`) that deletes abandoned uploads and stale counters
   (see [Sweeps](#sweeps)).
 
-After submitting, a contributor may optionally leave a name or email for the
-keepers (`submission_contact`, or `image_set_contact` for photographs; never
-published).
+After submitting an artefact, a public contributor is shown its archive number
+to write on the physical item (keepers see the same on the new artefact's page).
+Nothing about who submitted is collected.
 
 Photographs are the archive's other attachment: see [Photographs](#photographs).
 

@@ -16,9 +16,9 @@ export type ArtefactData = {
 	artefact: string;
 	event: string;
 	/**
-	 * The event occurrence picked from the list, so a recurring title links the
-	 * right day. Null for a typed-in title, or one from a form that predates it
-	 * (an old draft): the server then resolves `event` by title alone.
+	 * The event occurrence the field settled on, so a recurring title links the
+	 * right day. Null from a form or draft that predates it, or when the id
+	 * doesn't parse: the server then resolves `event` by title alone.
 	 */
 	eventId: number | null;
 	/** A partial date, null when deliberately undated, '' when not chosen yet. */

@@ -66,6 +66,9 @@
 
 	// Client-side (SPA) navigation: cancel, then re-issue once the user confirms.
 	beforeNavigate((nav) => {
+		// A shallow navigation (goto with `shallow: true`, such as a full-screen
+		// view's back-gesture entries) stays on this page, so nothing is lost.
+		if (nav.shallow) return;
 		if (confirmedLeave || nav.willUnload || !nav.to || !isDirty()) return;
 		nav.cancel();
 		pendingUrl = nav.to.url;

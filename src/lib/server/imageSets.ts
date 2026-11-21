@@ -15,7 +15,7 @@ import { client, db } from './db';
 import { stampInsert } from './db/audit';
 import { isProposedAddition } from './db/proposals';
 import { resolveEventId } from './db/queries';
-import { event, image, imageSet, imageSetContact } from './db/schema';
+import { event, image, imageSet } from './db/schema';
 import type { Image, ImageSet, ImageSetWithMeta } from './db/schema';
 import { deleteImageObjects, ownsImage, type UploadOwner } from './imageUploads';
 import type { Actor } from './artefacts';
@@ -211,8 +211,8 @@ function claimable(ids: number[]) {
  * names, in that order. Every image must exist, be unattached, and belong to
  * `owner` (see `ownsImage`): ids come from the browser, so this is checked
  * here, not trusted. Lands as a proposed addition unless an admin made it (see
- * `isProposedAddition`); a proposed set may only link a vetted event, the only
- * kind its submitter could have seen. The date follows the photographs.
+ * `isProposedAddition`). It may link any event, since every event is public.
+ * The date follows the photographs.
  *
  * Purges the public cache only when the new set is actually public, so
  * anonymous submissions can't trigger CDN purges at will.
@@ -231,7 +231,7 @@ export async function createImageSet(
 	if (!usable) return refused();
 
 	const proposed = isProposedAddition(actor.role);
-	const eventId = await resolveEventId(data.event, proposed, data.eventId);
+	const eventId = await resolveEventId(data.event, data.eventId);
 
 	// The date comes from the rows just read: a capture time never changes, and
 	// these are exactly the set's photographs once the attach below succeeds.
@@ -342,7 +342,7 @@ export async function updateImageSet(
 	// exactly the set's photographs once the write below lands.
 	const fields: SetFields = {
 		description: data.description.trim() || null,
-		eventId: await resolveEventId(data.event, false, data.eventId),
+		eventId: await resolveEventId(data.event, data.eventId),
 		dateAuto: data.dateAuto,
 		date: data.dateAuto
 			? earliestDay(
@@ -437,8 +437,8 @@ export async function updateImageSet(
 }
 
 /**
- * Delete a set: its image rows and contact row cascade with it, then the
- * photographs' stored objects are removed (best-effort, see
+ * Delete a set: its image rows cascade with it, then the photographs' stored
+ * objects are removed (best-effort, see
  * `deleteImageObjects`). With `proposedOnly`, only a set still awaiting review
  * is deleted — the review queue's reject, which must never discard a set an
  * approval has just vetted. With `version` (its `updated_at` in ms, as the edit
@@ -552,30 +552,14 @@ export async function listImageSets(): Promise<ImageSetSummary[]> {
 	return withImages(sets, images);
 }
 
-/**
- * A proposed set as the review queue reads it: anything a public submitter
- * chose to leave so a keeper can reach them (both null when they left
- * nothing, or for a signed-in contributor's submission).
- */
-export type ProposedImageSet = ImageSetSummary & {
-	contactName: string | null;
-	contactEmail: string | null;
-};
-
-/** Sets awaiting review, newest first, with their images and submitter contact. */
-export async function listProposedImageSets(): Promise<ProposedImageSet[]> {
+/** Sets awaiting review, newest first, with their images. */
+export async function listProposedImageSets(): Promise<ImageSetSummary[]> {
 	const pending = eq(imageSet.proposedAddition, true);
 	const [sets, images] = await Promise.all([
 		db
-			.select({
-				...getTableColumns(imageSet),
-				event: event.title,
-				contactName: imageSetContact.name,
-				contactEmail: imageSetContact.email
-			})
+			.select({ ...getTableColumns(imageSet), event: event.title })
 			.from(imageSet)
 			.leftJoin(event, eq(imageSet.eventId, event.id))
-			.leftJoin(imageSetContact, eq(imageSetContact.setId, imageSet.id))
 			.where(pending)
 			.orderBy(desc(imageSet.date), desc(imageSet.id)),
 		selectImageSummaries(pending)

@@ -1,24 +1,16 @@
+import { ARCHIVE_CACHE_HEADERS } from '#lib/server/cache.ts';
 import { loadPublicDataset } from '#lib/server/db/queries.ts';
 import type { RequestHandler } from './$types';
 
 /**
- * The entire public archive dataset as one blob: vetted artefacts, events, and
- * person names (see `loadPublicDataset` for exactly what "vetted" excludes).
+ * The entire public archive dataset as one blob: vetted artefacts and image
+ * sets, every event, and person names (see `loadPublicDataset` for exactly
+ * what it leaves out).
  * The dataset is small, so client components fetch this once and search it client-side.
  *
- * Cached in Vercel's CDN with a single `archive` tag; every keeper write purges
- * that tag (see `#lib/server/cache.ts`). The day-long lifetime is a self-healing
- * backstop in case a purge is ever missed — freshness normally comes from the
- * purge, not the TTL. `Vercel-CDN-Cache-Control` speaks to Vercel's CDN alone,
- * so browsers never keep a copy a purge can't reach. The access gate runs in
- * front of this cache (middleware.ts), so a cached copy is still only served to a
- * visitor with a pass.
+ * Cached in Vercel's CDN under the `archive` tag every keeper write purges (see
+ * `ARCHIVE_CACHE_HEADERS` in `#lib/server/cache.ts` for the lifetime and why).
  */
-const CACHE_HEADERS = {
-	'Vercel-CDN-Cache-Control': 'max-age=86400, stale-while-revalidate=604800',
-	'Vercel-Cache-Tag': 'archive'
-};
-
 export const GET: RequestHandler = async () => {
-	return Response.json(await loadPublicDataset(), { headers: CACHE_HEADERS });
+	return Response.json(await loadPublicDataset(), { headers: ARCHIVE_CACHE_HEADERS });
 };

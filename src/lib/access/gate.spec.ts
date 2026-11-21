@@ -30,7 +30,6 @@ describe('accessDecision (no pass)', () => {
 		'/_app/immutable/entry/start.js',
 		'/drawing/text/tag-archive.webp',
 		'/clouds/cloud-1.webp',
-		'/email/logo.png',
 		'/favicon.png'
 	])('leaves %s open', (path) => {
 		expect(page(path)).toBe('open');
@@ -365,7 +364,6 @@ describe('middleware matcher', () => {
 			'/_app/version.json',
 			'/drawing/text/tag-archive.webp',
 			'/clouds/cloud-1.webp',
-			'/email/logo.png',
 			'/favicon.png'
 		]) {
 			expect(runsOn(path), path).toBe(false);
@@ -381,6 +379,7 @@ describe('middleware matcher', () => {
 			'/keeperx',
 			'/api/dataset',
 			'/api/scans',
+			'/email/logo.png',
 			'/artefacts/TAG-001.jpg',
 			'/audio/meditation-walk/01%20-%20INTRODUCTION.mp3',
 			'/_vercel/image',

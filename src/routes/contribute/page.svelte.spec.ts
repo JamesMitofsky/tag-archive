@@ -5,14 +5,11 @@ import type { ComponentProps } from 'svelte';
 
 // Rendered without a running app: stand in for what SvelteKit would provide.
 vi.mock('$app/forms', () => ({ enhance: () => ({ destroy() {} }) }));
-/** `afterNavigate` callbacks the page registered, to play a navigation through. */
-const navigated = vi.hoisted(() => [] as ((nav: { type: string }) => void)[]);
 vi.mock('$app/navigation', () => ({
-	afterNavigate: (callback: (nav: { type: string }) => void) => void navigated.push(callback),
+	afterNavigate: () => {},
 	beforeNavigate: () => {},
 	goto: vi.fn(),
-	onNavigate: () => {},
-	pushState: vi.fn()
+	onNavigate: () => {}
 }));
 vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/contribute'), state: {} } }));
 // The comboboxes load the public dataset; nothing to pick from here.
@@ -22,49 +19,45 @@ const { default: ContributePage } = await import('./+page.svelte');
 type Props = ComponentProps<typeof ContributePage>;
 
 describe('/contribute', () => {
-	it('keeps the thank-you, and what was typed into its contact form, through a refusal', async () => {
-		const submitted = { id: 5, token: 'token-5' };
-		const data = { signedIn: false, canContribute: true, requireLocation: false, locations: [] };
-		const { rerender } = await render(ContributePage, {
-			data,
-			form: { submitted }
-		} as unknown as Props);
-		/** As SvelteKit applies an action's result: `form` cleared for a tick, then set. */
-		const apply = async (result: Record<string, unknown>) => {
-			await rerender({ form: null } as Partial<Props>);
-			await rerender({ form: result } as Partial<Props>);
-		};
-		await page.getByRole('button', { name: /Leave a name or email/ }).click();
-		await page.getByLabelText('Name').fill('Ada');
+	const data = { signedIn: false, canContribute: true, requireLocation: false, locations: [] };
 
-		await apply({ contactError: 'Too many attempts — wait a little and try again.', submitted });
+	it('shows the archive number to write on the item in place of the form', async () => {
+		await render(ContributePage, { data, form: { submitted: { id: 42 } } } as unknown as Props);
 
 		await expect
-			.element(page.getByRole('alert'))
-			.toMatchTextContent('Too many attempts — wait a little and try again.');
-		await expect.element(page.getByLabelText('Name')).toHaveValue('Ada');
-
-		await apply({ connected: true, submitted });
+			.element(page.getByRole('heading', { name: 'Write this number on the item' }))
+			.toHaveFocus();
+		await expect.element(page.getByText('#42')).toBeVisible();
+		// Written out by hand, so there is nothing to copy.
+		expect(page.getByRole('button', { name: /copy/i }).query()).toBeNull();
 		await expect
-			.element(page.getByRole('status'))
-			.toMatchTextContent('Thanks — a keeper may be in touch about this artefact.');
+			.element(page.getByRole('link', { name: 'Submit another' }))
+			.toHaveAttribute('href', '/contribute');
+		// Only what's needed to label the item: no thank-you copy, no contact form.
+		expect(document.querySelector('form')).toBeNull();
+		expect(document.body.textContent).not.toMatch(/thank you|name or email/i);
 	});
 
-	it('lets go of the thank-you on a real navigation back to the form', async () => {
-		const submitted = { id: 6, token: 'token-6' };
-		const data = { signedIn: false, canContribute: true, requireLocation: false, locations: [] };
+	it('lets a contributor say they are not sure where the item is kept', async () => {
+		await render(ContributePage, { data, form: null } as unknown as Props);
+
+		const group = page.getByRole('group', { name: 'Archival storage location' });
+		await expect.element(group.getByRole('radio', { name: 'Not sure' })).toBeChecked();
+		await group.getByRole('radio', { name: 'Binder' }).click();
+		await expect.element(group.getByRole('radio', { name: 'Binder' })).toBeChecked();
+		await group.getByRole('radio', { name: 'Not sure' }).click();
+		expect(new FormData(document.querySelector('form')!).get('location')).toBe('');
+	});
+
+	it('goes back to the form once a navigation clears the result', async () => {
 		const { rerender } = await render(ContributePage, {
 			data,
-			form: { submitted }
+			form: { submitted: { id: 6 } }
 		} as unknown as Props);
-		await expect.element(page.getByRole('heading', { name: 'Thank you' })).toBeInTheDocument();
+		await expect.element(page.getByText('#6')).toBeVisible();
 
-		// Applying an action's result clears `form` without navigating: still thanked.
+		// The nav's Cloud Keeper mark links here: a navigation, which clears `form`.
 		await rerender({ form: null } as Partial<Props>);
-		await expect.element(page.getByRole('heading', { name: 'Thank you' })).toBeInTheDocument();
-
-		// The nav's Cloud Keeper mark links here: a navigation, which means "start again".
-		for (const callback of navigated) callback({ type: 'link' });
 		await expect
 			.element(page.getByRole('heading', { name: 'Add to the archive' }))
 			.toBeInTheDocument();

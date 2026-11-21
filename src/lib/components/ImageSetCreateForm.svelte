@@ -149,7 +149,7 @@
 		<AsyncComboField
 			name="event"
 			label="Event"
-			placeholder="Search or add an event"
+			placeholder="Search events"
 			value={echoed?.event ?? ''}
 			eventId={echoed?.eventId}
 		/>

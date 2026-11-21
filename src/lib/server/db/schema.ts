@@ -206,6 +206,12 @@ export const artefact = sqliteTable(
 		fileUrls: text('file_urls', { mode: 'json' }).$type<string[]>().notNull().default([]),
 		// Physical storage location, e.g. "Binder" / "Bin".
 		location: text('location'),
+		// When a keeper vetted this proposed addition into the public archive (see
+		// `approveProposed`). Null for a row created already vetted, and for one
+		// approved before this column existed, whose approval time was never kept.
+		// So the moment an artefact went public is `coalesce(approved_at,
+		// created_at)`: what /live orders its arrivals by.
+		approvedAt: integer('approved_at', { mode: 'timestamp_ms' }),
 		...proposalColumns(),
 		...auditColumns()
 	},
@@ -241,21 +247,6 @@ export const artefactProvenance = sqliteTable(
 		index('artefact_prov_person_id_idx').on(t.personId)
 	]
 );
-
-/**
- * How a public submitter can be reached about an artefact they contributed —
- * offered after submitting, never required. Kept out of the `artefact` table on
- * purpose: the public dataset publishes artefact rows whole, and contact
- * details must never ride along. One row per artefact; deleted with it.
- */
-export const submissionContact = sqliteTable('submission_contact', {
-	artefactId: integer('artefact_id')
-		.primaryKey()
-		.references(() => artefact.id, { onDelete: 'cascade' }),
-	name: text('name'),
-	email: text('email'),
-	...auditColumns()
-});
 
 /**
  * A set of photographs uploaded together: one or several images, with an
@@ -362,20 +353,6 @@ export const image = sqliteTable(
 		index('image_created_at_idx').on(t.createdAt)
 	]
 );
-
-/**
- * How a public submitter can be reached about an image set they contributed —
- * the image-set twin of `submission_contact`, kept off the public row for the
- * same reason. One row per set; deleted with it.
- */
-export const imageSetContact = sqliteTable('image_set_contact', {
-	setId: integer('set_id')
-		.primaryKey()
-		.references(() => imageSet.id, { onDelete: 'cascade' }),
-	name: text('name'),
-	email: text('email'),
-	...auditColumns()
-});
 
 /**
  * The one image an event features (see #lib/server/eventFeatures): either a
@@ -541,7 +518,6 @@ export type NewArtefact = typeof artefact.$inferInsert;
  * unlinked) and provenance re-expanded to a plain name array from the join table.
  */
 export type ArtefactWithEvent = Artefact & { event: string | null; provenance: string[] };
-export type SubmissionContact = typeof submissionContact.$inferSelect;
 /**
  * Event as the keeper list reads it: series name flattened in (null for a
  * one-off) and hosts re-expanded to a plain name array from the join table.
@@ -551,7 +527,6 @@ export type ImageSet = typeof imageSet.$inferSelect;
 export type NewImageSet = typeof imageSet.$inferInsert;
 export type Image = typeof image.$inferSelect;
 export type NewImage = typeof image.$inferInsert;
-export type ImageSetContact = typeof imageSetContact.$inferSelect;
 export type EventFeatureImage = typeof eventFeatureImage.$inferSelect;
 /**
  * Image set as the keeper views read it: linked event title flattened in (null
