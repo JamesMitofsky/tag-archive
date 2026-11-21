@@ -5,6 +5,7 @@ import {
 	releaseVelocity,
 	springStep,
 	TUNING,
+	type Tuning,
 	type FindAnchor,
 	type Sample
 } from './physics';
@@ -107,12 +108,26 @@ describe('createSim', () => {
 		sim.up(1000, 0, 0);
 		const t = run(sim, 0, 0.5);
 		const midway = sim.cam.x;
-		expect(midway).toBeLessThan(-200);
+		expect(midway).toBeLessThan(-100);
 		run(sim, t, 6);
 		expect(sim.speed).toBeLessThan(1);
 		// It travelled no further than the friction allows: v0 · halfLife / ln 2.
-		const most = (1000 * TUNING.gain * TUNING.glideHalfLife) / Math.LN2;
+		const most = (1000 * TUNING.gain * TUNING.fling * TUNING.glideHalfLife) / Math.LN2;
 		expect(Math.abs(sim.cam.x)).toBeLessThan(most * 1.05);
+	});
+
+	it('reads its tuning live, so a change takes hold mid-run', () => {
+		const tuning: Tuning = { ...TUNING, currentHeading: { ...TUNING.currentHeading } };
+		const glide = (fling: number) => {
+			tuning.fling = fling;
+			const sim = createSim({ x: 0, y: 0 }, tuning);
+			sim.up(1000, 0, 0);
+			sim.step(1 / 60, 1 / 60, nothing);
+			run(sim, 1 / 60, 0.2);
+			return Math.abs(sim.cam.x);
+		};
+		expect(glide(0.25)).toBeLessThan(glide(1) * 0.3);
+		expect(glide(0)).toBe(0);
 	});
 
 	it('clamps a wild fling to the top speed', () => {

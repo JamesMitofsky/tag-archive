@@ -13,6 +13,8 @@
 	Operator keys: `d` shows the overlay, `f` toggles fullscreen. The overlay
 	reports on the connection and holds the filter: artefacts, images and events
 	can each be left out of the field, which is then laid out again without them.
+	Beside it sit sliders for how the field moves and how it is drawn (see
+	#lib/installation/knobs), each taking hold as it is dragged.
 	A mouse drag on this page moves the field too, as a fallback if the iPad's
 	connection drops.
 -->
@@ -39,6 +41,15 @@
 	} from '#lib/installation/field.ts';
 	import { buildFieldItems } from '#lib/installation/items.ts';
 	import {
+		defaultKnobs,
+		KNOBS,
+		readKnobs,
+		rememberKnobs,
+		VIEW,
+		type Knob,
+		type Knobs
+	} from '#lib/installation/knobs.ts';
+	import {
 		kindSet,
 		KINDS,
 		readShownKinds,
@@ -62,12 +73,10 @@
 	} from '#lib/installation/relay.ts';
 	import RelayOverlay from '#lib/installation/RelayOverlay.svelte';
 
-	/** The lens's radius, as a share of the screen's height. */
-	const LENS = 0.18;
+	/** A bloom's share of the screen's width, for each share of its height. */
+	const BLOOM_WIDTH = 0.5 / 0.62;
 	/** Items are mounted this far (in cells) past the screen's edge, so they never pop in. */
 	const MARGIN_CELLS = 1;
-	/** How long the field must be still on an item before its caption shows (s). */
-	const CAPTION_AFTER = 0.7;
 
 	let world = $state.raw<World | null>(null);
 	let visible = $state.raw<Placed[]>([]);
@@ -84,7 +93,13 @@
 
 	let dataset: Dataset | null = null;
 	let sim: Sim | null = null;
-	let tuning: Tuning = TUNING;
+	let knobs = $state<Knobs>(readKnobs());
+	/**
+	 * What the frame loop and the sim read, kept plain so sixty reads a second
+	 * skip the reactive proxy. `setKnobs` writes each change through to both.
+	 */
+	const tuning: Tuning = { ...TUNING, currentHeading: { ...TUNING.currentHeading } };
+	const view = { ...VIEW };
 	/**
 	 * The ids last handed to the template, so it is only told when they change.
 	 * Null after a new layout, which no set of ids matches, not even none.
@@ -123,7 +138,11 @@
 			imageSets: dataset.images,
 			kinds: kindSet(shown)
 		});
-		const laid = layoutField(items, { viewW: window.innerWidth, viewH: window.innerHeight });
+		const laid = layoutField(items, {
+			viewW: window.innerWidth,
+			viewH: window.innerHeight,
+			perScreen: view.perScreen
+		});
 		const pick = () => laid.placed[Math.floor(Math.random() * laid.placed.length)];
 		if (sim && world) {
 			const cam = sim.cam;
@@ -145,9 +164,28 @@
 		layout();
 	}
 
+	/** Takes the sliders' values into what the field runs on, and remembers them. */
+	function setKnobs(next: Knobs) {
+		const zoomed = next.perScreen !== view.perScreen;
+		knobs = next;
+		for (const { key } of KNOBS) {
+			if (key in view) view[key as keyof typeof view] = next[key];
+			else tuning[key as Exclude<keyof Knobs, keyof typeof view>] = next[key];
+		}
+		rememberKnobs(next);
+		// A different zoom is a different layout; the rest is read every frame.
+		if (zoomed) layout();
+	}
+
+	function shownValue(knob: Knob): string {
+		const digits = knob.step < 0.1 ? 2 : knob.step < 1 ? 1 : 0;
+		return `${knobs[knob.key].toFixed(digits)}${knob.unit ? ` ${knob.unit}` : ''}`;
+	}
+
 	onMount(() => {
-		const gain = Number(page.url.searchParams.get('gain')) || TUNING.gain;
-		tuning = { ...TUNING, gain };
+		// ?gain= still sets the drag gain for this visit, over what is remembered.
+		const gain = Number(page.url.searchParams.get('gain'));
+		setKnobs(gain > 0 ? { ...knobs, gain } : knobs);
 		let relay: Relay | null = null;
 		let frame = 0;
 		let disposed = false;
@@ -220,7 +258,7 @@
 			const calm = calmness(sim.speed);
 			// 0 while the field is left to the current: nothing comes into focus.
 			const lensAt = sim.lens;
-			const lensRadius = viewH * LENS;
+			const lensRadius = viewH * view.lens;
 			const halfW = viewW / 2 + w.cell * MARGIN_CELLS;
 			const halfH = viewH / 2 + w.cell * MARGIN_CELLS;
 
@@ -244,7 +282,9 @@
 
 			// The bloom: how much of the lens the focused item fills, and how far
 			// its neighbors must part to make room.
-			const bloomOf = (p: Placed) => bloomScale(p.w, p.h, viewW, viewH);
+			// The width's share keeps its proportion to the height's.
+			const bloomOf = (p: Placed) =>
+				bloomScale(p.w, p.h, viewW, viewH, view.bloom, view.bloom * BLOOM_WIDTH);
 			const bestScale = best ? focusScale(best.focus, calm, bloomOf(best.placed)) : 1;
 			const bloomAmount = best ? best.focus * calm : 0;
 			const reach = best
@@ -304,7 +344,7 @@
 			const settled = !!focused && focused.focus > 0.85 && calm > 0.9;
 			if (settled) stillSince ??= t;
 			else stillSince = null;
-			const showCaption = stillSince !== null && t - stillSince > CAPTION_AFTER;
+			const showCaption = stillSince !== null && t - stillSince > view.captionAfter;
 			if (showCaption !== captionShown) captionShown = showCaption;
 			const nextBloom = focused && bloomAmount > 0.6 ? id : bloomId === id ? bloomId : null;
 			if (nextBloom !== bloomId) bloomId = nextBloom;
@@ -335,7 +375,7 @@
 		const onDown = (event: PointerEvent) => {
 			if (mouse !== null || !sim) return;
 			// A click on the overlay's filter is not a hand on the water.
-			if (event.target instanceof Element && event.target.closest('.kinds')) return;
+			if (event.target instanceof Element && event.target.closest('.kinds, .knobs')) return;
 			mouse = event.pointerId;
 			lastPoint = { x: event.clientX, y: event.clientY };
 			samples = [{ t: event.timeStamp, ...lastPoint }];
@@ -382,7 +422,13 @@
 </svelte:head>
 
 <div class="stream" class:operating={overlay || unconfigured} aria-label="Archive Stream">
-	<div class="lens" bind:this={lens} aria-hidden="true"></div>
+	<div
+		class="lens"
+		bind:this={lens}
+		style:width="{knobs.lens * 200}vh"
+		style:height="{knobs.lens * 200}vh"
+		aria-hidden="true"
+	></div>
 
 	{#each visible as placed (placed.item.id)}
 		{@const item = placed.item}
@@ -458,6 +504,24 @@
 			<dt>frames</dt>
 			<dd>{stats.fps} fps</dd>
 		</RelayOverlay>
+		<div class="knobs">
+			{#each KNOBS as knob (knob.key)}
+				<label>
+					<span>{knob.label}</span>
+					<input
+						type="range"
+						min={knob.min}
+						max={knob.max}
+						step={knob.step}
+						value={knobs[knob.key]}
+						oninput={(event) =>
+							setKnobs({ ...knobs, [knob.key]: event.currentTarget.valueAsNumber })}
+					/>
+					<output>{shownValue(knob)}</output>
+				</label>
+			{/each}
+			<button type="button" onclick={() => setKnobs(defaultKnobs())}>reset to defaults</button>
+		</div>
 	{/if}
 </div>
 
@@ -500,12 +564,52 @@
 		margin: 0;
 	}
 
+	.knobs {
+		position: absolute;
+		right: 1rem;
+		bottom: 1rem;
+		display: grid;
+		grid-template-columns: auto 11rem auto;
+		gap: 0.2rem 0.75rem;
+		align-items: center;
+		max-height: calc(100vh - 2rem);
+		overflow-y: auto;
+		padding: 0.75rem 1rem;
+		font:
+			0.8rem/1.3 ui-monospace,
+			monospace;
+		color: white;
+		background: oklch(0.2 0.02 250 / 0.75);
+		border-radius: 0.5rem;
+		z-index: 5;
+	}
+	.knobs label {
+		display: contents;
+	}
+	.knobs input {
+		width: 100%;
+		margin: 0;
+	}
+	.knobs output {
+		min-width: 6.5em;
+	}
+	.knobs button {
+		grid-column: 1 / -1;
+		justify-self: start;
+		margin-top: 0.35rem;
+		padding: 0.15rem 0.6rem;
+		font: inherit;
+		color: inherit;
+		background: oklch(1 0 0 / 0.15);
+		border: 0;
+		border-radius: 0.3rem;
+		cursor: pointer;
+	}
+
 	.lens {
 		position: absolute;
 		left: 50%;
 		top: 50%;
-		width: 36vh;
-		height: 36vh;
 		translate: -50% -50%;
 		border-radius: 50%;
 		background: radial-gradient(circle, oklch(0.95 0.06 85 / 0.55), oklch(0.95 0.06 85 / 0) 70%);
