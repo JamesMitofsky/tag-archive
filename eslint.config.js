@@ -36,7 +36,6 @@ export default defineConfig(
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
 		languageOptions: {
 			parserOptions: {
-				extraFileExtensions: ['.svelte'],
 				parser: ts.parser
 			}
 		}
@@ -49,6 +48,11 @@ export default defineConfig(
 		// tsconfig covers fall back to a default project.
 		languageOptions: {
 			parserOptions: {
+				// The same list for every file, .ts as well as .svelte: the project
+				// service reloads the whole project whenever the list changes from
+				// one file to the next (see typescript-estree's
+				// useProgramFromProjectService), which made the lint 20× slower.
+				extraFileExtensions: ['.svelte'],
 				projectService: {
 					allowDefaultProject: ['eslint.config.js', 'prettier.config.js', 'vitest.shims.d.ts']
 				},
