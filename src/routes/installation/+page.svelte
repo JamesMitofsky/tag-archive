@@ -20,7 +20,8 @@
 	Beside it sit sliders for how the field moves and how it is drawn (see
 	#lib/installation/knobs), each taking hold as it is dragged.
 	A mouse drag on this page moves the field too, as a fallback if the iPad's
-	connection drops.
+	connection drops, and so do two fingers on the laptop's trackpad, read as
+	one finger on the iPad (see #lib/installation/trackpad).
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -77,6 +78,7 @@
 		type RelayStatus
 	} from '#lib/installation/relay.ts';
 	import RelayOverlay from '#lib/installation/RelayOverlay.svelte';
+	import { createTrackpad, wheelInput } from '#lib/installation/trackpad.ts';
 
 	/** A bloom's share of the screen's width, for each share of its height. */
 	const BLOOM_WIDTH = 0.5 / 0.62;
@@ -247,8 +249,18 @@
 				loadError = error instanceof Error ? error.message : String(error);
 			});
 
+		// Two fingers on the trackpad steer like one on the iPad, at this
+		// screen's own scale (gain 1), as the mouse does.
+		const trackpad = createTrackpad({
+			down: () => sim?.down(now()),
+			drag: (dx, dy) => sim?.drag(dx, dy, now(), 1),
+			up: (vx, vy) => sim?.up(vx, vy, now(), 1)
+		});
+
 		const tick = (ms: number) => {
 			frame = requestAnimationFrame(tick);
+			// A trackpad gesture that has gone quiet lifts before the field moves on.
+			trackpad.tick(ms);
 			const dt = (ms - last) / 1000;
 			last = ms;
 			frames++;
@@ -435,8 +447,24 @@
 			sim.up(v.x, v.y, now(), 1);
 		};
 
+		const onWheel = (event: WheelEvent) => {
+			// The sliders' panel scrolls as any panel does.
+			if (event.target instanceof Element && event.target.closest('.kinds, .knobs')) return;
+			// Nothing else scrolls, zooms or swipes back a page here.
+			event.preventDefault();
+			// A pinch reaches the page as a wheel with ctrl held; it doesn't steer.
+			if (event.ctrlKey || mouse !== null) return;
+			trackpad.feed(wheelInput(event, viewH));
+		};
+		// Safari pinches with its own gesture events instead.
+		const refuse = (event: Event) => event.preventDefault();
+
 		window.addEventListener('resize', onResize);
 		window.addEventListener('keydown', onKey);
+		// Not passive, or the browser scrolls (and swipes back) before it can be refused.
+		window.addEventListener('wheel', onWheel, { passive: false });
+		document.addEventListener('gesturestart', refuse);
+		document.addEventListener('gesturechange', refuse);
 		window.addEventListener('pointerdown', onDown);
 		window.addEventListener('pointermove', onMove);
 		window.addEventListener('pointerup', onUp);
@@ -448,6 +476,9 @@
 			relay?.close();
 			window.removeEventListener('resize', onResize);
 			window.removeEventListener('keydown', onKey);
+			window.removeEventListener('wheel', onWheel);
+			document.removeEventListener('gesturestart', refuse);
+			document.removeEventListener('gesturechange', refuse);
 			window.removeEventListener('pointerdown', onDown);
 			window.removeEventListener('pointermove', onMove);
 			window.removeEventListener('pointerup', onUp);
@@ -582,6 +613,8 @@
 	:global(html:has(.stream)) {
 		scrollbar-gutter: auto;
 		overflow: hidden;
+		/* A sideways swipe on the trackpad steers; it never goes back a page. */
+		overscroll-behavior: none;
 	}
 
 	.stream {

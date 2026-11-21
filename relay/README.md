@@ -70,6 +70,9 @@ open -a "Google Chrome" --args --kiosk "https://<site>/installation"
 
 - Press `d` for the operator overlay (connection, round trip, frame rate) and `f` for fullscreen.
 - A mouse drag on the laptop also moves the field, as a fallback if the iPad's connection drops.
+  So do two fingers on the laptop's trackpad, which steer just as one finger on the iPad does: the
+  field moves with them, and a flick glides on and settles on an item. macOS's own scroll momentum
+  after the lift is ignored in favor of the field's glide (see `src/lib/installation/trackpad.ts`).
 
 **iPad.** Open `https://<site>/installation/pad?key=<RELAY_KEY>` in Safari. Then turn on Guided
 Access (Settings › Accessibility › Guided Access), triple-click the top button, and circle Safari's
