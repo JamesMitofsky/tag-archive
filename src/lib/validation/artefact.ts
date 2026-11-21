@@ -1,11 +1,26 @@
 import { readDateField } from '#lib/partialDate.ts';
 import { PROGRAM_AREAS } from '#lib/programAreas.ts';
-import { check, defineSuite, isHttpUrl, isPartialDate, maxLen, splitList, str } from './helpers';
+import {
+	check,
+	defineSuite,
+	isHttpUrl,
+	isPartialDate,
+	maxLen,
+	optionalId,
+	splitList,
+	str
+} from './helpers';
 
 /** Normalised artefact form values — validated, then used for the DB write. */
 export type ArtefactData = {
 	artefact: string;
 	event: string;
+	/**
+	 * The event occurrence the field settled on, so a recurring title links the
+	 * right day. Null from a form or draft that predates it, or when the id
+	 * doesn't parse: the server then resolves `event` by title alone.
+	 */
+	eventId: number | null;
 	/** A partial date, null when deliberately undated, '' when not chosen yet. */
 	date: string | null;
 	description: string;
@@ -22,6 +37,7 @@ export function parseArtefactForm(fd: FormData): ArtefactData {
 	return {
 		artefact: str(fd.get('artefact')),
 		event: str(fd.get('event')),
+		eventId: optionalId(fd.get('eventId')),
 		date: readDateField(str(fd.get('date'))),
 		description: str(fd.get('description')),
 		location: str(fd.get('location')),
@@ -85,6 +101,11 @@ export function createArtefactSuite({ requireLocation = true }: ArtefactSuiteOpt
 export type ArtefactFormValues = {
 	artefact: string;
 	event: string;
+	/**
+	 * The picked occurrence's id, '' for none. Optional: a draft kept in session
+	 * storage before the field existed comes back without it.
+	 */
+	eventId?: string;
 	date: string;
 	description: string;
 	location: string;
@@ -102,6 +123,7 @@ export function echoArtefactForm(fd: FormData, data: ArtefactData): ArtefactForm
 	return {
 		artefact: String(fd.get('artefact') ?? ''),
 		event: String(fd.get('event') ?? ''),
+		eventId: String(fd.get('eventId') ?? ''),
 		date: String(fd.get('date') ?? ''),
 		description: String(fd.get('description') ?? ''),
 		location: String(fd.get('location') ?? ''),
