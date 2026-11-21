@@ -41,12 +41,12 @@ const item = (
 	cluster
 });
 
-// Clusters of four, spread over fifteen years and every month, plus some
-// known only to the year.
+// Clusters of four, spread over six years and every month, plus some known
+// only to the year: like the archive, whose years hold dozens of things each.
 const many = (n: number) =>
 	Array.from({ length: n }, (_, i) => {
 		const c = Math.floor(i / 4);
-		const year = 2010 + (c % 15);
+		const year = 2020 + (c % 6);
 		const month = String(1 + ((c * 5) % 12)).padStart(2, '0');
 		return item(`i${i}`, `c${c}`, c % 9 === 0 ? `${year}` : `${year}-${month}`);
 	});
@@ -106,6 +106,47 @@ describe('groupBySeason', () => {
 			['Season unknown', ['year', 'undated']]
 		]);
 	});
+
+	it('gathers each season into its years, in date order, a winter across New Year', () => {
+		const groups = groupBySeason([
+			item('undated', 'u', null),
+			item('july', 'a', '2024-07-04'),
+			item('december', 'b', '2023-12-10'),
+			item('february', 'c', '2024-02'),
+			item('late-december', 'g', '2024-12-01'),
+			item('year', 'd', '2024'),
+			item('old-year', 'h', '2019'),
+			item('old-summer', 'e', '2016-08-20'),
+			item('old-winter', 'f', '2017-01')
+		]);
+		expect(
+			groups.map((g) => [g.label, g.years.map((y) => [y.label, y.items.map((i) => i.id)])])
+		).toEqual([
+			[
+				'Winter',
+				[
+					['2016–17', ['old-winter']],
+					['2023–24', ['december', 'february']],
+					['2024–25', ['late-december']]
+				]
+			],
+			[
+				'Summer',
+				[
+					['2016', ['old-summer']],
+					['2024', ['july']]
+				]
+			],
+			[
+				'Season unknown',
+				[
+					['2019', ['old-year']],
+					['2024', ['year']],
+					['Undated', ['undated']]
+				]
+			]
+		]);
+	});
 });
 
 describe('layoutField', () => {
@@ -135,8 +176,10 @@ describe('layoutField', () => {
 
 	it('shows about the asked number of items per screen over an island, fewer on average', () => {
 		const perScreen = (400 * viewW * viewH) / (world.width * world.height);
-		// The channels between islands are open water, so well under the default 37.
-		expect(perScreen).toBeGreaterThan(13);
+		// The channels between seasons, the straits between years and the band at
+		// each season's head are open water, so well under the default 37. (The
+		// archive itself, with its years fuller than these, shows about 12.)
+		expect(perScreen).toBeGreaterThan(6);
 		expect(perScreen).toBeLessThan(37);
 		// Around a bubble, a screen's worth of island holds about the asked number,
 		// a little under it for the empty cells.
@@ -144,7 +187,7 @@ describe('layoutField', () => {
 			Array.from({ length: 300 }, (_, i) => item(`s${i}`, `c${i}`, '2024-07-01')),
 			{ viewW, viewH }
 		);
-		const [group] = summer.groups;
+		const group = summer.groups.find((g) => g.level === 'year')!;
 		const near = summer.placed.filter((p) => {
 			const o = offsetFrom(group, p, summer);
 			return Math.abs(o.x) < viewW / 2 && Math.abs(o.y) < viewH / 2;
@@ -154,7 +197,7 @@ describe('layoutField', () => {
 	});
 
 	it('gives each season one bubble, winter to fall, then the unknown', () => {
-		expect(world.groups.map((g) => g.label)).toEqual([
+		expect(world.groups.filter((g) => g.level === 'season').map((g) => g.label)).toEqual([
 			'Winter',
 			'Spring',
 			'Summer',
@@ -163,31 +206,87 @@ describe('layoutField', () => {
 		]);
 	});
 
+	it('gives each year of each season a bubble, in date order after its season’s', () => {
+		const expected = groupBySeason(many(400)).flatMap((g) => [
+			g.label,
+			...g.years.map((y) => y.label)
+		]);
+		expect(world.groups.map((g) => g.label)).toEqual(expected);
+		expect(new Set(world.groups.map((g) => g.key)).size).toBe(world.groups.length);
+		const summer = world.groups.filter((g) => g.key.startsWith('3/')).map((g) => g.label);
+		expect(summer.length).toBeGreaterThan(1);
+		expect(summer).toEqual([...summer].sort());
+	});
+
 	it('keeps the water clear at each bubble', () => {
 		for (const group of world.groups) {
 			for (const p of world.placed) {
 				const o = offsetFrom(group, p, world);
-				// The bubble's three cells, less how far an item may be nudged and its half-size.
-				const clear = Math.abs(o.y) < world.cell * 0.4 && Math.abs(o.x) < world.cell * 1.4;
+				// A year's bubble has its island's three middle cells, less how far an
+				// item may be nudged and its half-size. A season's has the band at its
+				// head, the whole width of its archipelago.
+				const clear =
+					group.level === 'year'
+						? Math.abs(o.y) < world.cell * 0.4 && Math.abs(o.x) < world.cell * 1.4
+						: Math.abs(o.y) < world.cell * 0.6 && Math.abs(o.x) < world.cell * 2;
 				expect(clear).toBe(false);
 			}
 		}
 	});
 
-	it('parts the seasons by open water, wider than the gaps within one', () => {
-		const seasonOf = new Map(
-			groupBySeason(many(400)).flatMap((g) => g.items.map((i) => [i.id, g.key]))
+	it('heads each season with its bubble, above all its years', () => {
+		const seasons = groupBySeason(many(400));
+		const byId = new Map(world.placed.map((p) => [p.item.id, p]));
+		for (const season of seasons) {
+			const bubble = world.groups.find((g) => g.key === season.key)!;
+			for (const i of season.items) {
+				expect(offsetFrom(bubble, byId.get(i.id)!, world).y).toBeGreaterThan(world.cell);
+			}
+		}
+	});
+
+	it('gathers each year onto an island of its own', () => {
+		const byId = new Map(world.placed.map((p) => [p.item.id, p]));
+		for (const season of groupBySeason(many(400))) {
+			const extents = season.years.map((year) => {
+				const ps = year.items.map((i) => byId.get(i.id)!);
+				const xs = ps.map((p) => p.x);
+				const ys = ps.map((p) => p.y);
+				return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+			});
+			// No two years' items reach into each other's span on both axes.
+			for (let a = 0; a < extents.length; a++) {
+				for (let b = a + 1; b < extents.length; b++) {
+					const [ax0, ax1, ay0, ay1] = extents[a];
+					const [bx0, bx1, by0, by1] = extents[b];
+					const overlap = ax0 < bx1 && bx0 < ax1 && ay0 < by1 && by0 < ay1;
+					expect(overlap).toBe(false);
+				}
+			}
+		}
+	});
+
+	it('parts the years by open water, and the seasons by wider', () => {
+		const seasons = groupBySeason(many(400));
+		const seasonOf = new Map(seasons.flatMap((g) => g.items.map((i) => [i.id, g.key])));
+		const yearOf = new Map(
+			seasons.flatMap((g) => g.years.flatMap((y) => y.items.map((i) => [i.id, y.key])))
 		);
-		let closest = Infinity;
+		let seasonGap = Infinity;
+		let yearGap = Infinity;
 		for (const p of world.placed) {
 			for (const q of world.placed) {
-				if (seasonOf.get(p.item.id) === seasonOf.get(q.item.id)) continue;
+				const sameSeason = seasonOf.get(p.item.id) === seasonOf.get(q.item.id);
+				if (sameSeason && yearOf.get(p.item.id) === yearOf.get(q.item.id)) continue;
 				const o = offsetFrom(p, q, world);
-				closest = Math.min(closest, Math.hypot(o.x, o.y));
+				const distance = Math.hypot(o.x, o.y);
+				if (sameSeason) yearGap = Math.min(yearGap, distance);
+				else seasonGap = Math.min(seasonGap, distance);
 			}
 		}
 		// Within an island, neighbors sit about a cell apart.
-		expect(closest).toBeGreaterThan(world.cell * 1.3);
+		expect(yearGap).toBeGreaterThan(world.cell * 1.3);
+		expect(seasonGap).toBeGreaterThan(world.cell * 2.3);
 	});
 
 	it('is the same every time', () => {
@@ -510,10 +609,11 @@ describe('thinningRoom', () => {
 			.sort((a, b) => b.room - a.room);
 		// A card's room is measured to the pictures too, so it is never more than
 		// the gap to its nearest picture, while pictures are measured only to each other.
+		// That gap is a cell or so, or two across an empty cell or a strait.
 		const cards = order.filter((o) => !o.picture);
 		const leastPicture = Math.min(...order.filter((o) => o.picture).map((o) => o.room));
 		expect(cards.length).toBeGreaterThan(0);
-		for (const card of cards) expect(card.room).toBeLessThanOrEqual(world.cell * 1.6);
+		for (const card of cards) expect(card.room).toBeLessThanOrEqual(world.cell * 2.5);
 		expect(leastPicture).toBeGreaterThan(world.cell * 0.5);
 	});
 });

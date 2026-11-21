@@ -5,9 +5,12 @@
 	the last touch the lens rests, and the field goes back to a wash of the
 	archive floating by, with nothing drawn into focus.
 
-	The archive floats as islands, one per season, each gathering that season
-	from every year in date order; a bubble at each island's center names its
-	season ("Winter"), so the drift keeps a sense of when in the year you are.
+	The archive floats as archipelagos, one per season, each gathering that
+	season from every year; within one, each year is an island of its own, the
+	years in date order. A bubble at the head of each archipelago names its
+	season ("Winter"), and a smaller one at the center of each island its year
+	("2024", or "2023–24" for a winter), so the drift keeps a sense of when you
+	are. Zoomed out, the years' names step aside, and the seasons' stay.
 
 	A pinch on the iPad zooms the field about the lens. Zoomed out, things step
 	aside so the view stays legible: first the lens, then the event cards, and
@@ -115,9 +118,18 @@
 	 * clear over this last stretch, once it has already shrunk to a speck.
 	 */
 	const LOD_CLEAR = 0.2;
-	/** A season bubble's type size, as a share of a layout cell at zoom 1. */
-	const BUBBLE_FONT = 0.17;
-	/** The smallest type (px) a season bubble keeps before it steps aside. */
+	/**
+	 * A bubble's type size, as a share of a layout cell at zoom 1: a season's
+	 * larger than a year's, so it reads as the heading it is.
+	 */
+	const BUBBLE_FONT: Record<Group['level'], number> = { season: 0.32, year: 0.2 };
+	/**
+	 * The smallest type (px) a bubble is drawn at. A year's steps aside below
+	 * it; a season's stays at it, so however far out the field is zoomed, the
+	 * seasons are still named. Its head is two cells tall and the channels
+	 * either side of it two cells wide, so even at the widest zoom there is
+	 * water enough for it.
+	 */
 	const BUBBLE_MIN_FONT = 13;
 	/** The farthest a trackpad's ctrl-wheel step may zoom at once (as wheel px). */
 	const WHEEL_STEP = 50;
@@ -196,7 +208,7 @@
 	 */
 	let measurer: HTMLElement | null = null;
 	const MEASURE_WIDTH = 1000;
-	/** Each season's bubble, by its group's key. */
+	/** Each season's and year's bubble, by its group's key. */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const bubbles = new Map<string, HTMLElement>();
 	/** Each bubble's level of detail, as the items': wanted, how far in, and its type size. */
@@ -216,7 +228,7 @@
 		};
 	}
 
-	/** Registers a season's bubble for the frame loop to place. */
+	/** Registers a season's or year's bubble for the frame loop to place. */
 	function trackBubble(key: string) {
 		return (node: HTMLElement) => {
 			bubbles.set(key, node);
@@ -594,15 +606,17 @@
 				element.style.zIndex = isBest ? '3' : entry.focus > 0 ? '2' : '1';
 			}
 
-			// The season bubbles ride the water with the items, part around a bloom
-			// like them, and fade a little while one is open, so it holds the eye.
-			// A bubble is sized with the zoom, so it keeps to the clear water its
-			// island leaves for it, and steps aside (fading, like the items) once
-			// its name would be too small to read.
-			const bubbleFont = w.cell * BUBBLE_FONT * zoom;
+			// The season and year bubbles ride the water with the items, part around
+			// a bloom like them, and fade a little while one is open, so it holds
+			// the eye. A bubble is sized with the zoom, so it keeps to the clear
+			// water the layout leaves for it, and steps aside (fading, like the
+			// items) once its name would be too small to read. A season's never
+			// does: it keeps to the smallest readable size instead.
 			for (const group of w.groups) {
 				const element = bubbles.get(group.key);
 				if (!element) continue;
+				const natural = w.cell * BUBBLE_FONT[group.level] * zoom;
+				const bubbleFont = group.level === 'season' ? Math.max(natural, BUBBLE_MIN_FONT) : natural;
 				const state = bubbleState.get(group.key) ?? { wanted: false, presence: 0, font: 0 };
 				bubbleState.set(group.key, state);
 				state.wanted = bubbleFont >= BUBBLE_MIN_FONT * (state.wanted ? 1 - HYSTERESIS : 1);
@@ -793,7 +807,12 @@
 	></div>
 
 	{#each world?.groups ?? [] as group (group.key)}
-		<div class="bubble" style:visibility="hidden" {@attach trackBubble(group.key)}>
+		<div
+			class="bubble"
+			class:season={group.level === 'season'}
+			style:visibility="hidden"
+			{@attach trackBubble(group.key)}
+		>
 			{group.label}
 		</div>
 	{/each}
@@ -1155,9 +1174,12 @@
 		mask-image: linear-gradient(to bottom, #000 calc(100% - 2.6em), transparent);
 	}
 
-	/* A season's name, at the center of its island. Sized by the layout's cell,
-	   so it fits the clear water the layout keeps for it (about three cells
-	   wide and one tall) on any projector. */
+	/* A year's name, at the center of its island, or a season's, at the head
+	   of its archipelago. Sized by the layout's cell, so it fits the clear
+	   water the layout keeps for it on any projector: a year's three cells
+	   wide and one tall, a season's a band two cells tall across its whole
+	   width. The frame loop sets the size it is drawn at; these match it at
+	   zoom 1 (see BUBBLE_FONT). */
 	.bubble {
 		position: absolute;
 		left: 0;
@@ -1166,7 +1188,7 @@
 		will-change: transform;
 		padding: 0.3em 0.8em;
 		font-family: var(--font-friendly);
-		font-size: calc(var(--cell) * 0.17);
+		font-size: calc(var(--cell) * 0.2);
 		line-height: 1.1;
 		white-space: nowrap;
 		color: oklch(0.32 0.04 250);
@@ -1175,6 +1197,17 @@
 		box-shadow: 0 0.1em 0.6em oklch(0.3 0.04 250 / 0.12);
 		pointer-events: none;
 		z-index: 2;
+	}
+	/* A season's name heads the years under it, so it is set apart from theirs:
+	   larger, bolder, and dark on the water where theirs are light. */
+	.bubble.season {
+		padding: 0.25em 0.9em;
+		font-size: calc(var(--cell) * 0.32);
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		color: oklch(0.97 0.012 90);
+		background: oklch(0.34 0.05 250 / 0.9);
+		box-shadow: 0 0.1em 0.8em oklch(0.3 0.04 250 / 0.22);
 	}
 
 	.caption {
