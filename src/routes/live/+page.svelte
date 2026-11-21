@@ -287,17 +287,6 @@
 {/snippet}
 
 <main class="flex min-h-dvh flex-col items-center gap-8 px-4 pt-chrome pb-12">
-	<!-- No visible header: the stage speaks for itself. The heading and the
-	     connection status stay for screen readers. -->
-	<h1 class="sr-only">New in the Archive</h1>
-	<p class="sr-only" role="status">
-		{#if status === 'retrying'}
-			Reconnecting…
-		{:else if status === 'connecting'}
-			Connecting…
-		{/if}
-	</p>
-
 	<!-- The stage keeps its size while empty, so the plane always has somewhere
 	     to land and the row beneath never jumps. -->
 	<section
@@ -364,9 +353,9 @@
 
 	{#if earlier.length > 0}
 		<section aria-label="Earlier arrivals" class="w-full max-w-5xl">
-			<h2 class="mb-3 text-center text-sm font-medium tracking-wide text-gray-700 uppercase">
+			<div class="mb-3 text-center text-sm font-medium tracking-wide text-gray-700 uppercase">
 				Earlier
-			</h2>
+			</div>
 			<ul class="flex flex-wrap justify-center gap-4">
 				{#each earlier as item (item.id)}
 					<li
