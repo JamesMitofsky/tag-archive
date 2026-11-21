@@ -55,14 +55,19 @@
 	const LENS = 0.18;
 	/** Items are mounted this far (in cells) past the screen's edge, so they never pop in. */
 	const MARGIN_CELLS = 1;
-	/** How long the field must be still on an item before its caption shows (s). */
-	const CAPTION_AFTER = 0.7;
+	/**
+	 * How long the field must be still on an item before it says what it is (s):
+	 * a picture by a caption under it, an event card by opening to its details.
+	 */
+	const SETTLE_AFTER = 0.7;
 
 	let world = $state.raw<World | null>(null);
 	let visible = $state.raw<Placed[]>([]);
 	let bloomId = $state<string | null>(null);
+	/** The focused item once the field has been still on it for `SETTLE_AFTER`. */
+	let settledId = $state<string | null>(null);
+	/** The focused picture's caption. An event card carries its own words instead. */
 	let caption = $state<{ title: string; date: string | null } | null>(null);
-	let captionShown = $state(false);
 	let loadError = $state<string | null>(null);
 	let overlay = $state(false);
 	let relayStatus = $state<RelayStatus | null>(null);
@@ -87,6 +92,23 @@
 				sizes.delete(id);
 			};
 		};
+	}
+
+	/**
+	 * Fades a description's last lines when the card can't hold all of it, and
+	 * only then, so a short one isn't faded at its end for nothing. Watched
+	 * rather than checked once, because the card is still growing as it opens.
+	 */
+	function fadeWhenClipped(node: HTMLElement) {
+		const check = () => node.classList.toggle('clipped', node.scrollHeight > node.clientHeight + 1);
+		const observer = new ResizeObserver(check);
+		observer.observe(node);
+		return () => observer.disconnect();
+	}
+
+	/** An event's date and time, on one line. */
+	function when(date: string | null, time: string | null): string {
+		return [date && formatPartialDate(date), time].filter(Boolean).join(' · ');
 	}
 
 	onMount(() => {
@@ -244,22 +266,21 @@
 
 			if (lens) lens.style.opacity = String(0.6 * lensAt * (1 - Math.min(1, bloomAmount * 1.4)));
 
-			// What's in focus, for the caption and the full-size picture.
+			// What's in focus, for the caption, the card's details and the full-size picture.
 			const focused = best && best.focus > 0.5 ? best : null;
 			const id = focused?.placed.item.id ?? null;
 			if (id !== focusedId) {
 				focusedId = id;
 				stillSince = null;
-				captionShown = false;
-				caption = focused
-					? { title: focused.placed.item.title, date: focused.placed.item.date }
-					: null;
+				settledId = null;
+				const item = focused?.placed.item;
+				caption = item?.src ? { title: item.title, date: item.date } : null;
 			}
 			const settled = !!focused && focused.focus > 0.85 && calm > 0.9;
 			if (settled) stillSince ??= t;
 			else stillSince = null;
-			const showCaption = stillSince !== null && t - stillSince > CAPTION_AFTER;
-			if (showCaption !== captionShown) captionShown = showCaption;
+			const nextSettled = stillSince !== null && t - stillSince > SETTLE_AFTER ? id : null;
+			if (nextSettled !== settledId) settledId = nextSettled;
 			const nextBloom = focused && bloomAmount > 0.6 ? id : bloomId === id ? bloomId : null;
 			if (nextBloom !== bloomId) bloomId = nextBloom;
 			if (captionEl && focused) {
@@ -366,18 +387,45 @@
 					/>
 				{/if}
 			{:else}
-				<!-- Smaller type for a longer title, so the whole of it fits. -->
-				<span
-					class="title"
-					style:--fit={Math.min(1, Math.sqrt(36 / Math.max(1, item.title.length)))}
-				>
-					{item.title}
-				</span>
+				<!-- An event card. Settled on, it opens: the title shrinks and rises, and
+				     the event's details unfold beneath it. They stay mounted while closed
+				     (at no height) so that closing plays the same unfolding backwards. -->
+				<div class="card-body" class:open={settledId === item.id}>
+					<!-- Smaller type for a longer title, so the whole of it fits. -->
+					<span
+						class="title"
+						style:--fit={Math.min(1, Math.sqrt(36 / Math.max(1, item.title.length)))}
+					>
+						{item.title}
+					</span>
+					{#if item.details}
+						{@const details = item.details}
+						{@const whenLine = when(item.date, details.time)}
+						<div class="details">
+							<div class="details-inner">
+								{#if whenLine}<p class="when">{whenLine}</p>{/if}
+								{#if details.hosts.length}
+									<ul class="hosts">
+										{#each details.hosts as host, i (i)}<li>{host}</li>{/each}
+									</ul>
+								{/if}
+								{#if details.description}
+									<p class="description" {@attach fadeWhenClipped}>{details.description}</p>
+								{/if}
+							</div>
+						</div>
+					{/if}
+				</div>
 			{/if}
 		</div>
 	{/each}
 
-	<p class="caption" class:shown={captionShown && caption} bind:this={captionEl} aria-live="polite">
+	<p
+		class="caption"
+		class:shown={caption && settledId !== null}
+		bind:this={captionEl}
+		aria-live="polite"
+	>
 		{#if caption}
 			<span class="caption-title">{caption.title}</span>
 			{#if caption.date}<span class="caption-date">{formatPartialDate(caption.date)}</span>{/if}
@@ -467,20 +515,104 @@
 
 	.item.card {
 		container-type: size;
-		display: grid;
-		place-items: center;
 		background-color: oklch(0.98 0.012 90);
 		background-image: url('/paper-noise.png');
 	}
-	.title {
-		font-family: var(--font-friendly);
-		/* In the card's own units: a percentage would be of the whole screen. */
+	/* Padded here rather than on the card: `cqw` is a share of the container's
+	   content box, so padding the container would shrink the unit it's sized in.
+	   Everything is in the card's own units, since a percentage would be of the
+	   whole screen. */
+	.card-body {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		height: 100%;
 		padding: 8cqw;
+		font-family: var(--font-friendly);
+		color: oklch(0.32 0.04 250);
+		overflow-wrap: anywhere;
+	}
+	.title {
+		flex: none;
 		font-size: calc(11cqw * var(--fit, 1));
 		line-height: 1.15;
 		text-align: center;
-		color: oklch(0.32 0.04 250);
-		overflow-wrap: anywhere;
+		transition: font-size 700ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+	.open .title {
+		font-size: calc(6.5cqw * var(--fit, 1));
+	}
+
+	/* Unfolds from no height to its own (or to what's left of the card, if
+	   less). Animating the row rather than a height lets it land on a size
+	   nobody has to measure, and the title, centered with it, rises as it grows. */
+	.details {
+		flex: 0 1 auto;
+		min-height: 0;
+		display: grid;
+		grid-template-rows: 0fr;
+		opacity: 0;
+		transition:
+			grid-template-rows 700ms cubic-bezier(0.22, 1, 0.36, 1),
+			opacity 300ms ease-out;
+	}
+	.open .details {
+		grid-template-rows: 1fr;
+		opacity: 1;
+		transition:
+			grid-template-rows 700ms cubic-bezier(0.22, 1, 0.36, 1),
+			opacity 600ms ease-out 150ms;
+	}
+	/* All spacing lives inside this clipped box (the spacer, the margins), so the
+	   closed card has nothing left over to push its title off center. */
+	.details-inner {
+		min-height: 0;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+	.details-inner::before {
+		content: '';
+		flex: none;
+		height: 1.5cqw;
+	}
+	.details-inner > * {
+		flex: none;
+		margin: 2.2cqw 0 0;
+	}
+	.when {
+		font-size: 3.4cqw;
+		text-align: center;
+		opacity: 0.7;
+	}
+	.hosts {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 1.2cqw;
+		padding: 0;
+		list-style: none;
+	}
+	.hosts li {
+		padding: 0.35em 0.9em;
+		font-size: 2.8cqw;
+		border-radius: 999px;
+		background: oklch(0.32 0.04 250 / 0.08);
+	}
+	/* The one part that gives way when the card is full. Its line breaks are the
+	   source's paragraphs. */
+	.details-inner > .description {
+		flex: 0 1 auto;
+		min-height: 0;
+		overflow: hidden;
+		margin-top: 3cqw;
+		font-size: 3.3cqw;
+		line-height: 1.45;
+		white-space: pre-line;
+		color: oklch(0.36 0.03 250);
+	}
+	.description:global(.clipped) {
+		mask-image: linear-gradient(to bottom, #000 calc(100% - 2.6em), transparent);
 	}
 
 	.caption {

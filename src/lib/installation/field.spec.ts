@@ -27,6 +27,7 @@ const item = (
 	placeholder: null,
 	title: id,
 	date,
+	details: null,
 	cluster
 });
 
@@ -236,10 +237,10 @@ describe('buildFieldItems', () => {
 				id: 4,
 				title: 'Jazz Night: Live!  (Second set)',
 				date: null,
-				time: null,
+				time: '7:00 PM - 9:00 PM',
 				location: null,
-				description: null,
-				hosts: [],
+				description: 'Two sets.\n\nBring a chair.',
+				hosts: ['Rae', 'The Alley Band'],
 				url: null
 			}
 		]
@@ -272,6 +273,16 @@ describe('buildFieldItems', () => {
 
 	it('keeps an event title exactly as the archive holds it', () => {
 		expect(byId.get('e4')!.title).toBe('Jazz Night: Live!  (Second set)');
+	});
+
+	it('carries an event’s details verbatim, and none for pictures', () => {
+		expect(byId.get('e4')!.details).toEqual({
+			time: '7:00 PM - 9:00 PM',
+			description: 'Two sets.\n\nBring a chair.',
+			hosts: ['Rae', 'The Alley Band']
+		});
+		expect(byId.get('a1-0')!.details).toBeNull();
+		expect(byId.get('p9')!.details).toBeNull();
 	});
 
 	it('uses a photograph’s own shape and placeholder', () => {
