@@ -89,6 +89,15 @@ export function readRelayConfig(
 	return { url: url.replace(/\/+$/, ''), room: value.room || 'main', key: value.key };
 }
 
+/**
+ * Enough of the key to tell two devices' keys apart, or spot a typo, without
+ * putting the key itself on a screen people can see: its length and last four
+ * characters.
+ */
+export function keyHint(key: string): string {
+	return `…${key.slice(-4)} (${key.length} chars)`;
+}
+
 export function relaySocketUrl(config: RelayConfig, role: Role): string {
 	const base = config.url.replace(/^http/, 'ws');
 	const query = new URLSearchParams({ role, key: config.key });
@@ -103,6 +112,14 @@ export type RelayStatus = {
 	peer: boolean;
 	/** Messages received in the last second. */
 	rate: number;
+	/** Messages sent in the last second. */
+	sentRate: number;
+	/**
+	 * Connection attempts in a row that closed before they opened. A browser
+	 * isn't told why, but against a relay that is up this almost always means
+	 * it refused the key.
+	 */
+	failures: number;
 };
 
 export type Relay = {
@@ -123,8 +140,16 @@ export function connectRelay(options: {
 	let lastHeartbeat = 0;
 	let lastPeer = 0;
 	let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
-	const status: RelayStatus = { state: 'connecting', rtt: null, peer: false, rate: 0 };
+	const status: RelayStatus = {
+		state: 'connecting',
+		rtt: null,
+		peer: false,
+		rate: 0,
+		sentRate: 0,
+		failures: 0
+	};
 	let received = 0;
+	let sent = 0;
 
 	const report = () => onStatus?.({ ...status });
 
@@ -138,8 +163,11 @@ export function connectRelay(options: {
 		report();
 		const ws = new WebSocket(relaySocketUrl(config, role));
 		socket = ws;
+		let opened = false;
 		ws.onopen = () => {
+			opened = true;
 			attempt = 0;
+			status.failures = 0;
 			lastHeartbeat = performance.now();
 			status.state = 'open';
 			report();
@@ -173,6 +201,7 @@ export function connectRelay(options: {
 			socket = null;
 			status.state = 'closed';
 			status.peer = false;
+			if (!opened) status.failures++;
 			report();
 			if (closed) return;
 			const wait = BACKOFF_MS[Math.min(attempt++, BACKOFF_MS.length - 1)];
@@ -203,7 +232,9 @@ export function connectRelay(options: {
 		sendRaw(JSON.stringify({ t: 'ping', ts: performance.now() } satisfies PeerControl));
 		status.peer = performance.now() - lastPeer < PEER_TIMEOUT_MS;
 		status.rate = Math.round((received * 1000) / PING_EVERY_MS);
+		status.sentRate = Math.round((sent * 1000) / PING_EVERY_MS);
 		received = 0;
+		sent = 0;
 		report();
 	}, PING_EVERY_MS);
 
@@ -211,6 +242,7 @@ export function connectRelay(options: {
 
 	return {
 		send(message) {
+			if (socket?.readyState === WebSocket.OPEN) sent++;
 			sendRaw(JSON.stringify(message));
 		},
 		close() {

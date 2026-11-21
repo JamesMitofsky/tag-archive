@@ -46,8 +46,10 @@
 		connectRelay,
 		readRelayConfig,
 		type Relay,
+		type RelayConfig,
 		type RelayStatus
 	} from '#lib/installation/relay.ts';
+	import RelayOverlay from '#lib/installation/RelayOverlay.svelte';
 
 	/** The lens's radius, as a share of the screen's height. */
 	const LENS = 0.18;
@@ -64,6 +66,7 @@
 	let loadError = $state<string | null>(null);
 	let overlay = $state(false);
 	let relayStatus = $state<RelayStatus | null>(null);
+	let relayConfig = $state.raw<RelayConfig | null>(null);
 	let unconfigured = $state(false);
 	let stats = $state({ fps: 0, mounted: 0, mode: '', speed: 0 });
 
@@ -105,6 +108,7 @@
 		const now = () => performance.now() / 1000;
 
 		const config = readRelayConfig(page.url.searchParams, PUBLIC_INSTALLATION_RELAY_URL);
+		relayConfig = config;
 		if (config) {
 			relay = connectRelay({
 				config,
@@ -387,27 +391,14 @@
 	{/if}
 
 	{#if overlay || unconfigured}
-		<dl class="operator">
-			{#if unconfigured}
-				<dt>relay</dt>
-				<dd>not set: open with ?relay=…&amp;key=… (or set PUBLIC_INSTALLATION_RELAY_URL)</dd>
-			{:else}
-				<dt>relay</dt>
-				<dd>{relayStatus?.state ?? 'connecting'}</dd>
-				<dt>iPad</dt>
-				<dd>{relayStatus?.peer ? 'here' : 'not heard from'}</dd>
-				<dt>round trip</dt>
-				<dd>{relayStatus?.rtt ?? '–'} ms</dd>
-				<dt>messages</dt>
-				<dd>{relayStatus?.rate ?? 0}/s</dd>
-			{/if}
+		<RelayOverlay config={relayConfig} status={relayStatus} peerName="iPad">
 			<dt>items</dt>
 			<dd>{world?.placed.length ?? 0} ({stats.mounted} mounted)</dd>
 			<dt>motion</dt>
 			<dd>{stats.mode} · {stats.speed} px/s</dd>
 			<dt>frames</dt>
 			<dd>{stats.fps} fps</dd>
-		</dl>
+		</RelayOverlay>
 	{/if}
 </div>
 
@@ -532,26 +523,5 @@
 	}
 	.notice.quiet {
 		opacity: 0.6;
-	}
-
-	.operator {
-		position: absolute;
-		left: 1rem;
-		bottom: 1rem;
-		display: grid;
-		grid-template-columns: auto auto;
-		gap: 0.15rem 0.75rem;
-		margin: 0;
-		padding: 0.75rem 1rem;
-		font:
-			0.8rem/1.3 ui-monospace,
-			monospace;
-		color: white;
-		background: oklch(0.2 0.02 250 / 0.75);
-		border-radius: 0.5rem;
-		z-index: 5;
-	}
-	.operator dd {
-		margin: 0;
 	}
 </style>

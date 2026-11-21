@@ -11,6 +11,11 @@
 
 	Set up once per iPad: open this page with ?relay=…&room=…&key=… (they're
 	remembered), Add to Home Screen, and lock it with Guided Access.
+
+	Operator overlay: hold three fingers on the screen for a second to show or
+	hide it (the iPad has no keyboard for the projector's `d`), or open the
+	page with ?debug. The water ignores every finger after the first, so the
+	gesture doesn't steer anything.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -22,8 +27,15 @@
 		connectRelay,
 		readRelayConfig,
 		type Relay,
-		type RelayState
+		type RelayConfig,
+		type RelayState,
+		type RelayStatus
 	} from '#lib/installation/relay.ts';
+	import RelayOverlay from '#lib/installation/RelayOverlay.svelte';
+
+	/** How many fingers, held how long (ms), show or hide the operator overlay. */
+	const OVERLAY_FINGERS = 3;
+	const OVERLAY_HOLD_MS = 1000;
 
 	/** The water's own slow drift when nobody is touching it (px/s). */
 	const DRIFT = { x: 7, y: 3 };
@@ -48,10 +60,16 @@
 	let surface: HTMLElement | undefined = $state();
 	const pools: HTMLElement[] = $state([]);
 	let connection = $state<RelayState | 'unconfigured'>('connecting');
+	let relayConfig = $state.raw<RelayConfig | null>(null);
+	let relayStatus = $state<RelayStatus | null>(null);
+	let overlay = $state(false);
+	let fingers = $state(0);
 
 	onMount(() => {
 		let relay: Relay | null = null;
+		overlay = page.url.searchParams.has('debug');
 		const config = readRelayConfig(page.url.searchParams, PUBLIC_INSTALLATION_RELAY_URL);
+		relayConfig = config;
 		if (config) {
 			relay = connectRelay({
 				config,
@@ -60,6 +78,7 @@
 				onMessage() {},
 				onStatus(status) {
 					connection = status.state;
+					relayStatus = status;
 				}
 			});
 		} else {
@@ -218,10 +237,35 @@
 			glide = v;
 		};
 
+		// The operator's gesture: every finger on the glass is counted, and
+		// holding OVERLAY_FINGERS still for OVERLAY_HOLD_MS toggles the overlay.
+		// Any finger added or lifted starts the count again, so it can't fire
+		// mid-swipe.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- only its size is rendered, via `fingers`
+		const touching = new Set<number>();
+		let holdTimer: ReturnType<typeof setTimeout> | undefined;
+		const recount = () => {
+			fingers = touching.size;
+			clearTimeout(holdTimer);
+			if (touching.size === OVERLAY_FINGERS) {
+				holdTimer = setTimeout(() => (overlay = !overlay), OVERLAY_HOLD_MS);
+			}
+		};
+		const onFingerDown = (event: PointerEvent) => {
+			touching.add(event.pointerId);
+			recount();
+		};
+		const onFingerUp = (event: PointerEvent) => {
+			if (touching.delete(event.pointerId)) recount();
+		};
+
 		node.addEventListener('pointerdown', onDown);
 		node.addEventListener('pointermove', onMove);
 		node.addEventListener('pointerup', onUp);
 		node.addEventListener('pointercancel', onUp);
+		node.addEventListener('pointerdown', onFingerDown);
+		node.addEventListener('pointerup', onFingerUp);
+		node.addEventListener('pointercancel', onFingerUp);
 
 		return () => {
 			cancelAnimationFrame(frame);
@@ -239,6 +283,10 @@
 			node.removeEventListener('pointermove', onMove);
 			node.removeEventListener('pointerup', onUp);
 			node.removeEventListener('pointercancel', onUp);
+			node.removeEventListener('pointerdown', onFingerDown);
+			node.removeEventListener('pointerup', onFingerUp);
+			node.removeEventListener('pointercancel', onFingerUp);
+			clearTimeout(holdTimer);
 		};
 	});
 </script>
@@ -266,6 +314,13 @@
 		<span class="status" title={connection}>
 			{connection === 'unconfigured' ? 'no relay set (open with ?relay=…&key=…)' : ''}
 		</span>
+	{/if}
+
+	{#if overlay}
+		<RelayOverlay config={relayConfig} status={relayStatus} peerName="projector">
+			<dt>fingers</dt>
+			<dd>{fingers}</dd>
+		</RelayOverlay>
 	{/if}
 </div>
 
