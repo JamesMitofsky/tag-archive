@@ -213,8 +213,10 @@ function driftStyle(rnd: () => number): string {
  * sheet of paper floating in front of the sky and starts reading as a panel
  * pinned to the frame, which is the one thing this layout is trying not to be.
  */
-export function cardMargin(cardW: number, cardH: number): { x: number; y: number } {
-	const rad = (ROT_DEG * Math.PI) / 180;
+export function cardMargin(cardW: number, cardH: number, tiltDeg = 0): { x: number; y: number } {
+	// `tiltDeg` is a standing tilt the card is drawn at (the live board's), on
+	// top of which the drift rotates it ROT_DEG further either way.
+	const rad = ((ROT_DEG + tiltDeg) * Math.PI) / 180;
 	const cos = Math.cos(rad);
 	const sin = Math.sin(rad);
 	const sweptW = cardW * cos + cardH * sin;
@@ -278,6 +280,219 @@ export function measureCloud(f: FieldInput, fit?: number): CloudLayout {
 /** Shrink step when fitting a given count (see `measureCloud`). */
 const FIT_STEP = 8;
 
+/** The live board's card height ceiling, as a share of field height. */
+const BOARD_H_FRAC = 0.62;
+/** The live board's card width ceiling, as a share of field width. */
+const BOARD_W_FRAC = 0.5;
+/**
+ * Air between two of the live board's pages, beyond the room each one's drift
+ * and tilt already take. The board's pages never overlap (see `measureBoard`),
+ * and this keeps them from looking as if they touch.
+ */
+const BOARD_GAP = 12;
+/**
+ * The most a board page leans, either way, as it stands; the drift tilts it
+ * ROT_DEG more. Pages squared to the window read as documents filed in a
+ * grid, and a lean is most of what makes them read as sheets adrift instead.
+ */
+export const BOARD_TILT_DEG = 3;
+/**
+ * The smallest a board page is drawn, as a share of full size, so that some
+ * sit further back than others. Spacing is worked out at full size, so a
+ * smaller page only ever has more room around it.
+ */
+const BOARD_SCALE_MIN = 0.86;
+/**
+ * How much more room than touching distance the board's size reserves for
+ * each page. Sized for exactly touching, the only arrangement that fits is a
+ * grid, which reads as rows of documents; this spare room is what lets the
+ * pages scatter instead.
+ */
+const BOARD_SLACK = 1.2;
+/** Random candidates weighed for each page's place (see `scatterSlots`). */
+const SCATTER_CANDIDATES = 24;
+/** Scatters tried before falling back to the spread that always fits. */
+const SCATTER_TRIES = 8;
+
+/** A place on the live board: a centre offset, and how the page stands there. */
+export interface BoardSlot {
+	x: number;
+	y: number;
+	/** Standing lean, in degrees (within ±BOARD_TILT_DEG). */
+	tilt: number;
+	/** Drawn size, as a share of full size (BOARD_SCALE_MIN to 1). */
+	scale: number;
+}
+
+/** A board page's swept half-size: its box at full size, tilted and drifting. */
+function boardMargin(cardW: number, cardH: number) {
+	return cardMargin(cardW, cardH, BOARD_TILT_DEG);
+}
+
+/** Every place a board page may stand, and how far apart two must be. */
+function boardSpace(f: FieldInput, cardW: number) {
+	const cardH = cardW * A4;
+	const m = boardMargin(cardW, cardH);
+	const availX = Math.max(1, f.fieldW / 2 - m.x);
+	const availY = Math.max(1, f.fieldH / 2 - m.y);
+	const free = freeSlots(f, cardW, cardH, availX, availY, m);
+	// Two pages clear each other when their swept boxes (lean, drift and tilt
+	// included, the edge pad not) are apart on either axis, with the gap between.
+	const apartX = 2 * (m.x - EDGE_PAD) + BOARD_GAP;
+	const apartY = 2 * (m.y - EDGE_PAD) + BOARD_GAP;
+	return { cardH, availX, availY, free, apartX, apartY };
+}
+
+/**
+ * The live board (/keeper/live): the surround layout with no searchbar to
+ * surround, sized for exactly `count` cards that never overlap. Unlike the
+ * search cloud, whose pile-up is the design, the board's pages are there to be
+ * read from across a room, so none may cover another, even while drifting.
+ *
+ * It starts from cards as large as the window allows and shrinks them until
+ * `count` of them can stand apart with BOARD_SLACK to spare, so the board's few
+ * pages come out large, and still loose enough to scatter (`boardSlots`). The
+ * size depends on `count`, never on how many are showing, so a page does not
+ * change size when another arrives. The board is always a single screenful: it
+ * never switches to the scrolling grid. In a window too small to hold `count`
+ * apart even at the legibility floor, `cap` says how many it can.
+ */
+export function measureBoard(f: FieldInput, count: number): CloudLayout {
+	const ceiling = Math.max(
+		CARD_MIN,
+		Math.min(f.fieldW * BOARD_W_FRAC, (f.fieldH * BOARD_H_FRAC) / A4)
+	);
+	for (let w = ceiling; ; w = Math.max(CARD_MIN, w - FIT_STEP)) {
+		const { cardH, availX, availY, free, apartX, apartY } = boardSpace(f, w);
+		const roomy = separatedSlots(free, count, apartX * BOARD_SLACK, apartY * BOARD_SLACK);
+		if (roomy.length >= count || w === CARD_MIN) {
+			const fits = Math.min(count, separatedSlots(free, count, apartX, apartY).length);
+			return { mode: 'surround', cols: 1, cardW: w, cardH, cap: fits, availX, availY };
+		}
+	}
+}
+
+/**
+ * Where the live board's `n` cards stand, numbered in the order they are
+ * filled (see `assignSlots` in #lib/live), no two close enough to overlap. The
+ * places are scattered by `seed` (`scatterSlots`), each with a lean and a depth
+ * of its own, so the board reads as pages adrift rather than as rows. The same
+ * window and seed give the same places, so the board keeps its picture while
+ * open; a new seed (a new opening) deals a new one. Fewer than `n` when the
+ * window cannot hold them all apart.
+ */
+export function boardSlots(
+	f: FieldInput,
+	layout: CloudLayout,
+	n: number,
+	seed: number
+): BoardSlot[] {
+	const { free, apartX, apartY } = boardSpace(f, layout.cardW);
+	const rnd = mulberry32(seed * 2654435761 + 7);
+	let places: { x: number; y: number }[] = [];
+	for (let t = 0; t < SCATTER_TRIES && places.length < n; t++) {
+		places = scatterSlots(free, n, apartX, apartY, rnd);
+	}
+	// The sizing guarantees this spread fits, so it stands in when every
+	// scatter happened to paint itself into a corner.
+	if (places.length < n) places = separatedSlots(free, n, apartX, apartY);
+	return places.map((p) => ({
+		...p,
+		tilt: (rnd() * 2 - 1) * BOARD_TILT_DEG,
+		scale: BOARD_SCALE_MIN + rnd() * (1 - BOARD_SCALE_MIN)
+	}));
+}
+
+/**
+ * How far apart two places are for the board's purposes: the larger of the two
+ * axes' gaps, each in units of the distance at which two pages stop
+ * overlapping on that axis. 1 or more means the pages clear each other.
+ */
+function apartness(apartX: number, apartY: number) {
+	return (a: { x: number; y: number }, b: { x: number; y: number }) =>
+		Math.max(Math.abs(a.x - b.x) / apartX, Math.abs(a.y - b.y) / apartY);
+}
+
+/**
+ * Scattered places, no two closer than `apart` (see `separatedSlots` for the
+ * measure): each one is the best of a few random free positions, the one
+ * furthest from those already taken (Mitchell's best-candidate sampling). That
+ * keeps the pages spread across the window without the order of a grid. Fewer
+ * than `n` when the positions it happened to choose leave no room for the
+ * rest; the caller tries again.
+ */
+function scatterSlots(
+	slots: { x: number; y: number }[],
+	n: number,
+	apartX: number,
+	apartY: number,
+	rnd: () => number
+): { x: number; y: number }[] {
+	const distance = apartness(apartX, apartY);
+	const near = new Array<number>(slots.length).fill(Number.POSITIVE_INFINITY);
+	const picked: { x: number; y: number }[] = [];
+	while (picked.length < n) {
+		const open: number[] = [];
+		for (let j = 0; j < slots.length; j++) if (near[j] >= 1) open.push(j);
+		if (open.length === 0) break;
+		let best = open[Math.floor(rnd() * open.length)];
+		for (let c = 1; c < SCATTER_CANDIDATES; c++) {
+			const j = open[Math.floor(rnd() * open.length)];
+			if (near[j] > near[best]) best = j;
+		}
+		const chosen = slots[best];
+		picked.push(chosen);
+		near[best] = -1; // taken
+		for (let j = 0; j < slots.length; j++) {
+			if (near[j] >= 0) near[j] = Math.min(near[j], distance(slots[j], chosen));
+		}
+	}
+	return picked;
+}
+
+/**
+ * `pickSlots` with a guarantee: no two picks are closer than `apartX` on the x
+ * axis AND closer than `apartY` on the y axis, which is when two boxes of that
+ * size would overlap. Distance is measured in those units, as the larger of the
+ * two axes' shares (so a pick 1 or more away clears every other), and each pick
+ * is the free position furthest from all those before it, starting from the
+ * deepest corner. Deterministic, and as tight a packing as this greedy finds,
+ * so it is what decides whether a size fits; but it lines pages up in rows,
+ * which is why the board scatters them instead (`scatterSlots`). Stops early,
+ * with fewer than `n`, when no position is left that clears every pick.
+ */
+function separatedSlots(
+	slots: { x: number; y: number }[],
+	n: number,
+	apartX: number,
+	apartY: number
+): { x: number; y: number }[] {
+	if (slots.length === 0 || n <= 0) return [];
+	const distance = apartness(apartX, apartY);
+
+	let best = 0;
+	for (let j = 1; j < slots.length; j++) {
+		const a = slots[j];
+		const b = slots[best];
+		if (a.x * a.x + a.y * a.y > b.x * b.x + b.y * b.y) best = j;
+	}
+
+	const picked: { x: number; y: number }[] = [];
+	const near = new Array<number>(slots.length).fill(Number.POSITIVE_INFINITY);
+
+	while (picked.length < n && near[best] >= 1) {
+		const chosen = slots[best];
+		picked.push(chosen);
+		near[best] = -1; // taken
+		for (let j = 0; j < slots.length; j++) {
+			if (near[j] >= 0) near[j] = Math.min(near[j], distance(slots[j], chosen));
+		}
+		best = 0;
+		for (let j = 1; j < slots.length; j++) if (near[j] > near[best]) best = j;
+	}
+	return picked;
+}
+
 /** The surround layout at a given card width, with its uncapped room. */
 function surroundAt(f: FieldInput, cardW: number) {
 	const cardH = cardW * A4;
@@ -306,8 +521,14 @@ function surroundAt(f: FieldInput, cardW: number) {
  * not its resting box, so a card that clears the nav at rest cannot drift up
  * into it a second later.
  */
-function freeSlots(f: FieldInput, cardW: number, cardH: number, availX: number, availY: number) {
-	const margin = cardMargin(cardW, cardH);
+function freeSlots(
+	f: FieldInput,
+	cardW: number,
+	cardH: number,
+	availX: number,
+	availY: number,
+	margin = cardMargin(cardW, cardH)
+) {
 	// Zone tests use the swept half-size without the edge pad, which is an
 	// edge-of-window allowance and has nothing to say about the chrome.
 	const halfX = margin.x - EDGE_PAD + ZONE_PAD;

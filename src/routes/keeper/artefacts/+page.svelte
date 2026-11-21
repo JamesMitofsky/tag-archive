@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { snapshot } from '$app/navigation';
 	import { formatArtefactDate } from '#lib/formatDate.ts';
 	import ArtefactId from '#lib/components/ArtefactId.svelte';
 	import BackButton from '#lib/components/BackButton.svelte';
@@ -38,10 +39,13 @@
 	// Persist the search text across back navigation (e.g. open an artefact, then
 	// return). SvelteKit restores this after the page remounts; the list rides the
 	// page scroll, so native scroll restoration handles position.
-	export const snapshot = {
+	// The explicit id outlives a deploy, which would change the call-site id
+	// SvelteKit derives otherwise and orphan a query kept in sessionStorage.
+	snapshot({
+		id: 'keeper-artefacts-query',
 		capture: () => query,
-		restore: (value: string) => (query = value)
-	};
+		restore: (value) => (query = value)
+	});
 
 	// Frosted glass, borrowed from the keeper searchbar.
 	const glassInput =

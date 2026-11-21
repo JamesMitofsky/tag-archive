@@ -31,6 +31,7 @@ const STATIC_ROUTES: Record<string, RouteDefinition> = {
 	'/keeper/settings/review/events': { title: 'Review Queue', parent: '/keeper/settings/review' },
 	'/keeper/settings/review/series': { title: 'Review Queue', parent: '/keeper/settings/review' },
 	'/keeper/settings/review/images': { title: 'Review Queue', parent: '/keeper/settings/review' },
+	'/keeper/live': { title: 'Live Arrivals', parent: '/keeper/settings' },
 	'/keeper/contributors': { title: 'Contributors', parent: '/keeper/settings' },
 	'/keeper/contributors/merge': { title: 'Merge Contributors', parent: '/keeper/contributors' },
 	'/keeper/contributors/merge/review': {
