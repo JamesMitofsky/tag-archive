@@ -1,4 +1,5 @@
 import type { FieldErrors, SuiteResult } from './helpers';
+import { afterPress, watchPresses } from './press';
 
 type Suite<T> = (data: T) => SuiteResult;
 
@@ -18,6 +19,7 @@ export function createValidator<T>(
 	let result = $state.raw<SuiteResult | null>(null);
 	let touched = $state<Record<string, boolean>>({});
 	let submitted = $state(false);
+	watchPresses();
 
 	return {
 		/** Re-run the full suite against the latest data. Returns whether it passed. */
@@ -32,9 +34,17 @@ export function createValidator<T>(
 			result = outcome;
 			return outcome.isValid();
 		},
-		/** Flag a field as touched (call on blur) so its error may surface. */
+		/**
+		 * Flag a field as touched (call on blur) so its error may surface. When
+		 * the blur comes from pressing another control, the error waits for that
+		 * press's click: shown sooner, it pushes the control out from under the
+		 * pointer, and the press misses it (see ./press.ts).
+		 */
 		touch(field: string): void {
-			if (field && !touched[field]) touched = { ...touched, [field]: true };
+			if (!field) return;
+			afterPress(() => {
+				if (!touched[field]) touched = { ...touched, [field]: true };
+			});
 		},
 		/** Reveal every field's error (call on a submit attempt). */
 		revealAll(): void {
