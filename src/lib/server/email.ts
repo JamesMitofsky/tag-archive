@@ -1,7 +1,6 @@
 import { RESEND_API_KEY, RESEND_FROM } from '$app/env/private';
 import { render } from 'svelte/server';
 import type { Component } from 'svelte';
-import { siteOrigin } from './origin';
 import { otpEmailSubject, accountCreatedEmailSubject } from './emails/subjects';
 
 /**
@@ -27,6 +26,7 @@ async function sendEmail(opts: {
 	text: string;
 	logTag: string;
 	logLine: string;
+	attachments?: InlineImage[];
 }): Promise<void> {
 	if (!RESEND_API_KEY) {
 		console.info(`[${opts.logTag}] ${opts.logLine}`);
@@ -44,7 +44,8 @@ async function sendEmail(opts: {
 			to: [opts.to],
 			subject: opts.subject,
 			html: opts.html,
-			text: opts.text
+			text: opts.text,
+			attachments: opts.attachments
 		})
 	});
 
@@ -71,13 +72,44 @@ function renderEmail<P extends Record<string, unknown>>(component: Component<P>,
 }
 
 /**
- * Absolute URL to the handwritten wordmark header served from static/. Email
- * clients can't resolve relative paths, so it's fully-qualified via the
- * site's origin, the same base better-auth uses (see #lib/server/origin).
+ * An attachment in the shape Resend's REST API takes (`POST /emails`). One with
+ * a `content_id` is sent inline, and the HTML shows it as `cid:<content_id>`.
  */
-function logoUrl(): string {
-	const origin = (siteOrigin() ?? '').replace(/\/$/, '');
-	return `${origin}/email/temperance-alley-archive.png`;
+type InlineImage = {
+	filename: string;
+	/** The file's bytes, base64-encoded. */
+	content: string;
+	content_type: string;
+	content_id: string;
+};
+
+/** What the wordmark's `<img src>` reads in a sent email. */
+const WORDMARK_CID = 'tag-archive-wordmark';
+export const WORDMARK_SRC = `cid:${WORDMARK_CID}`;
+
+/**
+ * The handwritten wordmark, attached to the email itself rather than linked.
+ * A linked image only shows if the reader's mail client can fetch it, and that
+ * depends on things the email can't control: an origin the phone can't reach
+ * (a local dev server's localhost), a host that refuses the fetch, or a client
+ * that blocks remote images. An inline attachment arrives with the message.
+ *
+ * Vite bundles the PNG into the server build as a base64 data URI (`?inline`),
+ * so nothing is read from disk or fetched at send time. Imported dynamically
+ * for the same reason as the templates (see renderEmail).
+ */
+async function wordmarkAttachment(): Promise<InlineImage> {
+	const { default: dataUri } = await import('./emails/wordmark.png?inline');
+	const prefix = 'data:image/png;base64,';
+	if (!dataUri.startsWith(prefix)) {
+		throw new Error('The email wordmark was not bundled as a base64 PNG data URI');
+	}
+	return {
+		filename: 'tag-archive.png',
+		content: dataUri.slice(prefix.length),
+		content_type: 'image/png',
+		content_id: WORDMARK_CID
+	};
 }
 
 /** Delivers a one-time sign-in code. OTP sign-in is the only OTP flow here. */
@@ -86,8 +118,9 @@ export async function sendOtpEmail(email: string, otp: string): Promise<void> {
 	await sendEmail({
 		to: email,
 		subject: otpEmailSubject(otp),
-		html: renderEmail(OtpEmail, { otp, logoUrl: logoUrl() }),
+		html: renderEmail(OtpEmail, { otp, logoSrc: WORDMARK_SRC }),
 		text: `Your sign-in code is ${otp}. It expires in 5 minutes.\n\nIf you didn't request this, you can ignore this email.`,
+		attachments: [await wordmarkAttachment()],
 		logTag: 'email-otp',
 		logLine: `sign-in code for ${email}: ${otp}`
 	});
@@ -105,8 +138,9 @@ export async function sendAccountCreatedEmail(email: string, signInUrl: string):
 	await sendEmail({
 		to: email,
 		subject: accountCreatedEmailSubject,
-		html: renderEmail(AccountCreatedEmail, { signInUrl, logoUrl: logoUrl() }),
+		html: renderEmail(AccountCreatedEmail, { signInUrl, logoSrc: WORDMARK_SRC }),
 		text: `An account has been created for this email at TAG Archive.\n\nSign in: ${signInUrl}`,
+		attachments: [await wordmarkAttachment()],
 		logTag: 'email-account-created',
 		logLine: `account created for ${email}`
 	});

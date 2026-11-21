@@ -10,7 +10,13 @@
 	import Drawing from '#lib/components/Drawing.svelte';
 </script>
 
-<CardCloud load={loadArtefacts} filter={filterArtefacts} card={page} {placeholderMark} />
+<CardCloud
+	load={loadArtefacts}
+	filter={filterArtefacts}
+	dateOf={(item) => item.date}
+	card={page}
+	{placeholderMark}
+/>
 
 {#snippet placeholderMark()}
 	<Drawing
@@ -43,6 +49,7 @@
 					fileUrls={item.fileUrls}
 					artefactName={item.artefact}
 					sizes={isOpen ? '(max-width: 640px) 90vw, 576px' : '192px'}
+					paged={isOpen}
 				/>
 			{/if}
 		{/snippet}

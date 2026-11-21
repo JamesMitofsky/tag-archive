@@ -119,6 +119,27 @@
 	 */
 	let open = $state(false);
 
+	/**
+	 * Put a date in the field from outside, as though it had been picked: the
+	 * artefact form fills it from the event chosen above it. Takes the same
+	 * strings the field submits. Anything it can't read (or a precision this
+	 * field doesn't offer) is ignored rather than half-applied.
+	 */
+	export function setValue(next: string) {
+		if (offerUndated && next === UNDATED) {
+			undated = true;
+			return;
+		}
+		const parsed = parsePartialDate(next);
+		if (!parsed || (!allowPartial && parsed.precision !== 'day')) return;
+		undated = false;
+		precision = parsed.precision;
+		if (parsed.day !== undefined) day = parsed.day;
+		setMonth(parsed.year, parsed.month ?? month);
+		yearPage = Math.floor(parsed.year / YEARS_PER_PAGE) * YEARS_PER_PAGE;
+		picked = true;
+	}
+
 	function choosePrecision(next: DatePrecision) {
 		precision = next;
 		undated = false;

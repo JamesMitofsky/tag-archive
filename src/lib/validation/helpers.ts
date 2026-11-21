@@ -29,6 +29,19 @@ export function str(value: FormDataEntryValue | null): string {
 	return String(value ?? '').trim();
 }
 
+/**
+ * Read an optional row id from a raw FormData entry: a positive whole number,
+ * else null. For hidden fields that only refine another field (the event
+ * picker's occurrence id beside its title), where anything unreadable should
+ * fall back to that field rather than refuse the form.
+ */
+export function optionalId(value: FormDataEntryValue | null): number | null {
+	const raw = str(value);
+	if (!/^\d+$/.test(raw)) return null;
+	const id = Number(raw);
+	return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
 /** Split a comma-separated field into a clean, de-blanked list. */
 export function splitList(raw: string): string[] {
 	return raw

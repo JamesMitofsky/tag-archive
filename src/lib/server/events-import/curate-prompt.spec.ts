@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import type { EventSource } from '../db/seed-core';
 import {
 	buildSystemPrompt,
+	buildUserMessage,
+	decisionsFileSchema,
+	pageForCuration,
 	seriesCatalog,
 	styleExamples,
 	toEventSource,
@@ -135,6 +138,31 @@ describe('uncuratedEventSource', () => {
 		expect(event.description).toBe(long.description);
 		expect(event.hosts).toEqual([]);
 		expect(event.mayHaveException).toBe(true);
+	});
+});
+
+describe('session decisions (--handoff / --decisions)', () => {
+	const decision = {
+		url: raw.url,
+		hosts: ['Lucy'],
+		series: null,
+		mayHaveException: false,
+		possibleExceptionDescription: null
+	};
+
+	it('accepts the judged fields only', () => {
+		expect(decisionsFileSchema.safeParse([decision]).success).toBe(true);
+	});
+
+	it('rejects a decision that tries to supply a title or description', () => {
+		expect(decisionsFileSchema.safeParse([{ ...decision, title: 'Music!' }]).success).toBe(false);
+		expect(
+			decisionsFileSchema.safeParse([{ ...decision, description: 'A summary.' }]).success
+		).toBe(false);
+	});
+
+	it('hands the session the same page the API is sent', () => {
+		expect(buildUserMessage(raw)).toContain(JSON.stringify(pageForCuration(raw), null, 2));
 	});
 });
 

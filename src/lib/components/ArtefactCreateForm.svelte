@@ -7,8 +7,8 @@
 	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotchIcon';
 	import { PROGRAM_AREAS, PROGRAM_AREA_META } from '#lib/programAreas.ts';
 	import DateField from '#lib/components/DateField.svelte';
-	import ComboField from '#lib/components/ComboField.svelte';
 	import AsyncComboField from '#lib/components/AsyncComboField.svelte';
+	import LocationRadioField from '#lib/components/LocationRadioField.svelte';
 	import TagsField from '#lib/components/TagsField.svelte';
 	import PageScanner from '#lib/components/PageScanner.svelte';
 	import { Input } from '#lib/components/ui/input/index.ts';
@@ -22,6 +22,7 @@
 	import { createValidator } from '#lib/validation/client.svelte.ts';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import UnsavedChangesGuard from '#lib/components/UnsavedChangesGuard.svelte';
+	import { rememberPeople } from '#lib/rememberedPeople.ts';
 
 	// The new-artefact form, shared by the public /contribute page and the
 	// keeper-only /keeper/artefacts/new. Each page posts to its own
@@ -30,14 +31,21 @@
 	let {
 		form,
 		requireLocation,
-		locations
+		locations,
+		people
 	}: {
 		/** The page's action data, for any error and echoed values from a failed submit. */
 		form: Record<string, unknown> | null | undefined;
 		/** Keepers record where the physical item is kept; the public may not know. */
 		requireLocation: boolean;
-		/** Previously used storage locations, offered alongside the presets. */
+		/** Storage locations already in use, offered after the presets. */
 		locations: string[];
+		/**
+		 * Every person's name, for a keeper: they may see unvetted rows, and the
+		 * public dataset leaves those names out. Unset, provenance offers the
+		 * public dataset's names (see TagsField).
+		 */
+		people?: string[];
 	} = $props();
 
 	// Kit flattens the action-data union, so restore the echoed values' shape.
@@ -101,15 +109,18 @@
 	// Live form date, tracked so the event list can prioritise events near it.
 	let formDate = $state(seed ? seed.date : '');
 
-	// Location: preset options merged with any previously-typed values from the DB,
-	// case-insensitively deduped and alphabetised. The combobox also accepts a
-	// typed-in custom value, so new locations save on submit and resurface here next load.
-	const LOCATION_PRESETS = ['Binder', 'Bin'];
-	const locationOptions = $derived(
-		Array.from(
-			new Map([...LOCATION_PRESETS, ...locations].map((v) => [v.toLowerCase(), v])).values()
-		).sort((a, b) => a.localeCompare(b))
-	);
+	// Picking an event fills the date from it. Only over a date nobody has set
+	// by hand: an empty field, or the date a previous pick put there, so choosing
+	// a different event moves it along but a date the keeper typed in (a flyer
+	// printed weeks before its event, say) is never overwritten.
+	let dateField = $state<ReturnType<typeof DateField>>();
+	let autofilledDate = '';
+	function fillDateFromEvent(event: { date: string | null }) {
+		if (!event.date || !dateField) return;
+		if (formDate !== '' && formDate !== autofilledDate) return;
+		autofilledDate = event.date;
+		dateField.setValue(event.date);
+	}
 
 	// The uploaded images' public URLs, set by the page scanner as scans are added.
 	let fileUrls = $state<string[]>(seed ? [...seed.fileUrls] : []);
@@ -117,8 +128,7 @@
 	// Title, tracked so submit can gate on it.
 	let title = $state(seed ? seed.artefact : '');
 
-	// Location, tracked for the submit gate: ComboField writes back through its
-	// hidden input on submit, but the gate needs a live value before that.
+	// Location, tracked so a change re-validates (see the effect above).
 	let location = $state(seed ? seed.location : '');
 
 	// True while an image upload is in flight.
@@ -227,6 +237,7 @@
 	function fill(values: ArtefactFormValues | null) {
 		title = values?.artefact ?? '';
 		formDate = values?.date ?? '';
+		autofilledDate = '';
 		location = values?.location ?? '';
 		selectedAreas = values ? [...values.programArea] : [];
 		provenanceTags = values ? splitNames(values.provenance) : [];
@@ -301,7 +312,11 @@
 				submitting = false;
 				return;
 			}
-			if (result.type !== 'failure') closeDraft();
+			if (result.type !== 'failure') {
+				closeDraft();
+				// Offered again on the next artefact, saved or awaiting review.
+				rememberPeople(provenanceTags);
+			}
 			await update();
 			submitting = false;
 		};
@@ -368,8 +383,24 @@
 			<FieldError message={validator.error('artefact')} />
 		</div>
 
+		<!-- Event before date: an artefact from a known event takes its date from
+		     the event, so picking one fills the date in below. -->
+		<div data-field>
+			<AsyncComboField
+				name="event"
+				label="Event"
+				placeholder="Search events"
+				date={formDate}
+				value={echoed?.event ?? ''}
+				eventId={echoed?.eventId}
+				onSelect={fillDateFromEvent}
+			/>
+			<FieldError message={validator.error('event')} />
+		</div>
+
 		<div data-field>
 			<DateField
+				bind:this={dateField}
 				name="date"
 				label="Date"
 				required
@@ -385,29 +416,20 @@
 			<FieldError message={validator.error('date')} />
 		</div>
 
-		<div data-field>
-			<AsyncComboField
-				name="event"
-				label="Event"
-				placeholder="Search or add an event"
-				date={formDate}
-				value={echoed?.event ?? ''}
-			/>
-			<FieldError message={validator.error('event')} />
-		</div>
-
 		<fieldset data-field>
 			<legend class="block text-sm font-medium text-gray-700">Program areas</legend>
 			<!-- Unconventional multiselect: each area is a compact card that
 		     toggles a hidden checkbox. Card carries the area's color identity; a primary
-		     ring + check badge signals selection. -->
-			<div class="mt-1.5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+		     ring + check badge signals selection.
+		     Cards wrap in a centered flex row rather than a grid, so an odd
+		     card out on the last row sits in the middle instead of the left. -->
+			<div class="mt-1.5 flex flex-wrap justify-center gap-3">
 				{#each PROGRAM_AREAS as area (area)}
 					{@const meta = PROGRAM_AREA_META[area]}
 					{@const Icon = meta.icon}
 					{@const selected = selectedAreas.includes(area)}
 					<label
-						class="relative flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg px-2 py-3 text-center text-white transition select-none {meta.accent} {selected
+						class="relative flex basis-[calc((100%_-_0.75rem)/2)] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg px-2 py-3 text-center text-white transition select-none sm:basis-[calc((100%_-_1.5rem)/3)] {meta.accent} {selected
 							? 'shadow-md ring-2 ring-white/80'
 							: 'opacity-75 hover:opacity-40'}"
 					>
@@ -434,7 +456,7 @@
 				name="provenance"
 				label="Provenance"
 				placeholder="Jane Doe"
-				prefetch
+				{people}
 				bind:value={provenanceTags}
 			/>
 			<p class="mt-1 text-xs text-gray-500">
@@ -458,11 +480,10 @@
 		</div>
 
 		<div data-field>
-			<ComboField
-				name="location"
+			<LocationRadioField
 				label={requireLocation ? 'Archival storage location *' : 'Archival storage location'}
-				placeholder="Search or add a location"
-				options={locationOptions}
+				extra={locations}
+				optional={!requireLocation}
 				bind:value={location}
 			/>
 			<FieldError message={validator.error('location')} />

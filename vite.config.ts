@@ -1,5 +1,4 @@
 import adapter, { type Config as AdapterConfig } from '@sveltejs/adapter-vercel';
-import { mdsvex } from 'mdsvex';
 import { CDN_WIDTHS } from './src/lib/images/cdnWidths.js';
 import { defineConfig } from 'vitest/config';
 
@@ -54,9 +53,6 @@ function bucketImagePattern() {
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
-		// A Vite plugin since mdsvex 1.0, ahead of sveltekit(): it registers .svx
-		// and .md with SvelteKit itself, so sveltekit() doesn't list them.
-		mdsvex({ extensions: ['.svx', '.md'] }),
 		// SvelteKit 3 takes its config here; svelte.config.js is no longer read.
 		sveltekit({
 			compilerOptions: {

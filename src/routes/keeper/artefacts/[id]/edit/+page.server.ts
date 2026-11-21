@@ -35,8 +35,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	if (rows.length === 0) throw error(404, 'Artefact not found');
 	const [item] = await attachProvenance(rows);
 
-	// The event combobox fetches its (distinct-title) options on demand from
-	// `/keeper/events/titles`, so the loader only pulls the artefact itself.
+	// The event combobox lists its options from the public dataset, so the
+	// loader only pulls the artefact itself. Its `eventId` seeds the combobox,
+	// which posts it back to keep the linked occurrence.
 	return {
 		user: { email: locals.user.email, role: locals.user.role },
 		artefact: item
@@ -65,8 +66,10 @@ export const actions: Actions = {
 			});
 		}
 
-		// A keeper may link any event, vetted or not.
-		const eventId = await resolveEventId(data.event, false);
+		// A keeper may link any event. The form posts the linked occurrence's id
+		// back, so a save that leaves the event alone keeps the very day it was
+		// linked to rather than the title's earliest.
+		const eventId = await resolveEventId(data.event, data.eventId);
 		const personIds = await resolvePersonIds(data.provenance, userId);
 
 		await db

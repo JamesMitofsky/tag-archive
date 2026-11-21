@@ -49,8 +49,11 @@ names below are as SQLite and Drizzle Studio show them. Every archive table
 carries audit columns (`created_at` / `updated_at`, `created_by` / `updated_by`);
 only the bookkeeping tables `rate_limit`, `nfc_tag` and `remote_key` don't. `artefact`,
 `event`, `series` and `image_set` also carry `proposed_addition`: true on a row
-anyone but an admin created, until an admin vets it in the review queue, and
-kept off the public site until then.
+anyone but an admin created, until an admin vets it in the review queue. A
+proposed artefact or image set is kept off the public site until then. A
+proposed event is public all the same, on `/events` and in every form's event
+field: its text is the source page's own, and the flag only asks a keeper to
+check it.
 
 **Artefacts** are the archive's scanned items, one row each in `artefact`:
 
@@ -188,10 +191,11 @@ description differs from its saved page. See
 - **Import** is insert-only and safe to re-run. It skips URLs the database
   already holds, events matching an existing title and date, and events dated
   after today (`--include-upcoming` keeps them). It writes everything in one
-  transaction. The events land in the keeper review queue
-  (`/keeper/settings/review/events`), and approving one publishes it. `--publish`
-  skips the queue and purges the site cache itself (needs `VERCEL_TOKEN` and a
-  `vercel link`ed checkout).
+  transaction. The events are public as soon as they land, and they also wait
+  in the keeper review queue (`/keeper/settings/review/events`) for an admin to
+  check; `--publish` lands them already approved. Importing to a remote
+  database purges the site cache afterwards, so it needs `VERCEL_TOKEN` and a
+  `vercel link`ed checkout.
   `--write-seed` appends the entries to `src/lib/data/seed-data.json` so local dev
   matches.
 

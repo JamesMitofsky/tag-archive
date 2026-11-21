@@ -9,6 +9,11 @@
  *   events.json          curate: every curated entry, sorted — review and edit
  *                                this before importing; re-running curate keeps
  *                                your edits
+ *   handoff/             curate --handoff: the system prompt and page inputs,
+ *                                for the Claude Code session to curate instead
+ *                                of the API
+ *   decisions.json       the session's hosts/series/flags, read by
+ *                                curate --decisions
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -26,6 +31,8 @@ export const RAW_DIR = join(WORKSPACE, 'raw');
 export const CURATED_DIR = join(WORKSPACE, 'curated');
 export const FETCH_REPORT = join(WORKSPACE, 'fetch-report.json');
 export const EVENTS_FILE = join(WORKSPACE, 'events.json');
+export const HANDOFF_DIR = join(WORKSPACE, 'handoff');
+export const DECISIONS_FILE = join(WORKSPACE, 'decisions.json');
 
 export function readJson<T = unknown>(path: string): T {
 	return JSON.parse(readFileSync(path, 'utf-8')) as T;

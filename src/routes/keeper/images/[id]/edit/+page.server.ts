@@ -20,6 +20,8 @@ import type { Actions, PageServerLoad } from './$types';
 export type ImageSetFormValues = {
 	description: string;
 	event: string;
+	/** The picked event occurrence's id, '' for none. */
+	eventId: string;
 	date: string;
 	dateAuto: boolean;
 };
@@ -27,6 +29,7 @@ export type ImageSetFormValues = {
 const echo = (form: FormData, dateAuto: boolean): ImageSetFormValues => ({
 	description: String(form.get('description') ?? ''),
 	event: String(form.get('event') ?? ''),
+	eventId: String(form.get('eventId') ?? ''),
 	date: String(form.get('date') ?? ''),
 	dateAuto
 });
@@ -50,6 +53,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			id: set.id,
 			description: set.description,
 			event: set.event,
+			// The linked occurrence, which the form posts back so a save keeps it.
+			eventId: set.eventId,
 			date: set.date,
 			dateAuto: set.dateAuto,
 			images: set.images.map(toUploadedImage),
