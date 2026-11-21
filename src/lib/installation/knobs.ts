@@ -46,7 +46,7 @@ export type Knob = {
 
 /** The sliders, in the order shown: the hand first, then the settle, then the picture. */
 export const KNOBS: readonly Knob[] = [
-	{ key: 'gain', label: 'drag gain', min: 0.5, max: 6, step: 0.1, unit: '×' },
+	{ key: 'gain', label: 'drag gain', min: 0.1, max: 6, step: 0.1, unit: '×' },
 	{ key: 'fling', label: 'flick strength', min: 0, max: 1.5, step: 0.05, unit: '×' },
 	{ key: 'glideHalfLife', label: 'glide half-life', min: 0.05, max: 1.5, step: 0.05, unit: 's' },
 	{ key: 'maxSpeed', label: 'top speed', min: 500, max: 8000, step: 100, unit: 'px/s' },
