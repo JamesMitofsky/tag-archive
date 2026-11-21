@@ -279,7 +279,7 @@ function balancedRows(widths: readonly number[], rows: number): number[][] {
  * item can be seen twice at once across the seam.
  */
 export function layoutField(items: readonly FieldItem[], options: LayoutOptions): World {
-	const { viewW, viewH, perScreen = 24, emptyShare = 0.08, channel = 1, seed = 7 } = options;
+	const { viewW, viewH, perScreen = 37, emptyShare = 0.08, channel = 1, seed = 7 } = options;
 	const random = seededRandom(seed);
 	const cell = Math.sqrt((viewW * viewH) / perScreen);
 	const aspect = viewW / viewH;

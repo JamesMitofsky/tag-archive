@@ -120,9 +120,11 @@ describe('layoutField', () => {
 
 	it('shows about the asked number of items per screen over an island, fewer on average', () => {
 		const perScreen = (400 * viewW * viewH) / (world.width * world.height);
-		expect(perScreen).toBeGreaterThan(10);
-		expect(perScreen).toBeLessThan(24);
-		// Around a bubble, a screen's worth of island holds about the asked number.
+		// The channels between islands are open water, so well under the default 37.
+		expect(perScreen).toBeGreaterThan(13);
+		expect(perScreen).toBeLessThan(37);
+		// Around a bubble, a screen's worth of island holds about the asked number,
+		// a little under it for the empty cells.
 		const summer = layoutField(
 			Array.from({ length: 300 }, (_, i) => item(`s${i}`, `c${i}`, '2024-07-01')),
 			{ viewW, viewH }
@@ -132,8 +134,8 @@ describe('layoutField', () => {
 			const o = offsetFrom(group, p, summer);
 			return Math.abs(o.x) < viewW / 2 && Math.abs(o.y) < viewH / 2;
 		});
-		expect(near.length).toBeGreaterThan(16);
-		expect(near.length).toBeLessThan(26);
+		expect(near.length).toBeGreaterThan(28);
+		expect(near.length).toBeLessThan(37);
 	});
 
 	it('gives each season one bubble, in date order', () => {
