@@ -3,15 +3,18 @@
 An installation mode for the archive. A projector shows every public artefact page, photograph and
 event floating as a field on water, with a fixed lens in the middle of the screen. A frosted iPad,
 which shows nothing of the archive, is the only control. One finger moves the water under the lens,
-and whatever drifts into the lens blooms to full size, with its title and date below it. A minute
+and whatever drifts into the lens blooms to full size, with its title and date below it. Two
+fingers pinch the field about the lens. As it zooms out, things step aside in order, each fading
+rather than popping: first the lens, then the event cards, whose titles would be too small to read,
+and then the pictures, which stop shrinking at a legible size and thin out evenly instead. A minute
 after the last touch the lens rests, and the field goes back to a wash of the archive floating by.
 
-| Where                  | What                                                                  |
-| ---------------------- | --------------------------------------------------------------------- |
-| `/installation`        | The projector page.                                                   |
-| `/installation/pad`    | The iPad page.                                                        |
-| `relay/`               | This Cloudflare Worker, which passes messages between the two.        |
-| `src/lib/installation` | The motion (`physics.ts`), the layout (`field.ts`) and the transport. |
+| Where                  | What                                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `/installation`        | The projector page.                                                                            |
+| `/installation/pad`    | The iPad page.                                                                                 |
+| `relay/`               | This Cloudflare Worker, which passes messages between the two.                                 |
+| `src/lib/installation` | The motion (`physics.ts`), layout and zoom (`field.ts`), touches (`gesture.ts`) and transport. |
 
 ## Why a relay
 
@@ -69,10 +72,11 @@ open -a "Google Chrome" --args --kiosk "https://<site>/installation"
 ```
 
 - Press `d` for the operator overlay (connection, round trip, frame rate) and `f` for fullscreen.
-- A mouse drag on the laptop also moves the field, as a fallback if the iPad's connection drops.
-  So do two fingers on the laptop's trackpad, which steer just as one finger on the iPad does: the
-  field moves with them, and a flick glides on and settles on an item. macOS's own scroll momentum
-  after the lift is ignored in favor of the field's glide (see `src/lib/installation/trackpad.ts`).
+- A mouse drag on the laptop also moves the field, and a trackpad pinch zooms it, as a fallback if
+  the iPad's connection drops. Open the overlay (`d`) to see the zoom and how many items it shows.
+- Two fingers swiping on the laptop's trackpad steer just as one finger on the iPad does: the field
+  moves with them, and a flick glides on and settles on an item. macOS's own scroll momentum after
+  the lift is ignored in favor of the field's glide (see `src/lib/installation/trackpad.ts`).
 
 **iPad.** Open `https://<site>/installation/pad?key=<RELAY_KEY>` in Safari. Then turn on Guided
 Access (Settings › Accessibility › Guided Access), triple-click the top button, and circle Safari's

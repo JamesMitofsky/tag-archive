@@ -3,14 +3,22 @@ import {
 	bloomScale,
 	calmness,
 	carryCamera,
+	floorZoom,
 	focusAmount,
 	focusScale,
 	groupBySeason,
+	isPicture,
+	itemScale,
 	layoutField,
 	nearestItem,
 	offsetFrom,
+	openHeight,
 	orderByCluster,
 	parting,
+	roomNeeded,
+	thinningRoom,
+	thinningStarts,
+	widestZoom,
 	wrapDelta,
 	type FieldItem
 } from './field';
@@ -29,13 +37,19 @@ const item = (
 	placeholder: null,
 	title: id,
 	date,
+	details: null,
 	cluster
 });
 
+// Clusters of four, spread over fifteen years and every month, plus some
+// known only to the year.
 const many = (n: number) =>
-	Array.from({ length: n }, (_, i) =>
-		item(`i${i}`, `c${Math.floor(i / 4)}`, `20${String(10 + (i % 15)).padStart(2, '0')}`)
-	);
+	Array.from({ length: n }, (_, i) => {
+		const c = Math.floor(i / 4);
+		const year = 2010 + (c % 15);
+		const month = String(1 + ((c * 5) % 12)).padStart(2, '0');
+		return item(`i${i}`, `c${c}`, c % 9 === 0 ? `${year}` : `${year}-${month}`);
+	});
 
 describe('wrapDelta', () => {
 	it('takes the short way round the loop', () => {
@@ -75,20 +89,21 @@ describe('orderByCluster', () => {
 });
 
 describe('groupBySeason', () => {
-	it('gathers clusters into seasons, in date order, never splitting a cluster', () => {
+	it('gathers clusters into seasons across the years, never splitting a cluster', () => {
 		const groups = groupBySeason([
 			item('undated', 'u', null),
 			item('july', 'a', '2024-07-04'),
 			item('july-photo', 'a', '2024-09-02'),
 			item('december', 'b', '2023-12-10'),
 			item('february', 'c', '2024-02'),
-			item('year', 'd', '2024')
+			item('year', 'd', '2024'),
+			item('old-summer', 'e', '2016-08-20'),
+			item('old-winter', 'f', '2017-01')
 		]);
 		expect(groups.map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
-			['2024', ['year']],
-			['Winter 2024', ['december', 'february']],
-			['Summer 2024', ['july', 'july-photo']],
-			['Undated', ['undated']]
+			['Winter', ['old-winter', 'december', 'february']],
+			['Summer', ['old-summer', 'july', 'july-photo']],
+			['Season unknown', ['year', 'undated']]
 		]);
 	});
 });
@@ -138,11 +153,14 @@ describe('layoutField', () => {
 		expect(near.length).toBeLessThan(37);
 	});
 
-	it('gives each season one bubble, in date order', () => {
-		const labels = world.groups.map((g) => g.label);
-		expect(labels).toEqual(groupBySeason(many(400)).map((g) => g.label));
-		expect(labels.length).toBeGreaterThan(5);
-		expect([...labels].sort()).toEqual(labels);
+	it('gives each season one bubble, winter to fall, then the unknown', () => {
+		expect(world.groups.map((g) => g.label)).toEqual([
+			'Winter',
+			'Spring',
+			'Summer',
+			'Fall',
+			'Season unknown'
+		]);
 	});
 
 	it('keeps the water clear at each bubble', () => {
@@ -239,6 +257,17 @@ describe('focus', () => {
 		expect(moving).toBeGreaterThan(1);
 		expect(moving).toBeLessThan(2);
 		expect(focusScale(0, 1, 4)).toBe(1);
+	});
+
+	it('opens a card as tall as its words need, up to the most it may take', () => {
+		// 800 wide, bloomed to 615 tall: words needing 1× its width want 800.
+		expect(openHeight(800, 615, 1, 1000, 1)).toBe(800);
+		expect(openHeight(800, 615, 1, 1000, 0.5)).toBeCloseTo((615 + 800) / 2);
+		expect(openHeight(800, 615, 3, 1000, 1)).toBe(1000);
+		// Words that already fit, or a cap below the bloom, leave it as it is.
+		expect(openHeight(800, 615, 0.5, 1000, 1)).toBe(615);
+		expect(openHeight(800, 615, 1, 500, 1)).toBe(615);
+		expect(openHeight(800, 615, 2, 1000, 0)).toBe(615);
 	});
 
 	it('blooms an item to fit the screen, never shrinking it', () => {
@@ -357,10 +386,10 @@ describe('buildFieldItems', () => {
 				id: 4,
 				title: 'Jazz Night: Live!  (Second set)',
 				date: null,
-				time: null,
+				time: '7:00 PM - 9:00 PM',
 				location: null,
-				description: null,
-				hosts: [],
+				description: 'Two sets.\n\nBring a chair.',
+				hosts: ['Rae', 'The Alley Band'],
 				url: null
 			}
 		]
@@ -396,6 +425,16 @@ describe('buildFieldItems', () => {
 		expect(byId.get('e4')!.title).toBe('Jazz Night: Live!  (Second set)');
 	});
 
+	it('carries an event’s details verbatim, and none for pictures', () => {
+		expect(byId.get('e4')!.details).toEqual({
+			time: '7:00 PM - 9:00 PM',
+			description: 'Two sets.\n\nBring a chair.',
+			hosts: ['Rae', 'The Alley Band']
+		});
+		expect(byId.get('a1-0')!.details).toBeNull();
+		expect(byId.get('p9')!.details).toBeNull();
+	});
+
 	it('leaves out the kinds that are not wanted', () => {
 		const only = buildFieldItems({ ...data, kinds: new Set(['artefact', 'event'] as const) });
 		expect(new Set(only.map((i) => i.kind))).toEqual(new Set(['artefact', 'event']));
@@ -417,5 +456,93 @@ describe('buildFieldItems', () => {
 	it('uses a photograph’s own shape and placeholder', () => {
 		expect(byId.get('p9')!.aspect).toBeCloseTo(4 / 3);
 		expect(byId.get('p9')!.placeholder).toBe('abc');
+	});
+});
+
+describe('thinningRoom', () => {
+	const world = layoutField(
+		many(300).map((it, i) => (i % 5 === 0 ? { ...it, kind: 'event' as const, src: null } : it)),
+		{ viewW: 1600, viewH: 900 }
+	);
+	const tierOf = (p: (typeof world.placed)[number]) => (isPicture(p.item) ? 0 : 1);
+	const room = thinningRoom(world, tierOf);
+
+	it('gives one item infinite room and every other a finite one', () => {
+		const infinite = [...room].filter((r) => r === Infinity);
+		expect(infinite).toHaveLength(1);
+		expect([...room].every((r) => r > 0)).toBe(true);
+	});
+
+	it('keeps whatever is shown at a given room at least that far apart', () => {
+		for (const need of [world.cell * 0.8, world.cell * 1.5, world.cell * 3]) {
+			const kept = world.placed.filter((_, i) => room[i] >= need);
+			expect(kept.length).toBeGreaterThan(0);
+			for (let a = 0; a < kept.length; a++) {
+				for (let b = a + 1; b < kept.length; b++) {
+					const o = offsetFrom(kept[a], kept[b], world);
+					expect(Math.hypot(o.x, o.y)).toBeGreaterThanOrEqual(need - 1e-6);
+				}
+			}
+		}
+	});
+
+	it('thins evenly rather than leaving bare patches', () => {
+		// Farthest-point sampling covers as it thins: every picture left out is
+		// within the room of one that stays.
+		for (const need of [world.cell * 1.2, world.cell * 2, world.cell * 3]) {
+			const pictures = world.placed.flatMap((p, i) => (isPicture(p.item) ? [i] : []));
+			const kept = pictures.filter((i) => room[i] >= need);
+			for (const i of pictures) {
+				const nearest = Math.min(
+					...kept.map((k) => {
+						const o = offsetFrom(world.placed[i], world.placed[k], world);
+						return Math.hypot(o.x, o.y);
+					})
+				);
+				expect(nearest).toBeLessThan(need);
+			}
+		}
+	});
+
+	it('places every picture before any card, so cards thin first', () => {
+		const order = world.placed
+			.map((p, i) => ({ picture: isPicture(p.item), room: room[i] }))
+			.sort((a, b) => b.room - a.room);
+		// A card's room is measured to the pictures too, so it is never more than
+		// the gap to its nearest picture, while pictures are measured only to each other.
+		const cards = order.filter((o) => !o.picture);
+		const leastPicture = Math.min(...order.filter((o) => o.picture).map((o) => o.room));
+		expect(cards.length).toBeGreaterThan(0);
+		for (const card of cards) expect(card.room).toBeLessThanOrEqual(world.cell * 1.6);
+		expect(leastPicture).toBeGreaterThan(world.cell * 0.5);
+	});
+});
+
+describe('zoom levels', () => {
+	it('lets pictures shrink with the zoom down to the floor, then only slowly', () => {
+		expect(itemScale(1, 0.5)).toBe(1);
+		expect(itemScale(0.5, 0.5)).toBe(0.5);
+		expect(itemScale(0.25, 0.5)).toBeGreaterThan(0.4);
+		expect(itemScale(0.25, 0.5)).toBeLessThan(0.5);
+	});
+
+	it('puts the floor where a cell is a set share of the screen, never above 1', () => {
+		expect(floorZoom(200, 1000, 0.1)).toBeCloseTo(0.5);
+		expect(floorZoom(50, 1000, 0.1)).toBe(1);
+	});
+
+	it('needs a fixed room on screen, so more world as it zooms out', () => {
+		expect(roomNeeded(1, 1000, 0.1)).toBeCloseTo(100);
+		expect(roomNeeded(0.25, 1000, 0.1)).toBeCloseTo(400);
+	});
+
+	it('begins thinning where the least room stops being enough', () => {
+		const zoom = thinningStarts([300, 150, 600], 1000);
+		expect(roomNeeded(zoom, 1000)).toBeCloseTo(150);
+		expect(thinningStarts([], 1000)).toBe(0);
+	});
+
+	it('zooms no farther out than one world fits the screen', () => {
+		expect(widestZoom({ width: 4000, height: 2000 }, 1000, 800, 100)).toBeCloseTo(0.5);
 	});
 });

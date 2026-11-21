@@ -18,9 +18,15 @@
 
 export type Role = 'pad' | 'screen';
 
-/** What the iPad sends. Distances are the iPad's CSS px; velocities px/s. */
+/**
+ * What the iPad sends. Distances are the iPad's CSS px; velocities px/s. A
+ * pinch (`z`) is the factor two fingers' spread changed by since the last one.
+ */
 export type PadMessage =
-	{ t: 'down' } | { t: 'd'; dx: number; dy: number } | { t: 'up'; vx: number; vy: number };
+	| { t: 'down' }
+	| { t: 'd'; dx: number; dy: number }
+	| { t: 'z'; f: number }
+	| { t: 'up'; vx: number; vy: number };
 
 /** Either side measuring the round trip to the other. */
 type PeerControl = { t: 'ping'; ts: number } | { t: 'pong'; ts: number };

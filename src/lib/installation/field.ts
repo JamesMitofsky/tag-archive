@@ -4,11 +4,11 @@
  * ends and there is no edge to bump into.
  *
  * Things that belong together sit together. An event, its artefacts and its
- * photographs form a cluster; the clusters of each season form an island,
- * labeled at its center with its season ("Winter 2024"); and the islands run
- * in date order through the world. So drifting in one direction is drifting
- * through time, drifting nearby is finding related things, and the bubbles say
- * when you are.
+ * photographs form a cluster; the clusters of each season, from every year,
+ * form an island, labeled at its center with its season ("Winter"); and within
+ * an island the clusters run in date order. So drifting through an island is
+ * drifting through the years of one season, drifting nearby is finding related
+ * things, and the bubbles say which season you are in.
  *
  * Pure and free of the DOM: the projector page draws what this decides.
  * Positions are world pixels. `cam` is the world point at the screen's center.
@@ -19,6 +19,14 @@ import { seasonOf, type Season } from './season.ts';
 
 export type FieldKind = 'artefact' | 'photo' | 'event';
 
+/** What an event card shows beyond its title once it is in focus. */
+export type EventDetails = {
+	time: string | null;
+	/** The source page's own words (see AGENTS.md), shown as they are. */
+	description: string | null;
+	hosts: string[];
+};
+
 export type FieldItem = {
 	id: string;
 	kind: FieldKind;
@@ -28,10 +36,15 @@ export type FieldItem = {
 	aspect: number;
 	/** A ThumbHash (see #lib/images/placeholder) shown until the image loads. */
 	placeholder: string | null;
-	/** Shown under the item when it is in focus, exactly as the archive holds it. */
+	/**
+	 * Exactly as the archive holds it. A picture shows it under itself when in
+	 * focus; an event card bears it.
+	 */
 	title: string;
 	/** A partial date (see #lib/partialDate), or null when undated. */
 	date: string | null;
+	/** An event's details, null for artefact pages and photographs. */
+	details: EventDetails | null;
 	/** Items with the same key sit together. */
 	cluster: string;
 };
@@ -51,7 +64,7 @@ export type Placed = {
 /** A season's island, by the place its bubble sits: the island's center. */
 export type Group = {
 	key: string;
-	/** What the bubble says: "Winter 2024", "2019", "Undated". */
+	/** What the bubble says: "Winter", "Season unknown". */
 	label: string;
 	x: number;
 	y: number;
@@ -63,7 +76,7 @@ export type World = {
 	/** The side of one layout cell, and so roughly the gap between neighbors. */
 	cell: number;
 	placed: Placed[];
-	/** One per season, in date order. */
+	/** One per season, winter to fall, then the unknown. */
 	groups: Group[];
 };
 
@@ -111,7 +124,7 @@ export type LayoutOptions = {
  * A cluster's date: its earliest date known at least to the month, else its
  * earliest year-only date, else null. A finer date wins over an earlier coarse
  * one, so an event on 2019-07-04 whose program is filed under "2019" stays
- * in Summer 2019 rather than falling back to the bare year.
+ * in summer rather than falling back to the bare year.
  *
  * Lexicographic order on partial dates is chronological order (see
  * #lib/partialDate), so plain string comparison finds the earliest.
@@ -158,7 +171,8 @@ export function orderByCluster(items: readonly FieldItem[]): FieldItem[] {
 export type SeasonGroup = Season & { items: FieldItem[] };
 
 /**
- * The items gathered into seasons (see #lib/installation/season), in date
+ * The items gathered into seasons across the years (see
+ * #lib/installation/season), winter to fall, each season's clusters in date
  * order. A cluster is never split: it joins the season of its date, so an
  * event's photographs sit with it even when one was taken the week after.
  */
@@ -270,9 +284,9 @@ function balancedRows(widths: readonly number[], rows: number): number[][] {
  * center and given its own size, so the result reads as things floating on
  * water rather than as a grid.
  *
- * The islands run in date order along rows of one height, a serpentine again
+ * The islands run winter to fall along rows of one height, a serpentine again
  * (left to right, then back), so drifting in one direction is drifting
- * through time. A season too big to be round at that height stretches along
+ * through the year. A season too big to be round at that height stretches along
  * its row instead, and each row's islands widen to fill the world's width, so
  * the only open water is the channels between islands and around the small
  * ones. The world is shaped like the screen and never smaller than one, so no
@@ -460,6 +474,25 @@ export function bloomScale(
 }
 
 /**
+ * An event card's height as it opens to its details, `open` of the way there
+ * (0..1). It grows from its bloomed `height` toward the height its words take,
+ * `need`, which is a multiple of its width: the card's type is sized by its
+ * width, so that multiple holds at any size, and growing taller rather than
+ * larger is what makes more room. It never grows past `max`, beyond which a
+ * long description is cut short, and never shrinks below where it started.
+ */
+export function openHeight(
+	width: number,
+	height: number,
+	need: number,
+	max: number,
+	open: number
+): number {
+	const target = Math.max(height, Math.min(width * need, max));
+	return height + (target - height) * open;
+}
+
+/**
  * An item's scale for its focus. While the field moves fast, growth is held
  * to a fraction so passing items swell a little rather than strobe; the full
  * bloom waits until the water is still.
@@ -478,4 +511,120 @@ export function parting(offset: Vec, reach: number, amount: number): Vec {
 	if (distance === 0 || distance >= reach || amount <= 0) return { x: 0, y: 0 };
 	const push = (reach - distance) * amount * 0.75;
 	return { x: (offset.x / distance) * push, y: (offset.y / distance) * push };
+}
+
+/*
+ * Zooming out. Drawn at the zoom, a field of ~1,400 items becomes a smear of
+ * specks, so as the field zooms out, things step aside in order:
+ *
+ * 1. The lens and its captions rest, because a bloom in a crowd hides more than it shows.
+ * 2. Event cards go, because their titles are too small to read.
+ * 3. Pictures stop shrinking at a size where they can still be told apart
+ *    (`floorZoom`), shrinking only slowly past it, and thin out instead, each keeping
+ *    a fixed room about it on screen (`roomNeeded`).
+ *
+ * Which pictures stay is decided once, at load, by `thinningRoom`, so the same
+ * ones always stay at the same zoom and the survivors are spread evenly over the
+ * field rather than leaving bare patches. Pictures outrank cards, so every
+ * picture has its place in the order before any card does.
+ */
+
+/** A thing to draw as a picture (not a card bearing a title). */
+export function isPicture(item: FieldItem): boolean {
+	return item.src !== null;
+}
+
+/**
+ * For each placed item, the room it has: how far it is from the nearest item
+ * that outranks it. An item is shown at a zoom only when it has at least the
+ * room that zoom needs, so zooming out drops the items with the least room
+ * first and zooming in brings them back in the reverse order.
+ *
+ * The order is farthest-point sampling, done within tiers (`tierOf`, lowest
+ * first): each next item is the one farthest from all those before it. So the
+ * items left at any zoom are as evenly spread as they can be, and any two of
+ * them are at least the room that zoom needs apart. The first item has
+ * infinite room. O(n²), which for the archive is a few milliseconds, once.
+ */
+export function thinningRoom(world: World, tierOf: (placed: Placed) => number): Float64Array {
+	const { placed } = world;
+	const n = placed.length;
+	const room = new Float64Array(n);
+	const nearest = new Float64Array(n).fill(Infinity);
+	const tier = placed.map(tierOf);
+	const picked = new Uint8Array(n);
+	for (let count = 0; count < n; count++) {
+		let pick = -1;
+		for (let i = 0; i < n; i++) {
+			if (picked[i]) continue;
+			if (
+				pick === -1 ||
+				tier[i] < tier[pick] ||
+				(tier[i] === tier[pick] && nearest[i] > nearest[pick])
+			) {
+				pick = i;
+			}
+		}
+		picked[pick] = 1;
+		room[pick] = nearest[pick];
+		const from = placed[pick];
+		for (let i = 0; i < n; i++) {
+			if (picked[i]) continue;
+			const offset = offsetFrom(from, placed[i], world);
+			const distance = Math.hypot(offset.x, offset.y);
+			if (distance < nearest[i]) nearest[i] = distance;
+		}
+	}
+	return room;
+}
+
+/**
+ * The zoom at which pictures stop shrinking with the field: when a layout
+ * cell is `cellShare` of the screen's height. Never above 1.
+ */
+export function floorZoom(cell: number, viewH: number, cellShare = 0.12): number {
+	return Math.min(1, (viewH * cellShare) / cell);
+}
+
+/**
+ * How much bigger than its rest size an item is drawn at `zoom`: as the zoom
+ * itself down to `floor`, and past it shrinking only by the zoom's `give`
+ * power, so zooming still reads as zooming without the pictures turning to specks.
+ */
+export function itemScale(zoom: number, floor: number, give = 0.25): number {
+	return zoom >= floor ? zoom : floor * Math.pow(zoom / floor, give);
+}
+
+/**
+ * The room (world px) a picture must have to be shown at `zoom`: a fixed
+ * `roomShare` of the screen's height, on screen. So the screen holds about
+ * the same number of pictures however far out it is zoomed.
+ */
+export function roomNeeded(zoom: number, viewH: number, roomShare = 0.085): number {
+	return (viewH * roomShare) / zoom;
+}
+
+/**
+ * The farthest out the field may be zoomed: where the screen, plus `margin`
+ * screen px at each edge, still fits inside one copy of the wrapping world.
+ * Any farther and the same item could be due at both edges at once, while the
+ * field can draw it only at one.
+ */
+export function widestZoom(
+	world: Pick<World, 'width' | 'height'>,
+	viewW: number,
+	viewH: number,
+	margin = 0
+): number {
+	return Math.max((viewW + 2 * margin) / world.width, (viewH + 2 * margin) / world.height);
+}
+
+/**
+ * The zoom at which the first of these rooms would no longer be enough
+ * (see `roomNeeded`): where thinning begins. 0 when there are none to thin.
+ */
+export function thinningStarts(rooms: Iterable<number>, viewH: number): number {
+	let least = Infinity;
+	for (const r of rooms) if (r < least) least = r;
+	return Number.isFinite(least) && least > 0 ? roomNeeded(1, viewH) / least : 0;
 }

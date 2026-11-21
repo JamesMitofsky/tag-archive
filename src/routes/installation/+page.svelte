@@ -5,23 +5,30 @@
 	the last touch the lens rests, and the field goes back to a wash of the
 	archive floating by, with nothing drawn into focus.
 
-	The archive floats as islands, one per season, in date order; a bubble at
-	each island's center names its season ("Winter 2024"), so the drift keeps a
-	sense of when you are.
+	The archive floats as islands, one per season, each gathering that season
+	from every year in date order; a bubble at each island's center names its
+	season ("Winter"), so the drift keeps a sense of when in the year you are.
+
+	A pinch on the iPad zooms the field about the lens. Zoomed out, things step
+	aside so the view stays legible: first the lens, then the event cards, and
+	then pictures thin out evenly while those left stop shrinking (the order is
+	in #lib/installation/field). Each thing that goes or comes back fades and
+	shrinks or grows over LOD_FADE rather than popping.
 
 	The motion is decided in #lib/installation/physics and the layout in
 	#lib/installation/field. This page only draws them: every frame it places
-	the items near the screen (about sixty of the archive's ~1,400) and leaves
-	the rest unmounted.
+	the items near the screen (sixty to a couple of hundred of the archive's
+	~1,400, whatever the zoom) and leaves the rest unmounted.
 
 	Operator keys: `d` shows the overlay, `f` toggles fullscreen. The overlay
 	reports on the connection and holds the filter: artefacts, images and events
 	can each be left out of the field, which is then laid out again without them.
 	Beside it sit sliders for how the field moves and how it is drawn (see
 	#lib/installation/knobs), each taking hold as it is dragged.
-	A mouse drag on this page moves the field too, as a fallback if the iPad's
-	connection drops, and so do two fingers on the laptop's trackpad, read as
-	one finger on the iPad (see #lib/installation/trackpad).
+	A mouse drag on this page moves the field too, and a trackpad or touch
+	pinch zooms it, as a fallback if the iPad's connection drops. Two fingers
+	swiping on the laptop's trackpad steer it as one finger on the iPad does
+	(see #lib/installation/trackpad).
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -35,16 +42,26 @@
 		bloomScale,
 		calmness,
 		carryCamera,
+		floorZoom,
 		focusAmount,
 		focusScale,
+		isPicture,
+		itemScale,
 		layoutField,
 		nearestItem,
 		offsetFrom,
+		openHeight,
 		parting,
+		roomNeeded,
+		smoothstep,
+		thinningRoom,
+		thinningStarts,
+		widestZoom,
 		type Group,
 		type Placed,
 		type World
 	} from '#lib/installation/field.ts';
+	import { createGesture } from '#lib/installation/gesture.ts';
 	import { buildFieldItems } from '#lib/installation/items.ts';
 	import {
 		defaultKnobs,
@@ -62,14 +79,7 @@
 		rememberShownKinds,
 		type ShownKinds
 	} from '#lib/installation/kinds.ts';
-	import {
-		createSim,
-		releaseVelocity,
-		TUNING,
-		type Sample,
-		type Sim,
-		type Tuning
-	} from '#lib/installation/physics.ts';
+	import { createSim, TUNING, type Sim, type Tuning } from '#lib/installation/physics.ts';
 	import {
 		connectRelay,
 		readRelayConfig,
@@ -82,20 +92,42 @@
 
 	/** A bloom's share of the screen's width, for each share of its height. */
 	const BLOOM_WIDTH = 0.5 / 0.62;
-	/** Items are mounted this far (in cells) past the screen's edge, so they never pop in. */
-	const MARGIN_CELLS = 1;
+	/**
+	 * How quickly an event card grows to hold its details, per second: about
+	 * as long as its details take to unfold (see `.details`).
+	 */
+	const OPEN_RATE = 6;
+	/** How long a thing takes to step aside, or come back, as the zoom changes (s). */
+	const LOD_FADE = 0.45;
+	/**
+	 * How far back past its threshold the zoom must go before a thing changes
+	 * its mind, as a share: so a pinch resting on a threshold doesn't flicker.
+	 */
+	const HYSTERESIS = 0.06;
+	/** A season bubble's type size, as a share of a layout cell at zoom 1. */
+	const BUBBLE_FONT = 0.17;
+	/** The smallest type (px) a season bubble keeps before it steps aside. */
+	const BUBBLE_MIN_FONT = 13;
+	/** The farthest a trackpad's ctrl-wheel step may zoom at once (as wheel px). */
+	const WHEEL_STEP = 50;
 
 	let world = $state.raw<World | null>(null);
 	let visible = $state.raw<Placed[]>([]);
 	let bloomId = $state<string | null>(null);
+	/**
+	 * The focused item once the field has been still on it for `captionAfter`.
+	 * Then it says what it is: a picture by a caption under it, an event card by
+	 * opening to its details.
+	 */
+	let settledId = $state<string | null>(null);
+	/** The focused picture's caption. An event card carries its own words instead. */
 	let caption = $state<{ title: string; date: string | null } | null>(null);
-	let captionShown = $state(false);
 	let loadError = $state<string | null>(null);
 	let overlay = $state(false);
 	let relayStatus = $state<RelayStatus | null>(null);
 	let relayConfig = $state.raw<RelayConfig | null>(null);
 	let unconfigured = $state(false);
-	let stats = $state({ fps: 0, mounted: 0, mode: '', speed: 0 });
+	let stats = $state({ fps: 0, mounted: 0, mode: '', speed: 0, zoom: 1, shown: 0 });
 	let shown = $state<ShownKinds>(readShownKinds());
 
 	let dataset: Dataset | null = null;
@@ -113,14 +145,52 @@
 	 */
 	let visibleKey: string | null = null;
 
+	// Level of detail, by placed index: each item's room (see thinningRoom),
+	// whether it is wanted at the shown zoom, and how far it is in (0..1).
+	// Made afresh with each layout.
+	let room: Float64Array = new Float64Array(0);
+	let wanted = new Uint8Array(0);
+	let presence = new Float32Array(0);
+	/** Where the event cards go and the lens rests, set by the pictures' rooms. */
+	let cardZoom = 0;
+	let lensZoom = 0;
+	let lensWanted = true;
+	let lensDetail = 1;
+
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const elements = new Map<string, HTMLElement>();
-	/** The size each mounted item was last given, so unchanged ones are left alone. */
+	/**
+	 * The size each mounted item was last laid out at. While the zoom or a
+	 * fade is under way, items are scaled from it rather than laid out afresh
+	 * every frame, which hundreds at once would make slow, and they are laid out
+	 * at their exact size, crisp, once it settles.
+	 */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
-	const sizes = new Map<string, number>();
+	const sizes = new Map<string, { width: number; height: number }>();
+	/**
+	 * How far each event card is through opening to its details, 0..1: rising
+	 * while it is the settled one, falling once it isn't. Only cards on their
+	 * way open or closed are in here.
+	 */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const openness = new Map<string, number>();
+	/** Each card's height when open, as a multiple of its width (see `needOf`). */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const needs = new Map<string, number>();
+	/**
+	 * Where an event card is measured (see `needOf`): off screen, wide enough
+	 * that rounding doesn't matter, and a container, so the copy's type
+	 * resolves as it would on a card this wide. Made here rather than in the
+	 * markup because what goes in it is a copy the page puts there itself.
+	 */
+	let measurer: HTMLElement | null = null;
+	const MEASURE_WIDTH = 1000;
 	/** Each season's bubble, by its group's key. */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const bubbles = new Map<string, HTMLElement>();
+	/** Each bubble's level of detail, as the items': wanted, how far in, and its type size. */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const bubbleState = new Map<string, { wanted: boolean; presence: number; font: number }>();
 	let lens: HTMLElement | undefined = $state();
 	let captionEl: HTMLElement | undefined = $state();
 
@@ -139,8 +209,30 @@
 	function trackBubble(key: string) {
 		return (node: HTMLElement) => {
 			bubbles.set(key, node);
-			return () => bubbles.delete(key);
+			return () => {
+				bubbles.delete(key);
+				bubbleState.delete(key);
+			};
 		};
+	}
+
+	/** Eases a presence (0..1) for drawing, so a fade starts and lands gently. */
+	const ease = (p: number) => smoothstep(0, 1, p);
+
+	/** The zooms that depend on the layout and the screen: thresholds, and how far out it may go. */
+	function fitZoom() {
+		if (!world || !sim) return;
+		const w = world;
+		const viewH = window.innerHeight;
+		// Cards step aside just before the first picture would, and the lens
+		// just before them, so no picture is thinned while a card still shows.
+		const pictureRooms = w.placed.flatMap((p, i) => (isPicture(p.item) ? [room[i]] : []));
+		cardZoom = Math.min(0.9, Math.max(0.5, thinningStarts(pictureRooms, viewH) * 1.08));
+		lensZoom = Math.min(0.95, cardZoom * 1.08);
+		sim.setZoomRange(
+			Math.max(TUNING.minZoom, widestZoom(w, window.innerWidth, viewH, viewH * 0.1)),
+			TUNING.maxZoom
+		);
 	}
 
 	/**
@@ -170,10 +262,17 @@
 			const start = pick() ?? { x: 0, y: 0 };
 			sim = createSim({ x: start.x, y: start.y }, tuning);
 		}
-		// Items that stay are a new size in the new layout: draw them all afresh.
+		// Items that stay are a new size in the new layout: draw them all afresh,
+		// fading in. Pictures outrank cards: every picture is placed in the
+		// thinning order before any card.
 		sizes.clear();
+		openness.clear();
 		visibleKey = null;
+		room = thinningRoom(laid, (p) => (isPicture(p.item) ? 0 : 1));
+		wanted = new Uint8Array(laid.placed.length);
+		presence = new Float32Array(laid.placed.length);
 		world = laid;
+		fitZoom();
 	}
 
 	function toggle(kind: keyof ShownKinds) {
@@ -198,6 +297,48 @@
 	function shownValue(knob: Knob): string {
 		const digits = knob.step < 0.1 ? 2 : knob.step < 1 ? 1 : 0;
 		return `${knobs[knob.key].toFixed(digits)}${knob.unit ? ` ${knob.unit}` : ''}`;
+	}
+
+	/**
+	 * Fades a description's last lines when the card can't hold all of it, and
+	 * only then, so a short one isn't faded at its end for nothing. Watched
+	 * rather than checked once, because the card is still growing as it opens.
+	 */
+	function fadeWhenClipped(node: HTMLElement) {
+		const check = () => node.classList.toggle('clipped', node.scrollHeight > node.clientHeight + 1);
+		const observer = new ResizeObserver(check);
+		observer.observe(node);
+		return () => observer.disconnect();
+	}
+
+	/**
+	 * The height an event card's words take when it is open, as a multiple of
+	 * its width. Measured once per card, on a copy laid out open at no fixed
+	 * height. Every size inside the card is a share of its width, so one
+	 * measurement holds at whatever size the card is drawn.
+	 */
+	function needOf(id: string): number {
+		const known = needs.get(id);
+		if (known !== undefined) return known;
+		const body = elements.get(id)?.querySelector('.card-body');
+		if (!body) return 0;
+		if (!measurer) {
+			measurer = document.createElement('div');
+			measurer.style.cssText = `position: fixed; left: -${2 * MEASURE_WIDTH}px; top: 0; width: ${MEASURE_WIDTH}px; container-type: inline-size; visibility: hidden; pointer-events: none;`;
+			document.body.append(measurer);
+		}
+		const copy = body.cloneNode(true) as HTMLElement;
+		copy.classList.add('open');
+		measurer.replaceChildren(copy);
+		const need = copy.offsetHeight / MEASURE_WIDTH;
+		measurer.replaceChildren();
+		needs.set(id, need);
+		return need;
+	}
+
+	/** An event's date and time, on one line. */
+	function when(date: string | null, time: string | null): string {
+		return [date && formatPartialDate(date), time].filter(Boolean).join(' · ');
 	}
 
 	onMount(() => {
@@ -229,6 +370,7 @@
 					if (!sim) return;
 					if (message.t === 'down') sim.down(now());
 					else if (message.t === 'd') sim.drag(message.dx, message.dy, now());
+					else if (message.t === 'z') sim.pinch(message.f, now());
 					else if (message.t === 'up') sim.up(message.vx, message.vy, now());
 				},
 				onStatus(status) {
@@ -264,16 +406,6 @@
 			const dt = (ms - last) / 1000;
 			last = ms;
 			frames++;
-			if (ms - fpsSince > 1000) {
-				stats = {
-					fps: Math.round((frames * 1000) / (ms - fpsSince)),
-					mounted: elements.size,
-					mode: sim?.mode ?? '',
-					speed: Math.round(sim?.speed ?? 0)
-				};
-				frames = 0;
-				fpsSince = ms;
-			}
 			if (!sim || !world) return;
 			const w = world;
 			const t = ms / 1000;
@@ -285,23 +417,65 @@
 				sim.shift(-Math.round(cam.x / w.width) * w.width, -Math.round(cam.y / w.height) * w.height);
 			}
 
-			const calm = calmness(sim.speed);
-			// 0 while the field is left to the current: nothing comes into focus.
-			const lensAt = sim.lens;
-			const lensRadius = viewH * view.lens;
-			const halfW = viewW / 2 + w.cell * MARGIN_CELLS;
-			const halfH = viewH / 2 + w.cell * MARGIN_CELLS;
+			const zoom = sim.scale;
+			// How much bigger than at rest items are drawn, and the room a picture
+			// needs to be shown, at this zoom.
+			const grown = itemScale(zoom, floorZoom(w.cell, viewH));
+			const need = roomNeeded(zoom, viewH);
+			// A long hitch (a hidden tab) finishes a fade rather than skipping it.
+			const fade = Math.min(Math.max(dt, 0), 0.1) / LOD_FADE;
+			const step = (p: number, on: boolean) => Math.min(1, Math.max(0, p + (on ? fade : -fade)));
 
-			// Which items are near the screen, and which is most in focus.
-			const near: { placed: Placed; x: number; y: number; focus: number }[] = [];
+			lensWanted = zoom >= lensZoom * (lensWanted ? 1 - HYSTERESIS : 1);
+			lensDetail = step(lensDetail, lensWanted);
+
+			const calm = calmness(sim.speed);
+			// 0 while the field is left to the current, or zoomed too far out:
+			// nothing comes into focus.
+			const lensAt = sim.lens * ease(lensDetail);
+			const lensRadius = viewH * view.lens;
+			// Items are mounted this far (screen px) past the screen's edge, so
+			// they never pop in.
+			const margin = w.cell * grown;
+			const halfW = viewW / 2 + margin;
+			const halfH = viewH / 2 + margin;
+
+			// Which items are wanted and near the screen, and which is most in focus.
+			const near: { placed: Placed; x: number; y: number; focus: number; shown: number }[] = [];
 			let best: (typeof near)[number] | null = null;
-			for (const placed of w.placed) {
+			let shownCount = 0;
+			for (let i = 0; i < w.placed.length; i++) {
+				const placed = w.placed[i];
+				const slack = wanted[i] ? 1 - HYSTERESIS : 1;
+				const want =
+					room[i] >= need * slack && (isPicture(placed.item) || zoom >= cardZoom * slack);
+				wanted[i] = want ? 1 : 0;
+				if (want) shownCount++;
+				presence[i] = step(presence[i], want);
+				if (presence[i] === 0) continue;
+
 				const offset = offsetFrom(sim.cam, placed, w);
-				if (Math.abs(offset.x) > halfW || Math.abs(offset.y) > halfH) continue;
-				const focus = focusAmount(Math.hypot(offset.x, offset.y), lensRadius) * lensAt;
-				const entry = { placed, x: offset.x, y: offset.y, focus };
+				const x = offset.x * zoom;
+				const y = offset.y * zoom;
+				if (Math.abs(x) > halfW || Math.abs(y) > halfH) continue;
+				const shown = ease(presence[i]);
+				const focus = focusAmount(Math.hypot(x, y), lensRadius) * lensAt * shown;
+				const entry = { placed, x, y, focus, shown };
 				near.push(entry);
 				if (focus > 0 && (!best || focus > best.focus)) best = entry;
+			}
+
+			if (ms - fpsSince > 1000) {
+				stats = {
+					fps: Math.round((frames * 1000) / (ms - fpsSince)),
+					mounted: elements.size,
+					mode: sim.mode,
+					speed: Math.round(sim.speed),
+					zoom: Math.round(zoom * 100) / 100,
+					shown: shownCount
+				};
+				frames = 0;
+				fpsSince = ms;
 			}
 
 			const key = near.map((n) => n.placed.item.id).join(' ');
@@ -314,25 +488,52 @@
 			// its neighbors must part to make room.
 			// The width's share keeps its proportion to the height's.
 			const bloomOf = (p: Placed) =>
-				bloomScale(p.w, p.h, viewW, viewH, view.bloom, view.bloom * BLOOM_WIDTH);
+				bloomScale(p.w * grown, p.h * grown, viewW, viewH, view.bloom, view.bloom * BLOOM_WIDTH);
 			const bestScale = best ? focusScale(best.focus, calm, bloomOf(best.placed)) : 1;
 			const bloomAmount = best ? best.focus * calm : 0;
-			const reach = best
-				? (Math.max(best.placed.w, best.placed.h) * bestScale) / 2 + w.cell * 0.35
+
+			// The settled event card opens; any other on its way open closes again.
+			const settledItem = best?.placed.item.id === settledId ? best?.placed.item : null;
+			if (settledItem && !settledItem.src && settledItem.details && !openness.has(settledItem.id)) {
+				openness.set(settledItem.id, 0);
+			}
+			const toward = 1 - Math.exp(-dt * OPEN_RATE);
+			for (const [id, amount] of openness) {
+				const target = id === settledId ? 1 : 0;
+				const next = amount + (target - amount) * toward;
+				if (target === 0 && next < 0.001) openness.delete(id);
+				else openness.set(id, next);
+			}
+			/** An item's size at a scale: an opening card is taller than its bloom. */
+			const sizeOf = (placed: Placed, scale: number) => {
+				const width = placed.w * scale;
+				const height = placed.h * scale;
+				const open = openness.get(placed.item.id);
+				if (!open) return { width, height };
+				const max = viewH * view.cardMax;
+				return { width, height: openHeight(width, height, needOf(placed.item.id), max, open) };
+			};
+			const bestSize = best ? sizeOf(best.placed, grown * bestScale) : null;
+			const reach = bestSize
+				? Math.max(bestSize.width, bestSize.height) / 2 + w.cell * grown * 0.35
 				: 0;
+			// Laid out afresh only once the size has drifted this far, while moving.
+			const tolerance = sim.zooming ? 0.35 : 0.002;
 
 			for (const entry of near) {
 				const element = elements.get(entry.placed.item.id);
 				if (!element) continue;
 				const { placed } = entry;
 				const isBest = entry === best;
-				const scale = isBest ? bestScale : focusScale(entry.focus, calm, bloomOf(placed));
+				const focused = isBest ? bestScale : focusScale(entry.focus, calm, bloomOf(placed));
+				// Stepping aside, an item shrinks a little as it fades.
+				const scale = grown * focused * (0.6 + 0.4 * entry.shown);
 				let x = entry.x;
 				let y = entry.y;
 				if (!isBest && best) {
 					const push = parting(
 						{ x: x - best.x, y: y - best.y },
-						reach + Math.max(placed.w, placed.h) / 2,
+						reach + (Math.max(placed.w, placed.h) * grown) / 2,
 						bloomAmount
 					);
 					x += push.x;
@@ -343,65 +544,92 @@
 				x += Math.sin((t / 9 + placed.phase) * Math.PI * 2) * bob * 0.6;
 				y += Math.sin((t / 7 + placed.phase) * Math.PI * 2) * bob;
 
-				const width = placed.w * scale;
-				const height = placed.h * scale;
-				// Sized rather than scaled, so a bloomed picture or card text is
-				// drawn crisp at its full size instead of stretched.
-				if (Math.abs((sizes.get(placed.item.id) ?? 0) - scale) > 0.002) {
-					sizes.set(placed.item.id, scale);
+				const { width, height } = sizeOf(placed, scale);
+				// Sized rather than scaled once still, so a bloomed picture or card
+				// text is drawn crisp at its full size instead of stretched. A scale
+				// keeps the shape an item was laid out at, so an event card growing
+				// taller as it opens is laid out afresh whenever its height parts from it.
+				let laid = sizes.get(placed.item.id);
+				const drift = entry.shown === 1 ? tolerance : 0.35;
+				if (
+					!laid ||
+					Math.abs(width / laid.width - 1) > drift ||
+					Math.abs((height * laid.width) / width - laid.height) > 0.5
+				) {
+					laid = { width, height };
+					sizes.set(placed.item.id, laid);
 					element.style.width = `${width}px`;
 					element.style.height = `${height}px`;
 				}
-				element.style.transform = `translate3d(${viewW / 2 + x - width / 2}px, ${viewH / 2 + y - height / 2}px, 0)`;
+				element.style.transform = `translate3d(${viewW / 2 + x - width / 2}px, ${viewH / 2 + y - height / 2}px, 0) scale(${width / laid.width})`;
 				const rest = 0.45 + 0.35 * calm;
-				element.style.opacity = String(rest + (1 - rest) * entry.focus);
+				element.style.opacity = String((rest + (1 - rest) * entry.focus) * entry.shown);
 				element.style.zIndex = isBest ? '3' : entry.focus > 0 ? '2' : '1';
 			}
 
 			// The season bubbles ride the water with the items, part around a bloom
 			// like them, and fade a little while one is open, so it holds the eye.
+			// A bubble is sized with the zoom, so it keeps to the clear water its
+			// island leaves for it, and steps aside (fading, like the items) once
+			// its name would be too small to read.
+			const bubbleFont = w.cell * BUBBLE_FONT * zoom;
 			for (const group of w.groups) {
 				const element = bubbles.get(group.key);
 				if (!element) continue;
+				const state = bubbleState.get(group.key) ?? { wanted: false, presence: 0, font: 0 };
+				bubbleState.set(group.key, state);
+				state.wanted = bubbleFont >= BUBBLE_MIN_FONT * (state.wanted ? 1 - HYSTERESIS : 1);
+				state.presence = step(state.presence, state.wanted);
 				const offset = offsetFrom(sim.cam, group, w);
-				if (Math.abs(offset.x) > halfW || Math.abs(offset.y) > halfH) {
+				let x = offset.x * zoom;
+				let y = offset.y * zoom;
+				if (state.presence === 0 || Math.abs(x) > halfW || Math.abs(y) > halfH) {
 					element.style.visibility = 'hidden';
 					continue;
 				}
-				let { x, y } = offset;
 				if (best) {
-					const push = parting({ x: x - best.x, y: y - best.y }, reach + w.cell * 0.7, bloomAmount);
+					const push = parting(
+						{ x: x - best.x, y: y - best.y },
+						reach + w.cell * zoom * 0.7,
+						bloomAmount
+					);
 					x += push.x;
 					y += push.y;
 				}
 				y += Math.sin((t / 8 + bubblePhase(group)) * Math.PI * 2) * 4;
+				// Set as type, not scaled, so the name stays crisp; only when it has
+				// changed enough to matter, as with the items' sizes.
+				if (Math.abs(bubbleFont / state.font - 1) > (sim.zooming ? 0.08 : 0.002)) {
+					state.font = bubbleFont;
+					element.style.fontSize = `${bubbleFont}px`;
+				}
+				const shown = ease(state.presence);
 				element.style.visibility = 'visible';
-				element.style.transform = `translate3d(${viewW / 2 + x}px, ${viewH / 2 + y}px, 0)`;
-				element.style.opacity = String(0.92 * (1 - 0.6 * bloomAmount));
+				element.style.transform = `translate3d(${viewW / 2 + x}px, ${viewH / 2 + y}px, 0) scale(${(bubbleFont / state.font) * (0.6 + 0.4 * shown)})`;
+				element.style.opacity = String(0.92 * (1 - 0.6 * bloomAmount) * shown);
 			}
 
 			if (lens) lens.style.opacity = String(0.6 * lensAt * (1 - Math.min(1, bloomAmount * 1.4)));
 
-			// What's in focus, for the caption and the full-size picture.
+			// What's in focus, for the caption, the card's details and the full-size picture.
 			const focused = best && best.focus > 0.5 ? best : null;
 			const id = focused?.placed.item.id ?? null;
 			if (id !== focusedId) {
 				focusedId = id;
 				stillSince = null;
-				captionShown = false;
-				caption = focused
-					? { title: focused.placed.item.title, date: focused.placed.item.date }
-					: null;
+				settledId = null;
+				const item = focused?.placed.item;
+				caption = item?.src ? { title: item.title, date: item.date } : null;
 			}
 			const settled = !!focused && focused.focus > 0.85 && calm > 0.9;
 			if (settled) stillSince ??= t;
 			else stillSince = null;
-			const showCaption = stillSince !== null && t - stillSince > view.captionAfter;
-			if (showCaption !== captionShown) captionShown = showCaption;
+			const nextSettled = stillSince !== null && t - stillSince > view.captionAfter ? id : null;
+			if (nextSettled !== settledId) settledId = nextSettled;
 			const nextBloom = focused && bloomAmount > 0.6 ? id : bloomId === id ? bloomId : null;
 			if (nextBloom !== bloomId) bloomId = nextBloom;
 			if (captionEl && focused) {
-				const bottom = viewH / 2 + focused.y + (focused.placed.h * bestScale) / 2;
+				const bottom = viewH / 2 + focused.y + (focused.placed.h * grown * bestScale) / 2;
 				captionEl.style.top = `${Math.min(bottom + 18, viewH - 90)}px`;
 			}
 		};
@@ -410,6 +638,7 @@
 		const onResize = () => {
 			viewW = window.innerWidth;
 			viewH = window.innerHeight;
+			fitZoom();
 		};
 
 		const onKey = (event: KeyboardEvent) => {
@@ -420,69 +649,99 @@
 			}
 		};
 
-		// The fallback: a mouse on the laptop moves the field directly (gain 1).
-		let mouse: number | null = null;
-		let samples: Sample[] = [];
-		let lastPoint = { x: 0, y: 0 };
+		// The fallback: a mouse, or fingers on a touch screen, move the field
+		// directly (gain 1), and two fingers pinch it.
+		const gesture = createGesture({
+			down: () => sim?.down(now()),
+			drag: (dx, dy) => sim?.drag(dx, dy, now(), 1),
+			pinch: (factor) => sim?.pinch(factor, now(), 1),
+			up: (vx, vy) => sim?.up(vx, vy, now(), 1)
+		});
 		const onDown = (event: PointerEvent) => {
-			if (mouse !== null || !sim) return;
-			// A click on the overlay's filter is not a hand on the water.
+			// A click on the overlay's filter or sliders is not a hand on the water.
 			if (event.target instanceof Element && event.target.closest('.kinds, .knobs')) return;
-			mouse = event.pointerId;
-			lastPoint = { x: event.clientX, y: event.clientY };
-			samples = [{ t: event.timeStamp, ...lastPoint }];
-			sim.down(now());
+			gesture.pointerDown(event.pointerId, event.clientX, event.clientY, event.timeStamp);
 		};
 		const onMove = (event: PointerEvent) => {
-			if (event.pointerId !== mouse || !sim) return;
-			sim.drag(event.clientX - lastPoint.x, event.clientY - lastPoint.y, now(), 1);
-			lastPoint = { x: event.clientX, y: event.clientY };
-			samples.push({ t: event.timeStamp, ...lastPoint });
-			if (samples.length > 40) samples.splice(0, samples.length - 40);
+			gesture.pointerMove(event.pointerId, [
+				{ t: event.timeStamp, x: event.clientX, y: event.clientY }
+			]);
 		};
 		const onUp = (event: PointerEvent) => {
-			if (event.pointerId !== mouse || !sim) return;
-			mouse = null;
-			const v = releaseVelocity(samples, event.timeStamp);
-			sim.up(v.x, v.y, now(), 1);
+			gesture.pointerUp(event.pointerId, event.timeStamp, event.type === 'pointercancel');
 		};
 
+		// A trackpad's pinch. Chromium and Firefox send it as a wheel with ctrlKey
+		// set, and zoom the page unless told not to; Safari sends its own gesture
+		// events instead, with the scale since the pinch began. A wheel during a
+		// Safari gesture is ignored, so a browser sending both can't zoom twice,
+		// and so is a gesture while two fingers are already pinching on a touch
+		// screen, which the pointers above have counted.
+		//
+		// Any other wheel is two fingers swiping on the trackpad (or a mouse's
+		// wheel), and steers like a finger on the iPad. The sliders' panel still
+		// scrolls as any panel does; nowhere else scrolls or swipes back a page.
+		let safariPinch = false;
+		let safariScale = 1;
 		const onWheel = (event: WheelEvent) => {
-			// The sliders' panel scrolls as any panel does.
+			if (event.ctrlKey) {
+				event.preventDefault();
+				if (safariPinch || !sim) return;
+				const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewH : 1;
+				const delta = Math.max(-WHEEL_STEP, Math.min(WHEEL_STEP, event.deltaY * unit));
+				sim.pinch(Math.exp(-delta * 0.01), now(), 1);
+				return;
+			}
 			if (event.target instanceof Element && event.target.closest('.kinds, .knobs')) return;
-			// Nothing else scrolls, zooms or swipes back a page here.
 			event.preventDefault();
-			// A pinch reaches the page as a wheel with ctrl held; it doesn't steer.
-			if (event.ctrlKey || mouse !== null) return;
+			// A mouse button or a finger on a touch screen is already steering.
+			if (gesture.count > 0) return;
 			trackpad.feed(wheelInput(event, viewH));
 		};
-		// Safari pinches with its own gesture events instead.
-		const refuse = (event: Event) => event.preventDefault();
+		const onGestureStart = (event: Event) => {
+			event.preventDefault();
+			safariPinch = true;
+			safariScale = 1;
+		};
+		const onGestureChange = (event: Event) => {
+			event.preventDefault();
+			const scale = (event as Event & { scale?: number }).scale ?? 1;
+			if (sim && scale > 0 && gesture.count < 2) sim.pinch(scale / safariScale, now(), 1);
+			safariScale = scale;
+		};
+		const onGestureEnd = (event: Event) => {
+			event.preventDefault();
+			safariPinch = false;
+		};
 
 		window.addEventListener('resize', onResize);
 		window.addEventListener('keydown', onKey);
-		// Not passive, or the browser scrolls (and swipes back) before it can be refused.
-		window.addEventListener('wheel', onWheel, { passive: false });
-		document.addEventListener('gesturestart', refuse);
-		document.addEventListener('gesturechange', refuse);
 		window.addEventListener('pointerdown', onDown);
 		window.addEventListener('pointermove', onMove);
 		window.addEventListener('pointerup', onUp);
 		window.addEventListener('pointercancel', onUp);
+		// Not passive, or the browser scrolls, zooms or swipes back before it can be refused.
+		window.addEventListener('wheel', onWheel, { passive: false });
+		window.addEventListener('gesturestart', onGestureStart);
+		window.addEventListener('gesturechange', onGestureChange);
+		window.addEventListener('gestureend', onGestureEnd);
 
 		return () => {
 			disposed = true;
+			measurer?.remove();
+			measurer = null;
 			cancelAnimationFrame(frame);
 			relay?.close();
 			window.removeEventListener('resize', onResize);
 			window.removeEventListener('keydown', onKey);
-			window.removeEventListener('wheel', onWheel);
-			document.removeEventListener('gesturestart', refuse);
-			document.removeEventListener('gesturechange', refuse);
 			window.removeEventListener('pointerdown', onDown);
 			window.removeEventListener('pointermove', onMove);
 			window.removeEventListener('pointerup', onUp);
 			window.removeEventListener('pointercancel', onUp);
+			window.removeEventListener('wheel', onWheel);
+			window.removeEventListener('gesturestart', onGestureStart);
+			window.removeEventListener('gesturechange', onGestureChange);
+			window.removeEventListener('gestureend', onGestureEnd);
 		};
 	});
 </script>
@@ -542,18 +801,45 @@
 					/>
 				{/if}
 			{:else}
-				<!-- Smaller type for a longer title, so the whole of it fits. -->
-				<span
-					class="title"
-					style:--fit={Math.min(1, Math.sqrt(36 / Math.max(1, item.title.length)))}
-				>
-					{item.title}
-				</span>
+				<!-- An event card. Settled on, it opens: the title shrinks and rises, and
+				     the event's details unfold beneath it. They stay mounted while closed
+				     (at no height) so that closing plays the same unfolding backwards. -->
+				<div class="card-body" class:open={settledId === item.id}>
+					<!-- Smaller type for a longer title, so the whole of it fits. -->
+					<span
+						class="title"
+						style:--fit={Math.min(1, Math.sqrt(36 / Math.max(1, item.title.length)))}
+					>
+						{item.title}
+					</span>
+					{#if item.details}
+						{@const details = item.details}
+						{@const whenLine = when(item.date, details.time)}
+						<div class="details">
+							<div class="details-inner">
+								{#if whenLine}<p class="when">{whenLine}</p>{/if}
+								{#if details.hosts.length}
+									<ul class="hosts">
+										{#each details.hosts as host, i (i)}<li>{host}</li>{/each}
+									</ul>
+								{/if}
+								{#if details.description}
+									<p class="description" {@attach fadeWhenClipped}>{details.description}</p>
+								{/if}
+							</div>
+						</div>
+					{/if}
+				</div>
 			{/if}
 		</div>
 	{/each}
 
-	<p class="caption" class:shown={captionShown && caption} bind:this={captionEl} aria-live="polite">
+	<p
+		class="caption"
+		class:shown={caption && settledId !== null}
+		bind:this={captionEl}
+		aria-live="polite"
+	>
 		{#if caption}
 			<span class="caption-title">{caption.title}</span>
 			{#if caption.date}<span class="caption-date">{formatPartialDate(caption.date)}</span>{/if}
@@ -583,6 +869,8 @@
 			<dd>{world?.placed.length ?? 0} ({stats.mounted} mounted)</dd>
 			<dt>motion</dt>
 			<dd>{stats.mode} · {stats.speed} px/s</dd>
+			<dt>zoom</dt>
+			<dd>{stats.zoom}× ({stats.shown} shown)</dd>
 			<dt>frames</dt>
 			<dd>{stats.fps} fps</dd>
 		</RelayOverlay>
@@ -623,6 +911,8 @@
 		overflow: hidden;
 		cursor: none;
 		user-select: none;
+		/* Fingers on a touch screen steer the field, not the page. */
+		touch-action: none;
 		/* The sky shows through: items dim toward it, as if under water. */
 	}
 
@@ -707,7 +997,9 @@
 		position: absolute;
 		left: 0;
 		top: 0;
-		will-change: transform;
+		will-change: transform, opacity;
+		/* Scaled from its top left corner while the zoom moves (see `sizes`). */
+		transform-origin: 0 0;
 		/* No frame: a picture floats bare, with only its blurred stand-in
 		   behind it while the real one loads. */
 		background-size: cover;
@@ -736,20 +1028,104 @@
 
 	.item.card {
 		container-type: size;
-		display: grid;
-		place-items: center;
 		background-color: oklch(0.98 0.012 90);
 		background-image: url('/paper-noise.png');
 	}
-	.title {
-		font-family: var(--font-friendly);
-		/* In the card's own units: a percentage would be of the whole screen. */
+	/* Padded here rather than on the card: `cqw` is a share of the container's
+	   content box, so padding the container would shrink the unit it's sized in.
+	   Everything is in the card's own units, since a percentage would be of the
+	   whole screen. */
+	.card-body {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		height: 100%;
 		padding: 8cqw;
+		font-family: var(--font-friendly);
+		color: oklch(0.32 0.04 250);
+		overflow-wrap: anywhere;
+	}
+	.title {
+		flex: none;
 		font-size: calc(11cqw * var(--fit, 1));
 		line-height: 1.15;
 		text-align: center;
-		color: oklch(0.32 0.04 250);
-		overflow-wrap: anywhere;
+		transition: font-size 700ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+	.open .title {
+		font-size: calc(6.5cqw * var(--fit, 1));
+	}
+
+	/* Unfolds from no height to its own (or to what's left of the card, if
+	   less). Animating the row rather than a height lets it land on a size
+	   nobody has to measure, and the title, centered with it, rises as it grows. */
+	.details {
+		flex: 0 1 auto;
+		min-height: 0;
+		display: grid;
+		grid-template-rows: 0fr;
+		opacity: 0;
+		transition:
+			grid-template-rows 700ms cubic-bezier(0.22, 1, 0.36, 1),
+			opacity 300ms ease-out;
+	}
+	.open .details {
+		grid-template-rows: 1fr;
+		opacity: 1;
+		transition:
+			grid-template-rows 700ms cubic-bezier(0.22, 1, 0.36, 1),
+			opacity 600ms ease-out 150ms;
+	}
+	/* All spacing lives inside this clipped box (the spacer, the margins), so the
+	   closed card has nothing left over to push its title off center. */
+	.details-inner {
+		min-height: 0;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+	.details-inner::before {
+		content: '';
+		flex: none;
+		height: 1.5cqw;
+	}
+	.details-inner > * {
+		flex: none;
+		margin: 2.2cqw 0 0;
+	}
+	.when {
+		font-size: 3.4cqw;
+		text-align: center;
+		opacity: 0.7;
+	}
+	.hosts {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 1.2cqw;
+		padding: 0;
+		list-style: none;
+	}
+	.hosts li {
+		padding: 0.35em 0.9em;
+		font-size: 2.8cqw;
+		border-radius: 999px;
+		background: oklch(0.32 0.04 250 / 0.08);
+	}
+	/* The one part that gives way when the card is full. Its line breaks are the
+	   source's paragraphs. */
+	.details-inner > .description {
+		flex: 0 1 auto;
+		min-height: 0;
+		overflow: hidden;
+		margin-top: 3cqw;
+		font-size: 3.3cqw;
+		line-height: 1.45;
+		white-space: pre-line;
+		color: oklch(0.36 0.03 250);
+	}
+	.description:global(.clipped) {
+		mask-image: linear-gradient(to bottom, #000 calc(100% - 2.6em), transparent);
 	}
 
 	/* A season's name, at the center of its island. Sized by the layout's cell,
