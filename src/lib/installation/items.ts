@@ -1,7 +1,8 @@
 /**
  * Everything the Archive Stream shows, as field items: each page of each
  * artefact, each photograph of each image set, and every event. An event with
- * a feature image shows it; one without is drawn as a card bearing its title.
+ * a feature image shows it; one without is drawn as a card bearing its title,
+ * which opens to its date, hosts and description once it is in focus.
  *
  * Each event is its own cluster, and its artefacts and photographs join it.
  * The public dataset links those by the event's title alone, and a recurring
@@ -98,6 +99,7 @@ export function buildFieldItems(data: {
 				placeholder: null,
 				title: artefact.artefact,
 				date: artefact.date,
+				details: null,
 				cluster
 			});
 		});
@@ -115,6 +117,7 @@ export function buildFieldItems(data: {
 				placeholder: image.placeholder,
 				title: set.event ?? set.description ?? '',
 				date: image.capturedDate ?? set.date,
+				details: null,
 				cluster
 			});
 		}
@@ -137,6 +140,7 @@ export function buildFieldItems(data: {
 			placeholder: null,
 			title: event.title,
 			date: event.date,
+			details: { time: event.time, description: event.description, hosts: event.hosts },
 			cluster: `event:${event.id}`
 		});
 	}

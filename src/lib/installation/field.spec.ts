@@ -12,6 +12,7 @@ import {
 	layoutField,
 	nearestItem,
 	offsetFrom,
+	openHeight,
 	orderByCluster,
 	parting,
 	roomNeeded,
@@ -36,13 +37,19 @@ const item = (
 	placeholder: null,
 	title: id,
 	date,
+	details: null,
 	cluster
 });
 
+// Clusters of four, spread over fifteen years and every month, plus some
+// known only to the year.
 const many = (n: number) =>
-	Array.from({ length: n }, (_, i) =>
-		item(`i${i}`, `c${Math.floor(i / 4)}`, `20${String(10 + (i % 15)).padStart(2, '0')}`)
-	);
+	Array.from({ length: n }, (_, i) => {
+		const c = Math.floor(i / 4);
+		const year = 2010 + (c % 15);
+		const month = String(1 + ((c * 5) % 12)).padStart(2, '0');
+		return item(`i${i}`, `c${c}`, c % 9 === 0 ? `${year}` : `${year}-${month}`);
+	});
 
 describe('wrapDelta', () => {
 	it('takes the short way round the loop', () => {
@@ -82,20 +89,21 @@ describe('orderByCluster', () => {
 });
 
 describe('groupBySeason', () => {
-	it('gathers clusters into seasons, in date order, never splitting a cluster', () => {
+	it('gathers clusters into seasons across the years, never splitting a cluster', () => {
 		const groups = groupBySeason([
 			item('undated', 'u', null),
 			item('july', 'a', '2024-07-04'),
 			item('july-photo', 'a', '2024-09-02'),
 			item('december', 'b', '2023-12-10'),
 			item('february', 'c', '2024-02'),
-			item('year', 'd', '2024')
+			item('year', 'd', '2024'),
+			item('old-summer', 'e', '2016-08-20'),
+			item('old-winter', 'f', '2017-01')
 		]);
 		expect(groups.map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
-			['2024', ['year']],
-			['Winter 2024', ['december', 'february']],
-			['Summer 2024', ['july', 'july-photo']],
-			['Undated', ['undated']]
+			['Winter', ['old-winter', 'december', 'february']],
+			['Summer', ['old-summer', 'july', 'july-photo']],
+			['Season unknown', ['year', 'undated']]
 		]);
 	});
 });
@@ -145,11 +153,14 @@ describe('layoutField', () => {
 		expect(near.length).toBeLessThan(37);
 	});
 
-	it('gives each season one bubble, in date order', () => {
-		const labels = world.groups.map((g) => g.label);
-		expect(labels).toEqual(groupBySeason(many(400)).map((g) => g.label));
-		expect(labels.length).toBeGreaterThan(5);
-		expect([...labels].sort()).toEqual(labels);
+	it('gives each season one bubble, winter to fall, then the unknown', () => {
+		expect(world.groups.map((g) => g.label)).toEqual([
+			'Winter',
+			'Spring',
+			'Summer',
+			'Fall',
+			'Season unknown'
+		]);
 	});
 
 	it('keeps the water clear at each bubble', () => {
@@ -246,6 +257,17 @@ describe('focus', () => {
 		expect(moving).toBeGreaterThan(1);
 		expect(moving).toBeLessThan(2);
 		expect(focusScale(0, 1, 4)).toBe(1);
+	});
+
+	it('opens a card as tall as its words need, up to the most it may take', () => {
+		// 800 wide, bloomed to 615 tall: words needing 1× its width want 800.
+		expect(openHeight(800, 615, 1, 1000, 1)).toBe(800);
+		expect(openHeight(800, 615, 1, 1000, 0.5)).toBeCloseTo((615 + 800) / 2);
+		expect(openHeight(800, 615, 3, 1000, 1)).toBe(1000);
+		// Words that already fit, or a cap below the bloom, leave it as it is.
+		expect(openHeight(800, 615, 0.5, 1000, 1)).toBe(615);
+		expect(openHeight(800, 615, 1, 500, 1)).toBe(615);
+		expect(openHeight(800, 615, 2, 1000, 0)).toBe(615);
 	});
 
 	it('blooms an item to fit the screen, never shrinking it', () => {
@@ -364,10 +386,10 @@ describe('buildFieldItems', () => {
 				id: 4,
 				title: 'Jazz Night: Live!  (Second set)',
 				date: null,
-				time: null,
+				time: '7:00 PM - 9:00 PM',
 				location: null,
-				description: null,
-				hosts: [],
+				description: 'Two sets.\n\nBring a chair.',
+				hosts: ['Rae', 'The Alley Band'],
 				url: null
 			}
 		]
@@ -401,6 +423,16 @@ describe('buildFieldItems', () => {
 
 	it('keeps an event title exactly as the archive holds it', () => {
 		expect(byId.get('e4')!.title).toBe('Jazz Night: Live!  (Second set)');
+	});
+
+	it('carries an event’s details verbatim, and none for pictures', () => {
+		expect(byId.get('e4')!.details).toEqual({
+			time: '7:00 PM - 9:00 PM',
+			description: 'Two sets.\n\nBring a chair.',
+			hosts: ['Rae', 'The Alley Band']
+		});
+		expect(byId.get('a1-0')!.details).toBeNull();
+		expect(byId.get('p9')!.details).toBeNull();
 	});
 
 	it('leaves out the kinds that are not wanted', () => {
