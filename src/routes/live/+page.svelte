@@ -289,23 +289,9 @@
 <main class="flex min-h-dvh flex-col items-center gap-8 px-4 pt-chrome pb-12">
 	<header class="flex flex-col items-center gap-1 text-center" data-cloud-block>
 		<p
-			class="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-sm font-medium text-gray-800 shadow-xs ring-1 ring-black/5 backdrop-blur-xs"
+			class="rounded-full bg-white/70 px-3 py-1 text-sm font-medium text-gray-800 shadow-xs ring-1 ring-black/5 backdrop-blur-xs"
 			role="status"
 		>
-			<span class="relative flex size-2.5" aria-hidden="true">
-				{#if status === 'live' || status === 'empty'}
-					<span
-						class="absolute inset-0 animate-ping rounded-full bg-red-500/60 motion-reduce:hidden"
-					></span>
-				{/if}
-				<span
-					class="relative size-2.5 rounded-full {status === 'retrying'
-						? 'bg-amber-500'
-						: status === 'connecting'
-							? 'bg-gray-400'
-							: 'bg-red-500'}"
-				></span>
-			</span>
 			{#if status === 'retrying'}
 				Reconnecting…
 			{:else if status === 'connecting'}
