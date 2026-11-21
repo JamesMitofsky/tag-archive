@@ -74,6 +74,9 @@ open -a "Google Chrome" --args --kiosk "https://<site>/installation"
 - Press `d` for the operator overlay (connection, round trip, frame rate) and `f` for fullscreen.
 - A mouse drag on the laptop also moves the field, and a trackpad pinch zooms it, as a fallback if
   the iPad's connection drops. Open the overlay (`d`) to see the zoom and how many items it shows.
+- Two fingers swiping on the laptop's trackpad steer just as one finger on the iPad does: the field
+  moves with them, and a flick glides on and settles on an item. macOS's own scroll momentum after
+  the lift is ignored in favor of the field's glide (see `src/lib/installation/trackpad.ts`).
 
 **iPad.** Open `https://<site>/installation/pad?key=<RELAY_KEY>` in Safari. Then turn on Guided
 Access (Settings › Accessibility › Guided Access), triple-click the top button, and circle Safari's

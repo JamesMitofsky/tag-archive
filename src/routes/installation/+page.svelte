@@ -26,7 +26,9 @@
 	Beside it sit sliders for how the field moves and how it is drawn (see
 	#lib/installation/knobs), each taking hold as it is dragged.
 	A mouse drag on this page moves the field too, and a trackpad or touch
-	pinch zooms it, as a fallback if the iPad's connection drops.
+	pinch zooms it, as a fallback if the iPad's connection drops. Two fingers
+	swiping on the laptop's trackpad steer it as one finger on the iPad does
+	(see #lib/installation/trackpad).
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -86,6 +88,7 @@
 		type RelayStatus
 	} from '#lib/installation/relay.ts';
 	import RelayOverlay from '#lib/installation/RelayOverlay.svelte';
+	import { createTrackpad, wheelInput } from '#lib/installation/trackpad.ts';
 
 	/** A bloom's share of the screen's width, for each share of its height. */
 	const BLOOM_WIDTH = 0.5 / 0.62;
@@ -388,8 +391,18 @@
 				loadError = error instanceof Error ? error.message : String(error);
 			});
 
+		// Two fingers on the trackpad steer like one on the iPad, at this
+		// screen's own scale (gain 1), as the mouse does.
+		const trackpad = createTrackpad({
+			down: () => sim?.down(now()),
+			drag: (dx, dy) => sim?.drag(dx, dy, now(), 1),
+			up: (vx, vy) => sim?.up(vx, vy, now(), 1)
+		});
+
 		const tick = (ms: number) => {
 			frame = requestAnimationFrame(tick);
+			// A trackpad gesture that has gone quiet lifts before the field moves on.
+			trackpad.tick(ms);
 			const dt = (ms - last) / 1000;
 			last = ms;
 			frames++;
@@ -664,15 +677,26 @@
 		// Safari gesture is ignored, so a browser sending both can't zoom twice,
 		// and so is a gesture while two fingers are already pinching on a touch
 		// screen, which the pointers above have counted.
+		//
+		// Any other wheel is two fingers swiping on the trackpad (or a mouse's
+		// wheel), and steers like a finger on the iPad. The sliders' panel still
+		// scrolls as any panel does; nowhere else scrolls or swipes back a page.
 		let safariPinch = false;
 		let safariScale = 1;
 		const onWheel = (event: WheelEvent) => {
-			if (!event.ctrlKey) return;
+			if (event.ctrlKey) {
+				event.preventDefault();
+				if (safariPinch || !sim) return;
+				const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewH : 1;
+				const delta = Math.max(-WHEEL_STEP, Math.min(WHEEL_STEP, event.deltaY * unit));
+				sim.pinch(Math.exp(-delta * 0.01), now(), 1);
+				return;
+			}
+			if (event.target instanceof Element && event.target.closest('.kinds, .knobs')) return;
 			event.preventDefault();
-			if (safariPinch || !sim) return;
-			const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewH : 1;
-			const delta = Math.max(-WHEEL_STEP, Math.min(WHEEL_STEP, event.deltaY * unit));
-			sim.pinch(Math.exp(-delta * 0.01), now(), 1);
+			// A mouse button or a finger on a touch screen is already steering.
+			if (gesture.count > 0) return;
+			trackpad.feed(wheelInput(event, viewH));
 		};
 		const onGestureStart = (event: Event) => {
 			event.preventDefault();
@@ -696,6 +720,7 @@
 		window.addEventListener('pointermove', onMove);
 		window.addEventListener('pointerup', onUp);
 		window.addEventListener('pointercancel', onUp);
+		// Not passive, or the browser scrolls, zooms or swipes back before it can be refused.
 		window.addEventListener('wheel', onWheel, { passive: false });
 		window.addEventListener('gesturestart', onGestureStart);
 		window.addEventListener('gesturechange', onGestureChange);
@@ -876,6 +901,8 @@
 	:global(html:has(.stream)) {
 		scrollbar-gutter: auto;
 		overflow: hidden;
+		/* A sideways swipe on the trackpad steers; it never goes back a page. */
+		overscroll-behavior: none;
 	}
 
 	.stream {
