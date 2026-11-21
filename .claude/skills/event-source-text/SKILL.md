@@ -1,6 +1,6 @@
 ---
 name: event-source-text
-description: Load BEFORE touching how events get their title or description in this archive. That covers importing events from ustreetcommunity.org (pnpm events:fetch / events:curate / events:import / events:restore), editing anything in src/lib/server/events-import/, changing the Claude prompt or schema used to catalog events, adding or editing events in src/lib/data/seed-data.json, writing a script or migration that sets event.title or event.description, and writing or "cleaning up" an event's text by hand. Core rule this skill carries: an event's title and description are the source page's own words, copied verbatim, and never written, summarized, paraphrased, shortened or "tidied" by a model or a person. Also load it when something looks off about event text: "the descriptions don't match the site", "it didn't take the copy from the original events", "the import rewrote the text", or a mismatch error from events:import.
+description: Load BEFORE touching how events get their title or description in this archive, and whenever the user asks for new or updated events ("get the new events on prod", "update events", "import events"), because it carries the workflow where Claude Code curates the events itself and hands the user the prod upload commands. That covers importing events from ustreetcommunity.org (pnpm events:fetch / events:curate / events:import / events:restore), editing anything in src/lib/server/events-import/, changing the Claude prompt or schema used to catalog events, adding or editing events in src/lib/data/seed-data.json, writing a script or migration that sets event.title or event.description, and writing or "cleaning up" an event's text by hand. Core rule this skill carries: an event's title and description are the source page's own words, copied verbatim, and never written, summarized, paraphrased, shortened or "tidied" by a model or a person. Also load it when something looks off about event text: "the descriptions don't match the site", "it didn't take the copy from the original events", "the import rewrote the text", or a mismatch error from events:import.
 ---
 
 # Event titles and descriptions are the source's words
@@ -71,20 +71,90 @@ All in `src/lib/server/events-import/`:
 - `curate-prompt.ts` tells Claude the text is the page's own, shows it
   examples without descriptions, and bumps `PROMPT_VERSION` whenever the
   prompt changes, so cached curations are redone.
+  - `decisionsFileSchema` is the shape of a session's `decisions.json`. It is
+    strict, so a decision can't carry a title or description.
+  - `pageForCuration` is the page input both the API and the handoff use.
 - Tests pin all of this: `verbatim.spec.ts`, `squarespace.spec.ts`,
   `curate-prompt.spec.ts` and `restore-core.spec.ts`. If you change a rule,
   change its test in the same commit, and say why.
 
 ## Workflows
 
-### Import new events
+### When the user asks for new events (Claude Code does the curating)
+
+When the user asks for new events, for prod or otherwise, Claude Code prepares
+`events.json` itself and hands back the prod commands. **It never runs
+anything against the production database**; the user runs the upload.
+
+`/login` signs in Claude Code only. The Anthropic SDK that `events:curate`
+calls needs its own `ANTHROPIC_API_KEY` or `ant auth login` profile, and
+usually has neither. So the session curates in place of the API, through the
+same guards:
+
+1. `pnpm events:fetch` saves new pages to `temp/events-import/raw/`. Read
+   `fetch-report.json` for `failed` and `gone`.
+2. `pnpm events:curate --handoff` makes no API calls. It writes
+   `temp/events-import/handoff/`:
+   - `system.md`: the exact system prompt the API gets, with the series
+     banner list and its rules.
+   - `pages.jsonl`: one `{url, page}` per new page, the same input the API
+     gets.
+3. Curate every line of `pages.jsonl` by the rules in `system.md`. For more
+   than about 50 pages, split it (`split -l 47 -d -a 1 pages.jsonl chunk-`)
+   and give each chunk to a parallel subagent that writes its own
+   `decisions-N.json`.
+   - Write `temp/events-import/decisions.json` as one array of
+     `{url, hosts, series, mayHaveException, possibleExceptionDescription}`.
+   - `decisionsFileSchema` is strict. A decision with a `title` or
+     `description` key is rejected, so never add one.
+4. `pnpm events:curate --decisions temp/events-import/decisions.json` builds
+   the entries through `toEventSource`, the same path as an API run: unknown
+   banners are dropped, hosts are trimmed, and the text is copied verbatim.
+   It then writes `events.json`.
+5. Check the result before handing it over:
+   - Every page has an entry and the counts add up.
+   - Any `series` is a real banner.
+   - Spot-check a few hosts against their pages.
+   - Count the entries dated after today. Import skips those unless
+     `--include-upcoming`, so tell the user how many there are.
+   - Run the import's verbatim check against a local database, never prod:
+     `DATABASE_URL` from `.env`, no `--apply`.
+6. Give the user this, ready to paste:
+   - a summary with counts: new, flagged with the reason for each, with a
+     series, upcoming, and gone pages;
+   - the dry run, then the apply, each one self-contained so it loads the
+     prod credentials in a subshell. A `!` command in Claude Code runs in a
+     fresh shell, so credentials loaded by one command are gone by the next.
+     Never split them into a separate "load" step.
+
+```sh
+( set -a; . ./.env.netlify-production; set +a; pnpm events:import )
+( set -a; . ./.env.netlify-production; set +a; IMPORT_CONFIRM=1 VERCEL_TOKEN='<token>' \
+  pnpm events:import --apply --as <keeper email> --write-seed )
+```
+
+Run them from an up-to-date `main`, since that is the code prod runs.
+
+- Every imported event is public as soon as it is in.
+- By default the events also land in the keeper review queue
+  (`/keeper/settings/review/events`) for an admin to check. `--publish` lands
+  them already approved.
+- Any `--apply` to a remote database purges the site's `archive` cache
+  afterwards, so it needs `VERCEL_TOKEN` and the linked Vercel project
+  (`.vercel/project.json`). Without the token the import refuses before
+  writing anything.
+- `--write-seed` appends exactly what the database inserted (`seedAdditions`
+  applies the import's own skip rules) to `src/lib/data/seed-data.json`.
+  Remind the user to commit it.
+
+### Import new events (API curation)
 
 ```sh
 pnpm events:fetch                # new pages only → temp/events-import/raw/
 pnpm events:curate               # hosts/series/flags → temp/events-import/events.json
 # review events.json: edit hosts, series and flags only
 DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' pnpm events:import            # dry run
-DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' IMPORT_CONFIRM=1 \
+DATABASE_URL='libsql://…' DATABASE_AUTH_TOKEN='…' IMPORT_CONFIRM=1 VERCEL_TOKEN='…' \
   pnpm events:import --apply --as you@example.com --write-seed
 ```
 

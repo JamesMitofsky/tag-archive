@@ -88,15 +88,24 @@ export function filterPeople(names: string[], q: string): string[] {
 	return names.filter((name) => name.toLowerCase().includes(term));
 }
 
+/** One row of the event picker: a single dated occurrence of an event title. */
+export type EventOption = { id: number; name: string; date: string | null };
+
 /**
- * Event titles: substring search across event titles, sorted by date proximity
- * to targetDate (if provided).
+ * Event picker rows: substring search across event titles, sorted by date
+ * proximity to targetDate (if provided).
+ *
+ * A recurring title ("Temperance Alley Beautification", four Saturdays running)
+ * is one event row per date, and an artefact belongs to one of them, so each
+ * occurrence is its own option, carrying its row's id for the form to post.
+ * Only exact repeats (same title, same date) collapse: they are the same choice
+ * as far as anyone picking can tell. The first in sort order is kept.
  */
 export function filterAndSortEvents(
 	events: EventItem[],
 	q: string,
 	targetDate?: string
-): { name: string; date: string | null }[] {
+): EventOption[] {
 	const term = q.trim().toLowerCase();
 	const matched = term ? events.filter((e) => e.title.toLowerCase().includes(term)) : [...events];
 
@@ -120,11 +129,13 @@ export function filterAndSortEvents(
 	}
 
 	const seen = new Set<string>();
-	const result: { name: string; date: string | null }[] = [];
+	const result: EventOption[] = [];
 	for (const e of matched) {
-		if (!seen.has(e.title)) {
-			seen.add(e.title);
-			result.push({ name: e.title, date: e.date });
+		// JSON of the pair, so no title can run into its date and fake another key.
+		const key = JSON.stringify([e.title, e.date]);
+		if (!seen.has(key)) {
+			seen.add(key);
+			result.push({ id: e.id, name: e.title, date: e.date });
 		}
 	}
 	return result;

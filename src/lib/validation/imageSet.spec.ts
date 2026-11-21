@@ -21,6 +21,7 @@ describe('parseImageSetForm', () => {
 		).toEqual({
 			description: 'Picnic',
 			event: 'Concert',
+			eventId: null,
 			imageIds: [3, 1],
 			date: '',
 			dateAuto: true
@@ -29,6 +30,13 @@ describe('parseImageSetForm', () => {
 			date: null,
 			dateAuto: false
 		});
+	});
+
+	it('reads the picked event occurrence, and anything unreadable as none', () => {
+		expect(parseImageSetForm(fd({ event: 'Concert', eventId: ' 12 ' })).eventId).toBe(12);
+		for (const eventId of ['', '0', '-3', '1.5', 'abc', '99999999999999999999']) {
+			expect(parseImageSetForm(fd({ event: 'Concert', eventId })).eventId).toBeNull();
+		}
 	});
 
 	it('parses anything but a plain number to NaN', () => {

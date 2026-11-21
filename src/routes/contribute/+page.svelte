@@ -20,7 +20,7 @@
 
 	// After an anonymous submit: the new artefact's id, shown in place of the
 	// form so it can be written on the physical item. Kept until a navigation
-	// ("Add another", the nav) clears `form`.
+	// ("Submit another", the nav) clears `form`.
 	const submitted = $derived(
 		form && 'submitted' in form && form.submitted ? (form.submitted as { id: number }) : undefined
 	);
@@ -66,7 +66,7 @@
 					class="mt-6 flex w-full items-center justify-center gap-2 rounded-sm py-3 text-base font-medium {inkButton}"
 				>
 					<ArrowCounterClockwiseIcon size={18} />
-					Add another
+					Submit another
 				</a>
 			{:else}
 				<!-- Photographs have a form of their own (they become an image set,
@@ -92,6 +92,7 @@
 					{form}
 					requireLocation={data.requireLocation}
 					locations={data.locations}
+					people={data.people}
 				/>
 			{/if}
 		</section>

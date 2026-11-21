@@ -17,7 +17,7 @@
 
 		<section class="rounded-sm bg-white/95 p-6 shadow-xl ring-1 ring-black/5">
 			<h1 class="text-2xl font-semibold tracking-tight text-gray-900">New artefact</h1>
-			<ArtefactCreateForm {form} requireLocation locations={data.locations} />
+			<ArtefactCreateForm {form} requireLocation locations={data.locations} people={data.people} />
 		</section>
 	</div>
 </main>

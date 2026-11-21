@@ -1,6 +1,6 @@
 <!--
 	A shower of watercolor petals falling from the top of the screen, painted in
-	the washes of the six program areas (#lib/programAreas) so a celebration is
+	the washes of the program areas (#lib/programAreas) so a celebration is
 	drawn from the same paint box as the rest of the archive.
 
 	It covers the viewport, clipped to it so nothing it drops can widen or

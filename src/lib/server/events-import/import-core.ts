@@ -60,6 +60,56 @@ export const titleKey = (title: string) =>
 		.replace(/[^\p{L}\p{N}]+/gu, ' ')
 		.trim();
 
+/** How the duplicate check identifies an event filed under another URL. */
+const titleDateKey = (e: { title: string; date: string }) => `${titleKey(e.title)}\u0000${e.date}`;
+
+/** What an archive (the database or the seed file) already holds, as the skip rules read it. */
+type ArchiveIndex = { urls: Set<string>; titleDates: Set<string> };
+
+const indexArchive = (
+	rows: { title: string; date: string; url: string | null }[]
+): ArchiveIndex => ({
+	urls: new Set(rows.map((r) => r.url).filter((u): u is string => !!u)),
+	titleDates: new Set(rows.map(titleDateKey))
+});
+
+/**
+ * Why an entry should not be added to an archive, or null to add it. The one
+ * set of rules for both the database (`planImport`) and the seed file
+ * (`seedAdditions`), so the two can't drift apart. `seen` collects the URLs of
+ * earlier entries in the same file.
+ */
+function skipReason(
+	e: ImportEvent,
+	archive: ArchiveIndex,
+	seen: Set<string>,
+	options: PlanOptions
+): SkipReason | null {
+	if (seen.has(e.url)) return 'repeated-in-file';
+	if (archive.urls.has(e.url)) return 'already-imported';
+	if (archive.titleDates.has(titleDateKey(e))) return 'same-title-and-date';
+	if (!options.includeUpcoming && e.date > options.today) return 'upcoming';
+	return null;
+}
+
+/**
+ * The entries to append to the seed file so it mirrors what an import adds:
+ * the same skip rules as `planImport`, applied to the seed's own events.
+ */
+export function seedAdditions(
+	seedEvents: EventSource[],
+	entries: ImportEvent[],
+	options: PlanOptions
+): ImportEvent[] {
+	const archive = indexArchive(seedEvents);
+	const seen = new Set<string>();
+	return entries.filter((e) => {
+		const reason = skipReason(e, archive, seen, options);
+		seen.add(e.url);
+		return reason === null;
+	});
+}
+
 const unique = (values: string[]) => [...new Set(values.map((v) => v.trim()).filter(Boolean))];
 
 /**
@@ -78,8 +128,7 @@ export async function planImport(
 	const existing = await db
 		.select({ title: event.title, date: event.date, url: event.url })
 		.from(event);
-	const existingUrls = new Set(existing.map((e) => e.url).filter(Boolean));
-	const existingTitleDates = new Set(existing.map((e) => `${titleKey(e.title)}\u0000${e.date}`));
+	const archive = indexArchive(existing);
 	const seriesNames = new Set(
 		(await db.select({ name: series.name }).from(series)).map((s) => s.name)
 	);
@@ -88,12 +137,7 @@ export async function planImport(
 	const skipped: ImportPlan['skipped'] = [];
 	const seen = new Set<string>();
 	for (const e of events) {
-		let reason: SkipReason | null = null;
-		if (seen.has(e.url)) reason = 'repeated-in-file';
-		else if (existingUrls.has(e.url)) reason = 'already-imported';
-		else if (existingTitleDates.has(`${titleKey(e.title)}\u0000${e.date}`)) {
-			reason = 'same-title-and-date';
-		} else if (!options.includeUpcoming && e.date > options.today) reason = 'upcoming';
+		const reason = skipReason(e, archive, seen, options);
 		seen.add(e.url);
 		if (reason) skipped.push({ event: e, reason });
 		else insert.push(e);
@@ -127,8 +171,8 @@ export async function planImport(
 export type ApplyOptions = {
 	/**
 	 * Land the events (and any new series) as proposed additions, so they wait in
-	 * the keeper review queue and stay off the public site until an admin
-	 * approves them. False publishes them immediately.
+	 * the keeper review queue for an admin to check. The events are public
+	 * either way (see `loadPublicDataset`); false lands them already approved.
 	 */
 	proposed: boolean;
 	/** The keeper the rows are attributed to; null for an unattributed system write. */

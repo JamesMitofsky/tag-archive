@@ -12,6 +12,7 @@
 <CardCloud
 	load={loadEvents}
 	filter={filterEvents}
+	dateOf={(item) => item.date}
 	ariaLabel="Search events"
 	card={page}
 	{placeholderMark}

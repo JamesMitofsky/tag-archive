@@ -7,35 +7,59 @@
 	import { Input } from '#lib/components/ui/input/index.ts';
 
 	import { loadPeople } from '#lib/dataset.ts';
+	import { rememberedPeople } from '#lib/rememberedPeople.ts';
 	import { filterPeople } from '#lib/search.ts';
 
-	type PersonResult = { id?: number; name: string };
+	type PersonResult = { name: string; existing: boolean };
 
-	// Searchable tags input backed by the local dataset (all people names).
-	// Composed from Input + Badge, mirrored into a hidden <input> as a comma-joined string.
+	// Searchable tags input over the archive's people names, mirrored into a
+	// hidden <input> as a comma-joined string. Composed from Input + Badge.
 	let {
 		name,
 		label,
 		placeholder = '',
-		prefetch = false,
+		people,
 		value = $bindable([])
 	}: {
 		name: string;
 		label?: string;
 		placeholder?: string;
-		prefetch?: boolean;
+		/**
+		 * Every name to offer, from the page's own load. Keeper pages pass it: the
+		 * public dataset, the fallback, lists only people on vetted rows and is
+		 * served from the CDN, so a name a keeper added a moment ago may be missing.
+		 */
+		people?: string[];
 		value?: string[];
 	} = $props();
 
 	let draft = $state('');
 	let open = $state(false);
-	let allPeople = $state<string[]>([]);
-	let suggestions = $state<PersonResult[]>([]);
+	let fetched = $state<string[]>([]);
+	// Names this tab put on an earlier submission (see #lib/rememberedPeople),
+	// read once mounted: the server has no session storage.
+	let remembered = $state<string[]>([]);
+	// Names typed in as new here, so one removed from the tags is still offered.
+	let introduced = $state<string[]>([]);
 	let loading = $state(false);
-	let loaded = false;
+	let loaded = $state(false);
 	let activeIndex = $state(-1);
 
 	const query = $derived(draft.trim());
+
+	// Known to the archive: what the page passed or the dataset held, plus this
+	// tab's earlier submissions, which the dataset may not list yet.
+	const known = $derived(new Set([...(people ?? fetched), ...remembered]));
+	const allPeople = $derived(
+		[...new Set([...known, ...introduced])].sort((a, b) =>
+			a.localeCompare(b, undefined, { sensitivity: 'base' })
+		)
+	);
+	const suggestions = $derived<PersonResult[]>(
+		filterPeople(allPeople, query)
+			.slice(0, 30)
+			.map((n) => ({ name: n, existing: known.has(n) }))
+	);
 
 	// Filter out items already selected as tags
 	const filteredSuggestions = $derived(suggestions.filter((item) => !value.includes(item.name)));
@@ -48,10 +72,10 @@
 	);
 
 	async function ensureLoaded() {
-		if (loaded) return;
+		if (loaded || people) return;
 		loading = true;
 		try {
-			allPeople = await loadPeople();
+			fetched = await loadPeople();
 			loaded = true;
 		} catch (e) {
 			console.error('Failed to load people:', e);
@@ -60,20 +84,9 @@
 		}
 	}
 
-	function updateSuggestions() {
-		const matched = filterPeople(allPeople, query);
-		suggestions = matched.slice(0, 30).map((n) => ({ name: n }));
-	}
-
-	$effect(() => {
-		const q = query;
-		if (loaded) {
-			updateSuggestions();
-		}
-	});
-
 	onMount(() => {
-		void ensureLoaded().then(updateSuggestions);
+		remembered = rememberedPeople();
+		void ensureLoaded();
 	});
 
 	function onInput() {
@@ -88,12 +101,12 @@
 		}
 		open = true;
 		activeIndex = -1;
-		void ensureLoaded().then(updateSuggestions);
+		void ensureLoaded();
 	}
 
 	function onOpen() {
 		open = true;
-		void ensureLoaded().then(updateSuggestions);
+		void ensureLoaded();
 	}
 
 	function handleFocusOut(event: FocusEvent) {
@@ -112,6 +125,7 @@
 		const tag = raw.trim();
 		if (tag && !value.includes(tag)) {
 			value = [...value, tag];
+			if (!allPeople.includes(tag)) introduced = [...introduced, tag];
 		}
 		draft = '';
 		open = false;
@@ -206,7 +220,7 @@
 							: 'text-gray-700'}"
 					>
 						<span>{item.name}</span>
-						<span class="text-xs text-gray-400">Existing</span>
+						<span class="text-xs text-gray-400">{item.existing ? 'Existing' : 'New'}</span>
 					</button>
 				{/each}
 

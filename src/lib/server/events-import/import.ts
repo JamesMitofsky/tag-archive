@@ -12,18 +12,19 @@
  * temp/events-import/raw/ word for word; the import refuses the whole file
  * otherwise, so a paraphrased or edited description can't reach the archive.
  *
- * By default the events land as proposed additions: they wait in the keeper
- * review queue (/keeper/settings/review/events) and reach the public site as an
- * admin approves each one — approving also refreshes the site's cached dataset.
- * --publish skips the queue: the events go public at once, and the script then
- * purges the site's `archive` cache tag itself, which needs VERCEL_TOKEN and the
- * linked Vercel project (`vercel link`, or VERCEL_PROJECT_ID and VERCEL_ORG_ID;
- * see ./purge).
+ * Every event is public as soon as it is in, approved or not. By default the
+ * events land as proposed additions, which also puts them in the keeper review
+ * queue (/keeper/settings/review/events) for an admin to check; --publish lands
+ * them already approved. Writing to a remote database, the script then purges
+ * the site's `archive` cache tag so the events show at once, which needs
+ * VERCEL_TOKEN and the linked Vercel project (`vercel link`, or
+ * VERCEL_PROJECT_ID and VERCEL_ORG_ID; see ./purge). A local database backs no
+ * deployed site, so it skips the purge.
  *
  * Options:
  *   --file <path>        entries to import (default temp/events-import/events.json)
  *   --apply              write; without it nothing is written
- *   --publish            skip the review queue (see above)
+ *   --publish            land the events approved, skipping the review queue
  *   --as <email>         attribute the rows to this keeper account
  *   --include-upcoming   also import events dated after today
  *   --write-seed         also append the entries to src/lib/data/seed-data.json
@@ -35,7 +36,13 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql';
 import { loadSeedData, type EventSource } from '../db/seed-core';
 import { user } from '../db/schema';
-import { applyImport, planImport, type ImportEvent, type SkipReason } from './import-core';
+import {
+	applyImport,
+	planImport,
+	seedAdditions,
+	type ImportEvent,
+	type SkipReason
+} from './import-core';
 import { purgeArchiveCache, vercelProject } from './purge';
 import { DEFAULT_TIME_ZONE, formatDate } from './squarespace';
 import { loadRawEvents, verbatimMismatches } from './verbatim';
@@ -62,12 +69,14 @@ if (args.apply && isRemote && process.env.IMPORT_CONFIRM !== '1') {
 	);
 }
 
-// Check the purge credentials before writing anything, so --publish can't
-// leave events public behind a stale cached dataset.
+// Check the purge credentials before writing anything, so an import can't
+// leave new events hidden behind a stale cached dataset.
 const vercelToken = process.env.VERCEL_TOKEN;
-if (args.apply && args.publish) {
+if (args.apply && isRemote) {
 	if (!vercelToken) {
-		throw new Error('--publish needs VERCEL_TOKEN to refresh the site cache afterwards.');
+		throw new Error(
+			'Importing to a remote database needs VERCEL_TOKEN to refresh the site cache afterwards.'
+		);
 	}
 	vercelProject();
 }
@@ -150,7 +159,7 @@ try {
 		console.log(`\nWould create ${plan.newPeople.length} people: ${plan.newPeople.join(', ')}`);
 	}
 	console.log(
-		`\nThey would land ${args.publish ? 'PUBLISHED (public immediately)' : 'as proposed additions in the review queue'}` +
+		`\nThey would land public, ${args.publish ? 'already approved' : 'as proposed additions in the review queue'}` +
 			`${actorId ? `, attributed to ${args.as}` : ', unattributed'}.`
 	);
 
@@ -162,7 +171,7 @@ try {
 			`\nImported ${summary.events} events, ${summary.series} new series, ` +
 				`${summary.people} new people, ${summary.hostLinks} host links.`
 		);
-		if (summary.events > 0 && args.publish) {
+		if (summary.events > 0 && isRemote) {
 			try {
 				await purgeArchiveCache(vercelToken!);
 				console.log('Purged the site cache; the events are live now.');
@@ -175,8 +184,9 @@ try {
 				);
 				process.exitCode = 1;
 			}
-		} else if (summary.events > 0) {
-			console.log('Approve them at /keeper/settings/review/events to publish.');
+		}
+		if (summary.events > 0 && !args.publish) {
+			console.log('Check and approve them at /keeper/settings/review/events.');
 		}
 
 		if (args['write-seed']) await writeSeed(events, today);
@@ -186,19 +196,19 @@ try {
 }
 
 /**
- * Append the file's entries the seed doesn't have yet (matched by URL) to the
- * end of the seed's events, so local dev mirrors the live archive. Appended,
+ * Append the file's entries the seed doesn't have yet to the end of the seed's
+ * events, so local dev mirrors the live archive. `seedAdditions` applies the
+ * import's own skip rules (URL, then title and date), so an event the database
+ * already holds under another URL isn't added to the seed twice. Appended,
  * never inserted by date: seed-core numbers events by position, and existing
  * ids must not shift.
  */
 async function writeSeed(entries: ImportEvent[], today: string) {
 	const seed = loadSeedData();
-	const seedUrls = new Set(seed.events.map((e) => e.url));
-	const additions = entries
-		.filter((e) => !seedUrls.has(e.url))
-		.filter((e) => args['include-upcoming'] || e.date <= today)
-		.filter((e, i, all) => all.findIndex((o) => o.url === e.url) === i)
-		.map(canonicalEvent);
+	const additions = seedAdditions(seed.events, entries, {
+		today,
+		includeUpcoming: args['include-upcoming']
+	}).map(canonicalEvent);
 	seed.events.push(...additions);
 	writeFileSync(SEED_PATH, await formatSeed(seed));
 	console.log(`Appended ${additions.length} events to ${SEED_PATH}.`);

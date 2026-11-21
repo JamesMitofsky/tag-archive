@@ -65,7 +65,11 @@ beforeAll(async () => {
 	]);
 	await db.insert(event).values([
 		{ id: 1, title: 'Vetted Concert', date: '2024-06-01' },
-		{ id: 2, title: 'Pending Picnic', date: '2024-07-01', proposedAddition: true }
+		{ id: 2, title: 'Pending Picnic', date: '2024-07-01', proposedAddition: true },
+		// A recurring title: one row per Saturday, the last still flagged for review.
+		{ id: 3, title: 'Temperance Alley Beautification', date: '2021-04-17' },
+		{ id: 4, title: 'Temperance Alley Beautification', date: '2021-05-01' },
+		{ id: 5, title: 'Temperance Alley Beautification', date: '2021-05-08', proposedAddition: true }
 	]);
 });
 
@@ -115,7 +119,15 @@ const byKeeper = { userId: KEEPER.id };
 const byDraft = { draft: DRAFT_ID };
 
 function form(imageIds: number[], fields: Partial<ImageSetData> = {}): ImageSetData {
-	return { description: '', event: '', imageIds, date: null, dateAuto: true, ...fields };
+	return {
+		description: '',
+		event: '',
+		eventId: null,
+		imageIds,
+		date: null,
+		dateAuto: true,
+		...fields
+	};
 }
 
 /** Create a set that must succeed, returning its id. */
@@ -196,7 +208,7 @@ describe('createImageSet', () => {
 		expect(purgeArchiveCache).not.toHaveBeenCalled();
 	});
 
-	it('links a proposed set only to a vetted event; an admin links any', async () => {
+	it('links any event, pending or vetted, whoever proposes the set', async () => {
 		const pending = await created([(await upload(byDraft)).id], asDraft(), {
 			event: 'Pending Picnic'
 		});
@@ -207,9 +219,27 @@ describe('createImageSet', () => {
 			event: 'Pending Picnic'
 		});
 
-		expect((await setRow(pending))?.eventId).toBeNull();
+		expect((await setRow(pending))?.eventId).toBe(2);
 		expect((await setRow(vetted))?.eventId).toBe(1);
 		expect((await setRow(admins))?.eventId).toBe(2);
+	});
+
+	it('links the occurrence of a recurring event that was picked, pending ones included', async () => {
+		const title = 'Temperance Alley Beautification';
+		const picked = await created([(await upload(byAdmin)).id], asAdmin, {
+			event: title,
+			eventId: 4
+		});
+		const typed = await created([(await upload(byAdmin)).id], asAdmin, { event: title });
+		// Every event is public, so a proposed set may pick the pending Saturday.
+		const proposed = await created([(await upload(byDraft)).id], asDraft(), {
+			event: title,
+			eventId: 5
+		});
+
+		expect((await setRow(picked))?.eventId).toBe(4);
+		expect((await setRow(typed))?.eventId).toBe(3);
+		expect((await setRow(proposed))?.eventId).toBe(5);
 	});
 
 	it('dates the set by the earliest day a photograph was taken, ignoring undated ones', async () => {
@@ -576,6 +606,11 @@ describe('updateImageSet', () => {
 		const id = await created([a.id]);
 		await edit(id, form([a.id], { event: 'Pending Picnic' }));
 		expect(await setRow(id)).toMatchObject({ eventId: 2, updatedBy: ADMIN.id });
+
+		// The edit form posts the linked occurrence back, pending or not, so a
+		// save keeps the day it names rather than the title's earliest.
+		await edit(id, form([a.id], { event: 'Temperance Alley Beautification', eventId: 5 }));
+		expect((await setRow(id))?.eventId).toBe(5);
 
 		const result = await edit(id, form([a.id], { dateAuto: false, date: '2024-13' }));
 		expect(result.ok).toBe(false);

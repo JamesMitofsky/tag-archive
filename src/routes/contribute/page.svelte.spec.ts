@@ -28,15 +28,25 @@ describe('/contribute', () => {
 			.element(page.getByRole('heading', { name: 'Write this number on the item' }))
 			.toHaveFocus();
 		await expect.element(page.getByText('#42')).toBeVisible();
+		// Written out by hand, so there is nothing to copy.
+		expect(page.getByRole('button', { name: /copy/i }).query()).toBeNull();
 		await expect
-			.element(page.getByRole('button', { name: 'Copy archive number' }))
-			.toBeInTheDocument();
-		await expect
-			.element(page.getByRole('link', { name: 'Add another' }))
+			.element(page.getByRole('link', { name: 'Submit another' }))
 			.toHaveAttribute('href', '/contribute');
 		// Only what's needed to label the item: no thank-you copy, no contact form.
 		expect(document.querySelector('form')).toBeNull();
 		expect(document.body.textContent).not.toMatch(/thank you|name or email/i);
+	});
+
+	it('lets a contributor say they are not sure where the item is kept', async () => {
+		await render(ContributePage, { data, form: null } as unknown as Props);
+
+		const group = page.getByRole('group', { name: 'Archival storage location' });
+		await expect.element(group.getByRole('radio', { name: 'Not sure' })).toBeChecked();
+		await group.getByRole('radio', { name: 'Binder' }).click();
+		await expect.element(group.getByRole('radio', { name: 'Binder' })).toBeChecked();
+		await group.getByRole('radio', { name: 'Not sure' }).click();
+		expect(new FormData(document.querySelector('form')!).get('location')).toBe('');
 	});
 
 	it('goes back to the form once a navigation clears the result', async () => {

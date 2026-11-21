@@ -206,6 +206,12 @@ export const artefact = sqliteTable(
 		fileUrls: text('file_urls', { mode: 'json' }).$type<string[]>().notNull().default([]),
 		// Physical storage location, e.g. "Binder" / "Bin".
 		location: text('location'),
+		// When a keeper vetted this proposed addition into the public archive (see
+		// `approveProposed`). Null for a row created already vetted, and for one
+		// approved before this column existed, whose approval time was never kept.
+		// So the moment an artefact went public is `coalesce(approved_at,
+		// created_at)`: what /live orders its arrivals by.
+		approvedAt: integer('approved_at', { mode: 'timestamp_ms' }),
 		...proposalColumns(),
 		...auditColumns()
 	},

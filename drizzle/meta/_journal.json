@@ -106,6 +106,13 @@
       "when": 1795204865237,
       "tag": "0014_drop_submission_contacts",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1795219044213,
+      "tag": "0015_artefact_approved_at",
+      "breakpoints": true
     }
   ]
 }

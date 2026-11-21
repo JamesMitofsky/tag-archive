@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { createArtefact, knownLocations } from '#lib/server/artefacts.ts';
+import { listPersonNames } from '#lib/server/db/queries.ts';
 import { readDraft, submissionPrefix } from '#lib/server/drafts.ts';
 import { consume, LIMITS } from '#lib/server/rateLimit.ts';
 import { keyFromUrl } from '#lib/server/scans.ts';
@@ -13,6 +14,11 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
 	const signedIn = !!locals.user;
+	const [locations, people] = await Promise.all([
+		knownLocations(),
+		// A keeper may see every name; anyone else, only the public dataset's.
+		signedIn ? listPersonNames() : undefined
+	]);
 	return {
 		signedIn,
 		// Keepers record where the physical item is kept; the public may not know.
@@ -21,7 +27,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 		// the garden tag started (see #lib/server/drafts), for as long as their
 		// access pass is open (see #lib/access/pass).
 		canContribute: signedIn || (!!locals.pass && !!readDraft(cookies)),
-		locations: await knownLocations()
+		locations,
+		people
 	};
 };
 

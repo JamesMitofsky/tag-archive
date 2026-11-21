@@ -1,12 +1,13 @@
 import type { FeatureImage } from '#lib/featureImage.ts';
 
 /**
- * A U Street community event, normalised from the static source export
- * (src/lib/data/seed-data.json). Loaded + searched server-side only
- * (see #lib/server/events); the client never receives the full 1300+ list.
+ * A U Street community event as the public dataset carries it (see
+ * `loadPublicDataset` in #lib/server/db/queries): every vetted event, searched
+ * in the browser.
  */
 export interface EventItem {
-	// Stable id = index in the source export (order never changes).
+	// The event row's id (`event.id`). The event picker posts it so a form links
+	// the very occurrence picked, not just one with the same title.
 	id: number;
 	title: string;
 	date: string | null;
