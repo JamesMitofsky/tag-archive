@@ -1,7 +1,8 @@
 <!--
 	An artefact's attachments, drawn inside its card. A closed card shows the
 	first file and a "+N more" badge; an opened one (`paged`) can step through
-	every file with the arrow buttons or the keyboard's left and right arrows.
+	every file with the arrow buttons, the keyboard's left and right arrows, or
+	a horizontal swipe on a touchscreen.
 -->
 <script lang="ts">
 	import Skeleton from '#lib/components/ui/skeleton/skeleton.svelte';
@@ -74,6 +75,90 @@
 		index = Math.min(Math.max(current + delta, 0), count - 1);
 	}
 
+	/**
+	 * A swipe in progress: where the finger came down, and how far the page has
+	 * been dragged after it. Touch and pen only. A mouse drag over the page
+	 * already means something (selecting its text, dragging the image out), and
+	 * a desktop has the arrows and the keyboard.
+	 */
+	let swipe: { id: number; x: number; y: number; t: number } | null = null;
+	let dragX = $state(0);
+	let dragging = $state(false);
+	/** A turned page is being put on its entry side, which mustn't be animated. */
+	let placing = $state(false);
+
+	/** How far, as a share of the preview's width, a slow swipe must travel to turn the page. */
+	const SWIPE_DISTANCE = 0.2;
+	/** A flick this fast (px/ms) turns the page however short it was. */
+	const SWIPE_VELOCITY = 0.4;
+	/** Past the first or last page the drag still moves, but only this much of the finger's travel. */
+	const EDGE_RESISTANCE = 0.3;
+
+	function onPointerDown(e: PointerEvent) {
+		if (!canPage || swipe || e.pointerType === 'mouse' || !e.isPrimary) return;
+		// A swipe may start on an arrow, where a thumb often rests. A tap there is
+		// still the arrow's: only once the finger moves sideways does the capture
+		// below take the pointer, and the click with it.
+		swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp };
+	}
+
+	function onPointerMove(e: PointerEvent) {
+		if (!swipe || e.pointerId !== swipe.id) return;
+		const dx = e.clientX - swipe.x;
+		const dy = e.clientY - swipe.y;
+		if (!dragging) {
+			// Wait to see which way the finger is going. `touch-action: pan-y` has
+			// already handed vertical movement to the browser (which then cancels
+			// this pointer), so this only rules out a jittery tap.
+			if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+			dragging = true;
+			(e.currentTarget as Element).setPointerCapture(e.pointerId);
+		}
+		const pastEdge = (dx > 0 && current === 0) || (dx < 0 && current === count - 1);
+		dragX = pastEdge ? dx * EDGE_RESISTANCE : dx;
+	}
+
+	function onPointerUp(e: PointerEvent) {
+		if (!swipe || e.pointerId !== swipe.id) return;
+		const dx = e.clientX - swipe.x;
+		const elapsed = Math.max(e.timeStamp - swipe.t, 1);
+		const width = (e.currentTarget as Element).clientWidth || 1;
+		const far = Math.abs(dx) > width * SWIPE_DISTANCE;
+		const fast = Math.abs(dx) / elapsed > SWIPE_VELOCITY && Math.abs(dx) > 30;
+		const turn = dragging && (far || fast) ? (dx < 0 ? 1 : -1) : 0;
+		if (turn && current + turn >= 0 && current + turn < count) {
+			go(turn);
+			enterFrom(turn * width * 0.25);
+		} else {
+			endSwipe();
+		}
+	}
+
+	/**
+	 * Lets a page turned by a swipe slide in from the side it is coming from,
+	 * not back from where the finger left the old one: it is placed there with
+	 * the transition off, and once that has painted, released to the middle.
+	 */
+	function enterFrom(offset: number) {
+		swipe = null;
+		dragging = false;
+		placing = true;
+		dragX = offset;
+		requestAnimationFrame(() =>
+			requestAnimationFrame(() => {
+				placing = false;
+				// A new swipe may already have taken hold of the page.
+				if (!dragging) dragX = 0;
+			})
+		);
+	}
+
+	function endSwipe() {
+		swipe = null;
+		dragging = false;
+		dragX = 0;
+	}
+
 	function handleKey(e: KeyboardEvent) {
 		if (!canPage || e.defaultPrevented) return;
 		if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
@@ -98,37 +183,51 @@
 		role={canPage ? 'group' : undefined}
 		aria-roledescription={canPage ? 'carousel' : undefined}
 		aria-label={canPage ? `${artefactName}: files` : undefined}
+		style:touch-action={canPage ? 'pan-y pinch-zoom' : undefined}
+		onpointerdown={onPointerDown}
+		onpointermove={onPointerMove}
+		onpointerup={onPointerUp}
+		onpointercancel={endSwipe}
 	>
-		{#if isImage}
-			{#if !settled[url]}
-				<Skeleton class="absolute inset-0 h-full w-full rounded-sm bg-gray-200" />
-			{/if}
-			<!-- Keyed on the URL so each page is a fresh <img>: reusing one and swapping
-			     its src would keep showing the old page until the new one decoded. -->
-			{#key url}
-				<OptimizedImage
-					src={url}
-					alt={canPage ? `${artefactName}, file ${current + 1} of ${count}` : artefactName}
-					{sizes}
-					loading={canPage ? 'eager' : 'lazy'}
-					class="h-full w-full rounded-sm object-contain transition-opacity duration-300 {settled[
-						url
-					]
-						? 'opacity-100'
-						: 'opacity-0'}"
-					onload={() => markSettled(url)}
-					onerror={() => markSettled(url)}
-				/>
-			{/key}
-		{:else}
-			<div class="flex items-center gap-1.5 p-3 text-xs text-gray-600">
-				<PaperclipIcon size={16} class="shrink-0" />
-				<span class="truncate font-medium">{fileName}</span>
-				{#if count > 1 && !paged}
-					<span class="ml-1 shrink-0 text-[0.65rem] text-gray-400">({count} files)</span>
-				{/if}
-			</div>
+		{#if isImage && !settled[url]}
+			<Skeleton class="absolute inset-0 h-full w-full rounded-sm bg-gray-200" />
 		{/if}
+		<!-- What the finger drags. It springs back to the middle when let go, and a
+		     page turned by the swipe simply arrives there. -->
+		<div
+			class="flex h-full w-full items-center justify-center {dragging || placing
+				? ''
+				: 'transition-transform duration-200 ease-out motion-reduce:transition-none'}"
+			style:transform={dragX ? `translateX(${dragX}px)` : undefined}
+		>
+			{#if isImage}
+				<!-- Keyed on the URL so each page is a fresh <img>: reusing one and swapping
+			     its src would keep showing the old page until the new one decoded. -->
+				{#key url}
+					<OptimizedImage
+						src={url}
+						alt={canPage ? `${artefactName}, file ${current + 1} of ${count}` : artefactName}
+						{sizes}
+						loading={canPage ? 'eager' : 'lazy'}
+						class="h-full w-full rounded-sm object-contain transition-opacity duration-300 {settled[
+							url
+						]
+							? 'opacity-100'
+							: 'opacity-0'}"
+						onload={() => markSettled(url)}
+						onerror={() => markSettled(url)}
+					/>
+				{/key}
+			{:else}
+				<div class="flex items-center gap-1.5 p-3 text-xs text-gray-600">
+					<PaperclipIcon size={16} class="shrink-0" />
+					<span class="truncate font-medium">{fileName}</span>
+					{#if count > 1 && !paged}
+						<span class="ml-1 shrink-0 text-[0.65rem] text-gray-400">({count} files)</span>
+					{/if}
+				</div>
+			{/if}
+		</div>
 
 		{#each neighbors as n (n)}
 			<OptimizedImage
