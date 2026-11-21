@@ -16,6 +16,7 @@ import {
 } from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
 import type { EventItem } from '#lib/events.ts';
+import type { LiveArrival } from '#lib/live.ts';
 import type { FeatureImage } from '#lib/featureImage.ts';
 import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
 import { isFullDate } from '#lib/partialDate.ts';
@@ -352,6 +353,39 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 }
 
 /**
+ * The /live feed (#lib/live): the `limit` vetted artefacts that most recently
+ * went public, newest first. Arrival is `coalesce(approved_at, created_at)`: an
+ * approved submission arrived when it was approved, however long it waited, and
+ * an artefact a keeper made already vetted arrived when it was made. Vetted rows
+ * only, like the public blob, and its columns picked one by one, never spread,
+ * so nothing the page doesn't draw (the actor columns, storage location) leaves.
+ *
+ * No index serves the expression order: it sorts every vetted row, which is
+ * nothing at this archive's size, and the CDN answers nearly every poll anyway
+ * (see src/routes/api/live).
+ */
+export async function loadLiveArrivals(limit: number): Promise<LiveArrival[]> {
+	const arrivedAt = sql<number>`coalesce(${artefact.approvedAt}, ${artefact.createdAt})`;
+	const rows = await db
+		.select({
+			id: artefact.id,
+			artefact: artefact.artefact,
+			event: event.title,
+			date: artefact.date,
+			description: artefact.description,
+			programArea: artefact.programArea,
+			fileUrls: artefact.fileUrls,
+			arrivedAt
+		})
+		.from(artefact)
+		.leftJoin(event, eq(artefact.eventId, event.id))
+		.where(eq(artefact.proposedAddition, false))
+		.orderBy(desc(arrivedAt), desc(artefact.id))
+		.limit(limit);
+	return attachProvenance(rows);
+}
+
+/**
  * Every person's name, vetted or not, for a keeper's provenance picker. Keepers
  * already see unvetted rows and their provenance in the keeper lists, and read
  * fresh from the database, a name added on the last artefact is offered on the
@@ -460,9 +494,16 @@ const reviewTable = { artefact, event, series, imageSet } as const;
  *  the row is already vetted or gone. */
 export async function approveProposed(kind: ReviewKind, id: number, userId: string): Promise<void> {
 	const table = reviewTable[kind];
+	// An artefact also records the moment it went public, which /live orders its
+	// arrivals by. In the same statement as the flag, so a row can never be public
+	// without its stamp; the shared `set` below can't name an artefact-only column.
+	const set =
+		kind === 'artefact'
+			? { proposedAddition: false, approvedAt: new Date(), ...stampUpdate(userId) }
+			: { proposedAddition: false, ...stampUpdate(userId) };
 	await db
 		.update(table)
-		.set({ proposedAddition: false, ...stampUpdate(userId) })
+		.set(set)
 		.where(and(eq(table.id, id), eq(table.proposedAddition, true)));
 	// A vetted row becomes visible in the public blob — refresh it.
 	await purgeArchiveCache();
