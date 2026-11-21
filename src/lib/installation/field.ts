@@ -125,7 +125,7 @@ export function orderByCluster(items: readonly FieldItem[]): FieldItem[] {
  * water rather than as a grid.
  */
 export function layoutField(items: readonly FieldItem[], options: LayoutOptions): World {
-	const { viewW, viewH, perScreen = 24, emptyShare = 0.14, seed = 7 } = options;
+	const { viewW, viewH, perScreen = 37, emptyShare = 0.14, seed = 7 } = options;
 	const random = seededRandom(seed);
 	const cell = Math.sqrt((viewW * viewH) / perScreen);
 	const ordered = orderByCluster(items);

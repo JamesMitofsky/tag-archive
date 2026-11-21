@@ -20,7 +20,7 @@ export type View = {
 	captionAfter: number;
 };
 
-export const VIEW: View = { perScreen: 24, lens: 0.18, bloom: 0.62, captionAfter: 0.7 };
+export const VIEW: View = { perScreen: 37, lens: 0.18, bloom: 0.62, captionAfter: 0.7 };
 
 type TunedKey =
 	| 'gain'
