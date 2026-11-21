@@ -95,6 +95,17 @@
 	 * its mind, as a share: so a pinch resting on a threshold doesn't flicker.
 	 */
 	const HYSTERESIS = 0.06;
+	/**
+	 * The share of its size a thing keeps as it finishes stepping aside, or
+	 * starts coming back: it dwindles almost to a point rather than vanishing
+	 * at full size.
+	 */
+	const LOD_SMALLEST = 0.03;
+	/**
+	 * How far into its fade (presence, 0..1) a thing stays solid: it only turns
+	 * clear over this last stretch, once it has already shrunk to a speck.
+	 */
+	const LOD_CLEAR = 0.2;
 	/** A season bubble's type size, as a share of a layout cell at zoom 1. */
 	const BUBBLE_FONT = 0.17;
 	/** The smallest type (px) a season bubble keeps before it steps aside. */
@@ -185,6 +196,10 @@
 
 	/** Eases a presence (0..1) for drawing, so a fade starts and lands gently. */
 	const ease = (p: number) => smoothstep(0, 1, p);
+	/** The share of its size a thing is drawn at, by its eased presence. */
+	const dwindle = (shown: number) => LOD_SMALLEST + (1 - LOD_SMALLEST) * shown;
+	/** How solid a thing is drawn, by its presence: clear only at the very end. */
+	const solidity = (p: number) => smoothstep(0, LOD_CLEAR, p);
 
 	/** The zooms that depend on the layout and the screen: thresholds, and how far out it may go. */
 	function fitZoom() {
@@ -355,7 +370,14 @@
 			const halfH = viewH / 2 + margin;
 
 			// Which items are wanted and near the screen, and which is most in focus.
-			const near: { placed: Placed; x: number; y: number; focus: number; shown: number }[] = [];
+			const near: {
+				placed: Placed;
+				x: number;
+				y: number;
+				focus: number;
+				shown: number;
+				solid: number;
+			}[] = [];
 			let best: (typeof near)[number] | null = null;
 			let shownCount = 0;
 			for (let i = 0; i < w.placed.length; i++) {
@@ -374,7 +396,7 @@
 				if (Math.abs(x) > halfW || Math.abs(y) > halfH) continue;
 				const shown = ease(presence[i]);
 				const focus = focusAmount(Math.hypot(x, y), lensRadius) * lensAt * shown;
-				const entry = { placed, x, y, focus, shown };
+				const entry = { placed, x, y, focus, shown, solid: solidity(presence[i]) };
 				near.push(entry);
 				if (focus > 0 && (!best || focus > best.focus)) best = entry;
 			}
@@ -417,8 +439,7 @@
 				const { placed } = entry;
 				const isBest = entry === best;
 				const focused = isBest ? bestScale : focusScale(entry.focus, calm, bloomOf(placed));
-				// Stepping aside, an item shrinks a little as it fades.
-				const scale = grown * focused * (0.6 + 0.4 * entry.shown);
+				const scale = grown * focused;
 				let x = entry.x;
 				let y = entry.y;
 				if (!isBest && best) {
@@ -435,21 +456,27 @@
 				x += Math.sin((t / 9 + placed.phase) * Math.PI * 2) * bob * 0.6;
 				y += Math.sin((t / 7 + placed.phase) * Math.PI * 2) * bob;
 
-				const width = placed.w * scale;
-				const height = placed.h * scale;
+				const fullW = placed.w * scale;
+				const fullH = placed.h * scale;
 				// Sized rather than scaled once still, so a bloomed picture or card
-				// text is drawn crisp at its full size instead of stretched.
+				// text is drawn crisp at its full size instead of stretched. It is
+				// laid out at the size it has when fully present, so a card stepping
+				// aside dwindles whole instead of its text rewrapping into a sliver.
 				let laidW = sizes.get(placed.item.id) ?? 0;
 				const drift = entry.shown === 1 ? tolerance : 0.35;
-				if (!laidW || Math.abs(width / laidW - 1) > drift) {
-					laidW = width;
-					sizes.set(placed.item.id, width);
-					element.style.width = `${width}px`;
-					element.style.height = `${height}px`;
+				if (!laidW || Math.abs(fullW / laidW - 1) > drift) {
+					laidW = fullW;
+					sizes.set(placed.item.id, fullW);
+					element.style.width = `${fullW}px`;
+					element.style.height = `${fullH}px`;
 				}
+				// Stepping aside, an item dwindles almost to a point before it clears.
+				const shrink = dwindle(entry.shown);
+				const width = fullW * shrink;
+				const height = fullH * shrink;
 				element.style.transform = `translate3d(${viewW / 2 + x - width / 2}px, ${viewH / 2 + y - height / 2}px, 0) scale(${width / laidW})`;
 				const rest = 0.45 + 0.35 * calm;
-				element.style.opacity = String((rest + (1 - rest) * entry.focus) * entry.shown);
+				element.style.opacity = String((rest + (1 - rest) * entry.focus) * entry.solid);
 				element.style.zIndex = isBest ? '3' : entry.focus > 0 ? '2' : '1';
 			}
 
@@ -491,8 +518,8 @@
 				}
 				const shown = ease(state.presence);
 				element.style.visibility = 'visible';
-				element.style.transform = `translate3d(${viewW / 2 + x}px, ${viewH / 2 + y}px, 0) scale(${(bubbleFont / state.font) * (0.6 + 0.4 * shown)})`;
-				element.style.opacity = String(0.92 * (1 - 0.6 * bloomAmount) * shown);
+				element.style.transform = `translate3d(${viewW / 2 + x}px, ${viewH / 2 + y}px, 0) scale(${(bubbleFont / state.font) * dwindle(shown)})`;
+				element.style.opacity = String(0.92 * (1 - 0.6 * bloomAmount) * solidity(state.presence));
 			}
 
 			if (lens) lens.style.opacity = String(0.6 * lensAt * (1 - Math.min(1, bloomAmount * 1.4)));
