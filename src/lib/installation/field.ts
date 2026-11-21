@@ -19,6 +19,14 @@ import { seasonOf, type Season } from './season.ts';
 
 export type FieldKind = 'artefact' | 'photo' | 'event';
 
+/** What an event card shows beyond its title once it is in focus. */
+export type EventDetails = {
+	time: string | null;
+	/** The source page's own words (see AGENTS.md), shown as they are. */
+	description: string | null;
+	hosts: string[];
+};
+
 export type FieldItem = {
 	id: string;
 	kind: FieldKind;
@@ -28,10 +36,15 @@ export type FieldItem = {
 	aspect: number;
 	/** A ThumbHash (see #lib/images/placeholder) shown until the image loads. */
 	placeholder: string | null;
-	/** Shown under the item when it is in focus, exactly as the archive holds it. */
+	/**
+	 * Exactly as the archive holds it. A picture shows it under itself when in
+	 * focus; an event card bears it.
+	 */
 	title: string;
 	/** A partial date (see #lib/partialDate), or null when undated. */
 	date: string | null;
+	/** An event's details, null for artefact pages and photographs. */
+	details: EventDetails | null;
 	/** Items with the same key sit together. */
 	cluster: string;
 };
@@ -458,6 +471,25 @@ export function bloomScale(
 	widthShare = 0.5
 ): number {
 	return Math.max(1, Math.min((viewH * heightShare) / h, (viewW * widthShare) / w));
+}
+
+/**
+ * An event card's height as it opens to its details, `open` of the way there
+ * (0..1). It grows from its bloomed `height` toward the height its words take,
+ * `need`, which is a multiple of its width: the card's type is sized by its
+ * width, so that multiple holds at any size, and growing taller rather than
+ * larger is what makes more room. It never grows past `max`, beyond which a
+ * long description is cut short, and never shrinks below where it started.
+ */
+export function openHeight(
+	width: number,
+	height: number,
+	need: number,
+	max: number,
+	open: number
+): number {
+	const target = Math.max(height, Math.min(width * need, max));
+	return height + (target - height) * open;
 }
 
 /**

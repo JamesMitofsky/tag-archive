@@ -48,6 +48,7 @@
 		layoutField,
 		nearestItem,
 		offsetFrom,
+		openHeight,
 		parting,
 		roomNeeded,
 		smoothstep,
@@ -88,6 +89,11 @@
 
 	/** A bloom's share of the screen's width, for each share of its height. */
 	const BLOOM_WIDTH = 0.5 / 0.62;
+	/**
+	 * How quickly an event card grows to hold its details, per second: about
+	 * as long as its details take to unfold (see `.details`).
+	 */
+	const OPEN_RATE = 6;
 	/** How long a thing takes to step aside, or come back, as the zoom changes (s). */
 	const LOD_FADE = 0.45;
 	/**
@@ -105,8 +111,14 @@
 	let world = $state.raw<World | null>(null);
 	let visible = $state.raw<Placed[]>([]);
 	let bloomId = $state<string | null>(null);
+	/**
+	 * The focused item once the field has been still on it for `captionAfter`.
+	 * Then it says what it is: a picture by a caption under it, an event card by
+	 * opening to its details.
+	 */
+	let settledId = $state<string | null>(null);
+	/** The focused picture's caption. An event card carries its own words instead. */
 	let caption = $state<{ title: string; date: string | null } | null>(null);
-	let captionShown = $state(false);
 	let loadError = $state<string | null>(null);
 	let overlay = $state(false);
 	let relayStatus = $state<RelayStatus | null>(null);
@@ -145,13 +157,31 @@
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const elements = new Map<string, HTMLElement>();
 	/**
-	 * The width each mounted item was last laid out at. While the zoom or a
+	 * The size each mounted item was last laid out at. While the zoom or a
 	 * fade is under way, items are scaled from it rather than laid out afresh
 	 * every frame, which hundreds at once would make slow, and they are laid out
 	 * at their exact size, crisp, once it settles.
 	 */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
-	const sizes = new Map<string, number>();
+	const sizes = new Map<string, { width: number; height: number }>();
+	/**
+	 * How far each event card is through opening to its details, 0..1: rising
+	 * while it is the settled one, falling once it isn't. Only cards on their
+	 * way open or closed are in here.
+	 */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const openness = new Map<string, number>();
+	/** Each card's height when open, as a multiple of its width (see `needOf`). */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const needs = new Map<string, number>();
+	/**
+	 * Where an event card is measured (see `needOf`): off screen, wide enough
+	 * that rounding doesn't matter, and a container, so the copy's type
+	 * resolves as it would on a card this wide. Made here rather than in the
+	 * markup because what goes in it is a copy the page puts there itself.
+	 */
+	let measurer: HTMLElement | null = null;
+	const MEASURE_WIDTH = 1000;
 	/** Each season's bubble, by its group's key. */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const bubbles = new Map<string, HTMLElement>();
@@ -233,6 +263,7 @@
 		// fading in. Pictures outrank cards: every picture is placed in the
 		// thinning order before any card.
 		sizes.clear();
+		openness.clear();
 		visibleKey = null;
 		room = thinningRoom(laid, (p) => (isPicture(p.item) ? 0 : 1));
 		wanted = new Uint8Array(laid.placed.length);
@@ -263,6 +294,48 @@
 	function shownValue(knob: Knob): string {
 		const digits = knob.step < 0.1 ? 2 : knob.step < 1 ? 1 : 0;
 		return `${knobs[knob.key].toFixed(digits)}${knob.unit ? ` ${knob.unit}` : ''}`;
+	}
+
+	/**
+	 * Fades a description's last lines when the card can't hold all of it, and
+	 * only then, so a short one isn't faded at its end for nothing. Watched
+	 * rather than checked once, because the card is still growing as it opens.
+	 */
+	function fadeWhenClipped(node: HTMLElement) {
+		const check = () => node.classList.toggle('clipped', node.scrollHeight > node.clientHeight + 1);
+		const observer = new ResizeObserver(check);
+		observer.observe(node);
+		return () => observer.disconnect();
+	}
+
+	/**
+	 * The height an event card's words take when it is open, as a multiple of
+	 * its width. Measured once per card, on a copy laid out open at no fixed
+	 * height. Every size inside the card is a share of its width, so one
+	 * measurement holds at whatever size the card is drawn.
+	 */
+	function needOf(id: string): number {
+		const known = needs.get(id);
+		if (known !== undefined) return known;
+		const body = elements.get(id)?.querySelector('.card-body');
+		if (!body) return 0;
+		if (!measurer) {
+			measurer = document.createElement('div');
+			measurer.style.cssText = `position: fixed; left: -${2 * MEASURE_WIDTH}px; top: 0; width: ${MEASURE_WIDTH}px; container-type: inline-size; visibility: hidden; pointer-events: none;`;
+			document.body.append(measurer);
+		}
+		const copy = body.cloneNode(true) as HTMLElement;
+		copy.classList.add('open');
+		measurer.replaceChildren(copy);
+		const need = copy.offsetHeight / MEASURE_WIDTH;
+		measurer.replaceChildren();
+		needs.set(id, need);
+		return need;
+	}
+
+	/** An event's date and time, on one line. */
+	function when(date: string | null, time: string | null): string {
+		return [date && formatPartialDate(date), time].filter(Boolean).join(' · ');
 	}
 
 	onMount(() => {
@@ -405,8 +478,31 @@
 				bloomScale(p.w * grown, p.h * grown, viewW, viewH, view.bloom, view.bloom * BLOOM_WIDTH);
 			const bestScale = best ? focusScale(best.focus, calm, bloomOf(best.placed)) : 1;
 			const bloomAmount = best ? best.focus * calm : 0;
-			const reach = best
-				? (Math.max(best.placed.w, best.placed.h) * grown * bestScale) / 2 + w.cell * grown * 0.35
+
+			// The settled event card opens; any other on its way open closes again.
+			const settledItem = best?.placed.item.id === settledId ? best?.placed.item : null;
+			if (settledItem && !settledItem.src && settledItem.details && !openness.has(settledItem.id)) {
+				openness.set(settledItem.id, 0);
+			}
+			const toward = 1 - Math.exp(-dt * OPEN_RATE);
+			for (const [id, amount] of openness) {
+				const target = id === settledId ? 1 : 0;
+				const next = amount + (target - amount) * toward;
+				if (target === 0 && next < 0.001) openness.delete(id);
+				else openness.set(id, next);
+			}
+			/** An item's size at a scale: an opening card is taller than its bloom. */
+			const sizeOf = (placed: Placed, scale: number) => {
+				const width = placed.w * scale;
+				const height = placed.h * scale;
+				const open = openness.get(placed.item.id);
+				if (!open) return { width, height };
+				const max = viewH * view.cardMax;
+				return { width, height: openHeight(width, height, needOf(placed.item.id), max, open) };
+			};
+			const bestSize = best ? sizeOf(best.placed, grown * bestScale) : null;
+			const reach = bestSize
+				? Math.max(bestSize.width, bestSize.height) / 2 + w.cell * grown * 0.35
 				: 0;
 			// Laid out afresh only once the size has drifted this far, while moving.
 			const tolerance = sim.zooming ? 0.35 : 0.002;
@@ -435,19 +531,24 @@
 				x += Math.sin((t / 9 + placed.phase) * Math.PI * 2) * bob * 0.6;
 				y += Math.sin((t / 7 + placed.phase) * Math.PI * 2) * bob;
 
-				const width = placed.w * scale;
-				const height = placed.h * scale;
+				const { width, height } = sizeOf(placed, scale);
 				// Sized rather than scaled once still, so a bloomed picture or card
-				// text is drawn crisp at its full size instead of stretched.
-				let laidW = sizes.get(placed.item.id) ?? 0;
+				// text is drawn crisp at its full size instead of stretched. A scale
+				// keeps the shape an item was laid out at, so an event card growing
+				// taller as it opens is laid out afresh whenever its height parts from it.
+				let laid = sizes.get(placed.item.id);
 				const drift = entry.shown === 1 ? tolerance : 0.35;
-				if (!laidW || Math.abs(width / laidW - 1) > drift) {
-					laidW = width;
-					sizes.set(placed.item.id, width);
+				if (
+					!laid ||
+					Math.abs(width / laid.width - 1) > drift ||
+					Math.abs((height * laid.width) / width - laid.height) > 0.5
+				) {
+					laid = { width, height };
+					sizes.set(placed.item.id, laid);
 					element.style.width = `${width}px`;
 					element.style.height = `${height}px`;
 				}
-				element.style.transform = `translate3d(${viewW / 2 + x - width / 2}px, ${viewH / 2 + y - height / 2}px, 0) scale(${width / laidW})`;
+				element.style.transform = `translate3d(${viewW / 2 + x - width / 2}px, ${viewH / 2 + y - height / 2}px, 0) scale(${width / laid.width})`;
 				const rest = 0.45 + 0.35 * calm;
 				element.style.opacity = String((rest + (1 - rest) * entry.focus) * entry.shown);
 				element.style.zIndex = isBest ? '3' : entry.focus > 0 ? '2' : '1';
@@ -497,22 +598,21 @@
 
 			if (lens) lens.style.opacity = String(0.6 * lensAt * (1 - Math.min(1, bloomAmount * 1.4)));
 
-			// What's in focus, for the caption and the full-size picture.
+			// What's in focus, for the caption, the card's details and the full-size picture.
 			const focused = best && best.focus > 0.5 ? best : null;
 			const id = focused?.placed.item.id ?? null;
 			if (id !== focusedId) {
 				focusedId = id;
 				stillSince = null;
-				captionShown = false;
-				caption = focused
-					? { title: focused.placed.item.title, date: focused.placed.item.date }
-					: null;
+				settledId = null;
+				const item = focused?.placed.item;
+				caption = item?.src ? { title: item.title, date: item.date } : null;
 			}
 			const settled = !!focused && focused.focus > 0.85 && calm > 0.9;
 			if (settled) stillSince ??= t;
 			else stillSince = null;
-			const showCaption = stillSince !== null && t - stillSince > view.captionAfter;
-			if (showCaption !== captionShown) captionShown = showCaption;
+			const nextSettled = stillSince !== null && t - stillSince > view.captionAfter ? id : null;
+			if (nextSettled !== settledId) settledId = nextSettled;
 			const nextBloom = focused && bloomAmount > 0.6 ? id : bloomId === id ? bloomId : null;
 			if (nextBloom !== bloomId) bloomId = nextBloom;
 			if (captionEl && focused) {
@@ -603,6 +703,8 @@
 
 		return () => {
 			disposed = true;
+			measurer?.remove();
+			measurer = null;
 			cancelAnimationFrame(frame);
 			relay?.close();
 			window.removeEventListener('resize', onResize);
@@ -674,18 +776,45 @@
 					/>
 				{/if}
 			{:else}
-				<!-- Smaller type for a longer title, so the whole of it fits. -->
-				<span
-					class="title"
-					style:--fit={Math.min(1, Math.sqrt(36 / Math.max(1, item.title.length)))}
-				>
-					{item.title}
-				</span>
+				<!-- An event card. Settled on, it opens: the title shrinks and rises, and
+				     the event's details unfold beneath it. They stay mounted while closed
+				     (at no height) so that closing plays the same unfolding backwards. -->
+				<div class="card-body" class:open={settledId === item.id}>
+					<!-- Smaller type for a longer title, so the whole of it fits. -->
+					<span
+						class="title"
+						style:--fit={Math.min(1, Math.sqrt(36 / Math.max(1, item.title.length)))}
+					>
+						{item.title}
+					</span>
+					{#if item.details}
+						{@const details = item.details}
+						{@const whenLine = when(item.date, details.time)}
+						<div class="details">
+							<div class="details-inner">
+								{#if whenLine}<p class="when">{whenLine}</p>{/if}
+								{#if details.hosts.length}
+									<ul class="hosts">
+										{#each details.hosts as host, i (i)}<li>{host}</li>{/each}
+									</ul>
+								{/if}
+								{#if details.description}
+									<p class="description" {@attach fadeWhenClipped}>{details.description}</p>
+								{/if}
+							</div>
+						</div>
+					{/if}
+				</div>
 			{/if}
 		</div>
 	{/each}
 
-	<p class="caption" class:shown={captionShown && caption} bind:this={captionEl} aria-live="polite">
+	<p
+		class="caption"
+		class:shown={caption && settledId !== null}
+		bind:this={captionEl}
+		aria-live="polite"
+	>
 		{#if caption}
 			<span class="caption-title">{caption.title}</span>
 			{#if caption.date}<span class="caption-date">{formatPartialDate(caption.date)}</span>{/if}
@@ -872,20 +1001,104 @@
 
 	.item.card {
 		container-type: size;
-		display: grid;
-		place-items: center;
 		background-color: oklch(0.98 0.012 90);
 		background-image: url('/paper-noise.png');
 	}
-	.title {
-		font-family: var(--font-friendly);
-		/* In the card's own units: a percentage would be of the whole screen. */
+	/* Padded here rather than on the card: `cqw` is a share of the container's
+	   content box, so padding the container would shrink the unit it's sized in.
+	   Everything is in the card's own units, since a percentage would be of the
+	   whole screen. */
+	.card-body {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		height: 100%;
 		padding: 8cqw;
+		font-family: var(--font-friendly);
+		color: oklch(0.32 0.04 250);
+		overflow-wrap: anywhere;
+	}
+	.title {
+		flex: none;
 		font-size: calc(11cqw * var(--fit, 1));
 		line-height: 1.15;
 		text-align: center;
-		color: oklch(0.32 0.04 250);
-		overflow-wrap: anywhere;
+		transition: font-size 700ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+	.open .title {
+		font-size: calc(6.5cqw * var(--fit, 1));
+	}
+
+	/* Unfolds from no height to its own (or to what's left of the card, if
+	   less). Animating the row rather than a height lets it land on a size
+	   nobody has to measure, and the title, centered with it, rises as it grows. */
+	.details {
+		flex: 0 1 auto;
+		min-height: 0;
+		display: grid;
+		grid-template-rows: 0fr;
+		opacity: 0;
+		transition:
+			grid-template-rows 700ms cubic-bezier(0.22, 1, 0.36, 1),
+			opacity 300ms ease-out;
+	}
+	.open .details {
+		grid-template-rows: 1fr;
+		opacity: 1;
+		transition:
+			grid-template-rows 700ms cubic-bezier(0.22, 1, 0.36, 1),
+			opacity 600ms ease-out 150ms;
+	}
+	/* All spacing lives inside this clipped box (the spacer, the margins), so the
+	   closed card has nothing left over to push its title off center. */
+	.details-inner {
+		min-height: 0;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+	.details-inner::before {
+		content: '';
+		flex: none;
+		height: 1.5cqw;
+	}
+	.details-inner > * {
+		flex: none;
+		margin: 2.2cqw 0 0;
+	}
+	.when {
+		font-size: 3.4cqw;
+		text-align: center;
+		opacity: 0.7;
+	}
+	.hosts {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 1.2cqw;
+		padding: 0;
+		list-style: none;
+	}
+	.hosts li {
+		padding: 0.35em 0.9em;
+		font-size: 2.8cqw;
+		border-radius: 999px;
+		background: oklch(0.32 0.04 250 / 0.08);
+	}
+	/* The one part that gives way when the card is full. Its line breaks are the
+	   source's paragraphs. */
+	.details-inner > .description {
+		flex: 0 1 auto;
+		min-height: 0;
+		overflow: hidden;
+		margin-top: 3cqw;
+		font-size: 3.3cqw;
+		line-height: 1.45;
+		white-space: pre-line;
+		color: oklch(0.36 0.03 250);
+	}
+	.description:global(.clipped) {
+		mask-image: linear-gradient(to bottom, #000 calc(100% - 2.6em), transparent);
 	}
 
 	/* A season's name, at the center of its island. Sized by the layout's cell,
