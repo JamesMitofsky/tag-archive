@@ -19,9 +19,10 @@
 	(five hours) the board stops polling and offers a button to resume.
 
 	Each page keeps its place for as long as it is shown (`assignSlots` in
-	#lib/live), so an arrival never makes the others move. The places are the
-	public cloud's, from the same layout maths (`measureBoard` and `boardSlots`
-	in #lib/cloudLayout), and so are the fly-in and the drift.
+	#lib/live), so an arrival never makes the others move. The places come from
+	the public cloud's layout maths, with one difference: no two pages on the
+	board overlap, even while drifting (`measureBoard` and `boardSlots` in
+	#lib/cloudLayout). The fly-in and the drift are the public cloud's too.
 
 	Open it with `?replay` to fly the latest arrival in again a moment after the
 	rest, to see an arrival without adding an artefact. It comes in even when it

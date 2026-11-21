@@ -424,13 +424,9 @@ describe('measureBoard and boardSlots (the live board)', () => {
 		[3840, 2160]
 	];
 
-	it.each(sizes)('draws larger pages than the search cloud at %ix%i', (w, h) => {
+	it.each(sizes.slice(1))('draws larger pages than the search cloud at %ix%i', (w, h) => {
 		const cloud = measureCloud(wide(w, h));
-		expect(measureBoard(board(w, h), COUNT).cardW).toBeGreaterThanOrEqual(cloud.cardW);
-	});
-
-	it('draws them well above the search cloud’s ceiling on a desktop screen', () => {
-		expect(measureBoard(board(1440, 900), COUNT).cardW).toBeGreaterThan(240);
+		expect(measureBoard(board(w, h), COUNT).cardW).toBeGreaterThan(cloud.cardW);
 	});
 
 	it.each(sizes)('places every page fully on screen and off the chrome at %ix%i', (w, h) => {
@@ -456,6 +452,30 @@ describe('measureBoard and boardSlots (the live board)', () => {
 				box.bottom > mark.top;
 			expect(hits).toBe(false);
 		}
+	});
+
+	it.each(sizes)('holds all of them at %ix%i without any two overlapping', (w, h) => {
+		const f = board(w, h);
+		const layout = measureBoard(f, COUNT);
+		const slots = boardSlots(f, layout, COUNT);
+		expect(layout.cap).toBe(COUNT);
+		// The box each card sweeps as it drifts and tilts, so they cannot touch
+		// even at the far ends of their float.
+		const m = cardMargin(layout.cardW, layout.cardH);
+		for (let i = 0; i < slots.length; i++) {
+			for (let j = i + 1; j < slots.length; j++) {
+				const apartX = Math.abs(slots[i].x - slots[j].x) >= 2 * m.x;
+				const apartY = Math.abs(slots[i].y - slots[j].y) >= 2 * m.y;
+				expect(apartX || apartY).toBe(true);
+			}
+		}
+	});
+
+	it('says how many fit when a window cannot hold them all apart', () => {
+		const f = board(240, 320);
+		const layout = measureBoard(f, COUNT);
+		expect(layout.cap).toBeLessThan(COUNT);
+		expect(boardSlots(f, layout, COUNT)).toHaveLength(layout.cap);
 	});
 
 	it('gives the same slots for the same window, so a page keeps its place', () => {
