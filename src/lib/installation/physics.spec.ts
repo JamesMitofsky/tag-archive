@@ -211,3 +211,80 @@ describe('createSim', () => {
 		expect(sim.cam).toEqual({ x: -990, y: 520 });
 	});
 });
+
+describe('createSim zoom', () => {
+	it('zooms by the pinch raised to its gain, and the shown scale follows', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		expect(sim.scale).toBe(1);
+		sim.down(0);
+		sim.pinch(0.5, 0, 1);
+		expect(sim.zooming).toBe(true);
+		run(sim, 0, 1);
+		expect(sim.scale).toBeCloseTo(0.5, 3);
+		expect(sim.zooming).toBe(false);
+		sim.pinch(2, 1);
+		run(sim, 1, 1);
+		expect(sim.scale).toBeCloseTo(0.5 * Math.pow(2, TUNING.zoomGain), 3);
+	});
+
+	it('follows the pinch smoothly rather than jumping', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.pinch(2, 0, 1);
+		sim.step(1 / 60, 1 / 60, nothing);
+		expect(sim.scale).toBeGreaterThan(1);
+		expect(sim.scale).toBeLessThan(1.1);
+	});
+
+	it('stays within its range, which the page may narrow', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.pinch(1000, 0, 1);
+		run(sim, 0, 1);
+		expect(sim.scale).toBeCloseTo(TUNING.maxZoom, 3);
+		sim.setZoomRange(0.5, 1.5);
+		run(sim, 1, 1);
+		expect(sim.scale).toBeCloseTo(1.5, 3);
+		sim.pinch(0.001, 2, 1);
+		run(sim, 2, 1);
+		expect(sim.scale).toBeCloseTo(0.5, 3);
+	});
+
+	it('moves the field by the finger’s travel on screen, whatever the zoom', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.pinch(0.25, 0, 1);
+		run(sim, 0, 1);
+		sim.drag(10, 0, 1, 1);
+		run(sim, 1, 0.5);
+		// 10 screen px is 40 world px at a quarter of the size.
+		expect(sim.cam.x).toBeCloseTo(-40, 0);
+	});
+
+	it('measures speed on screen', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.pinch(0.5, 0, 1);
+		run(sim, 0, 1);
+		sim.up(-400, 0, 1, 1);
+		run(sim, 1, 0.3);
+		// Gliding at about 400 screen px/s, decayed a little; 800 world px/s.
+		expect(sim.speed).toBeGreaterThan(200);
+		expect(sim.speed).toBeLessThan(400);
+	});
+
+	it('wakes a resting field without holding it as a touch', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		expect(sim.mode).toBe('current');
+		sim.pinch(1.2, 0, 1);
+		run(sim, 0, 3);
+		expect(sim.mode).not.toBe('current');
+		expect(sim.mode).not.toBe('touch');
+		expect(sim.lens).toBeGreaterThan(0.9);
+	});
+
+	it('ignores a pinch that is not a number', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.pinch(Number.NaN, 0, 1);
+		sim.pinch(0, 0, 1);
+		sim.pinch(Infinity, 0, 1);
+		run(sim, 0, 1);
+		expect(sim.scale).toBe(1);
+	});
+});

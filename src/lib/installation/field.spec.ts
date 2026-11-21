@@ -2,13 +2,20 @@ import { describe, expect, it } from 'vitest';
 import {
 	bloomScale,
 	calmness,
+	floorZoom,
 	focusAmount,
 	focusScale,
+	isPicture,
+	itemScale,
 	layoutField,
 	nearestItem,
 	offsetFrom,
 	orderByCluster,
 	parting,
+	roomNeeded,
+	thinningRoom,
+	thinningStarts,
+	widestZoom,
 	wrapDelta,
 	type FieldItem
 } from './field';
@@ -277,5 +284,93 @@ describe('buildFieldItems', () => {
 	it('uses a photograph’s own shape and placeholder', () => {
 		expect(byId.get('p9')!.aspect).toBeCloseTo(4 / 3);
 		expect(byId.get('p9')!.placeholder).toBe('abc');
+	});
+});
+
+describe('thinningRoom', () => {
+	const world = layoutField(
+		many(300).map((it, i) => (i % 5 === 0 ? { ...it, kind: 'event' as const, src: null } : it)),
+		{ viewW: 1600, viewH: 900 }
+	);
+	const tierOf = (p: (typeof world.placed)[number]) => (isPicture(p.item) ? 0 : 1);
+	const room = thinningRoom(world, tierOf);
+
+	it('gives one item infinite room and every other a finite one', () => {
+		const infinite = [...room].filter((r) => r === Infinity);
+		expect(infinite).toHaveLength(1);
+		expect([...room].every((r) => r > 0)).toBe(true);
+	});
+
+	it('keeps whatever is shown at a given room at least that far apart', () => {
+		for (const need of [world.cell * 0.8, world.cell * 1.5, world.cell * 3]) {
+			const kept = world.placed.filter((_, i) => room[i] >= need);
+			expect(kept.length).toBeGreaterThan(0);
+			for (let a = 0; a < kept.length; a++) {
+				for (let b = a + 1; b < kept.length; b++) {
+					const o = offsetFrom(kept[a], kept[b], world);
+					expect(Math.hypot(o.x, o.y)).toBeGreaterThanOrEqual(need - 1e-6);
+				}
+			}
+		}
+	});
+
+	it('thins evenly rather than leaving bare patches', () => {
+		// Farthest-point sampling covers as it thins: every picture left out is
+		// within the room of one that stays.
+		for (const need of [world.cell * 1.2, world.cell * 2, world.cell * 3]) {
+			const pictures = world.placed.flatMap((p, i) => (isPicture(p.item) ? [i] : []));
+			const kept = pictures.filter((i) => room[i] >= need);
+			for (const i of pictures) {
+				const nearest = Math.min(
+					...kept.map((k) => {
+						const o = offsetFrom(world.placed[i], world.placed[k], world);
+						return Math.hypot(o.x, o.y);
+					})
+				);
+				expect(nearest).toBeLessThan(need);
+			}
+		}
+	});
+
+	it('places every picture before any card, so cards thin first', () => {
+		const order = world.placed
+			.map((p, i) => ({ picture: isPicture(p.item), room: room[i] }))
+			.sort((a, b) => b.room - a.room);
+		// A card's room is measured to the pictures too, so it is never more than
+		// the gap to its nearest picture, while pictures are measured only to each other.
+		const cards = order.filter((o) => !o.picture);
+		const leastPicture = Math.min(...order.filter((o) => o.picture).map((o) => o.room));
+		expect(cards.length).toBeGreaterThan(0);
+		for (const card of cards) expect(card.room).toBeLessThanOrEqual(world.cell * 1.6);
+		expect(leastPicture).toBeGreaterThan(world.cell * 0.5);
+	});
+});
+
+describe('zoom levels', () => {
+	it('lets pictures shrink with the zoom down to the floor, then only slowly', () => {
+		expect(itemScale(1, 0.5)).toBe(1);
+		expect(itemScale(0.5, 0.5)).toBe(0.5);
+		expect(itemScale(0.25, 0.5)).toBeGreaterThan(0.4);
+		expect(itemScale(0.25, 0.5)).toBeLessThan(0.5);
+	});
+
+	it('puts the floor where a cell is a set share of the screen, never above 1', () => {
+		expect(floorZoom(200, 1000, 0.1)).toBeCloseTo(0.5);
+		expect(floorZoom(50, 1000, 0.1)).toBe(1);
+	});
+
+	it('needs a fixed room on screen, so more world as it zooms out', () => {
+		expect(roomNeeded(1, 1000, 0.1)).toBeCloseTo(100);
+		expect(roomNeeded(0.25, 1000, 0.1)).toBeCloseTo(400);
+	});
+
+	it('begins thinning where the least room stops being enough', () => {
+		const zoom = thinningStarts([300, 150, 600], 1000);
+		expect(roomNeeded(zoom, 1000)).toBeCloseTo(150);
+		expect(thinningStarts([], 1000)).toBe(0);
+	});
+
+	it('zooms no farther out than one world fits the screen', () => {
+		expect(widestZoom({ width: 4000, height: 2000 }, 1000, 800, 100)).toBeCloseTo(0.5);
 	});
 });

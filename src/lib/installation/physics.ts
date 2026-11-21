@@ -11,9 +11,17 @@
  * and the lens rests, so the screen returns to a wash of the archive drifting
  * by. The field starts that way too, since nobody has steered it yet.
  *
+ * Two fingers pinch the field closer or farther. The zoom works like the
+ * camera: each pinch moves a target scale and the shown scale follows it on a
+ * spring, in log space, so zooming in by half and out by half feel the same.
+ * It always zooms about the screen's center, where the lens sits, because the
+ * iPad shows nothing of the field and a point between its fingers would mean
+ * nothing on the projector.
+ *
  * Pure and free of the DOM, so the feel can be tested and tuned in isolation.
- * Positions are world pixels on the projector. `cam` is the world point at the
- * center of the screen.
+ * Positions are world pixels. `cam` is the world point at the center of the
+ * screen, and a world pixel is drawn `scale` screen pixels across. Speeds and
+ * the finger's travel are screen pixels, so a swipe feels the same at any zoom.
  */
 
 export type Vec = { x: number; y: number };
@@ -43,6 +51,16 @@ export const TUNING = {
 	lensRestHalfLife: 1.2,
 	/** Slower than this (px/s), a glide with nothing to catch simply stops. */
 	restSpeed: 2,
+	/**
+	 * How strongly the iPad's pinch zooms: the field's scale changes by the
+	 * fingers' spread to this power, so a comfortable pinch spans most of the range.
+	 */
+	zoomGain: 1.4,
+	/** How tightly the shown scale follows the pinch's target (1/s). */
+	zoomOmega: 14,
+	/** The farthest out and in the field may be zoomed (screen px per world px). */
+	minZoom: 0.16,
+	maxZoom: 2.4,
 	/** The longest frame stepped at once (s): a hitch must not fling the field. */
 	maxStep: 1 / 20
 } as const;
@@ -130,7 +148,7 @@ export type FindAnchor = (point: Vec) => Vec | null;
 export type Sim = {
 	/** The world point at the center of the screen, as shown. */
 	readonly cam: Vec;
-	/** How fast the shown field is moving (px/s). */
+	/** How fast the shown field is moving across the screen (px/s). */
 	readonly speed: number;
 	readonly mode: Mode;
 	/**
@@ -139,12 +157,20 @@ export type Sim = {
 	 * over, so nothing drifting by is drawn into focus.
 	 */
 	readonly lens: number;
+	/** The shown zoom: screen px per world px. */
+	readonly scale: number;
+	/** Whether the shown zoom is still on its way to the pinch's target. */
+	readonly zooming: boolean;
 	/** A finger touched down. `now` is in seconds. */
 	down(now: number): void;
 	/** The finger moved by (dx, dy) of its own px; `gain` scales it to the projector. */
 	drag(dx: number, dy: number, now: number, gain?: number): void;
 	/** The finger lifted, moving at (vx, vy) of its own px/s. */
 	up(vx: number, vy: number, now: number, gain?: number): void;
+	/** Two fingers' spread changed by `factor`; `gain` is the power it is raised to. */
+	pinch(factor: number, now: number, gain?: number): void;
+	/** The zoom range, which the page narrows so one screen never sees past the world. */
+	setZoomRange(min: number, max: number): void;
 	step(dt: number, now: number, findAnchor: FindAnchor): void;
 	/**
 	 * Shift every position by a whole world size. The field wraps, so the view
@@ -164,6 +190,14 @@ export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 	let lastInput = -Infinity;
 	let speed = 0;
 	let lens = 0;
+	// The zoom, in log space: shown, its velocity, and the pinch's target.
+	let logMin = Math.log(tuning.minZoom);
+	let logMax = Math.log(tuning.maxZoom);
+	let logScale = 0;
+	let logScaleVel = 0;
+	let logTarget = 0;
+	let scale = 1;
+	const clampLog = (v: number) => Math.min(logMax, Math.max(logMin, v));
 
 	return {
 		get cam() {
@@ -178,6 +212,12 @@ export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 		get lens() {
 			return lens;
 		},
+		get scale() {
+			return scale;
+		},
+		get zooming() {
+			return Math.abs(logScaleVel) > 0.01 || Math.abs(logScale - logTarget) > 0.002;
+		},
 		down(t) {
 			mode = 'touch';
 			anchor = null;
@@ -187,20 +227,41 @@ export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 		drag(dx, dy, t, gain = tuning.gain) {
 			// A drag without a down (one lost on the network) still counts as a touch.
 			if (mode !== 'touch') this.down(t);
-			// The field moves with the finger, so the camera moves against it.
-			target.x -= dx * gain;
-			target.y -= dy * gain;
+			// The field moves with the finger, so the camera moves against it,
+			// by the finger's travel in world px at the shown zoom.
+			target.x -= (dx * gain) / scale;
+			target.y -= (dy * gain) / scale;
 			lastInput = t;
 		},
 		up(vx, vy, t, gain = tuning.gain) {
 			mode = 'glide';
 			anchor = null;
-			vel = clampLength({ x: -vx * gain, y: -vy * gain }, tuning.maxSpeed);
+			const v = clampLength({ x: -vx * gain, y: -vy * gain }, tuning.maxSpeed);
+			vel = { x: v.x / scale, y: v.y / scale };
 			lastInput = t;
+		},
+		pinch(factor, t, gain = tuning.zoomGain) {
+			if (!(factor > 0) || !Number.isFinite(factor)) return;
+			logTarget = clampLog(logTarget + gain * Math.log(factor));
+			lastInput = t;
+			// A pinch (or a trackpad's, which has no down or up) wakes a resting
+			// field without holding it as a touch: it settles as after a swipe.
+			if (mode === 'current') {
+				mode = 'glide';
+				anchor = null;
+			}
+		},
+		setZoomRange(min, max) {
+			logMax = Math.log(Math.max(min, max));
+			logMin = Math.min(Math.log(min), logMax);
+			logTarget = clampLog(logTarget);
 		},
 		step(rawDt, t, findAnchor) {
 			const dt = Math.min(Math.max(rawDt, 0), tuning.maxStep);
 			if (dt === 0) return;
+
+			[logScale, logScaleVel] = springStep(logScale, logScaleVel, logTarget, tuning.zoomOmega, dt);
+			scale = Math.exp(logScale);
 
 			if (mode !== 'touch') {
 				if (t - lastInput > tuning.idleAfter) {
@@ -208,13 +269,14 @@ export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 					anchor = null;
 					const h = tuning.currentHeading;
 					const len = Math.hypot(h.x, h.y) || 1;
+					// The current's speed is on screen, whatever the zoom.
 					const want = {
-						x: (h.x / len) * tuning.currentSpeed,
-						y: (h.y / len) * tuning.currentSpeed
+						x: (h.x / len) * (tuning.currentSpeed / scale),
+						y: (h.y / len) * (tuning.currentSpeed / scale)
 					};
 					const keep = decay(tuning.currentHalfLife, dt);
 					vel = { x: want.x + (vel.x - want.x) * keep, y: want.y + (vel.y - want.y) * keep };
-				} else if (mode === 'glide' && length(vel) < tuning.magnetSpeed) {
+				} else if (mode === 'glide' && length(vel) * scale < tuning.magnetSpeed) {
 					// Caught once, then held: the anchor is never swapped mid-settle,
 					// or the field could hop between two items equally near.
 					anchor = findAnchor(target);
@@ -233,7 +295,7 @@ export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 						// than crawl on by fractions of a pixel for seconds.
 						const keep = decay(tuning.glideHalfLife, dt);
 						vel = { x: vel.x * keep, y: vel.y * keep };
-						if (length(vel) < tuning.restSpeed) vel = { x: 0, y: 0 };
+						if (length(vel) * scale < tuning.restSpeed) vel = { x: 0, y: 0 };
 					}
 				} else if (mode === 'glide') {
 					const keep = decay(tuning.glideHalfLife, dt);
@@ -245,7 +307,7 @@ export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 
 			[cam.x, camVel.x] = springStep(cam.x, camVel.x, target.x, tuning.followOmega, dt);
 			[cam.y, camVel.y] = springStep(cam.y, camVel.y, target.y, tuning.followOmega, dt);
-			speed = length(camVel);
+			speed = length(camVel) * scale;
 
 			const goal = mode === 'current' ? 0 : 1;
 			const keep = decay(goal ? tuning.lensWakeHalfLife : tuning.lensRestHalfLife, dt);

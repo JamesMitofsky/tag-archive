@@ -247,3 +247,119 @@ export function parting(offset: Vec, reach: number, amount: number): Vec {
 	const push = (reach - distance) * amount * 0.75;
 	return { x: (offset.x / distance) * push, y: (offset.y / distance) * push };
 }
+
+/*
+ * Zooming out. Drawn at the zoom, a field of ~1,400 items becomes a smear of
+ * specks, so as the field zooms out, things step aside in order:
+ *
+ * 1. The lens and its captions rest, because a bloom in a crowd hides more than it shows.
+ * 2. Event cards go, because their titles are too small to read.
+ * 3. Pictures stop shrinking at a size where they can still be told apart
+ *    (`floorZoom`), shrinking only slowly past it, and thin out instead, each keeping
+ *    a fixed room about it on screen (`roomNeeded`).
+ *
+ * Which pictures stay is decided once, at load, by `thinningRoom`, so the same
+ * ones always stay at the same zoom and the survivors are spread evenly over the
+ * field rather than leaving bare patches. Pictures outrank cards, so every
+ * picture has its place in the order before any card does.
+ */
+
+/** A thing to draw as a picture (not a card bearing a title). */
+export function isPicture(item: FieldItem): boolean {
+	return item.src !== null;
+}
+
+/**
+ * For each placed item, the room it has: how far it is from the nearest item
+ * that outranks it. An item is shown at a zoom only when it has at least the
+ * room that zoom needs, so zooming out drops the items with the least room
+ * first and zooming in brings them back in the reverse order.
+ *
+ * The order is farthest-point sampling, done within tiers (`tierOf`, lowest
+ * first): each next item is the one farthest from all those before it. So the
+ * items left at any zoom are as evenly spread as they can be, and any two of
+ * them are at least the room that zoom needs apart. The first item has
+ * infinite room. O(n²), which for the archive is a few milliseconds, once.
+ */
+export function thinningRoom(world: World, tierOf: (placed: Placed) => number): Float64Array {
+	const { placed } = world;
+	const n = placed.length;
+	const room = new Float64Array(n);
+	const nearest = new Float64Array(n).fill(Infinity);
+	const tier = placed.map(tierOf);
+	const picked = new Uint8Array(n);
+	for (let count = 0; count < n; count++) {
+		let pick = -1;
+		for (let i = 0; i < n; i++) {
+			if (picked[i]) continue;
+			if (
+				pick === -1 ||
+				tier[i] < tier[pick] ||
+				(tier[i] === tier[pick] && nearest[i] > nearest[pick])
+			) {
+				pick = i;
+			}
+		}
+		picked[pick] = 1;
+		room[pick] = nearest[pick];
+		const from = placed[pick];
+		for (let i = 0; i < n; i++) {
+			if (picked[i]) continue;
+			const offset = offsetFrom(from, placed[i], world);
+			const distance = Math.hypot(offset.x, offset.y);
+			if (distance < nearest[i]) nearest[i] = distance;
+		}
+	}
+	return room;
+}
+
+/**
+ * The zoom at which pictures stop shrinking with the field: when a layout
+ * cell is `cellShare` of the screen's height. Never above 1.
+ */
+export function floorZoom(cell: number, viewH: number, cellShare = 0.12): number {
+	return Math.min(1, (viewH * cellShare) / cell);
+}
+
+/**
+ * How much bigger than its rest size an item is drawn at `zoom`: as the zoom
+ * itself down to `floor`, and past it shrinking only by the zoom's `give`
+ * power, so zooming still reads as zooming without the pictures turning to specks.
+ */
+export function itemScale(zoom: number, floor: number, give = 0.25): number {
+	return zoom >= floor ? zoom : floor * Math.pow(zoom / floor, give);
+}
+
+/**
+ * The room (world px) a picture must have to be shown at `zoom`: a fixed
+ * `roomShare` of the screen's height, on screen. So the screen holds about
+ * the same number of pictures however far out it is zoomed.
+ */
+export function roomNeeded(zoom: number, viewH: number, roomShare = 0.085): number {
+	return (viewH * roomShare) / zoom;
+}
+
+/**
+ * The farthest out the field may be zoomed: where the screen, plus `margin`
+ * screen px at each edge, still fits inside one copy of the wrapping world.
+ * Any farther and the same item could be due at both edges at once, while the
+ * field can draw it only at one.
+ */
+export function widestZoom(
+	world: Pick<World, 'width' | 'height'>,
+	viewW: number,
+	viewH: number,
+	margin = 0
+): number {
+	return Math.max((viewW + 2 * margin) / world.width, (viewH + 2 * margin) / world.height);
+}
+
+/**
+ * The zoom at which the first of these rooms would no longer be enough
+ * (see `roomNeeded`): where thinning begins. 0 when there are none to thin.
+ */
+export function thinningStarts(rooms: Iterable<number>, viewH: number): number {
+	let least = Infinity;
+	for (const r of rooms) if (r < least) least = r;
+	return Number.isFinite(least) && least > 0 ? roomNeeded(1, viewH) / least : 0;
+}

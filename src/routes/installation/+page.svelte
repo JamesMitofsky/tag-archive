@@ -5,14 +5,20 @@
 	the last touch the lens rests, and the field goes back to a wash of the
 	archive floating by, with nothing drawn into focus.
 
+	A pinch on the iPad zooms the field about the lens. Zoomed out, things step
+	aside so the view stays legible: first the lens, then the event cards, and
+	then pictures thin out evenly while those left stop shrinking (the order is
+	in #lib/installation/field). Each thing that goes or comes back fades and
+	shrinks or grows over LOD_FADE rather than popping.
+
 	The motion is decided in #lib/installation/physics and the layout in
 	#lib/installation/field. This page only draws them: every frame it places
-	the items near the screen (about sixty of the archive's ~1,400) and leaves
-	the rest unmounted.
+	the items near the screen (sixty to a couple of hundred of the archive's
+	~1,400, whatever the zoom) and leaves the rest unmounted.
 
 	Operator keys: `d` shows the connection overlay, `f` toggles fullscreen.
-	A mouse drag on this page moves the field too, as a fallback if the iPad's
-	connection drops.
+	A mouse drag on this page moves the field too, and a trackpad or touch
+	pinch zooms it, as a fallback if the iPad's connection drops.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -25,23 +31,26 @@
 	import {
 		bloomScale,
 		calmness,
+		floorZoom,
 		focusAmount,
 		focusScale,
+		isPicture,
+		itemScale,
 		layoutField,
 		nearestItem,
 		offsetFrom,
 		parting,
+		roomNeeded,
+		smoothstep,
+		thinningRoom,
+		thinningStarts,
+		widestZoom,
 		type Placed,
 		type World
 	} from '#lib/installation/field.ts';
+	import { createGesture } from '#lib/installation/gesture.ts';
 	import { buildFieldItems } from '#lib/installation/items.ts';
-	import {
-		createSim,
-		releaseVelocity,
-		TUNING,
-		type Sample,
-		type Sim
-	} from '#lib/installation/physics.ts';
+	import { createSim, TUNING, type Sim } from '#lib/installation/physics.ts';
 	import {
 		connectRelay,
 		readRelayConfig,
@@ -53,10 +62,17 @@
 
 	/** The lens's radius, as a share of the screen's height. */
 	const LENS = 0.18;
-	/** Items are mounted this far (in cells) past the screen's edge, so they never pop in. */
-	const MARGIN_CELLS = 1;
 	/** How long the field must be still on an item before its caption shows (s). */
 	const CAPTION_AFTER = 0.7;
+	/** How long a thing takes to step aside, or come back, as the zoom changes (s). */
+	const LOD_FADE = 0.45;
+	/**
+	 * How far back past its threshold the zoom must go before a thing changes
+	 * its mind, as a share: so a pinch resting on a threshold doesn't flicker.
+	 */
+	const HYSTERESIS = 0.06;
+	/** The farthest a trackpad's ctrl-wheel step may zoom at once (as wheel px). */
+	const WHEEL_STEP = 50;
 
 	let world = $state.raw<World | null>(null);
 	let visible = $state.raw<Placed[]>([]);
@@ -68,11 +84,16 @@
 	let relayStatus = $state<RelayStatus | null>(null);
 	let relayConfig = $state.raw<RelayConfig | null>(null);
 	let unconfigured = $state(false);
-	let stats = $state({ fps: 0, mounted: 0, mode: '', speed: 0 });
+	let stats = $state({ fps: 0, mounted: 0, mode: '', speed: 0, zoom: 1, shown: 0 });
 
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const elements = new Map<string, HTMLElement>();
-	/** The size each mounted item was last given, so unchanged ones are left alone. */
+	/**
+	 * The width each mounted item was last laid out at. While the zoom or a
+	 * fade is under way, items are scaled from it rather than laid out afresh
+	 * every frame, which hundreds at once would make slow, and they are laid out
+	 * at their exact size, crisp, once it settles.
+	 */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const sizes = new Map<string, number>();
 	let lens: HTMLElement | undefined = $state();
@@ -88,6 +109,9 @@
 			};
 		};
 	}
+
+	/** Eases a presence (0..1) for drawing, so a fade starts and lands gently. */
+	const ease = (p: number) => smoothstep(0, 1, p);
 
 	onMount(() => {
 		const gain = Number(page.url.searchParams.get('gain')) || TUNING.gain;
@@ -105,7 +129,33 @@
 		let frames = 0;
 		let fpsSince = last;
 
+		// Level of detail, by placed index: each item's room (see thinningRoom),
+		// whether it is wanted at the shown zoom, and how far it is in (0..1).
+		let room: Float64Array = new Float64Array(0);
+		let wanted = new Uint8Array(0);
+		let presence = new Float32Array(0);
+		/** Where the event cards go and the lens rests, set by the pictures' rooms. */
+		let cardZoom = 0;
+		let lensZoom = 0;
+		let lensWanted = true;
+		let lensDetail = 1;
+
 		const now = () => performance.now() / 1000;
+
+		/** The zooms that depend on the screen's size: thresholds, and how far out it may go. */
+		const fitZoom = () => {
+			if (!world || !sim) return;
+			const w = world;
+			// Cards step aside just before the first picture would, and the lens
+			// just before them, so no picture is thinned while a card still shows.
+			const pictureRooms = w.placed.flatMap((p, i) => (isPicture(p.item) ? [room[i]] : []));
+			cardZoom = Math.min(0.9, Math.max(0.5, thinningStarts(pictureRooms, viewH) * 1.08));
+			lensZoom = Math.min(0.95, cardZoom * 1.08);
+			sim.setZoomRange(
+				Math.max(TUNING.minZoom, widestZoom(w, viewW, viewH, viewH * 0.1)),
+				TUNING.maxZoom
+			);
+		};
 
 		const config = readRelayConfig(page.url.searchParams, PUBLIC_INSTALLATION_RELAY_URL);
 		relayConfig = config;
@@ -117,6 +167,7 @@
 					if (!sim) return;
 					if (message.t === 'down') sim.down(now());
 					else if (message.t === 'd') sim.drag(message.dx, message.dy, now());
+					else if (message.t === 'z') sim.pinch(message.f, now());
 					else if (message.t === 'up') sim.up(message.vx, message.vy, now());
 				},
 				onStatus(status) {
@@ -136,10 +187,16 @@
 					imageSets: data.images
 				});
 				const laid = layoutField(items, { viewW, viewH });
+				// Pictures outrank cards: every picture is placed in the thinning
+				// order before any card.
+				room = thinningRoom(laid, (p) => (isPicture(p.item) ? 0 : 1));
+				wanted = new Uint8Array(laid.placed.length).fill(1);
+				presence = new Float32Array(laid.placed.length).fill(1);
 				world = laid;
 				// Start somewhere different each time the page loads.
 				const start = laid.placed[Math.floor(Math.random() * laid.placed.length)] ?? { x: 0, y: 0 };
 				sim = createSim({ x: start.x, y: start.y }, tuning);
+				fitZoom();
 			})
 			.catch((error) => {
 				loadError = error instanceof Error ? error.message : String(error);
@@ -150,16 +207,6 @@
 			const dt = (ms - last) / 1000;
 			last = ms;
 			frames++;
-			if (ms - fpsSince > 1000) {
-				stats = {
-					fps: Math.round((frames * 1000) / (ms - fpsSince)),
-					mounted: elements.size,
-					mode: sim?.mode ?? '',
-					speed: Math.round(sim?.speed ?? 0)
-				};
-				frames = 0;
-				fpsSince = ms;
-			}
 			if (!sim || !world) return;
 			const w = world;
 			const t = ms / 1000;
@@ -171,23 +218,65 @@
 				sim.shift(-Math.round(cam.x / w.width) * w.width, -Math.round(cam.y / w.height) * w.height);
 			}
 
-			const calm = calmness(sim.speed);
-			// 0 while the field is left to the current: nothing comes into focus.
-			const lensAt = sim.lens;
-			const lensRadius = viewH * LENS;
-			const halfW = viewW / 2 + w.cell * MARGIN_CELLS;
-			const halfH = viewH / 2 + w.cell * MARGIN_CELLS;
+			const zoom = sim.scale;
+			// How much bigger than at rest items are drawn, and the room a picture
+			// needs to be shown, at this zoom.
+			const grown = itemScale(zoom, floorZoom(w.cell, viewH));
+			const need = roomNeeded(zoom, viewH);
+			// A long hitch (a hidden tab) finishes a fade rather than skipping it.
+			const fade = Math.min(Math.max(dt, 0), 0.1) / LOD_FADE;
+			const step = (p: number, on: boolean) => Math.min(1, Math.max(0, p + (on ? fade : -fade)));
 
-			// Which items are near the screen, and which is most in focus.
-			const near: { placed: Placed; x: number; y: number; focus: number }[] = [];
+			lensWanted = zoom >= lensZoom * (lensWanted ? 1 - HYSTERESIS : 1);
+			lensDetail = step(lensDetail, lensWanted);
+
+			const calm = calmness(sim.speed);
+			// 0 while the field is left to the current, or zoomed too far out:
+			// nothing comes into focus.
+			const lensAt = sim.lens * ease(lensDetail);
+			const lensRadius = viewH * LENS;
+			// Items are mounted this far (screen px) past the screen's edge, so
+			// they never pop in.
+			const margin = w.cell * grown;
+			const halfW = viewW / 2 + margin;
+			const halfH = viewH / 2 + margin;
+
+			// Which items are wanted and near the screen, and which is most in focus.
+			const near: { placed: Placed; x: number; y: number; focus: number; shown: number }[] = [];
 			let best: (typeof near)[number] | null = null;
-			for (const placed of w.placed) {
+			let shownCount = 0;
+			for (let i = 0; i < w.placed.length; i++) {
+				const placed = w.placed[i];
+				const slack = wanted[i] ? 1 - HYSTERESIS : 1;
+				const want =
+					room[i] >= need * slack && (isPicture(placed.item) || zoom >= cardZoom * slack);
+				wanted[i] = want ? 1 : 0;
+				if (want) shownCount++;
+				presence[i] = step(presence[i], want);
+				if (presence[i] === 0) continue;
+
 				const offset = offsetFrom(sim.cam, placed, w);
-				if (Math.abs(offset.x) > halfW || Math.abs(offset.y) > halfH) continue;
-				const focus = focusAmount(Math.hypot(offset.x, offset.y), lensRadius) * lensAt;
-				const entry = { placed, x: offset.x, y: offset.y, focus };
+				const x = offset.x * zoom;
+				const y = offset.y * zoom;
+				if (Math.abs(x) > halfW || Math.abs(y) > halfH) continue;
+				const shown = ease(presence[i]);
+				const focus = focusAmount(Math.hypot(x, y), lensRadius) * lensAt * shown;
+				const entry = { placed, x, y, focus, shown };
 				near.push(entry);
 				if (focus > 0 && (!best || focus > best.focus)) best = entry;
+			}
+
+			if (ms - fpsSince > 1000) {
+				stats = {
+					fps: Math.round((frames * 1000) / (ms - fpsSince)),
+					mounted: elements.size,
+					mode: sim.mode,
+					speed: Math.round(sim.speed),
+					zoom: Math.round(zoom * 100) / 100,
+					shown: shownCount
+				};
+				frames = 0;
+				fpsSince = ms;
 			}
 
 			const key = near.map((n) => n.placed.item.id).join(' ');
@@ -198,25 +287,29 @@
 
 			// The bloom: how much of the lens the focused item fills, and how far
 			// its neighbors must part to make room.
-			const bloomOf = (p: Placed) => bloomScale(p.w, p.h, viewW, viewH);
+			const bloomOf = (p: Placed) => bloomScale(p.w * grown, p.h * grown, viewW, viewH);
 			const bestScale = best ? focusScale(best.focus, calm, bloomOf(best.placed)) : 1;
 			const bloomAmount = best ? best.focus * calm : 0;
 			const reach = best
-				? (Math.max(best.placed.w, best.placed.h) * bestScale) / 2 + w.cell * 0.35
+				? (Math.max(best.placed.w, best.placed.h) * grown * bestScale) / 2 + w.cell * grown * 0.35
 				: 0;
+			// Laid out afresh only once the size has drifted this far, while moving.
+			const tolerance = sim.zooming ? 0.35 : 0.002;
 
 			for (const entry of near) {
 				const element = elements.get(entry.placed.item.id);
 				if (!element) continue;
 				const { placed } = entry;
 				const isBest = entry === best;
-				const scale = isBest ? bestScale : focusScale(entry.focus, calm, bloomOf(placed));
+				const focused = isBest ? bestScale : focusScale(entry.focus, calm, bloomOf(placed));
+				// Stepping aside, an item shrinks a little as it fades.
+				const scale = grown * focused * (0.6 + 0.4 * entry.shown);
 				let x = entry.x;
 				let y = entry.y;
 				if (!isBest && best) {
 					const push = parting(
 						{ x: x - best.x, y: y - best.y },
-						reach + Math.max(placed.w, placed.h) / 2,
+						reach + (Math.max(placed.w, placed.h) * grown) / 2,
 						bloomAmount
 					);
 					x += push.x;
@@ -229,16 +322,19 @@
 
 				const width = placed.w * scale;
 				const height = placed.h * scale;
-				// Sized rather than scaled, so a bloomed picture or card text is
-				// drawn crisp at its full size instead of stretched.
-				if (Math.abs((sizes.get(placed.item.id) ?? 0) - scale) > 0.002) {
-					sizes.set(placed.item.id, scale);
+				// Sized rather than scaled once still, so a bloomed picture or card
+				// text is drawn crisp at its full size instead of stretched.
+				let laidW = sizes.get(placed.item.id) ?? 0;
+				const drift = entry.shown === 1 ? tolerance : 0.35;
+				if (!laidW || Math.abs(width / laidW - 1) > drift) {
+					laidW = width;
+					sizes.set(placed.item.id, width);
 					element.style.width = `${width}px`;
 					element.style.height = `${height}px`;
 				}
-				element.style.transform = `translate3d(${viewW / 2 + x - width / 2}px, ${viewH / 2 + y - height / 2}px, 0)`;
+				element.style.transform = `translate3d(${viewW / 2 + x - width / 2}px, ${viewH / 2 + y - height / 2}px, 0) scale(${width / laidW})`;
 				const rest = 0.45 + 0.35 * calm;
-				element.style.opacity = String(rest + (1 - rest) * entry.focus);
+				element.style.opacity = String((rest + (1 - rest) * entry.focus) * entry.shown);
 				element.style.zIndex = isBest ? '3' : entry.focus > 0 ? '2' : '1';
 			}
 
@@ -263,7 +359,7 @@
 			const nextBloom = focused && bloomAmount > 0.6 ? id : bloomId === id ? bloomId : null;
 			if (nextBloom !== bloomId) bloomId = nextBloom;
 			if (captionEl && focused) {
-				const bottom = viewH / 2 + focused.y + (focused.placed.h * bestScale) / 2;
+				const bottom = viewH / 2 + focused.y + (focused.placed.h * grown * bestScale) / 2;
 				captionEl.style.top = `${Math.min(bottom + 18, viewH - 90)}px`;
 			}
 		};
@@ -272,6 +368,7 @@
 		const onResize = () => {
 			viewW = window.innerWidth;
 			viewH = window.innerHeight;
+			fitZoom();
 		};
 
 		const onKey = (event: KeyboardEvent) => {
@@ -282,29 +379,56 @@
 			}
 		};
 
-		// The fallback: a mouse on the laptop moves the field directly (gain 1).
-		let mouse: number | null = null;
-		let samples: Sample[] = [];
-		let lastPoint = { x: 0, y: 0 };
+		// The fallback: a mouse, or fingers on a touch screen, move the field
+		// directly (gain 1), and two fingers pinch it.
+		const gesture = createGesture({
+			down: () => sim?.down(now()),
+			drag: (dx, dy) => sim?.drag(dx, dy, now(), 1),
+			pinch: (factor) => sim?.pinch(factor, now(), 1),
+			up: (vx, vy) => sim?.up(vx, vy, now(), 1)
+		});
 		const onDown = (event: PointerEvent) => {
-			if (mouse !== null || !sim) return;
-			mouse = event.pointerId;
-			lastPoint = { x: event.clientX, y: event.clientY };
-			samples = [{ t: event.timeStamp, ...lastPoint }];
-			sim.down(now());
+			gesture.pointerDown(event.pointerId, event.clientX, event.clientY, event.timeStamp);
 		};
 		const onMove = (event: PointerEvent) => {
-			if (event.pointerId !== mouse || !sim) return;
-			sim.drag(event.clientX - lastPoint.x, event.clientY - lastPoint.y, now(), 1);
-			lastPoint = { x: event.clientX, y: event.clientY };
-			samples.push({ t: event.timeStamp, ...lastPoint });
-			if (samples.length > 40) samples.splice(0, samples.length - 40);
+			gesture.pointerMove(event.pointerId, [
+				{ t: event.timeStamp, x: event.clientX, y: event.clientY }
+			]);
 		};
 		const onUp = (event: PointerEvent) => {
-			if (event.pointerId !== mouse || !sim) return;
-			mouse = null;
-			const v = releaseVelocity(samples, event.timeStamp);
-			sim.up(v.x, v.y, now(), 1);
+			gesture.pointerUp(event.pointerId, event.timeStamp, event.type === 'pointercancel');
+		};
+
+		// A trackpad's pinch. Chromium and Firefox send it as a wheel with ctrlKey
+		// set, and zoom the page unless told not to; Safari sends its own gesture
+		// events instead, with the scale since the pinch began. A wheel during a
+		// Safari gesture is ignored, so a browser sending both can't zoom twice,
+		// and so is a gesture while two fingers are already pinching on a touch
+		// screen, which the pointers above have counted.
+		let safariPinch = false;
+		let safariScale = 1;
+		const onWheel = (event: WheelEvent) => {
+			if (!event.ctrlKey) return;
+			event.preventDefault();
+			if (safariPinch || !sim) return;
+			const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewH : 1;
+			const delta = Math.max(-WHEEL_STEP, Math.min(WHEEL_STEP, event.deltaY * unit));
+			sim.pinch(Math.exp(-delta * 0.01), now(), 1);
+		};
+		const onGestureStart = (event: Event) => {
+			event.preventDefault();
+			safariPinch = true;
+			safariScale = 1;
+		};
+		const onGestureChange = (event: Event) => {
+			event.preventDefault();
+			const scale = (event as Event & { scale?: number }).scale ?? 1;
+			if (sim && scale > 0 && gesture.count < 2) sim.pinch(scale / safariScale, now(), 1);
+			safariScale = scale;
+		};
+		const onGestureEnd = (event: Event) => {
+			event.preventDefault();
+			safariPinch = false;
 		};
 
 		window.addEventListener('resize', onResize);
@@ -313,6 +437,10 @@
 		window.addEventListener('pointermove', onMove);
 		window.addEventListener('pointerup', onUp);
 		window.addEventListener('pointercancel', onUp);
+		window.addEventListener('wheel', onWheel, { passive: false });
+		window.addEventListener('gesturestart', onGestureStart);
+		window.addEventListener('gesturechange', onGestureChange);
+		window.addEventListener('gestureend', onGestureEnd);
 
 		return () => {
 			disposed = true;
@@ -324,6 +452,10 @@
 			window.removeEventListener('pointermove', onMove);
 			window.removeEventListener('pointerup', onUp);
 			window.removeEventListener('pointercancel', onUp);
+			window.removeEventListener('wheel', onWheel);
+			window.removeEventListener('gesturestart', onGestureStart);
+			window.removeEventListener('gesturechange', onGestureChange);
+			window.removeEventListener('gestureend', onGestureEnd);
 		};
 	});
 </script>
@@ -396,6 +528,8 @@
 			<dd>{world?.placed.length ?? 0} ({stats.mounted} mounted)</dd>
 			<dt>motion</dt>
 			<dd>{stats.mode} · {stats.speed} px/s</dd>
+			<dt>zoom</dt>
+			<dd>{stats.zoom}× ({stats.shown} shown)</dd>
 			<dt>frames</dt>
 			<dd>{stats.fps} fps</dd>
 		</RelayOverlay>
@@ -416,6 +550,8 @@
 		overflow: hidden;
 		cursor: none;
 		user-select: none;
+		/* Fingers on a touch screen steer the field, not the page. */
+		touch-action: none;
 		/* The sky shows through: items dim toward it, as if under water. */
 	}
 
@@ -438,7 +574,9 @@
 		position: absolute;
 		left: 0;
 		top: 0;
-		will-change: transform;
+		will-change: transform, opacity;
+		/* Scaled from its top left corner while the zoom moves (see `sizes`). */
+		transform-origin: 0 0;
 		/* No frame: a picture floats bare, with only its blurred stand-in
 		   behind it while the real one loads. */
 		background-size: cover;

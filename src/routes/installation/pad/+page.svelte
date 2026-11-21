@@ -4,25 +4,29 @@
 	it moves the field on the projector, and the haze moves with the finger
 	right here, at once, whatever the network is doing, so the touch never
 	feels unanswered. After a flick it glides on and slows just as the
-	projector's field does. Its colors never change.
+	projector's field does. Two fingers pinch the projector's field closer or
+	farther (and drag it by their midpoint), and the haze swells or shrinks
+	under them. Its colors never change.
 
-	One finger only: the first to touch owns the gesture and any others are
-	ignored, so a resting palm or a second hand can't make the field jitter.
+	Two fingers at most: the first two to touch own the gesture and any others
+	are ignored, so a resting palm or a third finger can't make the field jitter
+	(see #lib/installation/gesture).
 
 	Set up once per iPad: open this page with ?relay=…&room=…&key=… (they're
 	remembered), Add to Home Screen, and lock it with Guided Access.
 
 	Operator overlay: hold three fingers on the screen for a second to show or
 	hide it (the iPad has no keyboard for the projector's `d`), or open the
-	page with ?debug. The water ignores every finger after the first, so the
-	gesture doesn't steer anything.
+	page with ?debug. The water ignores every finger after the second, and three
+	fingers held still pinch nothing, so the gesture barely steers anything.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { PUBLIC_INSTALLATION_RELAY_URL } from '$app/env/public';
 	import { wrapDelta } from '#lib/installation/field.ts';
-	import { decay, releaseVelocity, TUNING, type Sample } from '#lib/installation/physics.ts';
+	import { createGesture } from '#lib/installation/gesture.ts';
+	import { decay, TUNING, type Sample } from '#lib/installation/physics.ts';
 	import {
 		connectRelay,
 		readRelayConfig,
@@ -113,18 +117,19 @@
 		node.addEventListener('touchmove', refuse, { passive: false });
 		node.addEventListener('touchstart', refuse, { passive: false });
 
-		// Finger travel is gathered and sent once a frame, not once per event:
-		// the iPad reports touches at up to 240 Hz, far more than the projector draws.
-		let finger: number | null = null;
-		let last = { x: 0, y: 0 };
+		// Finger travel and pinching are gathered and sent once a frame, not once
+		// per event: the iPad reports touches at up to 240 Hz, far more than the
+		// projector draws.
 		let pendingX = 0;
 		let pendingY = 0;
-		let samples: Sample[] = [];
+		let pendingZoom = 1;
 		let frame = 0;
 
-		// The water: how far it has been moved, and how fast it glides on.
+		// The water: how far it has been moved, how fast it glides on, and how
+		// far it has been pinched (its pools swell and shrink with the field).
 		const water = { x: 0, y: 0 };
 		let glide = { x: 0, y: 0 };
+		let waterZoom = 1;
 		let viewW = window.innerWidth;
 		let viewH = window.innerHeight;
 		let lastFrame = performance.now();
@@ -142,13 +147,15 @@
 		 */
 		const drawWater = (seconds: number) => {
 			const longer = Math.max(viewW, viewH);
+			// Gentler than the field's zoom: the haze only answers the pinch.
+			const swell = Math.pow(waterZoom, 0.4);
 			const reach = longer * 0.6;
 			const spanW = viewW + 2 * reach;
 			const spanH = viewH + 2 * reach;
 			POOLS.forEach((pool, i) => {
 				const node = pools[i];
 				if (!node) return;
-				const size = pool.size * longer;
+				const size = pool.size * longer * swell;
 				// A slow sway of its own, so the water is never quite still.
 				const swayX = still.matches ? 0 : Math.sin(seconds / (11 + i * 2) + i) * 18;
 				const swayY = still.matches ? 0 : Math.cos(seconds / (13 + i * 3) + i * 2) * 14;
@@ -172,13 +179,19 @@
 				pendingX = 0;
 				pendingY = 0;
 			}
+			if (Math.abs(pendingZoom - 1) > 1e-4) {
+				// What rounding leaves out is carried to the next frame, not lost.
+				const f = Math.round(pendingZoom * 1e4) / 1e4;
+				relay?.send({ t: 'z', f });
+				pendingZoom /= f;
+			}
 		};
 		const tick = (ms: number) => {
 			frame = requestAnimationFrame(tick);
 			const dt = Math.min(Math.max((ms - lastFrame) / 1000, 0), TUNING.maxStep);
 			lastFrame = ms;
 			flush();
-			if (finger === null) {
+			if (gesture.count === 0) {
 				// Glide on after a flick, slowing as the projector's field does.
 				const keep = decay(TUNING.glideHalfLife, dt);
 				glide = { x: glide.x * keep, y: glide.y * keep };
@@ -190,51 +203,58 @@
 		};
 		frame = requestAnimationFrame(tick);
 
+		const gesture = createGesture({
+			down() {
+				// A finger in the water stops it gliding.
+				glide = { x: 0, y: 0 };
+				relay?.send({ t: 'down' });
+			},
+			drag(dx, dy) {
+				pendingX += dx;
+				pendingY += dy;
+				// The water under the finger moves with it, drawn on the next frame.
+				water.x += dx;
+				water.y += dy;
+			},
+			pinch(factor) {
+				pendingZoom *= factor;
+				waterZoom = Math.min(
+					TUNING.maxZoom,
+					Math.max(TUNING.minZoom, waterZoom * Math.pow(factor, TUNING.zoomGain))
+				);
+			},
+			up(vx, vy) {
+				flush();
+				relay?.send({ t: 'up', vx: Math.round(vx), vy: Math.round(vy) });
+				glide = { x: vx, y: vy };
+			}
+		});
+
 		const onDown = (event: PointerEvent) => {
 			event.preventDefault();
 			keepAwake();
-			if (finger !== null) return;
-			finger = event.pointerId;
-			node.setPointerCapture(event.pointerId);
-			last = { x: event.clientX, y: event.clientY };
-			samples = [{ t: event.timeStamp, ...last }];
-			// A finger in the water stops it gliding.
-			glide = { x: 0, y: 0 };
-			relay?.send({ t: 'down' });
+			if (gesture.pointerDown(event.pointerId, event.clientX, event.clientY, event.timeStamp)) {
+				node.setPointerCapture(event.pointerId);
+			}
 		};
 
 		const onMove = (event: PointerEvent) => {
-			if (event.pointerId !== finger) return;
-			event.preventDefault();
 			// Every sample the hardware took since the last event, for an exact
 			// release velocity.
-			const points = event.getCoalescedEvents?.() ?? [];
-			for (const point of points.length ? points : [event]) {
-				samples.push({ t: point.timeStamp, x: point.clientX, y: point.clientY });
-			}
-			const cutoff = event.timeStamp - 200;
-			while (samples.length > 2 && samples[0].t < cutoff) samples.shift();
-
-			const dx = event.clientX - last.x;
-			const dy = event.clientY - last.y;
-			pendingX += dx;
-			pendingY += dy;
-			// The water under the finger moves with it, drawn on the next frame.
-			water.x += dx;
-			water.y += dy;
-			last = { x: event.clientX, y: event.clientY };
+			const coalesced = event.getCoalescedEvents?.() ?? [];
+			const points: Sample[] = (coalesced.length ? coalesced : [event]).map((point) => ({
+				t: point.timeStamp,
+				x: point.clientX,
+				y: point.clientY
+			}));
+			if (gesture.pointerMove(event.pointerId, points)) event.preventDefault();
 		};
 
 		const onUp = (event: PointerEvent) => {
-			if (event.pointerId !== finger) return;
-			finger = null;
 			// For a touch, the lift is what counts as the user's activation.
-			keepAwake();
-			flush();
-			const v =
-				event.type === 'pointercancel' ? { x: 0, y: 0 } : releaseVelocity(samples, event.timeStamp);
-			relay?.send({ t: 'up', vx: Math.round(v.x), vy: Math.round(v.y) });
-			glide = v;
+			if (gesture.pointerUp(event.pointerId, event.timeStamp, event.type === 'pointercancel')) {
+				keepAwake();
+			}
 		};
 
 		// The operator's gesture: every finger on the glass is counted, and
