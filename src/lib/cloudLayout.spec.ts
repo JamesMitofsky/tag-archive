@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
 	A4,
+	BOARD_TILT_DEG,
+	boardSlots,
 	CAP_MAX,
 	CAP_MIN,
 	cardMargin,
+	measureBoard,
 	measureCloud,
 	pinAt,
 	placeCloud,
@@ -402,5 +405,114 @@ describe('placeCloud — grid', () => {
 		}
 		// Distinct per card, so the grid doesn't pulse in lockstep.
 		expect(new Set(cards.map((c) => c.style)).size).toBe(cards.length);
+	});
+});
+
+describe('measureBoard and boardSlots (the live board)', () => {
+	/** The board has no searchbar: only the home mark is chrome. */
+	const board = (w: number, h: number): FieldInput => ({
+		fieldW: w,
+		fieldH: h,
+		fullViewport: true,
+		blocks: [{ left: 12, top: 12, width: 190, height: 40 }]
+	});
+	const COUNT = 6;
+	const SEED = 12345;
+	const sizes: [number, number][] = [
+		[390, 844],
+		[1024, 768],
+		[1440, 900],
+		[1920, 1080],
+		[3840, 2160]
+	];
+
+	it.each(sizes.slice(1))('draws larger pages than the search cloud at %ix%i', (w, h) => {
+		const cloud = measureCloud(wide(w, h));
+		expect(measureBoard(board(w, h), COUNT).cardW).toBeGreaterThan(cloud.cardW);
+	});
+
+	it.each(sizes)('places every page fully on screen and off the chrome at %ix%i', (w, h) => {
+		const f = board(w, h);
+		const layout = measureBoard(f, COUNT);
+		const slots = boardSlots(f, layout, COUNT, SEED);
+		expect(slots).toHaveLength(COUNT);
+		const m = cardMargin(layout.cardW, layout.cardH, BOARD_TILT_DEG);
+		for (const s of slots) {
+			expect(Math.abs(s.x)).toBeLessThanOrEqual(w / 2 - m.x + 1e-6);
+			expect(Math.abs(s.y)).toBeLessThanOrEqual(h / 2 - m.y + 1e-6);
+			const [mark] = f.blocks!;
+			const box = {
+				left: w / 2 + s.x - m.x,
+				right: w / 2 + s.x + m.x,
+				top: h / 2 + s.y - m.y,
+				bottom: h / 2 + s.y + m.y
+			};
+			const hits =
+				box.left < mark.left + mark.width &&
+				box.right > mark.left &&
+				box.top < mark.top + mark.height &&
+				box.bottom > mark.top;
+			expect(hits).toBe(false);
+		}
+	});
+
+	it.each(sizes)('holds all of them at %ix%i without any two overlapping', (w, h) => {
+		const f = board(w, h);
+		const layout = measureBoard(f, COUNT);
+		const slots = boardSlots(f, layout, COUNT, SEED);
+		expect(layout.cap).toBe(COUNT);
+		// The box each card sweeps as it drifts and tilts, at its full standing
+		// lean, so they cannot touch even at the far ends of their float.
+		const m = cardMargin(layout.cardW, layout.cardH, BOARD_TILT_DEG);
+		for (let i = 0; i < slots.length; i++) {
+			for (let j = i + 1; j < slots.length; j++) {
+				const apartX = Math.abs(slots[i].x - slots[j].x) >= 2 * m.x;
+				const apartY = Math.abs(slots[i].y - slots[j].y) >= 2 * m.y;
+				expect(apartX || apartY).toBe(true);
+			}
+		}
+	});
+
+	it('says how many fit when a window cannot hold them all apart', () => {
+		const f = board(240, 320);
+		const layout = measureBoard(f, COUNT);
+		expect(layout.cap).toBeLessThan(COUNT);
+		expect(boardSlots(f, layout, COUNT, SEED)).toHaveLength(layout.cap);
+	});
+
+	it('scatters the pages rather than lining them up in rows', () => {
+		// Pages whose centres sit within this of each other's height read as one row.
+		const ROW = 24;
+		const f = board(1440, 900);
+		const layout = measureBoard(f, COUNT);
+		const rows = Array.from({ length: 20 }, (_, seed) => {
+			const ys = boardSlots(f, layout, COUNT, seed + 1)
+				.map((s) => s.y)
+				.sort((a, b) => a - b);
+			return 1 + ys.slice(1).filter((y, i) => y - ys[i] > ROW).length;
+		});
+		// The tight packing this replaced put six pages in exactly two rows.
+		expect(rows.reduce((a, b) => a + b) / rows.length).toBeGreaterThan(3);
+	});
+
+	it('gives each page a lean and a depth within bounds', () => {
+		const f = board(1440, 900);
+		for (const s of boardSlots(f, measureBoard(f, COUNT), COUNT, SEED)) {
+			expect(Math.abs(s.tilt)).toBeLessThanOrEqual(BOARD_TILT_DEG);
+			expect(s.scale).toBeGreaterThan(0.8);
+			expect(s.scale).toBeLessThanOrEqual(1);
+		}
+	});
+
+	it('deals a different scatter for a different opening', () => {
+		const f = board(1440, 900);
+		const layout = measureBoard(f, COUNT);
+		expect(boardSlots(f, layout, COUNT, 1)).not.toEqual(boardSlots(f, layout, COUNT, 2));
+	});
+
+	it('gives the same slots for the same window, so a page keeps its place', () => {
+		const f = board(1440, 900);
+		const layout = measureBoard(f, COUNT);
+		expect(boardSlots(f, layout, COUNT, SEED)).toEqual(boardSlots(f, layout, COUNT, SEED));
 	});
 });

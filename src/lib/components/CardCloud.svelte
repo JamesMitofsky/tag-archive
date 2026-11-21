@@ -1399,37 +1399,16 @@
 			top 700ms cubic-bezier(0.22, 1, 0.36, 1);
 	}
 
-	/* Entrance: fly in once from an off-screen offset, then hold at rest. */
+	/* Entrance: fly in once from an off-screen offset, then hold at rest. The
+	   keyframes are global (layout.css), shared with the live board. */
 	.enter {
-		animation: flyin 900ms cubic-bezier(0.16, 1, 0.3, 1) var(--edelay, 0s) both;
+		animation: cloud-flyin 900ms cubic-bezier(0.16, 1, 0.3, 1) var(--edelay, 0s) both;
 		will-change: transform, opacity;
-	}
-
-	/* `--eo` is the opacity a card arrives from: 0, so it fades in, unless it is
-	   coming out from under a packet's face (see `spillFrom`). */
-	@keyframes flyin {
-		from {
-			transform: translate(var(--ex, 0), var(--ey, 0));
-			opacity: var(--eo, 0);
-		}
-		to {
-			transform: translate(0, 0);
-			opacity: 1;
-		}
 	}
 
 	/* Ambient float: gentle, endless, per-card timing via custom props. */
 	.drift {
-		animation: float var(--dur, 8s) ease-in-out var(--delay, 0s) infinite alternate;
-	}
-
-	@keyframes float {
-		from {
-			transform: translate(0, 0) rotate(0deg);
-		}
-		to {
-			transform: translate(var(--ddx, 0), var(--ddy, 0)) rotate(var(--rot, 0deg));
-		}
+		animation: cloud-float var(--dur, 8s) ease-in-out var(--delay, 0s) infinite alternate;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
