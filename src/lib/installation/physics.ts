@@ -28,17 +28,22 @@ export type Vec = { x: number; y: number };
 
 export const TUNING = {
 	/** Projector px the field moves per iPad px of finger travel. */
-	gain: 2.5,
+	gain: 0.5,
 	/** How tightly the shown field follows the finger's target (1/s). */
 	followOmega: 18,
+	/**
+	 * The share of the finger's speed a release carries into the glide. Under
+	 * 1, a flick nudges the field on rather than throwing it across the archive.
+	 */
+	fling: 0.25,
 	/** Time for a released glide to lose half its speed (s). */
-	glideHalfLife: 0.6,
+	glideHalfLife: 0.35,
 	/** The fastest the field may travel (projector px/s). */
 	maxSpeed: 4200,
 	/** Below this speed, with no finger down, the magnet takes over (px/s). */
-	magnetSpeed: 150,
-	/** The magnet's spring (1/s): settles in about 1.2 s, without overshoot. */
-	magnetOmega: 3.6,
+	magnetSpeed: 120,
+	/** The magnet's spring (1/s): settles in about 1 s, without overshoot. */
+	magnetOmega: 5,
 	/** Seconds without a touch before the current starts and the lens rests. */
 	idleAfter: 60,
 	/** The current's speed (px/s) and how gently it gathers (half-life, s). */
@@ -65,7 +70,10 @@ export const TUNING = {
 	maxStep: 1 / 20
 } as const;
 
-export type Tuning = { [K in keyof typeof TUNING]: (typeof TUNING)[K] extends Vec ? Vec : number };
+/** TUNING's shape with its values free to change: what a sim runs on, and the operator tunes. */
+export type Tuning = {
+	-readonly [K in keyof typeof TUNING]: (typeof TUNING)[K] extends Vec ? Vec : number;
+};
 
 /** The factor a quantity keeps over `dt` when it halves every `halfLife`. */
 export function decay(halfLife: number, dt: number): number {
@@ -177,8 +185,18 @@ export type Sim = {
 	 * is unchanged; it keeps the numbers small over a long night.
 	 */
 	shift(dx: number, dy: number): void;
+	/**
+	 * Move every position by any amount, for when the field is laid out afresh
+	 * and what was on screen now lives somewhere else. Unlike `shift` the items
+	 * have moved, so an item it was settling on is let go and caught again.
+	 */
+	rehome(dx: number, dy: number): void;
 };
 
+/**
+ * `tuning` is read afresh on every step, not copied, so the operator's
+ * sliders (see ./knobs) take hold at once by changing it in place.
+ */
 export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 	const cam = { ...start };
 	const camVel = { x: 0, y: 0 };
@@ -236,7 +254,8 @@ export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 		up(vx, vy, t, gain = tuning.gain) {
 			mode = 'glide';
 			anchor = null;
-			const v = clampLength({ x: -vx * gain, y: -vy * gain }, tuning.maxSpeed);
+			const carried = gain * tuning.fling;
+			const v = clampLength({ x: -vx * carried, y: -vy * carried }, tuning.maxSpeed);
 			vel = { x: v.x / scale, y: v.y / scale };
 			lastInput = t;
 		},
@@ -321,6 +340,15 @@ export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 			target.x += dx;
 			target.y += dy;
 			if (anchor) anchor = { x: anchor.x + dx, y: anchor.y + dy };
+		},
+		rehome(dx, dy) {
+			cam.x += dx;
+			cam.y += dy;
+			target.x += dx;
+			target.y += dy;
+			anchor = null;
+			// Back to gliding, which finds the nearest item in the new layout.
+			if (mode === 'magnet') mode = 'glide';
 		}
 	};
 }

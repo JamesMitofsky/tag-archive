@@ -5,6 +5,7 @@ import {
 	releaseVelocity,
 	springStep,
 	TUNING,
+	type Tuning,
 	type FindAnchor,
 	type Sample
 } from './physics';
@@ -103,16 +104,32 @@ describe('createSim', () => {
 
 	it('glides on after release and slows to rest', () => {
 		const sim = createSim({ x: 0, y: 0 });
+		// A brisk flick, fast enough to glide well clear of the magnet's speed.
+		const flick = 4000;
 		sim.down(0);
-		sim.up(1000, 0, 0);
+		sim.up(flick, 0, 0);
 		const t = run(sim, 0, 0.5);
 		const midway = sim.cam.x;
-		expect(midway).toBeLessThan(-200);
+		expect(midway).toBeLessThan(-100);
 		run(sim, t, 6);
 		expect(sim.speed).toBeLessThan(1);
 		// It travelled no further than the friction allows: v0 · halfLife / ln 2.
-		const most = (1000 * TUNING.gain * TUNING.glideHalfLife) / Math.LN2;
+		const most = (flick * TUNING.gain * TUNING.fling * TUNING.glideHalfLife) / Math.LN2;
 		expect(Math.abs(sim.cam.x)).toBeLessThan(most * 1.05);
+	});
+
+	it('reads its tuning live, so a change takes hold mid-run', () => {
+		const tuning: Tuning = { ...TUNING, currentHeading: { ...TUNING.currentHeading } };
+		const glide = (fling: number) => {
+			tuning.fling = fling;
+			const sim = createSim({ x: 0, y: 0 }, tuning);
+			sim.up(1000, 0, 0);
+			sim.step(1 / 60, 1 / 60, nothing);
+			run(sim, 1 / 60, 0.2);
+			return Math.abs(sim.cam.x);
+		};
+		expect(glide(0.25)).toBeLessThan(glide(1) * 0.3);
+		expect(glide(0)).toBe(0);
 	});
 
 	it('clamps a wild fling to the top speed', () => {
@@ -210,6 +227,21 @@ describe('createSim', () => {
 		sim.shift(-1000, 500);
 		expect(sim.cam).toEqual({ x: -990, y: 520 });
 	});
+
+	it('lets go of the item it was settling on when the field is laid out afresh', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.up(0, 0, 0);
+		sim.step(0.016, 0.016, () => ({ x: 40, y: 0 }));
+		expect(sim.mode).toBe('magnet');
+		sim.rehome(500, -200);
+		expect(sim.cam.x).toBeCloseTo(500, 0);
+		expect(sim.cam.y).toBeCloseTo(-200, 0);
+		// The old anchor is gone: it settles on what is nearest now.
+		for (let i = 1; i < 400; i++) sim.step(0.016, 0.016 * (i + 1), () => ({ x: 520, y: -200 }));
+		expect(sim.mode).toBe('magnet');
+		expect(sim.cam.x).toBeCloseTo(520, 0);
+		expect(sim.cam.y).toBeCloseTo(-200, 0);
+	});
 });
 
 describe('createSim zoom', () => {
@@ -258,15 +290,21 @@ describe('createSim zoom', () => {
 		expect(sim.cam.x).toBeCloseTo(-40, 0);
 	});
 
-	it('measures speed on screen', () => {
-		const sim = createSim({ x: 0, y: 0 });
-		sim.pinch(0.5, 0, 1);
-		run(sim, 0, 1);
-		sim.up(-400, 0, 1, 1);
-		run(sim, 1, 0.3);
-		// Gliding at about 400 screen px/s, decayed a little; 800 world px/s.
-		expect(sim.speed).toBeGreaterThan(200);
-		expect(sim.speed).toBeLessThan(400);
+	it('flings and measures speed on screen, whatever the zoom', () => {
+		const flung = (zoom: number) => {
+			const sim = createSim({ x: 0, y: 0 });
+			sim.pinch(zoom, 0, 1);
+			run(sim, 0, 1);
+			sim.up(-400, 0, 1, 1);
+			run(sim, 1, 0.3);
+			return sim;
+		};
+		const near = flung(1);
+		const far = flung(0.5);
+		expect(near.speed).toBeGreaterThan(10);
+		expect(far.speed).toBeCloseTo(near.speed, 1);
+		// Twice the world travel for the same sweep across the screen.
+		expect(far.cam.x).toBeCloseTo(near.cam.x * 2, 1);
 	});
 
 	it('wakes a resting field without holding it as a touch', () => {

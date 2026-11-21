@@ -210,7 +210,7 @@ export const artefact = sqliteTable(
 		// `approveProposed`). Null for a row created already vetted, and for one
 		// approved before this column existed, whose approval time was never kept.
 		// So the moment an artefact went public is `coalesce(approved_at,
-		// created_at)`: what /live orders its arrivals by.
+		// created_at)`: what /keeper/live orders its arrivals by.
 		approvedAt: integer('approved_at', { mode: 'timestamp_ms' }),
 		...proposalColumns(),
 		...auditColumns()

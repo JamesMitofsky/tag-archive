@@ -69,7 +69,7 @@
 				</p>
 			{:else}
 				<ul class="space-y-2">
-					{#each data.events as ev}
+					{#each data.events as ev (ev.id)}
 						<li>
 							<a
 								href="/keeper/events/{ev.id}?from={encodeURIComponent(`/keeper/series/${s.id}`)}"

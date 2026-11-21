@@ -1,0 +1,10 @@
+{
+	// Gives ESLint's type-aware rules a project for these files. svelte-check
+	// reads only the root tsconfig, so they stay out of `pnpm check`; checkJs is
+	// off so an editor doesn't type-check the untyped .mjs scripts either.
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"checkJs": false
+	},
+	"include": ["."]
+}

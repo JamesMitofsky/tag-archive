@@ -1,7 +1,7 @@
 /**
  * Client loaders for the public archive. The public pages fetch `/api/dataset`
  * (the whole, small, edge-cached dataset) and take their slice; the browser caches
- * the response, so visiting several downloads it at most once. /live instead
+ * the response, so visiting several downloads it at most once. /keeper/live instead
  * polls `/api/live`, a short feed of the latest arrivals.
  */
 import { goto } from '$app/navigation';
@@ -12,7 +12,7 @@ import type { EventItem } from '#lib/events.ts';
 import type { LiveArrival } from '#lib/live.ts';
 import type { PublicImageSet } from '#lib/images/types.ts';
 
-type Dataset = {
+export type Dataset = {
 	artefacts: ArtefactWithEvent[];
 	events: EventItem[];
 	people: string[];
@@ -53,7 +53,7 @@ async function fetchDataset(): Promise<Partial<Dataset>> {
 }
 
 /**
- * The /live feed (#lib/live), newest first; null when the archive has drifted
+ * The /keeper/live feed (#lib/live), newest first; null when the archive has drifted
  * shut and the page is on its way to the locked page.
  */
 export async function loadLiveFeed(): Promise<LiveArrival[] | null> {

@@ -246,6 +246,36 @@ img {
 	}
 }
 
+/* The floating pages' two motions, shared by the search clouds (CardCloud)
+   and the live board (/keeper/live), so the two skies move alike. Only the
+   keyframes live here: each component sets its own timing, and passes the
+   per-card values in as custom properties (see `driftStyle` and `placeAt` in
+   src/lib/cloudLayout.ts, which own the amounts).
+
+   cloud-flyin: arrive once from an offset (`--ex`, `--ey`) and settle. `--eo`
+   is the opacity a card arrives from: 0, so it fades in, unless it is coming
+   out from under a packet's face (see `spillFrom`). */
+@keyframes cloud-flyin {
+	from {
+		transform: translate(var(--ex, 0), var(--ey, 0));
+		opacity: var(--eo, 0);
+	}
+	to {
+		transform: translate(0, 0);
+		opacity: 1;
+	}
+}
+
+/* cloud-float: the gentle, endless drift of a page at rest. */
+@keyframes cloud-float {
+	from {
+		transform: translate(0, 0) rotate(0deg);
+	}
+	to {
+		transform: translate(var(--ddx, 0), var(--ddy, 0)) rotate(var(--rot, 0deg));
+	}
+}
+
 /* Keeper list ↔ item morph: a clicked card grows into the detail hero. Named
    pairs are assigned dynamically (see src/lib/transitions.svelte.ts), so the
    wildcard covers every per-id pair. */
