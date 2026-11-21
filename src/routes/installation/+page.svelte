@@ -5,6 +5,10 @@
 	the last touch the lens rests, and the field goes back to a wash of the
 	archive floating by, with nothing drawn into focus.
 
+	The archive floats as islands, one per season, in date order; a bubble at
+	each island's center names its season ("Winter 2024"), so the drift keeps a
+	sense of when you are.
+
 	A pinch on the iPad zooms the field about the lens. Zoomed out, things step
 	aside so the view stays legible: first the lens, then the event cards, and
 	then pictures thin out evenly while those left stop shrinking (the order is
@@ -50,6 +54,7 @@
 		thinningRoom,
 		thinningStarts,
 		widestZoom,
+		type Group,
 		type Placed,
 		type World
 	} from '#lib/installation/field.ts';
@@ -90,6 +95,10 @@
 	 * its mind, as a share: so a pinch resting on a threshold doesn't flicker.
 	 */
 	const HYSTERESIS = 0.06;
+	/** A season bubble's type size, as a share of a layout cell at zoom 1. */
+	const BUBBLE_FONT = 0.17;
+	/** The smallest type (px) a season bubble keeps before it steps aside. */
+	const BUBBLE_MIN_FONT = 13;
 	/** The farthest a trackpad's ctrl-wheel step may zoom at once (as wheel px). */
 	const WHEEL_STEP = 50;
 
@@ -143,6 +152,12 @@
 	 */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const sizes = new Map<string, number>();
+	/** Each season's bubble, by its group's key. */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const bubbles = new Map<string, HTMLElement>();
+	/** Each bubble's level of detail, as the items': wanted, how far in, and its type size. */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const bubbleState = new Map<string, { wanted: boolean; presence: number; font: number }>();
 	let lens: HTMLElement | undefined = $state();
 	let captionEl: HTMLElement | undefined = $state();
 
@@ -153,6 +168,17 @@
 			return () => {
 				elements.delete(id);
 				sizes.delete(id);
+			};
+		};
+	}
+
+	/** Registers a season's bubble for the frame loop to place. */
+	function trackBubble(key: string) {
+		return (node: HTMLElement) => {
+			bubbles.set(key, node);
+			return () => {
+				bubbles.delete(key);
+				bubbleState.delete(key);
 			};
 		};
 	}
@@ -255,6 +281,8 @@
 		let fpsSince = last;
 
 		const now = () => performance.now() / 1000;
+		/** Where a bubble is in its bob, 0..1: fixed by its place, so bubbles don't bob in step. */
+		const bubblePhase = (group: Group) => ((group.x * 7 + group.y * 13) / (world?.cell ?? 1)) % 1;
 
 		const config = readRelayConfig(page.url.searchParams, PUBLIC_INSTALLATION_RELAY_URL);
 		relayConfig = config;
@@ -425,6 +453,48 @@
 				element.style.zIndex = isBest ? '3' : entry.focus > 0 ? '2' : '1';
 			}
 
+			// The season bubbles ride the water with the items, part around a bloom
+			// like them, and fade a little while one is open, so it holds the eye.
+			// A bubble is sized with the zoom, so it keeps to the clear water its
+			// island leaves for it, and steps aside (fading, like the items) once
+			// its name would be too small to read.
+			const bubbleFont = w.cell * BUBBLE_FONT * zoom;
+			for (const group of w.groups) {
+				const element = bubbles.get(group.key);
+				if (!element) continue;
+				const state = bubbleState.get(group.key) ?? { wanted: false, presence: 0, font: 0 };
+				bubbleState.set(group.key, state);
+				state.wanted = bubbleFont >= BUBBLE_MIN_FONT * (state.wanted ? 1 - HYSTERESIS : 1);
+				state.presence = step(state.presence, state.wanted);
+				const offset = offsetFrom(sim.cam, group, w);
+				let x = offset.x * zoom;
+				let y = offset.y * zoom;
+				if (state.presence === 0 || Math.abs(x) > halfW || Math.abs(y) > halfH) {
+					element.style.visibility = 'hidden';
+					continue;
+				}
+				if (best) {
+					const push = parting(
+						{ x: x - best.x, y: y - best.y },
+						reach + w.cell * zoom * 0.7,
+						bloomAmount
+					);
+					x += push.x;
+					y += push.y;
+				}
+				y += Math.sin((t / 8 + bubblePhase(group)) * Math.PI * 2) * 4;
+				// Set as type, not scaled, so the name stays crisp; only when it has
+				// changed enough to matter, as with the items' sizes.
+				if (Math.abs(bubbleFont / state.font - 1) > (sim.zooming ? 0.08 : 0.002)) {
+					state.font = bubbleFont;
+					element.style.fontSize = `${bubbleFont}px`;
+				}
+				const shown = ease(state.presence);
+				element.style.visibility = 'visible';
+				element.style.transform = `translate3d(${viewW / 2 + x}px, ${viewH / 2 + y}px, 0) scale(${(bubbleFont / state.font) * (0.6 + 0.4 * shown)})`;
+				element.style.opacity = String(0.92 * (1 - 0.6 * bloomAmount) * shown);
+			}
+
 			if (lens) lens.style.opacity = String(0.6 * lensAt * (1 - Math.min(1, bloomAmount * 1.4)));
 
 			// What's in focus, for the caption and the full-size picture.
@@ -554,7 +624,12 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="stream" class:operating={overlay || unconfigured} aria-label="Archive Stream">
+<div
+	class="stream"
+	class:operating={overlay || unconfigured}
+	aria-label="Archive Stream"
+	style:--cell={world ? `${world.cell}px` : undefined}
+>
 	<div
 		class="lens"
 		bind:this={lens}
@@ -562,6 +637,12 @@
 		style:height="{knobs.lens * 200}vh"
 		aria-hidden="true"
 	></div>
+
+	{#each world?.groups ?? [] as group (group.key)}
+		<div class="bubble" style:visibility="hidden" {@attach trackBubble(group.key)}>
+			{group.label}
+		</div>
+	{/each}
 
 	{#each visible as placed (placed.item.id)}
 		{@const item = placed.item}
@@ -805,6 +886,28 @@
 		text-align: center;
 		color: oklch(0.32 0.04 250);
 		overflow-wrap: anywhere;
+	}
+
+	/* A season's name, at the center of its island. Sized by the layout's cell,
+	   so it fits the clear water the layout keeps for it (about three cells
+	   wide and one tall) on any projector. */
+	.bubble {
+		position: absolute;
+		left: 0;
+		top: 0;
+		translate: -50% -50%;
+		will-change: transform;
+		padding: 0.3em 0.8em;
+		font-family: var(--font-friendly);
+		font-size: calc(var(--cell) * 0.17);
+		line-height: 1.1;
+		white-space: nowrap;
+		color: oklch(0.32 0.04 250);
+		background: oklch(0.98 0.012 90 / 0.88);
+		border-radius: 999px;
+		box-shadow: 0 0.1em 0.6em oklch(0.3 0.04 250 / 0.12);
+		pointer-events: none;
+		z-index: 2;
 	}
 
 	.caption {
