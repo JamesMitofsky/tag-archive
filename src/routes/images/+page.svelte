@@ -73,6 +73,7 @@
 <CardCloud
 	load={loadImageSets}
 	filter={filterImageSets}
+	dateOf={(set) => set.date}
 	ariaLabel="Search images"
 	card={stack}
 	{placeholderMark}
