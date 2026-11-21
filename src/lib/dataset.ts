@@ -61,6 +61,11 @@ export async function loadLiveFeed(): Promise<LiveArrival[] | null> {
 	return res ? res.json() : null;
 }
 
+/** Every slice at once, in one request, for a page that shows the whole archive. */
+export async function loadDataset(): Promise<Dataset> {
+	return { ...EMPTY, ...(await fetchDataset()) };
+}
+
 export async function loadArtefacts(): Promise<ArtefactWithEvent[]> {
 	return (await fetchDataset()).artefacts ?? [];
 }

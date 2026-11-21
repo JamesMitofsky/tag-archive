@@ -8,9 +8,10 @@ import { defineEnvVars } from '@sveltejs/kit/env';
  */
 const optional = { schema: (value: string | undefined) => value };
 
-// Every variable is private (server-only) and read from the environment when
-// the app starts (`static` defaults to false), so secrets set in Vercel's
-// settings reach the functions without being inlined into the build.
+// Every variable but the one marked public is private (server-only), and all
+// are read from the environment when the app starts (`static` defaults to
+// false), so secrets set in Vercel's settings reach the functions without being
+// inlined into the build.
 export const variables = defineEnvVars({
 	DATABASE_URL: optional,
 	DATABASE_AUTH_TOKEN: optional,
@@ -31,5 +32,9 @@ export const variables = defineEnvVars({
 	R2_PUBLIC_URL: optional,
 	S3_ENDPOINT: optional,
 	S3_REGION: optional,
-	S3_UPLOAD_PROXY: optional
+	S3_UPLOAD_PROXY: optional,
+	// The Archive Stream relay (relay/), e.g. `wss://archive-stream-relay.<you>.workers.dev`.
+	// Public: the installation's pages read it in the browser. Only an address,
+	// never a secret; the relay's key travels in the pages' own URL instead.
+	PUBLIC_INSTALLATION_RELAY_URL: { ...optional, public: true }
 });

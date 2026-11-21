@@ -21,6 +21,12 @@ export const CONTRIBUTE_PATH = '/contribute';
 export const PRESENCE_PATH = '/api/presence';
 
 /**
+ * The Archive Stream installation: a projector page and the iPad that steers
+ * it. Both are drawn without the site's chrome (see +layout.svelte).
+ */
+export const INSTALLATION_PATH = '/installation';
+
+/**
  * How often the page beats while visible. Well under the pass's lifetime
  * (PASS_TTL_MS in ./pass; pass.spec.ts pins the ratio), so a beat or two lost
  * to a flaky garden signal does not shut the site on someone still reading it.
@@ -32,8 +38,11 @@ export const PRESENCE_INTERVAL_MS = 4 * 60 * 1000;
  * /contribute the form's own action refuses with "tap again" and keeps what
  * was typed; under /keeper a 401 means a lapsed keeper session, which the
  * keeper guard handles on the next navigation (see #lib/server/keeperGuard).
+ * The installation's pages run unattended all evening with what they loaded at
+ * the start, and a lapse there (a long dropout on the venue's hotspot, say)
+ * must not turn the projector into the locked page in front of everyone.
  */
-export const KEEPS_WORK_WHEN_LOCKED = [CONTRIBUTE_PATH, KEEPER_PATH];
+export const KEEPS_WORK_WHEN_LOCKED = [CONTRIBUTE_PATH, KEEPER_PATH, INSTALLATION_PATH];
 
 /** True when `pathname` is `prefix` itself or a path beneath it. */
 export function isUnder(pathname: string, prefix: string): boolean {
