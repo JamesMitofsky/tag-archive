@@ -104,15 +104,17 @@ describe('createSim', () => {
 
 	it('glides on after release and slows to rest', () => {
 		const sim = createSim({ x: 0, y: 0 });
+		// A brisk flick, fast enough to glide well clear of the magnet's speed.
+		const flick = 4000;
 		sim.down(0);
-		sim.up(1000, 0, 0);
+		sim.up(flick, 0, 0);
 		const t = run(sim, 0, 0.5);
 		const midway = sim.cam.x;
 		expect(midway).toBeLessThan(-100);
 		run(sim, t, 6);
 		expect(sim.speed).toBeLessThan(1);
 		// It travelled no further than the friction allows: v0 · halfLife / ln 2.
-		const most = (1000 * TUNING.gain * TUNING.fling * TUNING.glideHalfLife) / Math.LN2;
+		const most = (flick * TUNING.gain * TUNING.fling * TUNING.glideHalfLife) / Math.LN2;
 		expect(Math.abs(sim.cam.x)).toBeLessThan(most * 1.05);
 	});
 

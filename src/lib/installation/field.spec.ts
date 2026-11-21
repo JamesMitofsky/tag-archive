@@ -91,8 +91,9 @@ describe('layoutField', () => {
 
 	it('shows about the asked number of items per screen', () => {
 		const perScreen = (400 * viewW * viewH) / (world.width * world.height);
-		expect(perScreen).toBeGreaterThan(16);
-		expect(perScreen).toBeLessThan(26);
+		// Some cells stay empty, so a little under the default 37.
+		expect(perScreen).toBeGreaterThan(26);
+		expect(perScreen).toBeLessThan(37);
 	});
 
 	it('is the same every time', () => {

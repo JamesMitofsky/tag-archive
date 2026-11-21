@@ -20,22 +20,22 @@ export type Vec = { x: number; y: number };
 
 export const TUNING = {
 	/** Projector px the field moves per iPad px of finger travel. */
-	gain: 2.5,
+	gain: 0.5,
 	/** How tightly the shown field follows the finger's target (1/s). */
 	followOmega: 18,
 	/**
 	 * The share of the finger's speed a release carries into the glide. Under
 	 * 1, a flick nudges the field on rather than throwing it across the archive.
 	 */
-	fling: 0.5,
+	fling: 0.25,
 	/** Time for a released glide to lose half its speed (s). */
 	glideHalfLife: 0.35,
 	/** The fastest the field may travel (projector px/s). */
 	maxSpeed: 4200,
 	/** Below this speed, with no finger down, the magnet takes over (px/s). */
-	magnetSpeed: 150,
-	/** The magnet's spring (1/s): settles in about 1.2 s, without overshoot. */
-	magnetOmega: 3.6,
+	magnetSpeed: 120,
+	/** The magnet's spring (1/s): settles in about 1 s, without overshoot. */
+	magnetOmega: 5,
 	/** Seconds without a touch before the current starts and the lens rests. */
 	idleAfter: 60,
 	/** The current's speed (px/s) and how gently it gathers (half-life, s). */
