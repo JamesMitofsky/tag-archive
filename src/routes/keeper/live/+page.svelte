@@ -1,235 +1,247 @@
 <!--
 	/keeper/live: the archive's arrivals board, for admins (+page.server.ts turns
-	everyone else away). The artefact that most recently went
-	public sits on the stage, the ones before it in a row beneath, and when a new
-	one arrives a paper plane flies it in: the plane loops over the stage and
-	lands, the artefact's sheet unfolds where it touched down, ink sparks fly off
-	it, and the one it replaced slides down to head the row.
+	everyone else away). It is the sky of the public cloud on `/` with no
+	searchbar: pages float in space and fly in as they join the archive. It holds
+	far fewer of them than `/` does (LIVE_FEED_SIZE), so each can be drawn large
+	enough to read across a room, and when another arrives the oldest flies away.
+
+	What it shows: only artefacts that went public at most an hour before the
+	page was opened, or since (LIVE_WINDOW_MS). Older ones never appear, even
+	when the board has room.
 
 	Arrivals come from polling /api/live (see that route for why it polls rather
 	than streams, and why it stays open to every pass holder while this page is
-	admin-only) every LIVE_POLL_MS while the page is on screen, and once more
-	the moment it comes back. Each poll is diffed against every id this page has
-	already shown (#lib/live), so only genuinely new artefacts are announced, in
-	the order they went public, one flight at a time. The same poll refreshes the
-	artefacts already on screen (an edit shows up) and drops any that left the
-	public archive.
+	admin-only) every LIVE_POLL_MS while the page is on screen, and once more the
+	moment it comes back. The feed is exactly the newest LIVE_FEED_SIZE, so each
+	poll, cut to the window, IS the board: what is new flies in, what has left
+	the feed (pushed out by newer arrivals, or no longer public) flies out, and
+	what stayed is refreshed in place, so an edit shows up. After LIVE_LISTEN_MS
+	(five hours) the board stops polling and offers a button to resume.
 
-	Open it with `?replay` to fly the latest arrival in again, to see the
-	animation without adding an artefact.
+	Each page keeps its place for as long as it is shown (`assignSlots` in
+	#lib/live), so an arrival never makes the others move. The places are the
+	public cloud's, from the same layout maths (`measureBoard` and `boardSlots`
+	in #lib/cloudLayout), and so are the fly-in and the drift.
+
+	Open it with `?replay` to fly the latest arrival in again a moment after the
+	rest, to see an arrival without adding an artefact. It comes in even when it
+	is older than the window.
 -->
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
-	import { flip } from 'svelte/animate';
-	import { crossfade, fade } from 'svelte/transition';
-	import { backOut, cubicInOut, cubicOut } from 'svelte/easing';
+	import { onMount, untrack } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
+	import { cubicIn } from 'svelte/easing';
 	import { page } from '$app/state';
 	import { loadLiveFeed } from '#lib/dataset.ts';
 	import {
-		arrivedAgo,
+		assignSlots,
 		LIVE_FEED_SIZE,
+		LIVE_LISTEN_MS,
 		LIVE_POLL_MS,
-		newArrivals,
+		withinWindow,
 		type LiveArrival
 	} from '#lib/live.ts';
+	import { boardSlots, measureBoard, pinAt, type FieldInput, type Rect } from '#lib/cloudLayout.ts';
 	import { programAreaMeta } from '#lib/programAreas.ts';
 	import { formatDate } from '#lib/formatDate.ts';
 	import { reducedMotion } from '#lib/transitions.svelte.ts';
-	import { A4 } from '#lib/cloudLayout.ts';
 	import CardSheet from '#lib/components/CardSheet.svelte';
 	import ArtefactFilePreview from '#lib/components/ArtefactFilePreview.svelte';
-	import ArrivalFlight from '#lib/components/ArrivalFlight.svelte';
-	import Confetti from '#lib/components/Confetti.svelte';
-	import { INK } from '#lib/components/PaperPlaneFlight.svelte';
 
-	/** How long a new arrival holds the stage before the next one may take it. */
-	const DWELL_MS = 6000;
-	/** How long "Just arrived" stays on a new arrival. */
-	const FRESH_MS = 60_000;
-	const CONFETTI_MS = 3500;
+	/** How long a departing page takes to fly off, in ms (as on `/`). */
+	const EXIT_MS = 450;
+	/** Gap between the pages already there when the board opens, which cascade in. */
+	const CASCADE_S = 0.12;
+	/** With `?replay`, how long the latest arrival waits for the rest to land. */
+	const REPLAY_AFTER_MS = 1500;
 
-	let featured = $state<LiveArrival | null>(null);
-	let earlier = $state<LiveArrival[]>([]);
-	/** The arrival in the air: the plane is bringing it, the stage is empty. */
-	let inFlight = $state<{ item: LiveArrival; target: { x: number; y: number } } | null>(null);
-	/** The id of the featured arrival that just landed, while it reads "Just arrived". */
-	let freshId = $state<number | null>(null);
-	let sparks = $state<Spark[]>([]);
-	let celebrating = $state(false);
-	let status = $state<'connecting' | 'live' | 'retrying' | 'empty'>('connecting');
-	let now = $state(Date.now());
-	let stage = $state<HTMLElement>();
+	/** When the board was opened: the window is measured back from here. */
+	const openedAt = Date.now();
 
-	/** Every id shown or queued, so nothing is announced twice. */
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read imperatively, never rendered
-	const seen = new Set<number>();
-	/** New arrivals waiting their turn, oldest first. */
-	let queue: LiveArrival[] = [];
-	let playing = false;
-	// Read once on mount (the server has no media queries); templates read it too.
-	let motion = $state(true);
+	/** The latest poll, newest first. */
+	let feed = $state<LiveArrival[]>([]);
+	let status = $state<'connecting' | 'live' | 'retrying'>('connecting');
+	/** With `?replay`: the arrival held back from the first poll, then let in. */
+	let heldBack = $state<number | null>(null);
+	let replayed = $state<number | null>(null);
 
-	const [send, receive] = crossfade({
-		duration: (d) => (motion ? Math.min(900, Math.max(500, Math.sqrt(d) * 30)) : 0),
-		easing: cubicInOut,
-		fallback: (node) => fade(node, { duration: motion ? 300 : 0 })
-	});
+	/** What the board shows: the feed cut to the window, plus a replayed arrival. */
+	let shown = $derived(
+		feed.filter(
+			(item) => item.id !== heldBack && (item.id === replayed || withinWindow(item, openedAt))
+		)
+	);
+
+	// ------------------------------------------------------------- measurement
 
 	/**
-	 * A folded note opening: first across, from a sliver turned edge-on to a
-	 * ribbon facing the room, then down, from the ribbon to the whole sheet, with
-	 * a little overshoot as it settles.
+	 * The placement box: the whole viewport, with the chrome marked
+	 * `data-cloud-block` (the home mark) taken out of it, as `/` measures it. Zero
+	 * until the first measurement, and nothing is placed before that.
 	 */
-	function unfold(node: Element, { duration = 1000 }: { duration?: number } = {}) {
-		if (!motion) return { duration: 300, css: (t: number) => `opacity: ${t}` };
-		return {
-			duration,
-			css: (t: number) => {
-				const across = cubicOut(Math.min(1, t / 0.45));
-				const down = backOut(Math.max(0, (t - 0.4) / 0.6));
-				const scaleY = 0.1 + 0.9 * down;
-				return `
-					transform: perspective(900px)
-						rotateY(${(1 - across) * 80}deg)
-						rotateX(${(1 - Math.min(1, down)) * 60}deg)
-						scale(${0.15 + 0.85 * across}, ${scaleY});
-					opacity: ${Math.min(1, t / 0.15)};
-				`;
-			}
+	let field = $state<FieldInput>({ fieldW: 0, fieldH: 0, fullViewport: true, blocks: [] });
+
+	const BLOCK_SELECTOR = '[data-cloud-block]';
+	const toRect = (el: Element): Rect => {
+		const r = el.getBoundingClientRect();
+		return { left: r.left, top: r.top, width: r.width, height: r.height };
+	};
+	/** Round down to 8px, so a URL bar sliding about doesn't re-place every page. */
+	const quantise = (v: number) => Math.floor(v / 8) * 8;
+
+	function remeasure() {
+		// The layer is `fixed inset-0`, so it spans the viewport minus any classic
+		// scrollbar: measure that box, as `/` does, or a page could hang under it.
+		const doc = document.documentElement;
+		field = {
+			fieldW: quantise(doc.clientWidth || window.innerWidth),
+			fieldH: quantise(doc.clientHeight || window.innerHeight),
+			fullViewport: true,
+			blocks: Array.from(document.querySelectorAll(BLOCK_SELECTOR), toRect)
 		};
 	}
 
-	function wait(ms: number) {
-		return new Promise((resolve) => setTimeout(resolve, ms));
+	let frame = 0;
+	function schedule() {
+		if (frame) return;
+		frame = requestAnimationFrame(() => {
+			frame = 0;
+			remeasure();
+		});
 	}
 
-	/** The stage's center in viewport pixels: where the plane lands. */
-	function stageCenter() {
-		const box = stage?.getBoundingClientRect();
-		if (!box) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-		return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
-	}
+	// ------------------------------------------------------------------ layout
+
+	/** Card size: as large as LIVE_FEED_SIZE of them can be, however many show. */
+	let layout = $derived(measureBoard(field, LIVE_FEED_SIZE));
+	let slots = $derived(field.fieldW ? boardSlots(field, layout, LIVE_FEED_SIZE) : []);
 
 	/**
-	 * The plane lands on the stage where it is on screen when it takes off, so a
-	 * visitor scrolled down the row (a phone) is first brought back up to it.
+	 * Memory the placement below keeps between runs, in plain variables rather
+	 * than state because only that derivation reads them. Both are only ever
+	 * extended the same way for the same input, so a re-run changes nothing.
+	 *
+	 * `slotOf`: which slot each shown page stands in (see `assignSlots`).
+	 * `delayOf`: each page's entrance delay, fixed when it first appears. The
+	 * pages already there when the board opens cascade in, oldest first, like
+	 * `/`'s first deal; an arrival after that comes in at once.
 	 */
-	async function bringStageIntoView() {
-		const box = stage?.getBoundingClientRect();
-		if (!box || (box.top >= 0 && box.bottom <= window.innerHeight)) return;
-		stage!.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		await wait(700);
-	}
+	let slotOf: Record<number, number> = {};
+	const delayOf: Record<number, number> = {};
+	let firstDeal = true;
 
-	/** Make way on the stage: the featured artefact slides down to head the row. */
-	function retireFeatured() {
-		if (featured) earlier = [featured, ...earlier].slice(0, LIVE_FEED_SIZE - 1);
-		featured = null;
-	}
+	let placed = $derived.by(() => {
+		if (slots.length === 0) return [];
+		slotOf = assignSlots(slotOf, shown, slots.length);
+		const dealing = shown
+			.filter((item) => delayOf[item.id] === undefined)
+			.sort((a, b) => a.arrivedAt - b.arrivedAt || a.id - b.id);
+		dealing.forEach((item, k) => (delayOf[item.id] = firstDeal ? k * CASCADE_S : 0));
+		if (shown.length > 0) firstDeal = false;
+		return shown.flatMap((item) => {
+			const slot = slotOf[item.id];
+			if (slot === undefined) return [];
+			const p = pinAt(item, slots[slot], field, item.id);
+			const delay = (delayOf[item.id] ?? 0).toFixed(2);
+			return [{ ...p, enterStyle: `${p.enterStyle};--edelay:${delay}s` }];
+		});
+	});
 
-	/** Fly the queued arrivals in, one at a time, each holding the stage a while. */
-	async function play() {
-		if (playing) return;
-		playing = true;
-		while (queue.length > 0) {
-			const item = queue.shift()!;
-			retireFeatured();
-			if (motion) {
-				// Let the retiring sheet leave the stage before the plane comes in.
-				await tick();
-				await bringStageIntoView();
-				await new Promise<void>((landed) => {
-					inFlight = { item, target: stageCenter() };
-					onLanded = landed;
-				});
-			}
-			featured = item;
-			freshId = item.id;
-			if (stage) sparks = sparksFor(stage.clientWidth, stage.clientHeight);
-			if (motion) celebrating = true;
-			const landedAt = item.id;
-			setTimeout(() => (celebrating = false), CONFETTI_MS);
-			setTimeout(() => {
-				if (freshId === landedAt) freshId = null;
-			}, FRESH_MS);
-			await wait(DWELL_MS);
-		}
-		playing = false;
-	}
-
-	let onLanded: (() => void) | null = null;
-
-	/**
-	 * Bring the screen up to date with a fresh feed: refresh what is shown, drop
-	 * what has left the public archive, queue what is new.
-	 */
-	function apply(feed: LiveArrival[]) {
-		const byId = new Map(feed.map((item) => [item.id, item]));
-		const current = (item: LiveArrival) => byId.get(item.id);
-
-		earlier = earlier.map(current).filter((item): item is LiveArrival => !!item);
-		if (featured) {
-			featured = current(featured) ?? null;
-			// Its replacement is the next one down, unless a flight is coming in.
-			if (!featured && !inFlight && !playing) {
-				featured = earlier[0] ?? null;
-				earlier = earlier.slice(1);
-			}
-		}
-		queue = queue.map(current).filter((item): item is LiveArrival => !!item);
-
-		const fresh = newArrivals(seen, feed);
-		for (const item of fresh) seen.add(item.id);
-		queue.push(...fresh);
-		if (queue.length > 0) void play();
-	}
+	// ----------------------------------------------------------------- polling
 
 	async function poll(first = false) {
-		let feed: LiveArrival[] | null;
+		let next: LiveArrival[] | null;
 		try {
-			feed = await loadLiveFeed();
+			next = await loadLiveFeed();
 		} catch {
 			status = 'retrying';
 			return;
 		}
-		if (!feed) return stop(); // drifted shut: on the way to the locked page
-		if (first) {
-			// What was already here is the backdrop, not news. With ?replay, the
-			// latest arrival flies in again.
-			const replay = page.url.searchParams.has('replay') && feed.length > 0;
-			const shown = replay ? feed.slice(1) : feed;
-			featured = shown[0] ?? null;
-			earlier = shown.slice(1);
-			for (const item of shown) seen.add(item.id);
+		if (!next) return stop(); // drifted shut: on the way to the locked page
+		if (first && page.url.searchParams.has('replay') && next.length > 0) {
+			const latest = next[0].id;
+			heldBack = latest;
+			setTimeout(() => {
+				replayed = latest;
+				heldBack = null;
+			}, REPLAY_AFTER_MS);
 		}
-		apply(feed);
-		status = feed.length > 0 || featured || inFlight ? 'live' : 'empty';
+		feed = next;
+		status = 'live';
 	}
 
-	let stop = () => {};
+	// --------------------------------------------------------------- listening
+	//
+	// The board listens for LIVE_LISTEN_MS at a time, then pauses until someone
+	// presses Resume. The pause is checked against the clock before every poll
+	// as well as set as a timer: a sleeping laptop or a backgrounded tab can hold
+	// a timer back for hours, and must not get one more poll in on waking.
+
+	/** Polling has stopped until Resume is pressed (see LIVE_LISTEN_MS). */
+	let paused = $state(false);
+	/** The archive has drifted shut: polling has stopped for good. */
+	let closed = false;
+	let listeningSince = 0;
+	let timer: ReturnType<typeof setInterval> | undefined;
+	let pauseTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function halt() {
+		clearInterval(timer);
+		clearTimeout(pauseTimer);
+	}
+
+	function pause() {
+		halt();
+		paused = true;
+	}
+
+	/** Start (or restart) a stretch of listening, LIVE_LISTEN_MS long. */
+	function listen() {
+		halt();
+		paused = false;
+		listeningSince = Date.now();
+		timer = setInterval(tick, LIVE_POLL_MS);
+		pauseTimer = setTimeout(pause, LIVE_LISTEN_MS);
+	}
+
+	/** Poll, unless the page is hidden, the stretch is over, or the archive shut. */
+	function tick() {
+		if (closed || paused || document.visibilityState !== 'visible') return;
+		if (Date.now() - listeningSince >= LIVE_LISTEN_MS) return pause();
+		void poll();
+	}
+
+	function resume() {
+		listen();
+		void poll();
+	}
+
+	function stop() {
+		closed = true;
+		halt();
+	}
 
 	onMount(() => {
-		motion = !reducedMotion();
+		remeasure();
+		listen();
 		void poll(true);
 
-		const timer = setInterval(() => {
-			if (document.visibilityState === 'visible') void poll();
-		}, LIVE_POLL_MS);
-		const clock = setInterval(() => (now = Date.now()), 30_000);
-		// Back on screen: catch up at once rather than at the next tick.
-		const onVisible = () => {
-			if (document.visibilityState !== 'visible') return;
-			now = Date.now();
-			void poll();
-		};
-		document.addEventListener('visibilitychange', onVisible);
+		// The home mark is a drawing whose box settles once its image arrives;
+		// watch it, as `/` does, so no page ends up under it.
+		const observer = new ResizeObserver(schedule);
+		for (const el of document.querySelectorAll(BLOCK_SELECTOR)) observer.observe(el);
+		window.visualViewport?.addEventListener('resize', schedule);
 
-		stop = () => {
-			clearInterval(timer);
-			clearInterval(clock);
-			document.removeEventListener('visibilitychange', onVisible);
+		// Back on screen: catch up at once rather than at the next tick.
+		document.addEventListener('visibilitychange', tick);
+
+		return () => {
+			stop();
+			document.removeEventListener('visibilitychange', tick);
+			observer.disconnect();
+			window.visualViewport?.removeEventListener('resize', schedule);
+			if (frame) cancelAnimationFrame(frame);
 		};
-		return stop;
 	});
 
 	function tagsFor(item: LiveArrival) {
@@ -241,180 +253,130 @@
 			...item.provenance.map((person) => ({ label: person }))
 		];
 	}
-
-	type Spark = { x1: number; y1: number; x2: number; y2: number; delay: number };
-
-	/**
-	 * Ink sparks thrown off a sheet as it lands: short pen strokes radiating from
-	 * just outside its edge, all the way round. Each starts where its ray from the
-	 * sheet's center leaves the sheet's rectangle, so they ring the paper rather
-	 * than a circle that would cut through it.
-	 */
-	function sparksFor(width: number, height: number): Spark[] {
-		const [a, b] = [width / 2, height / 2];
-		return Array.from({ length: 14 }, (_, i) => {
-			const angle = ((i * 360) / 14 + (i % 2 ? 8 : -5)) * (Math.PI / 180);
-			const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
-			const edge = Math.min(a / Math.abs(cos || 1e-9), b / Math.abs(sin || 1e-9));
-			const [from, to] = [edge + 8, edge + (i % 3 === 0 ? 40 : 28)];
-			return {
-				x1: cos * from,
-				y1: sin * from,
-				x2: cos * to,
-				y2: sin * to,
-				delay: 450 + (i % 4) * 50
-			};
-		});
-	}
 </script>
 
 <svelte:head>
 	<title>Live · Cloud Keeper · TAG Archive</title>
 </svelte:head>
 
-{#snippet sheet(item: LiveArrival, sizes: string, lines: number)}
-	<CardSheet
-		title={item.artefact}
-		meta={[item.event, item.date && formatDate(item.date)]}
-		description={item.description}
-		{lines}
-		tags={tagsFor(item)}
-	>
-		{#snippet media()}
-			{#if item.fileUrls.length > 0}
-				<ArtefactFilePreview fileUrls={item.fileUrls} artefactName={item.artefact} {sizes} />
-			{/if}
-		{/snippet}
-	</CardSheet>
-{/snippet}
+<svelte:window onresize={schedule} />
 
-<!-- No pt-chrome here: the keeper layout already reserves the home mark's band. -->
-<main class="flex min-h-dvh flex-col items-center gap-8 px-4 pb-12">
-	<!-- The stage keeps its size while empty, so the plane always has somewhere
-	     to land and the row beneath never jumps. -->
-	<section
-		bind:this={stage}
-		aria-label="Latest arrival"
-		aria-live="polite"
-		class="relative grid w-[min(18rem,70vw)] place-items-center"
-		style="aspect-ratio: 1 / {A4}"
-		data-cloud-block
-	>
-		{#if featured}
-			{@const item = featured}
-			<!-- |global: the stage's sheet comes and goes with the {#if} around it
-			     as well as the {#key}, and a local transition would skip the first. -->
-			{#key item.id}
-				<div class="absolute inset-0" in:unfold|global out:send|global={{ key: item.id }}>
-					{#if freshId === item.id && motion}
-						<svg
-							class="pointer-events-none absolute top-1/2 left-1/2 size-px overflow-visible"
-							aria-hidden="true"
-							fill="none"
-							stroke={INK}
-							stroke-width="2.5"
-							stroke-linecap="round"
-						>
-							{#each sparks as spark, i (i)}
-								<line
-									class="spark"
-									style="--delay: {spark.delay}ms; --dx: {(spark.x2 - spark.x1) /
-										2}px; --dy: {(spark.y2 - spark.y1) / 2}px"
-									pathLength="1"
-									x1={spark.x1}
-									y1={spark.y1}
-									x2={spark.x2}
-									y2={spark.y2}
-								/>
-							{/each}
-						</svg>
-					{/if}
-					{@render sheet(item, '(max-width: 640px) 70vw, 288px', 4)}
-					{#if freshId === item.id}
-						<span
-							class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gray-900 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-white shadow-md"
-							in:fade={{ delay: motion ? 700 : 0, duration: 300 }}
-							out:fade={{ duration: 300 }}
-						>
-							Just arrived
-						</span>
-					{/if}
-				</div>
-			{/key}
-		{:else if status === 'empty'}
-			<p class="text-center text-sm text-gray-600" transition:fade>
-				Nothing here yet. The next artefact to join the archive will land here.
-			</p>
-		{/if}
-	</section>
-
-	<!-- Always in the flow, blank while the stage is empty, so the row beneath
-	     holds still while a plane is in the air. -->
-	<p class="-mt-4 min-h-5 text-sm text-gray-600">
-		{#if featured}Arrived {arrivedAgo(featured.arrivedAt, now)}{/if}
-	</p>
-
-	{#if earlier.length > 0}
-		<section aria-label="Earlier arrivals" class="w-full max-w-5xl">
-			<div class="mb-3 text-center text-sm font-medium tracking-wide text-gray-700 uppercase">
-				Earlier
-			</div>
-			<ul class="flex flex-wrap justify-center gap-4">
-				{#each earlier as item (item.id)}
-					<li
-						class="flex w-28 flex-col gap-1.5 sm:w-32"
-						animate:flip={{ duration: motion ? 600 : 0, easing: cubicInOut }}
-						in:receive={{ key: item.id }}
-						out:fade={{ duration: motion ? 300 : 0 }}
-					>
-						<div style="aspect-ratio: 1 / {A4}">
-							{@render sheet(item, '128px', 2)}
-						</div>
-						<p class="text-center text-xs text-gray-600">{arrivedAgo(item.arrivedAt, now)}</p>
-					</li>
-				{/each}
-			</ul>
-		</section>
+<main class="relative min-h-dvh overflow-hidden">
+	{#if status === 'live' && shown.length === 0}
+		<p
+			class="fixed inset-x-4 top-1/2 -translate-y-1/2 text-center text-sm text-gray-600"
+			transition:fade
+		>
+			Nothing has joined the archive in the last hour. New artefacts will float in here.
+		</p>
 	{/if}
+
+	{#if paused}
+		<!-- Above the pages, in the searchbar's glass, at the foot of the screen
+		     where it covers as little of the board as it can. -->
+		<div
+			class="fixed inset-x-4 bottom-6 z-20 flex justify-center"
+			transition:fade={{ duration: 250 }}
+		>
+			<div
+				class="flex items-center gap-3 rounded-full border border-white/40 bg-white/60 py-2 pr-2 pl-5 text-sm text-gray-800 shadow-sm backdrop-blur-md"
+				role="status"
+			>
+				<span>Live updates paused after 5 hours</span>
+				<button
+					type="button"
+					onclick={resume}
+					class="cursor-pointer touch-manipulation rounded-full bg-gray-900 px-4 py-1.5 font-medium text-white transition hover:bg-gray-700 focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+				>
+					Resume
+				</button>
+			</div>
+		</div>
+	{/if}
+
+	<!-- The sky the pages float in: the whole viewport, so a page flying in or
+	     out is clipped by the window rather than growing the page. -->
+	<section
+		class="pointer-events-none fixed inset-0 z-10 overflow-hidden"
+		style="--card-w:{layout.cardW}px; --card-h:{layout.cardH}px"
+		aria-live="polite"
+		aria-label="Newest artefacts"
+	>
+		{#each placed as p (p.item.id)}
+			<div
+				class="card-anchor"
+				style="left: calc(50% + {p.dx}px); top: calc(50% + {p.dy}px)"
+				out:fly={{
+					x: p.offX,
+					y: p.offY,
+					opacity: 0,
+					duration: reducedMotion() ? 0 : EXIT_MS,
+					easing: cubicIn
+				}}
+			>
+				<!-- Fly in once, from the edge the page faces (`/`'s entrance), then
+				     drift. The style is read once, on mount: a later change must never
+				     restart a page's entrance. -->
+				<div class="enter" style={untrack(() => p.enterStyle)}>
+					<div class="page drift" style={p.style}>
+						<CardSheet
+							title={p.item.artefact}
+							meta={[p.item.event, p.item.date && formatDate(p.item.date)]}
+							description={p.item.description}
+							lines={4}
+							tags={tagsFor(p.item)}
+						>
+							{#snippet media()}
+								{#if p.item.fileUrls.length > 0}
+									<ArtefactFilePreview
+										fileUrls={p.item.fileUrls}
+										artefactName={p.item.artefact}
+										sizes="{Math.ceil(layout.cardW)}px"
+									/>
+								{/if}
+							{/snippet}
+						</CardSheet>
+					</div>
+				</div>
+			</div>
+		{/each}
+	</section>
 </main>
 
-{#if inFlight}
-	<ArrivalFlight
-		target={inFlight.target}
-		onlanded={() => {
-			onLanded?.();
-			onLanded = null;
-		}}
-		ondone={() => (inFlight = null)}
-	/>
-{/if}
-
-{#if celebrating}
-	<Confetti duration={CONFETTI_MS} />
-{/if}
-
 <style>
-	/* Each spark is a pen stroke drawing itself outward from the sheet's edge,
-	   then lifting off the page as it keeps going. */
-	.spark {
-		stroke-dasharray: 1;
-		stroke-dashoffset: 1;
-		animation: spark 650ms cubic-bezier(0.2, 0.7, 0.3, 1) var(--delay) forwards;
+	/* The same paper, anchor, entrance and drift as the search cloud on `/` (see
+	   CardCloud); the keyframes are global, in layout.css. */
+	.page {
+		width: var(--card-w);
+		height: var(--card-h);
 	}
-	@keyframes spark {
-		0% {
-			stroke-dashoffset: 1;
-			transform: translate(0, 0);
-			opacity: 1;
+
+	/* A page's place on the board. Glides, rather than jumps, when a resize moves
+	   the places. */
+	.card-anchor {
+		position: absolute;
+		transform: translate(-50%, -50%);
+		transition:
+			left 700ms cubic-bezier(0.22, 1, 0.36, 1),
+			top 700ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	.enter {
+		animation: cloud-flyin 900ms cubic-bezier(0.16, 1, 0.3, 1) var(--edelay, 0s) both;
+		will-change: transform, opacity;
+	}
+
+	.drift {
+		animation: cloud-float var(--dur, 8s) ease-in-out var(--delay, 0s) infinite alternate;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.enter,
+		.drift {
+			animation: none;
 		}
-		55% {
-			stroke-dashoffset: 0;
-			opacity: 1;
-		}
-		100% {
-			stroke-dashoffset: 0;
-			transform: translate(var(--dx), var(--dy));
-			opacity: 0;
+		.card-anchor {
+			transition: none;
 		}
 	}
 </style>

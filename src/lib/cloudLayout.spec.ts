@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
 	A4,
+	boardSlots,
 	CAP_MAX,
 	CAP_MIN,
 	cardMargin,
+	measureBoard,
 	measureCloud,
 	pinAt,
 	placeCloud,
@@ -402,5 +404,63 @@ describe('placeCloud — grid', () => {
 		}
 		// Distinct per card, so the grid doesn't pulse in lockstep.
 		expect(new Set(cards.map((c) => c.style)).size).toBe(cards.length);
+	});
+});
+
+describe('measureBoard and boardSlots (the live board)', () => {
+	/** The board has no searchbar: only the home mark is chrome. */
+	const board = (w: number, h: number): FieldInput => ({
+		fieldW: w,
+		fieldH: h,
+		fullViewport: true,
+		blocks: [{ left: 12, top: 12, width: 190, height: 40 }]
+	});
+	const COUNT = 6;
+	const sizes: [number, number][] = [
+		[390, 844],
+		[1024, 768],
+		[1440, 900],
+		[1920, 1080],
+		[3840, 2160]
+	];
+
+	it.each(sizes)('draws larger pages than the search cloud at %ix%i', (w, h) => {
+		const cloud = measureCloud(wide(w, h));
+		expect(measureBoard(board(w, h), COUNT).cardW).toBeGreaterThanOrEqual(cloud.cardW);
+	});
+
+	it('draws them well above the search cloud’s ceiling on a desktop screen', () => {
+		expect(measureBoard(board(1440, 900), COUNT).cardW).toBeGreaterThan(240);
+	});
+
+	it.each(sizes)('places every page fully on screen and off the chrome at %ix%i', (w, h) => {
+		const f = board(w, h);
+		const layout = measureBoard(f, COUNT);
+		const slots = boardSlots(f, layout, COUNT);
+		expect(slots).toHaveLength(COUNT);
+		const m = cardMargin(layout.cardW, layout.cardH);
+		for (const s of slots) {
+			expect(Math.abs(s.x)).toBeLessThanOrEqual(w / 2 - m.x + 1e-6);
+			expect(Math.abs(s.y)).toBeLessThanOrEqual(h / 2 - m.y + 1e-6);
+			const [mark] = f.blocks!;
+			const box = {
+				left: w / 2 + s.x - m.x,
+				right: w / 2 + s.x + m.x,
+				top: h / 2 + s.y - m.y,
+				bottom: h / 2 + s.y + m.y
+			};
+			const hits =
+				box.left < mark.left + mark.width &&
+				box.right > mark.left &&
+				box.top < mark.top + mark.height &&
+				box.bottom > mark.top;
+			expect(hits).toBe(false);
+		}
+	});
+
+	it('gives the same slots for the same window, so a page keeps its place', () => {
+		const f = board(1440, 900);
+		const layout = measureBoard(f, COUNT);
+		expect(boardSlots(f, layout, COUNT)).toEqual(boardSlots(f, layout, COUNT));
 	});
 });

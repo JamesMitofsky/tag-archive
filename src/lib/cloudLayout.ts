@@ -278,8 +278,52 @@ export function measureCloud(f: FieldInput, fit?: number): CloudLayout {
 /** Shrink step when fitting a given count (see `measureCloud`). */
 const FIT_STEP = 8;
 
+/**
+ * The live board's density dial (see OCCUPANCY_SURROUND). Far lower than the
+ * search cloud's: the board holds a handful of large pages to be read from
+ * across a room, so they may overlap at their edges but must not bury each
+ * other.
+ */
+const OCCUPANCY_BOARD = 1.6;
+/** The live board's card height ceiling, as a share of field height. */
+const BOARD_H_FRAC = 0.62;
+/** The live board's card width ceiling, as a share of field width. */
+const BOARD_W_FRAC = 0.5;
+
+/**
+ * The live board (/keeper/live): the surround layout with no searchbar to
+ * surround, sized for exactly `count` cards. It starts from cards as large as
+ * the window allows and shrinks them until `count` fit at the board's density,
+ * so the board's few pages come out as large as they can be. The size depends
+ * on `count`, never on how many are showing, so a page does not change size
+ * when another arrives. The board is always a single screenful: it never
+ * switches to the scrolling grid.
+ */
+export function measureBoard(f: FieldInput, count: number): CloudLayout {
+	const ceiling = Math.max(
+		CARD_MIN,
+		Math.min(f.fieldW * BOARD_W_FRAC, (f.fieldH * BOARD_H_FRAC) / A4)
+	);
+	for (let w = ceiling; ; w = Math.max(CARD_MIN, w - FIT_STEP)) {
+		const at = surroundAt(f, w, OCCUPANCY_BOARD);
+		if (at.room >= count || w === CARD_MIN) return { ...at, cap: count };
+	}
+}
+
+/**
+ * Where the live board's `n` cards stand, as centre offsets, numbered
+ * corner-first: the same farthest-point spread as `placeCloud`, but handed out
+ * as numbered places the board keeps a card in (see `assignSlots` in
+ * #lib/live), rather than re-dealt by rank whenever the set of cards changes.
+ * Fewer than `n` when the window is too small to hold them all.
+ */
+export function boardSlots(f: FieldInput, layout: CloudLayout, n: number) {
+	const free = freeSlots(f, layout.cardW, layout.cardH, layout.availX, layout.availY);
+	return pickSlots(free, n);
+}
+
 /** The surround layout at a given card width, with its uncapped room. */
-function surroundAt(f: FieldInput, cardW: number) {
+function surroundAt(f: FieldInput, cardW: number, occupancy = OCCUPANCY_SURROUND) {
 	const cardH = cardW * A4;
 
 	// Reach of a card's CENTRE, so that its swept box still lands inside the field.
@@ -292,7 +336,7 @@ function surroundAt(f: FieldInput, cardW: number) {
 	// can legally stand on — so the count and the placement can never disagree.
 	const slots = freeSlots(f, cardW, cardH, availX, availY);
 	const freeArea = slots.length * SLOT_STEP * SLOT_STEP;
-	const room = Math.round((OCCUPANCY_SURROUND * freeArea) / (cardW * cardH));
+	const room = Math.round((occupancy * freeArea) / (cardW * cardH));
 
 	return { mode: 'surround' as const, cols: 1, cardW, cardH, availX, availY, room };
 }
