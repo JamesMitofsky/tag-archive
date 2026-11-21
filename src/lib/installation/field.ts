@@ -4,11 +4,11 @@
  * ends and there is no edge to bump into.
  *
  * Things that belong together sit together. An event, its artefacts and its
- * photographs form a cluster; the clusters of each season form an island,
- * labeled at its center with its season ("Winter 2024"); and the islands run
- * in date order through the world. So drifting in one direction is drifting
- * through time, drifting nearby is finding related things, and the bubbles say
- * when you are.
+ * photographs form a cluster; the clusters of each season, from every year,
+ * form an island, labeled at its center with its season ("Winter"); and within
+ * an island the clusters run in date order. So drifting through an island is
+ * drifting through the years of one season, drifting nearby is finding related
+ * things, and the bubbles say which season you are in.
  *
  * Pure and free of the DOM: the projector page draws what this decides.
  * Positions are world pixels. `cam` is the world point at the screen's center.
@@ -51,7 +51,7 @@ export type Placed = {
 /** A season's island, by the place its bubble sits: the island's center. */
 export type Group = {
 	key: string;
-	/** What the bubble says: "Winter 2024", "2019", "Undated". */
+	/** What the bubble says: "Winter", "Season unknown". */
 	label: string;
 	x: number;
 	y: number;
@@ -63,7 +63,7 @@ export type World = {
 	/** The side of one layout cell, and so roughly the gap between neighbors. */
 	cell: number;
 	placed: Placed[];
-	/** One per season, in date order. */
+	/** One per season, winter to fall, then the unknown. */
 	groups: Group[];
 };
 
@@ -111,7 +111,7 @@ export type LayoutOptions = {
  * A cluster's date: its earliest date known at least to the month, else its
  * earliest year-only date, else null. A finer date wins over an earlier coarse
  * one, so an event on 2019-07-04 whose program is filed under "2019" stays
- * in Summer 2019 rather than falling back to the bare year.
+ * in summer rather than falling back to the bare year.
  *
  * Lexicographic order on partial dates is chronological order (see
  * #lib/partialDate), so plain string comparison finds the earliest.
@@ -158,7 +158,8 @@ export function orderByCluster(items: readonly FieldItem[]): FieldItem[] {
 export type SeasonGroup = Season & { items: FieldItem[] };
 
 /**
- * The items gathered into seasons (see #lib/installation/season), in date
+ * The items gathered into seasons across the years (see
+ * #lib/installation/season), winter to fall, each season's clusters in date
  * order. A cluster is never split: it joins the season of its date, so an
  * event's photographs sit with it even when one was taken the week after.
  */
@@ -270,9 +271,9 @@ function balancedRows(widths: readonly number[], rows: number): number[][] {
  * center and given its own size, so the result reads as things floating on
  * water rather than as a grid.
  *
- * The islands run in date order along rows of one height, a serpentine again
+ * The islands run winter to fall along rows of one height, a serpentine again
  * (left to right, then back), so drifting in one direction is drifting
- * through time. A season too big to be round at that height stretches along
+ * through the year. A season too big to be round at that height stretches along
  * its row instead, and each row's islands widen to fill the world's width, so
  * the only open water is the channels between islands and around the small
  * ones. The world is shaped like the screen and never smaller than one, so no

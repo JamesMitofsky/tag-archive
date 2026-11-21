@@ -39,10 +39,15 @@ const item = (
 	cluster
 });
 
+// Clusters of four, spread over fifteen years and every month, plus some
+// known only to the year.
 const many = (n: number) =>
-	Array.from({ length: n }, (_, i) =>
-		item(`i${i}`, `c${Math.floor(i / 4)}`, `20${String(10 + (i % 15)).padStart(2, '0')}`)
-	);
+	Array.from({ length: n }, (_, i) => {
+		const c = Math.floor(i / 4);
+		const year = 2010 + (c % 15);
+		const month = String(1 + ((c * 5) % 12)).padStart(2, '0');
+		return item(`i${i}`, `c${c}`, c % 9 === 0 ? `${year}` : `${year}-${month}`);
+	});
 
 describe('wrapDelta', () => {
 	it('takes the short way round the loop', () => {
@@ -82,20 +87,21 @@ describe('orderByCluster', () => {
 });
 
 describe('groupBySeason', () => {
-	it('gathers clusters into seasons, in date order, never splitting a cluster', () => {
+	it('gathers clusters into seasons across the years, never splitting a cluster', () => {
 		const groups = groupBySeason([
 			item('undated', 'u', null),
 			item('july', 'a', '2024-07-04'),
 			item('july-photo', 'a', '2024-09-02'),
 			item('december', 'b', '2023-12-10'),
 			item('february', 'c', '2024-02'),
-			item('year', 'd', '2024')
+			item('year', 'd', '2024'),
+			item('old-summer', 'e', '2016-08-20'),
+			item('old-winter', 'f', '2017-01')
 		]);
 		expect(groups.map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
-			['2024', ['year']],
-			['Winter 2024', ['december', 'february']],
-			['Summer 2024', ['july', 'july-photo']],
-			['Undated', ['undated']]
+			['Winter', ['old-winter', 'december', 'february']],
+			['Summer', ['old-summer', 'july', 'july-photo']],
+			['Season unknown', ['year', 'undated']]
 		]);
 	});
 });
@@ -145,11 +151,14 @@ describe('layoutField', () => {
 		expect(near.length).toBeLessThan(37);
 	});
 
-	it('gives each season one bubble, in date order', () => {
-		const labels = world.groups.map((g) => g.label);
-		expect(labels).toEqual(groupBySeason(many(400)).map((g) => g.label));
-		expect(labels.length).toBeGreaterThan(5);
-		expect([...labels].sort()).toEqual(labels);
+	it('gives each season one bubble, winter to fall, then the unknown', () => {
+		expect(world.groups.map((g) => g.label)).toEqual([
+			'Winter',
+			'Spring',
+			'Summer',
+			'Fall',
+			'Season unknown'
+		]);
 	});
 
 	it('keeps the water clear at each bubble', () => {

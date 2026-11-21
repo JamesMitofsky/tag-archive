@@ -5,9 +5,9 @@
 	the last touch the lens rests, and the field goes back to a wash of the
 	archive floating by, with nothing drawn into focus.
 
-	The archive floats as islands, one per season, in date order; a bubble at
-	each island's center names its season ("Winter 2024"), so the drift keeps a
-	sense of when you are.
+	The archive floats as islands, one per season, each gathering that season
+	from every year in date order; a bubble at each island's center names its
+	season ("Winter"), so the drift keeps a sense of when in the year you are.
 
 	A pinch on the iPad zooms the field about the lens. Zoomed out, things step
 	aside so the view stays legible: first the lens, then the event cards, and
