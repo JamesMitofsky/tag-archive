@@ -12,7 +12,7 @@ import type { EventItem } from '#lib/events.ts';
 import type { LiveArrival } from '#lib/live.ts';
 import type { PublicImageSet } from '#lib/images/types.ts';
 
-type Dataset = {
+export type Dataset = {
 	artefacts: ArtefactWithEvent[];
 	events: EventItem[];
 	people: string[];

@@ -210,4 +210,19 @@ describe('createSim', () => {
 		sim.shift(-1000, 500);
 		expect(sim.cam).toEqual({ x: -990, y: 520 });
 	});
+
+	it('lets go of the item it was settling on when the field is laid out afresh', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		sim.up(0, 0, 0);
+		sim.step(0.016, 0.016, () => ({ x: 40, y: 0 }));
+		expect(sim.mode).toBe('magnet');
+		sim.rehome(500, -200);
+		expect(sim.cam.x).toBeCloseTo(500, 0);
+		expect(sim.cam.y).toBeCloseTo(-200, 0);
+		// The old anchor is gone: it settles on what is nearest now.
+		for (let i = 1; i < 400; i++) sim.step(0.016, 0.016 * (i + 1), () => ({ x: 520, y: -200 }));
+		expect(sim.mode).toBe('magnet');
+		expect(sim.cam.x).toBeCloseTo(520, 0);
+		expect(sim.cam.y).toBeCloseTo(-200, 0);
+	});
 });

@@ -151,6 +151,12 @@ export type Sim = {
 	 * is unchanged; it keeps the numbers small over a long night.
 	 */
 	shift(dx: number, dy: number): void;
+	/**
+	 * Move every position by any amount, for when the field is laid out afresh
+	 * and what was on screen now lives somewhere else. Unlike `shift` the items
+	 * have moved, so an item it was settling on is let go and caught again.
+	 */
+	rehome(dx: number, dy: number): void;
 };
 
 export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
@@ -259,6 +265,15 @@ export function createSim(start: Vec, tuning: Tuning = TUNING): Sim {
 			target.x += dx;
 			target.y += dy;
 			if (anchor) anchor = { x: anchor.x + dx, y: anchor.y + dy };
+		},
+		rehome(dx, dy) {
+			cam.x += dx;
+			cam.y += dy;
+			target.x += dx;
+			target.y += dy;
+			anchor = null;
+			// Back to gliding, which finds the nearest item in the new layout.
+			if (mode === 'magnet') mode = 'glide';
 		}
 	};
 }
