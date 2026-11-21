@@ -4,9 +4,11 @@
 // Vercel function body (4.5 MB) carries. Those PUTs are cross-origin, so
 // without this rule every photograph upload fails at its CORS preflight.
 //
-// Run it from a machine logged in to Cloudflare (`pnpm exec wrangler login`, or
-// a CLOUDFLARE_API_TOKEN allowed to edit R2), naming the bucket and the origins
-// the site is served from:
+// Wrangler authenticates with CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN
+// from .env (a token allowed to edit R2), which it prefers to the machine's
+// `wrangler login`, so the rule reaches the archive's account whichever account
+// the machine is signed in to. Run it naming the bucket and the origins the site
+// is served from:
 //
 //   R2_BUCKET=<bucket> R2_CORS_ORIGINS=https://archive.ustreetcommunity.org \
 //     pnpm storage:cors [--dry-run]
