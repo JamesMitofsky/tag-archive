@@ -206,6 +206,26 @@ describe('/keeper/artefacts/new', () => {
 		expect(date()).toBe('2019');
 	});
 
+	it('opens the date picker on the first tap after an event filled the date', async () => {
+		await render(NewArtefactPage, {
+			data: { locations: [] },
+			form: null
+		} as unknown as Props);
+
+		await page.getByPlaceholder('Search events').click();
+		await page.getByRole('option', { name: /Symphonic Steep/ }).click();
+		const trigger = page.getByRole('button', { name: 'June 12, 2021' });
+		await expect.element(trigger).toBeInTheDocument();
+
+		// Out to another field, then one tap on the date. Leaving the empty title
+		// reveals its error above the date, but only once the tap has landed: shown
+		// mid-press, it pushed the date button out from under the pointer.
+		await page.getByRole('textbox', { name: /^Title/ }).click();
+		await trigger.click();
+		await expect.element(page.getByRole('button', { name: 'Year', exact: true })).toBeVisible();
+		await expect.element(page.getByText('Title required')).toBeVisible();
+	});
+
 	it('lists each day of a recurring event, and posts the one picked', async () => {
 		await render(NewArtefactPage, {
 			data: { locations: [] },
