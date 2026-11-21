@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	bloomScale,
 	calmness,
+	carryCamera,
 	focusAmount,
 	focusScale,
 	groupBySeason,
@@ -255,8 +256,51 @@ describe('focus', () => {
 	});
 });
 
+describe('carryCamera', () => {
+	const view = { viewW: 1920, viewH: 1080 };
+	const all = Array.from({ length: 80 }, (_, i) =>
+		item(
+			`i${i}`,
+			`c${i}`,
+			`2020-01-${String((i % 28) + 1).padStart(2, '0')}`,
+			i % 2 ? 'photo' : 'event'
+		)
+	);
+	const from = layoutField(all, view);
+	const to = layoutField(
+		all.filter((i) => i.kind === 'photo'),
+		view
+	);
+
+	it('keeps an item that stays where it was on screen', () => {
+		const on = from.placed.find((p) => p.item.kind === 'photo')!;
+		const cam = { x: on.x - 30, y: on.y + 12 };
+		const next = carryCamera(from, to, cam)!;
+		const now = to.placed.find((p) => p.item.id === on.item.id)!;
+		expect(now.x - next.x).toBeCloseTo(30);
+		expect(now.y - next.y).toBeCloseTo(-12);
+	});
+
+	it('goes to the nearest item that stays when the one in view is gone', () => {
+		const gone = from.placed.find((p) => p.item.kind === 'event')!;
+		const next = carryCamera(from, to, gone)!;
+		const stays = from.placed
+			.filter((p) => p.item.kind === 'photo')
+			.map((p) => ({ p, offset: offsetFrom(gone, p, from) }))
+			.sort((a, b) => Math.hypot(a.offset.x, a.offset.y) - Math.hypot(b.offset.x, b.offset.y))[0];
+		const now = to.placed.find((p) => p.item.id === stays.p.item.id)!;
+		expect(now.x - next.x).toBeCloseTo(stays.offset.x);
+		expect(now.y - next.y).toBeCloseTo(stays.offset.y);
+	});
+
+	it('has nowhere to go when the layouts share nothing', () => {
+		expect(carryCamera(from, layoutField([], view), { x: 0, y: 0 })).toBeNull();
+		expect(carryCamera(layoutField([], view), to, { x: 0, y: 0 })).toBeNull();
+	});
+});
+
 describe('buildFieldItems', () => {
-	const items = buildFieldItems({
+	const data = {
 		artefacts: [
 			{
 				id: 1,
@@ -318,7 +362,8 @@ describe('buildFieldItems', () => {
 				url: null
 			}
 		]
-	});
+	};
+	const items = buildFieldItems(data);
 	const byId = new Map(items.map((i) => [i.id, i]));
 
 	it('takes each raster page of each artefact, and skips PDFs', () => {
@@ -347,6 +392,24 @@ describe('buildFieldItems', () => {
 
 	it('keeps an event title exactly as the archive holds it', () => {
 		expect(byId.get('e4')!.title).toBe('Jazz Night: Live!  (Second set)');
+	});
+
+	it('leaves out the kinds that are not wanted', () => {
+		const only = buildFieldItems({ ...data, kinds: new Set(['artefact', 'event'] as const) });
+		expect(new Set(only.map((i) => i.kind))).toEqual(new Set(['artefact', 'event']));
+		expect(buildFieldItems({ ...data, kinds: new Set() })).toEqual([]);
+	});
+
+	it('still gathers artefacts by event when the events are hidden', () => {
+		const only = buildFieldItems({ ...data, kinds: new Set(['artefact', 'photo'] as const) });
+		const cluster = (id: string) => only.find((i) => i.id === id)!.cluster;
+		expect(cluster('a1-0')).toBe(cluster('p9'));
+		expect(cluster('a2-0')).not.toBe(cluster('a1-0'));
+	});
+
+	it('gives an event its picture back when the photograph showing it is hidden', () => {
+		const only = buildFieldItems({ ...data, kinds: new Set(['event'] as const) });
+		expect(only.find((i) => i.id === 'e3')!.src).toBe('https://bucket.test/9.webp');
 	});
 
 	it('uses a photograph’s own shape and placeholder', () => {

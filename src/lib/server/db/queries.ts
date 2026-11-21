@@ -353,7 +353,7 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 }
 
 /**
- * The /live feed (#lib/live): the `limit` vetted artefacts that most recently
+ * The /keeper/live feed (#lib/live): the `limit` vetted artefacts that most recently
  * went public, newest first. Arrival is `coalesce(approved_at, created_at)`: an
  * approved submission arrived when it was approved, however long it waited, and
  * an artefact a keeper made already vetted arrived when it was made. Vetted rows
@@ -494,7 +494,7 @@ const reviewTable = { artefact, event, series, imageSet } as const;
  *  the row is already vetted or gone. */
 export async function approveProposed(kind: ReviewKind, id: number, userId: string): Promise<void> {
 	const table = reviewTable[kind];
-	// An artefact also records the moment it went public, which /live orders its
+	// An artefact also records the moment it went public, which /keeper/live orders its
 	// arrivals by. In the same statement as the flag, so a row can never be public
 	// without its stamp; the shared `set` below can't name an artefact-only column.
 	const set =

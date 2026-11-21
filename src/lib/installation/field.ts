@@ -405,6 +405,28 @@ export function nearestItem(world: World, point: Vec, reach = Infinity): Vec | n
 	return best;
 }
 
+/**
+ * Where the camera belongs in `to`, a fresh layout of some of the same items,
+ * so the view stays with what it was on: the item nearest `cam` in `from` that
+ * `to` still holds keeps its place on screen. Null when they share no item.
+ */
+export function carryCamera(from: World, to: World, cam: Vec): Vec | null {
+	const kept = new Map(to.placed.map((p) => [p.item.id, p]));
+	let best: { offset: Vec; at: Placed } | null = null;
+	let bestDistance = Infinity;
+	for (const p of from.placed) {
+		const at = kept.get(p.item.id);
+		if (!at) continue;
+		const offset = offsetFrom(cam, p, from);
+		const distance = Math.hypot(offset.x, offset.y);
+		if (distance < bestDistance) {
+			bestDistance = distance;
+			best = { offset, at };
+		}
+	}
+	return best ? { x: best.at.x - best.offset.x, y: best.at.y - best.offset.y } : null;
+}
+
 /** Hermite smoothstep from `edge0` to `edge1` (either way round), clamped to 0..1. */
 export function smoothstep(edge0: number, edge1: number, x: number): number {
 	if (edge0 === edge1) return x < edge0 ? 0 : 1;

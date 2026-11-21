@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrivedAgo, newArrivals, type LiveArrival } from './live';
+import { assignSlots, LIVE_WINDOW_MS, withinWindow, type LiveArrival } from './live';
 
 function arrival(id: number, arrivedAt: number): LiveArrival {
 	return {
@@ -15,42 +15,47 @@ function arrival(id: number, arrivedAt: number): LiveArrival {
 	};
 }
 
-describe('newArrivals', () => {
-	it('returns only ids never seen, oldest first, so a burst plays in order', () => {
-		const feed = [arrival(9, 300), arrival(4, 200), arrival(7, 100), arrival(1, 50)];
-		expect(newArrivals(new Set([1]), feed).map((a) => a.id)).toEqual([7, 4, 9]);
+const MINUTE = 60 * 1000;
+
+describe('withinWindow', () => {
+	const openedAt = Date.UTC(2026, 10, 21, 18, 0);
+
+	it('keeps what arrived up to an hour before the board opened, and since', () => {
+		const feed = [
+			arrival(4, openedAt + 5 * MINUTE),
+			arrival(3, openedAt - 30 * MINUTE),
+			arrival(2, openedAt - LIVE_WINDOW_MS)
+		];
+		expect(feed.filter((a) => withinWindow(a, openedAt)).map((a) => a.id)).toEqual([4, 3, 2]);
 	});
 
-	it('breaks a tie in arrival time by id', () => {
-		const feed = [arrival(3, 100), arrival(2, 100)];
-		expect(newArrivals(new Set(), feed).map((a) => a.id)).toEqual([2, 3]);
-	});
-
-	it('announces nothing when the feed holds only what was already seen', () => {
-		expect(newArrivals(new Set([1, 2]), [arrival(2, 2), arrival(1, 1)])).toEqual([]);
-	});
-
-	it('does not reorder the feed it was given', () => {
-		const feed = [arrival(2, 200), arrival(1, 100)];
-		newArrivals(new Set(), feed);
-		expect(feed.map((a) => a.id)).toEqual([2, 1]);
+	it('leaves out what arrived earlier, such as an hour and a half before', () => {
+		const feed = [arrival(2, openedAt - 90 * MINUTE), arrival(1, openedAt - LIVE_WINDOW_MS - 1)];
+		expect(feed.filter((a) => withinWindow(a, openedAt))).toEqual([]);
 	});
 });
 
-describe('arrivedAgo', () => {
-	const now = Date.UTC(2026, 10, 20, 12);
-	const minute = 60 * 1000;
-
-	it('reads under a minute, or a time ahead of this clock, as just now', () => {
-		expect(arrivedAgo(now - 30 * 1000, now)).toBe('just now');
-		expect(arrivedAgo(now + 2 * minute, now)).toBe('just now');
+describe('assignSlots', () => {
+	it('fills the slots in order, oldest arrival first', () => {
+		const shown = [arrival(9, 300), arrival(4, 200), arrival(7, 100)];
+		expect(assignSlots({}, shown, 6)).toEqual({ 7: 0, 4: 1, 9: 2 });
 	});
 
-	it('names the largest whole unit', () => {
-		expect(arrivedAgo(now - 5 * minute, now)).toBe('5 minutes ago');
-		expect(arrivedAgo(now - 90 * minute, now)).toBe('1 hour ago');
-		expect(arrivedAgo(now - 3 * 60 * minute, now)).toBe('3 hours ago');
-		expect(arrivedAgo(now - 30 * 60 * minute, now)).toBe('yesterday');
-		expect(arrivedAgo(now - 10 * 24 * 60 * minute, now)).toBe('last week');
+	it('keeps every page in its slot when another arrives', () => {
+		const before = { 7: 0, 4: 1 };
+		const shown = [arrival(9, 300), arrival(4, 200), arrival(7, 100)];
+		expect(assignSlots(before, shown, 6)).toEqual({ 7: 0, 4: 1, 9: 2 });
+	});
+
+	it('hands a newcomer the slot a departed page left', () => {
+		const before = { 1: 0, 2: 1, 3: 2 };
+		const shown = [arrival(4, 400), arrival(3, 300), arrival(2, 200)];
+		expect(assignSlots(before, shown, 3)).toEqual({ 2: 1, 3: 2, 4: 0 });
+	});
+
+	it('gives no slot to what does not fit, and drops slots the board no longer has', () => {
+		const before = { 1: 5 };
+		const shown = [arrival(3, 300), arrival(2, 200), arrival(1, 100)];
+		expect(assignSlots(before, shown, 2)).toEqual({ 1: 0, 2: 1 });
 	});
 });

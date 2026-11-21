@@ -1,0 +1,9 @@
+{
+	// Gives ESLint's type-aware rules a project for these files. svelte-check
+	// reads only the root tsconfig, so they stay out of `pnpm check`. They're
+	// listed by name because TypeScript's wildcard `include` skips anything
+	// under a directory whose name starts with a dot.
+	"extends": "../tsconfig.json",
+	"files": ["main.ts", "preview.ts"],
+	"include": []
+}

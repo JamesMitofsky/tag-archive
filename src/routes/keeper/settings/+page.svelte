@@ -9,6 +9,7 @@
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import KeyIcon from 'phosphor-svelte/lib/KeyIcon';
 	import UserGearIcon from 'phosphor-svelte/lib/UserGearIcon';
+	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
 	import { roleLabel } from '#lib/roles.ts';
 	import type { PageData } from './$types';
 
@@ -76,6 +77,16 @@
 									{data.pendingTotal}
 								</span>
 							{/if}
+						</span>
+						<ArrowRightIcon size={18} class="text-gray-400" />
+					</a>
+					<a
+						href="/keeper/live"
+						class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-4 py-3 text-sm text-gray-800 transition hover:bg-gray-50"
+					>
+						<span class="flex items-center gap-2">
+							<PaperPlaneTiltIcon size={18} />
+							Live arrivals
 						</span>
 						<ArrowRightIcon size={18} class="text-gray-400" />
 					</a>

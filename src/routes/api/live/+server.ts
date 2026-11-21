@@ -4,9 +4,10 @@ import { LIVE_FEED_SIZE } from '#lib/live.ts';
 import type { RequestHandler } from './$types';
 
 /**
- * The /live feed: the artefacts that most recently went public, newest first
- * (see `loadLiveArrivals`). The page polls this every LIVE_POLL_MS for as long
- * as it is on screen, so it is a handful of rows rather than the whole dataset.
+ * The /keeper/live feed: the artefacts that most recently went public, newest
+ * first (see `loadLiveArrivals`). The page polls this every LIVE_POLL_MS for as
+ * long as it is on screen, so it is a handful of rows rather than the whole
+ * dataset.
  *
  * Polled, not pushed: a stream would hold a serverless function open for every
  * watching screen, billed for the whole time it waits. Instead this rides the
@@ -17,6 +18,12 @@ import type { RequestHandler } from './$types';
  *
  * Gated like every other /api path: middleware.ts and hooks.server.ts refuse a
  * caller without a pass, before the cache.
+ *
+ * Open to every pass holder, not only admins, although only the admin page
+ * reads it. Every row and field here is already in /api/dataset, which every
+ * pass holder gets, so an admin-only feed would hide nothing. It would also
+ * cost the cache: the middleware in front of the CDN can check a pass but not
+ * a role, so an admin check would mean running a function on every poll.
  */
 export const GET: RequestHandler = async () => {
 	return Response.json(await loadLiveArrivals(LIVE_FEED_SIZE), { headers: ARCHIVE_CACHE_HEADERS });
