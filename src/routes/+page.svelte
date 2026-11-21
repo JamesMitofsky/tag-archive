@@ -10,7 +10,13 @@
 	import Drawing from '#lib/components/Drawing.svelte';
 </script>
 
-<CardCloud load={loadArtefacts} filter={filterArtefacts} card={page} {placeholderMark} />
+<CardCloud
+	load={loadArtefacts}
+	filter={filterArtefacts}
+	dateOf={(item) => item.date}
+	card={page}
+	{placeholderMark}
+/>
 
 {#snippet placeholderMark()}
 	<Drawing
