@@ -414,10 +414,14 @@ origin.
 
 **Production (R2).** The rule lives in `scripts/r2-cors.mjs`: `PUT` and `GET`,
 the `content-type` header, `ETag` exposed, preflights cached for an hour. Apply
-it from your machine with wrangler (a devDependency):
+it from your machine with wrangler (a devDependency), authenticated by
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `.env` (see
+`.env.example`). Wrangler prefers those to the machine's `wrangler login`, so
+the rule always goes to the archive's account, whichever account the machine is
+signed in to:
 
 ```sh
-pnpm exec wrangler login        # once, or set CLOUDFLARE_API_TOKEN
+pnpm exec wrangler whoami       # must name the archive's account
 export R2_BUCKET=<bucket> R2_CORS_ORIGINS=https://archive.ustreetcommunity.org
 pnpm storage:cors --dry-run     # print the rule as JSON, apply nothing
 pnpm storage:cors               # apply it, then list what R2 now holds
