@@ -5,6 +5,10 @@
 	the last touch the lens rests, and the field goes back to a wash of the
 	archive floating by, with nothing drawn into focus.
 
+	The archive floats as islands, one per season, in date order; a bubble at
+	each island's center names its season ("Winter 2024"), so the drift keeps a
+	sense of when you are.
+
 	The motion is decided in #lib/installation/physics and the layout in
 	#lib/installation/field. This page only draws them: every frame it places
 	the items near the screen (about sixty of the archive's ~1,400) and leaves
@@ -31,6 +35,7 @@
 		nearestItem,
 		offsetFrom,
 		parting,
+		type Group,
 		type Placed,
 		type World
 	} from '#lib/installation/field.ts';
@@ -75,6 +80,9 @@
 	/** The size each mounted item was last given, so unchanged ones are left alone. */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const sizes = new Map<string, number>();
+	/** Each season's bubble, by its group's key. */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const bubbles = new Map<string, HTMLElement>();
 	let lens: HTMLElement | undefined = $state();
 	let captionEl: HTMLElement | undefined = $state();
 
@@ -86,6 +94,14 @@
 				elements.delete(id);
 				sizes.delete(id);
 			};
+		};
+	}
+
+	/** Registers a season's bubble for the frame loop to place. */
+	function trackBubble(key: string) {
+		return (node: HTMLElement) => {
+			bubbles.set(key, node);
+			return () => bubbles.delete(key);
 		};
 	}
 
@@ -106,6 +122,8 @@
 		let fpsSince = last;
 
 		const now = () => performance.now() / 1000;
+		/** Where a bubble is in its bob, 0..1: fixed by its place, so bubbles don't bob in step. */
+		const bubblePhase = (group: Group) => ((group.x * 7 + group.y * 13) / (world?.cell ?? 1)) % 1;
 
 		const config = readRelayConfig(page.url.searchParams, PUBLIC_INSTALLATION_RELAY_URL);
 		relayConfig = config;
@@ -242,6 +260,28 @@
 				element.style.zIndex = isBest ? '3' : entry.focus > 0 ? '2' : '1';
 			}
 
+			// The season bubbles ride the water with the items, part around a bloom
+			// like them, and fade a little while one is open, so it holds the eye.
+			for (const group of w.groups) {
+				const element = bubbles.get(group.key);
+				if (!element) continue;
+				const offset = offsetFrom(sim.cam, group, w);
+				if (Math.abs(offset.x) > halfW || Math.abs(offset.y) > halfH) {
+					element.style.visibility = 'hidden';
+					continue;
+				}
+				let { x, y } = offset;
+				if (best) {
+					const push = parting({ x: x - best.x, y: y - best.y }, reach + w.cell * 0.7, bloomAmount);
+					x += push.x;
+					y += push.y;
+				}
+				y += Math.sin((t / 8 + bubblePhase(group)) * Math.PI * 2) * 4;
+				element.style.visibility = 'visible';
+				element.style.transform = `translate3d(${viewW / 2 + x}px, ${viewH / 2 + y}px, 0)`;
+				element.style.opacity = String(0.92 * (1 - 0.6 * bloomAmount));
+			}
+
 			if (lens) lens.style.opacity = String(0.6 * lensAt * (1 - Math.min(1, bloomAmount * 1.4)));
 
 			// What's in focus, for the caption and the full-size picture.
@@ -333,8 +373,18 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="stream" aria-label="Archive Stream">
+<div
+	class="stream"
+	aria-label="Archive Stream"
+	style:--cell={world ? `${world.cell}px` : undefined}
+>
 	<div class="lens" bind:this={lens} aria-hidden="true"></div>
+
+	{#each world?.groups ?? [] as group (group.key)}
+		<div class="bubble" style:visibility="hidden" {@attach trackBubble(group.key)}>
+			{group.label}
+		</div>
+	{/each}
 
 	{#each visible as placed (placed.item.id)}
 		{@const item = placed.item}
@@ -481,6 +531,28 @@
 		text-align: center;
 		color: oklch(0.32 0.04 250);
 		overflow-wrap: anywhere;
+	}
+
+	/* A season's name, at the center of its island. Sized by the layout's cell,
+	   so it fits the clear water the layout keeps for it (about three cells
+	   wide and one tall) on any projector. */
+	.bubble {
+		position: absolute;
+		left: 0;
+		top: 0;
+		translate: -50% -50%;
+		will-change: transform;
+		padding: 0.3em 0.8em;
+		font-family: var(--font-friendly);
+		font-size: calc(var(--cell) * 0.17);
+		line-height: 1.1;
+		white-space: nowrap;
+		color: oklch(0.32 0.04 250);
+		background: oklch(0.98 0.012 90 / 0.88);
+		border-radius: 999px;
+		box-shadow: 0 0.1em 0.6em oklch(0.3 0.04 250 / 0.12);
+		pointer-events: none;
+		z-index: 2;
 	}
 
 	.caption {

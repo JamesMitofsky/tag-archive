@@ -4,15 +4,18 @@
  * ends and there is no edge to bump into.
  *
  * Things that belong together sit together. An event, its artefacts and its
- * photographs form a cluster, and clusters run in date order through the
- * world, so drifting in one direction is drifting through time and drifting
- * nearby is finding related things.
+ * photographs form a cluster; the clusters of each season form an island,
+ * labeled at its center with its season ("Winter 2024"); and the islands run
+ * in date order through the world. So drifting in one direction is drifting
+ * through time, drifting nearby is finding related things, and the bubbles say
+ * when you are.
  *
  * Pure and free of the DOM: the projector page draws what this decides.
  * Positions are world pixels. `cam` is the world point at the screen's center.
  */
 
 import type { Vec } from './physics.ts';
+import { seasonOf, type Season } from './season.ts';
 
 export type FieldKind = 'artefact' | 'photo' | 'event';
 
@@ -45,12 +48,23 @@ export type Placed = {
 	phase: number;
 };
 
+/** A season's island, by the place its bubble sits: the island's center. */
+export type Group = {
+	key: string;
+	/** What the bubble says: "Winter 2024", "2019", "Undated". */
+	label: string;
+	x: number;
+	y: number;
+};
+
 export type World = {
 	width: number;
 	height: number;
 	/** The side of one layout cell, and so roughly the gap between neighbors. */
 	cell: number;
 	placed: Placed[];
+	/** One per season, in date order. */
+	groups: Group[];
 };
 
 /** An A4 page, portrait: what an artefact scan with no stored size is drawn as. */
@@ -84,20 +98,41 @@ export type LayoutOptions = {
 	/** The projector's size in CSS px: the world is shaped like it. */
 	viewW: number;
 	viewH: number;
-	/** About how many items one screen shows. */
+	/** About how many items one screen shows over an island (the water between shows fewer). */
 	perScreen?: number;
-	/** The share of cells left empty, so the water has room to breathe. */
+	/** The share of an island's cells left empty, so the water has room to breathe. */
 	emptyShare?: number;
+	/** The open water between neighboring islands, in cells. */
+	channel?: number;
 	seed?: number;
 };
 
 /**
- * Clusters in date order, undated ones last, each cluster's items in the order
- * given. Lexicographic order on partial dates is chronological order (see
- * #lib/partialDate), so plain string comparison sorts them.
+ * A cluster's date: its earliest date known at least to the month, else its
+ * earliest year-only date, else null. A finer date wins over an earlier coarse
+ * one, so an event on 2019-07-04 whose program is filed under "2019" stays
+ * in Summer 2019 rather than falling back to the bare year.
+ *
+ * Lexicographic order on partial dates is chronological order (see
+ * #lib/partialDate), so plain string comparison finds the earliest.
  */
-export function orderByCluster(items: readonly FieldItem[]): FieldItem[] {
-	const clusters = new Map<string, { date: string | null; first: number; items: FieldItem[] }>();
+function clusterDate(items: readonly FieldItem[]): string | null {
+	let fine: string | null = null;
+	let coarse: string | null = null;
+	for (const { date } of items) {
+		if (!date) continue;
+		if (date.length >= 7) {
+			if (!fine || date < fine) fine = date;
+		} else if (!coarse || date < coarse) coarse = date;
+	}
+	return fine ?? coarse;
+}
+
+type Cluster = { date: string | null; first: number; items: FieldItem[] };
+
+/** Clusters in date order, undated ones last, each cluster's items in the order given. */
+function orderedClusters(items: readonly FieldItem[]): Cluster[] {
+	const clusters = new Map<string, Cluster>();
 	items.forEach((item, i) => {
 		let cluster = clusters.get(item.cluster);
 		if (!cluster) {
@@ -105,75 +140,250 @@ export function orderByCluster(items: readonly FieldItem[]): FieldItem[] {
 			clusters.set(item.cluster, cluster);
 		}
 		cluster.items.push(item);
-		if (item.date && (!cluster.date || item.date < cluster.date)) cluster.date = item.date;
 	});
-	return [...clusters.values()]
-		.sort((a, b) => {
-			if (a.date === b.date) return a.first - b.first;
-			if (a.date === null) return 1;
-			if (b.date === null) return -1;
-			return a.date < b.date ? -1 : 1;
-		})
-		.flatMap((cluster) => cluster.items);
+	for (const cluster of clusters.values()) cluster.date = clusterDate(cluster.items);
+	return [...clusters.values()].sort((a, b) => {
+		if (a.date === b.date) return a.first - b.first;
+		if (a.date === null) return 1;
+		if (b.date === null) return -1;
+		return a.date < b.date ? -1 : 1;
+	});
+}
+
+/** Items cluster by cluster, the clusters in date order (see `clusterDate`). */
+export function orderByCluster(items: readonly FieldItem[]): FieldItem[] {
+	return orderedClusters(items).flatMap((cluster) => cluster.items);
+}
+
+export type SeasonGroup = Season & { items: FieldItem[] };
+
+/**
+ * The items gathered into seasons (see #lib/installation/season), in date
+ * order. A cluster is never split: it joins the season of its date, so an
+ * event's photographs sit with it even when one was taken the week after.
+ */
+export function groupBySeason(items: readonly FieldItem[]): SeasonGroup[] {
+	const groups = new Map<string, SeasonGroup>();
+	for (const cluster of orderedClusters(items)) {
+		const season = seasonOf(cluster.date);
+		let group = groups.get(season.key);
+		if (!group) {
+			group = { ...season, items: [] };
+			groups.set(season.key, group);
+		}
+		group.items.push(...cluster.items);
+	}
+	return [...groups.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+}
+
+/** A cell of an island, as whole-cell offsets from the island's center. */
+type Cell = { i: number; j: number };
+
+/**
+ * An island's outline is a superellipse, |x/a|^n + |y/b|^n <= 1: rounder than
+ * a rectangle, so it reads as an island, but squarer than an ellipse, so it
+ * leaves less of its slot as open water.
+ */
+const SHAPE = 3;
+/**
+ * The share of its bounding box an island covers: the superellipse's own
+ * share (about 0.88 at SHAPE 3) less what its coastline's inlets take.
+ */
+const FILL = 0.76;
+/** Kept clear at every island's center for its bubble: the label is wider than tall. */
+const isBubble = (i: number, j: number) => j === 0 && Math.abs(i) <= 1;
+const BUBBLE_CELLS = 3;
+
+/**
+ * The cells of an island `w` by `h` cells, with room for at least `needed`
+ * items: those within its outline, less the bubble's. The coastline dips in
+ * and out (inlets of up to a seventh of the way in), so islands aren't stamped
+ * from one mold. When the box is too tight for `needed`, the outline grows a
+ * little past it.
+ *
+ * The cells come in serpentine row order, the top row left to right and the
+ * next back again, so neighbors in date order are neighbors in space.
+ */
+function islandCells(needed: number, w: number, h: number, random: () => number): Cell[] {
+	const a = random() * Math.PI * 2;
+	const b = random() * Math.PI * 2;
+	const shore = (theta: number) =>
+		1 - 0.04 * (1 - Math.sin(3 * theta + a)) - 0.03 * (1 - Math.sin(5 * theta + b));
+	const outline = (rx: number, ry: number) => {
+		const cells: Cell[] = [];
+		const reachX = Math.ceil(rx);
+		const reachY = Math.ceil(ry);
+		for (let j = -reachY; j <= reachY; j++) {
+			const row: Cell[] = [];
+			for (let i = -reachX; i <= reachX; i++) {
+				if (isBubble(i, j)) continue;
+				const x = Math.abs(i / rx);
+				const y = Math.abs(j / ry);
+				const r = (x ** SHAPE + y ** SHAPE) ** (1 / SHAPE);
+				if (r <= shore(Math.atan2(y * Math.sign(j), x * Math.sign(i)))) row.push({ i, j });
+			}
+			if ((j + reachY) % 2 === 1) row.reverse();
+			cells.push(...row);
+		}
+		return cells;
+	};
+	// Cell centers sit at whole offsets, so a box `w` wide reaches (w - 1) / 2
+	// from the center to its outer cells' centers.
+	for (let grow = 1; ; grow *= 1.03) {
+		const cells = outline(Math.max(1.5, (w - 1) / 2) * grow, Math.max(0.5, (h - 1) / 2) * grow);
+		if (cells.length >= needed) return cells;
+	}
 }
 
 /**
- * Lay the items out on a grid of cells, row by row in a serpentine (left to
- * right, then back), so each item's neighbors in date order are its neighbors
- * in space. Some cells stay empty, and each item is nudged off its cell's
+ * Splits `widths`, in order, into at most `rows` runs whose longest is as
+ * short as it can be, so the rows come out about equally long.
+ */
+function balancedRows(widths: readonly number[], rows: number): number[][] {
+	const split = (cap: number) => {
+		const out: number[][] = [];
+		let sum = Infinity;
+		widths.forEach((width, index) => {
+			if (sum + width > cap) {
+				out.push([]);
+				sum = 0;
+			}
+			out[out.length - 1].push(index);
+			sum += width;
+		});
+		return out;
+	};
+	let low = Math.max(0, ...widths);
+	let high = widths.reduce((sum, width) => sum + width, 0);
+	for (let step = 0; step < 40 && high - low > 1e-6; step++) {
+		const mid = (low + high) / 2;
+		if (split(mid).length <= rows) high = mid;
+		else low = mid;
+	}
+	return split(high);
+}
+
+/**
+ * Lay the items out as islands, one per season, each with its bubble's cells
+ * kept clear at its center. Within an island the items sit on a grid of cells
+ * in date order; some cells stay empty, and each item is nudged off its cell's
  * center and given its own size, so the result reads as things floating on
  * water rather than as a grid.
+ *
+ * The islands run in date order along rows of one height, a serpentine again
+ * (left to right, then back), so drifting in one direction is drifting
+ * through time. A season too big to be round at that height stretches along
+ * its row instead, and each row's islands widen to fill the world's width, so
+ * the only open water is the channels between islands and around the small
+ * ones. The world is shaped like the screen and never smaller than one, so no
+ * item can be seen twice at once across the seam.
  */
 export function layoutField(items: readonly FieldItem[], options: LayoutOptions): World {
-	const { viewW, viewH, perScreen = 24, emptyShare = 0.14, seed = 7 } = options;
+	const { viewW, viewH, perScreen = 24, emptyShare = 0.08, channel = 1, seed = 7 } = options;
 	const random = seededRandom(seed);
 	const cell = Math.sqrt((viewW * viewH) / perScreen);
-	const ordered = orderByCluster(items);
+	const aspect = viewW / viewH;
+	const minCols = viewW / cell + 1;
+	const minRows = viewH / cell + 1;
 
-	const cellCount = Math.max(1, Math.ceil(ordered.length / (1 - emptyShare)));
-	// Shaped like the screen, and never narrower than one screen, so no item can
-	// be seen twice at once across the seam.
-	const cols = Math.max(
-		Math.ceil(viewW / cell) + 1,
-		Math.ceil(Math.sqrt((cellCount * viewW) / viewH))
-	);
-	const rows = Math.max(Math.ceil(viewH / cell) + 1, Math.ceil(cellCount / cols));
-	const total = cols * rows;
+	const islands = groupBySeason(items).map((group) => {
+		const needed = Math.ceil(group.items.length / (1 - emptyShare));
+		const area = (needed + BUBBLE_CELLS) / FILL;
+		// The size of its box when round, and never too small for its bubble.
+		return { group, needed, area, round: Math.max(3.5, Math.sqrt(area)) };
+	});
 
-	// Spread the empty cells evenly, with a little randomness, rather than
-	// leaving them all at the end of the last row.
-	const empties = total - ordered.length;
-	const skip = new Set<number>();
-	for (let k = 0; k < empties; k++) {
-		const at = Math.floor(((k + random()) * total) / empties);
-		skip.add(Math.min(total - 1, at));
+	/** An island's box in a row `rowH` cells tall: round if it fits, else stretched along the row. */
+	const box = (island: (typeof islands)[number], rowH: number) => {
+		const h = Math.min(rowH - channel, island.round);
+		return { w: Math.max(island.round === h ? h : 0, island.area / h, 3.5), h };
+	};
+
+	// Try a range of row heights. For each, take the number of rows that gives
+	// the world the screen's shape, balance the islands across them, and keep
+	// whichever leaves the least open water, still near the screen's shape.
+	let best: { rowH: number; cols: number; rows: number[][]; score: number } | null = null;
+	const tallest = Math.max(4, ...islands.map((island) => island.round + channel));
+	for (let rowH = Math.min(4, tallest); rowH <= tallest + 1e-9; rowH += 0.25) {
+		const widths = islands.map((island) => box(island, rowH).w + channel);
+		const length = widths.reduce((sum, width) => sum + width, 0);
+		const target = Math.max(1, Math.round(Math.sqrt(length / (rowH * aspect))));
+		for (const count of [target - 1, target, target + 1]) {
+			if (count < 1) continue;
+			const rows = islands.length ? balancedRows(widths, count) : [];
+			const longest = Math.max(0, ...rows.map((row) => row.reduce((sum, k) => sum + widths[k], 0)));
+			const cols = Math.max(minCols, longest);
+			const height = Math.max(minRows, rows.length * rowH);
+			const score = cols * height * (1 + Math.abs(Math.log(cols / height / aspect)));
+			if (!best || score < best.score) best = { rowH, cols, rows, score };
+		}
 	}
+	const { cols, rows } = best!;
+	const height = Math.max(minRows, rows.length * best!.rowH);
+	// A small archive's world is taller than its rows: share the rest between them.
+	const rowH = height / Math.max(1, rows.length);
 
 	const placed: Placed[] = [];
-	let next = 0;
-	for (let index = 0; index < total && next < ordered.length; index++) {
-		// Leave a cell empty only while there are still enough cells for the rest.
-		if (skip.has(index) && total - index > ordered.length - next) continue;
-		const row = Math.floor(index / cols);
-		const along = index % cols;
-		const col = row % 2 === 0 ? along : cols - 1 - along;
-		const item = ordered[next++];
-
-		const long =
-			cell * 0.6 * (0.8 + random() * 0.32) * (item.kind === 'event' && !item.src ? 0.82 : 1);
-		const w = item.aspect >= 1 ? long : long * item.aspect;
-		const h = item.aspect >= 1 ? long / item.aspect : long;
-		placed.push({
-			item,
-			x: (col + 0.5 + (random() - 0.5) * 0.44) * cell,
-			y: (row + 0.5 + (random() - 0.5) * 0.44) * cell,
-			w,
-			h,
-			phase: random()
+	const groups: Group[] = [];
+	rows.forEach((row, r) => {
+		const boxes = row.map((k) => {
+			const b = box(islands[k], best!.rowH);
+			// A full-height island takes the row's full height.
+			return b.h === best!.rowH - channel ? { w: b.w, h: rowH - channel } : b;
 		});
-	}
+		// Each island widens in step with the others, to fill the row.
+		const natural = boxes.reduce((sum, b) => sum + b.w, 0);
+		const stretch = (cols - row.length * channel) / natural;
+		let x = 0;
+		const slots = row.map((k, n) => {
+			const w = boxes[n].w * stretch;
+			const slot = { island: islands[k], w, h: boxes[n].h, left: x };
+			x += w + channel;
+			return slot;
+		});
 
-	return { width: cols * cell, height: rows * cell, cell, placed };
+		for (const slot of slots) {
+			// The serpentine: odd rows run right to left.
+			const cx =
+				r % 2 === 0
+					? slot.left + channel / 2 + slot.w / 2
+					: cols - slot.left - channel / 2 - slot.w / 2;
+			const cy = r * rowH + rowH / 2;
+			const { group, needed } = slot.island;
+			const cells = islandCells(needed, slot.w, slot.h, random);
+			groups.push({ key: group.key, label: group.label, x: cx * cell, y: cy * cell });
+
+			// Spread the empty cells evenly, with a little randomness, rather than
+			// leaving them all at the end of the last row.
+			const total = cells.length;
+			const empties = total - group.items.length;
+			const skip = new Set<number>();
+			for (let k = 0; k < empties; k++) {
+				skip.add(Math.min(total - 1, Math.floor(((k + random()) * total) / empties)));
+			}
+
+			let next = 0;
+			for (let index = 0; index < total && next < group.items.length; index++) {
+				// Leave a cell empty only while there are still enough cells for the rest.
+				if (skip.has(index) && total - index > group.items.length - next) continue;
+				const item = group.items[next++];
+				const long =
+					cell * 0.6 * (0.8 + random() * 0.32) * (item.kind === 'event' && !item.src ? 0.82 : 1);
+				// Mirrored on odd rows, so the island's own date order runs with the row.
+				const i = r % 2 === 0 ? cells[index].i : -cells[index].i;
+				placed.push({
+					item,
+					x: (cx + i + (random() - 0.5) * 0.44) * cell,
+					y: (cy + cells[index].j + (random() - 0.5) * 0.44) * cell,
+					w: item.aspect >= 1 ? long : long * item.aspect,
+					h: item.aspect >= 1 ? long / item.aspect : long,
+					phase: random()
+				});
+			}
+		}
+	});
+
+	return { width: cols * cell, height: height * cell, cell, placed, groups };
 }
 
 /**

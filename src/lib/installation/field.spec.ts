@@ -4,6 +4,7 @@ import {
 	calmness,
 	focusAmount,
 	focusScale,
+	groupBySeason,
 	layoutField,
 	nearestItem,
 	offsetFrom,
@@ -51,6 +52,15 @@ describe('wrapDelta', () => {
 });
 
 describe('orderByCluster', () => {
+	it('dates a cluster by its finest date, not an earlier year-only one', () => {
+		const ordered = orderByCluster([
+			item('mid', 'b', '2019-03'),
+			item('coarse', 'a', '2019'),
+			item('fine', 'a', '2019-07-04')
+		]).map((i) => i.id);
+		expect(ordered).toEqual(['mid', 'coarse', 'fine']);
+	});
+
 	it('keeps clusters together, in date order, undated last', () => {
 		const ordered = orderByCluster([
 			item('late', 'b', '2020'),
@@ -60,6 +70,25 @@ describe('orderByCluster', () => {
 			item('early-2', 'a', '2012')
 		]).map((i) => i.id);
 		expect(ordered).toEqual(['early', 'early-2', 'late', 'late-2', 'undated']);
+	});
+});
+
+describe('groupBySeason', () => {
+	it('gathers clusters into seasons, in date order, never splitting a cluster', () => {
+		const groups = groupBySeason([
+			item('undated', 'u', null),
+			item('july', 'a', '2024-07-04'),
+			item('july-photo', 'a', '2024-09-02'),
+			item('december', 'b', '2023-12-10'),
+			item('february', 'c', '2024-02'),
+			item('year', 'd', '2024')
+		]);
+		expect(groups.map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
+			['2024', ['year']],
+			['Winter 2024', ['december', 'february']],
+			['Summer 2024', ['july', 'july-photo']],
+			['Undated', ['undated']]
+		]);
 	});
 });
 
@@ -88,10 +117,56 @@ describe('layoutField', () => {
 		expect(small.height).toBeGreaterThan(viewH);
 	});
 
-	it('shows about the asked number of items per screen', () => {
+	it('shows about the asked number of items per screen over an island, fewer on average', () => {
 		const perScreen = (400 * viewW * viewH) / (world.width * world.height);
-		expect(perScreen).toBeGreaterThan(16);
-		expect(perScreen).toBeLessThan(26);
+		expect(perScreen).toBeGreaterThan(10);
+		expect(perScreen).toBeLessThan(24);
+		// Around a bubble, a screen's worth of island holds about the asked number.
+		const summer = layoutField(
+			Array.from({ length: 300 }, (_, i) => item(`s${i}`, `c${i}`, '2024-07-01')),
+			{ viewW, viewH }
+		);
+		const [group] = summer.groups;
+		const near = summer.placed.filter((p) => {
+			const o = offsetFrom(group, p, summer);
+			return Math.abs(o.x) < viewW / 2 && Math.abs(o.y) < viewH / 2;
+		});
+		expect(near.length).toBeGreaterThan(16);
+		expect(near.length).toBeLessThan(26);
+	});
+
+	it('gives each season one bubble, in date order', () => {
+		const labels = world.groups.map((g) => g.label);
+		expect(labels).toEqual(groupBySeason(many(400)).map((g) => g.label));
+		expect(labels.length).toBeGreaterThan(5);
+		expect([...labels].sort()).toEqual(labels);
+	});
+
+	it('keeps the water clear at each bubble', () => {
+		for (const group of world.groups) {
+			for (const p of world.placed) {
+				const o = offsetFrom(group, p, world);
+				// The bubble's three cells, less how far an item may be nudged and its half-size.
+				const clear = Math.abs(o.y) < world.cell * 0.4 && Math.abs(o.x) < world.cell * 1.4;
+				expect(clear).toBe(false);
+			}
+		}
+	});
+
+	it('parts the seasons by open water, wider than the gaps within one', () => {
+		const seasonOf = new Map(
+			groupBySeason(many(400)).flatMap((g) => g.items.map((i) => [i.id, g.key]))
+		);
+		let closest = Infinity;
+		for (const p of world.placed) {
+			for (const q of world.placed) {
+				if (seasonOf.get(p.item.id) === seasonOf.get(q.item.id)) continue;
+				const o = offsetFrom(p, q, world);
+				closest = Math.min(closest, Math.hypot(o.x, o.y));
+			}
+		}
+		// Within an island, neighbors sit about a cell apart.
+		expect(closest).toBeGreaterThan(world.cell * 1.3);
 	});
 
 	it('is the same every time', () => {
