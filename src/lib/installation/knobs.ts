@@ -21,9 +21,20 @@ export type View = {
 	 * a picture by its caption, an event card by opening to its details.
 	 */
 	captionAfter: number;
+	/**
+	 * The most of the screen's height an event card may grow to as it opens,
+	 * to hold a long description. Past it, the description is cut short.
+	 */
+	cardMax: number;
 };
 
-export const VIEW: View = { perScreen: 24, lens: 0.18, bloom: 0.62, captionAfter: 0.7 };
+export const VIEW: View = {
+	perScreen: 24,
+	lens: 0.18,
+	bloom: 0.62,
+	captionAfter: 0.7,
+	cardMax: 0.9
+};
 
 type TunedKey =
 	| 'gain'
@@ -61,7 +72,8 @@ export const KNOBS: readonly Knob[] = [
 	{ key: 'perScreen', label: 'items per screen', min: 6, max: 80, step: 1, unit: '' },
 	{ key: 'lens', label: 'lens radius', min: 0.05, max: 0.5, step: 0.01, unit: '× height' },
 	{ key: 'bloom', label: 'bloom size', min: 0.2, max: 0.95, step: 0.01, unit: '× height' },
-	{ key: 'captionAfter', label: 'caption after', min: 0, max: 3, step: 0.1, unit: 's' }
+	{ key: 'captionAfter', label: 'caption after', min: 0, max: 3, step: 0.1, unit: 's' },
+	{ key: 'cardMax', label: 'card max', min: 0.3, max: 0.98, step: 0.01, unit: '× height' }
 ];
 
 export function defaultKnobs(): Knobs {

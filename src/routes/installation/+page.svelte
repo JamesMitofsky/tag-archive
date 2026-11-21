@@ -35,6 +35,7 @@
 		layoutField,
 		nearestItem,
 		offsetFrom,
+		openHeight,
 		parting,
 		type Placed,
 		type World
@@ -75,6 +76,11 @@
 
 	/** A bloom's share of the screen's width, for each share of its height. */
 	const BLOOM_WIDTH = 0.5 / 0.62;
+	/**
+	 * How quickly an event card grows to hold its details, per second: about
+	 * as long as its details take to unfold (see `.details`).
+	 */
+	const OPEN_RATE = 6;
 	/** Items are mounted this far (in cells) past the screen's edge, so they never pop in. */
 	const MARGIN_CELLS = 1;
 
@@ -116,7 +122,25 @@
 	const elements = new Map<string, HTMLElement>();
 	/** The size each mounted item was last given, so unchanged ones are left alone. */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
-	const sizes = new Map<string, number>();
+	const sizes = new Map<string, { width: number; height: number }>();
+	/**
+	 * How far each event card is through opening to its details, 0..1: rising
+	 * while it is the settled one, falling once it isn't. Only cards on their
+	 * way open or closed are in here.
+	 */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const openness = new Map<string, number>();
+	/** Each card's height when open, as a multiple of its width (see `needOf`). */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const needs = new Map<string, number>();
+	/**
+	 * Where an event card is measured (see `needOf`): off screen, wide enough
+	 * that rounding doesn't matter, and a container, so the copy's type
+	 * resolves as it would on a card this wide. Made here rather than in the
+	 * markup because what goes in it is a copy the page puts there itself.
+	 */
+	let measurer: HTMLElement | null = null;
+	const MEASURE_WIDTH = 1000;
 	let lens: HTMLElement | undefined = $state();
 	let captionEl: HTMLElement | undefined = $state();
 
@@ -160,6 +184,7 @@
 		}
 		// Items that stay are a new size in the new layout: draw them all afresh.
 		sizes.clear();
+		openness.clear();
 		visibleKey = null;
 		world = laid;
 	}
@@ -198,6 +223,31 @@
 		const observer = new ResizeObserver(check);
 		observer.observe(node);
 		return () => observer.disconnect();
+	}
+
+	/**
+	 * The height an event card's words take when it is open, as a multiple of
+	 * its width. Measured once per card, on a copy laid out open at no fixed
+	 * height. Every size inside the card is a share of its width, so one
+	 * measurement holds at whatever size the card is drawn.
+	 */
+	function needOf(id: string): number {
+		const known = needs.get(id);
+		if (known !== undefined) return known;
+		const body = elements.get(id)?.querySelector('.card-body');
+		if (!body) return 0;
+		if (!measurer) {
+			measurer = document.createElement('div');
+			measurer.style.cssText = `position: fixed; left: -${2 * MEASURE_WIDTH}px; top: 0; width: ${MEASURE_WIDTH}px; container-type: inline-size; visibility: hidden; pointer-events: none;`;
+			document.body.append(measurer);
+		}
+		const copy = body.cloneNode(true) as HTMLElement;
+		copy.classList.add('open');
+		measurer.replaceChildren(copy);
+		const need = copy.offsetHeight / MEASURE_WIDTH;
+		measurer.replaceChildren();
+		needs.set(id, need);
+		return need;
 	}
 
 	/** An event's date and time, on one line. */
@@ -310,9 +360,30 @@
 				bloomScale(p.w, p.h, viewW, viewH, view.bloom, view.bloom * BLOOM_WIDTH);
 			const bestScale = best ? focusScale(best.focus, calm, bloomOf(best.placed)) : 1;
 			const bloomAmount = best ? best.focus * calm : 0;
-			const reach = best
-				? (Math.max(best.placed.w, best.placed.h) * bestScale) / 2 + w.cell * 0.35
-				: 0;
+
+			// The settled event card opens; any other on its way open closes again.
+			const settledItem = best?.placed.item.id === settledId ? best?.placed.item : null;
+			if (settledItem && !settledItem.src && settledItem.details && !openness.has(settledItem.id)) {
+				openness.set(settledItem.id, 0);
+			}
+			const toward = 1 - Math.exp(-dt * OPEN_RATE);
+			for (const [id, amount] of openness) {
+				const target = id === settledId ? 1 : 0;
+				const next = amount + (target - amount) * toward;
+				if (target === 0 && next < 0.001) openness.delete(id);
+				else openness.set(id, next);
+			}
+			/** An item's size at a scale: an opening card is taller than its bloom. */
+			const sizeOf = (placed: Placed, scale: number) => {
+				const width = placed.w * scale;
+				const height = placed.h * scale;
+				const open = openness.get(placed.item.id);
+				if (!open) return { width, height };
+				const max = viewH * view.cardMax;
+				return { width, height: openHeight(width, height, needOf(placed.item.id), max, open) };
+			};
+			const bestSize = best ? sizeOf(best.placed, bestScale) : null;
+			const reach = bestSize ? Math.max(bestSize.width, bestSize.height) / 2 + w.cell * 0.35 : 0;
 
 			for (const entry of near) {
 				const element = elements.get(entry.placed.item.id);
@@ -336,12 +407,16 @@
 				x += Math.sin((t / 9 + placed.phase) * Math.PI * 2) * bob * 0.6;
 				y += Math.sin((t / 7 + placed.phase) * Math.PI * 2) * bob;
 
-				const width = placed.w * scale;
-				const height = placed.h * scale;
+				const { width, height } = isBest && bestSize ? bestSize : sizeOf(placed, scale);
 				// Sized rather than scaled, so a bloomed picture or card text is
 				// drawn crisp at its full size instead of stretched.
-				if (Math.abs((sizes.get(placed.item.id) ?? 0) - scale) > 0.002) {
-					sizes.set(placed.item.id, scale);
+				const drawn = sizes.get(placed.item.id);
+				if (
+					!drawn ||
+					Math.abs(drawn.width - width) > 0.5 ||
+					Math.abs(drawn.height - height) > 0.5
+				) {
+					sizes.set(placed.item.id, { width, height });
 					element.style.width = `${width}px`;
 					element.style.height = `${height}px`;
 				}
@@ -426,6 +501,8 @@
 
 		return () => {
 			disposed = true;
+			measurer?.remove();
+			measurer = null;
 			cancelAnimationFrame(frame);
 			relay?.close();
 			window.removeEventListener('resize', onResize);

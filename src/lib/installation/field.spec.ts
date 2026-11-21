@@ -8,6 +8,7 @@ import {
 	layoutField,
 	nearestItem,
 	offsetFrom,
+	openHeight,
 	orderByCluster,
 	parting,
 	wrapDelta,
@@ -163,6 +164,17 @@ describe('focus', () => {
 		expect(moving).toBeGreaterThan(1);
 		expect(moving).toBeLessThan(2);
 		expect(focusScale(0, 1, 4)).toBe(1);
+	});
+
+	it('opens a card as tall as its words need, up to the most it may take', () => {
+		// 800 wide, bloomed to 615 tall: words needing 1× its width want 800.
+		expect(openHeight(800, 615, 1, 1000, 1)).toBe(800);
+		expect(openHeight(800, 615, 1, 1000, 0.5)).toBeCloseTo((615 + 800) / 2);
+		expect(openHeight(800, 615, 3, 1000, 1)).toBe(1000);
+		// Words that already fit, or a cap below the bloom, leave it as it is.
+		expect(openHeight(800, 615, 0.5, 1000, 1)).toBe(615);
+		expect(openHeight(800, 615, 1, 500, 1)).toBe(615);
+		expect(openHeight(800, 615, 2, 1000, 0)).toBe(615);
 	});
 
 	it('blooms an item to fit the screen, never shrinking it', () => {

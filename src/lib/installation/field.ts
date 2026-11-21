@@ -263,6 +263,25 @@ export function bloomScale(
 }
 
 /**
+ * An event card's height as it opens to its details, `open` of the way there
+ * (0..1). It grows from its bloomed `height` toward the height its words take,
+ * `need`, which is a multiple of its width: the card's type is sized by its
+ * width, so that multiple holds at any size, and growing taller rather than
+ * larger is what makes more room. It never grows past `max`, beyond which a
+ * long description is cut short, and never shrinks below where it started.
+ */
+export function openHeight(
+	width: number,
+	height: number,
+	need: number,
+	max: number,
+	open: number
+): number {
+	const target = Math.max(height, Math.min(width * need, max));
+	return height + (target - height) * open;
+}
+
+/**
  * An item's scale for its focus. While the field moves fast, growth is held
  * to a fraction so passing items swell a little rather than strobe; the full
  * bloom waits until the water is still.
