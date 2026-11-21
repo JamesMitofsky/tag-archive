@@ -20,9 +20,11 @@
 
 	Each page keeps its place for as long as it is shown (`assignSlots` in
 	#lib/live), so an arrival never makes the others move. The places come from
-	the public cloud's layout maths, with one difference: no two pages on the
-	board overlap, even while drifting (`measureBoard` and `boardSlots` in
-	#lib/cloudLayout). The fly-in and the drift are the public cloud's too.
+	the public cloud's layout maths, with two differences (`measureBoard` and
+	`boardSlots` in #lib/cloudLayout): no two pages on the board overlap, even
+	while drifting, and the places are scattered afresh on each opening, each
+	with a lean and a depth of its own, so the pages read as adrift rather than
+	filed in rows. The fly-in and the drift are the public cloud's too.
 
 	Open it with `?replay` to fly the latest arrival in again a moment after the
 	rest, to see an arrival without adding an artefact. It comes in even when it
@@ -58,6 +60,12 @@
 
 	/** When the board was opened: the window is measured back from here. */
 	const openedAt = Date.now();
+	/**
+	 * Deals this opening's scatter of places (see `boardSlots`): fixed while the
+	 * board is open, so a resize moves pages rather than reshuffling them, and
+	 * different on every opening.
+	 */
+	const scatterSeed = Math.floor(Math.random() * 2 ** 31);
 
 	/** The latest poll, newest first. */
 	let feed = $state<LiveArrival[]>([]);
@@ -115,7 +123,7 @@
 
 	/** Card size: as large as LIVE_FEED_SIZE of them can be, however many show. */
 	let layout = $derived(measureBoard(field, LIVE_FEED_SIZE));
-	let slots = $derived(field.fieldW ? boardSlots(field, layout, LIVE_FEED_SIZE) : []);
+	let slots = $derived(field.fieldW ? boardSlots(field, layout, LIVE_FEED_SIZE, scatterSeed) : []);
 
 	/**
 	 * Memory the placement below keeps between runs, in plain variables rather
@@ -142,9 +150,16 @@
 		return shown.flatMap((item) => {
 			const slot = slotOf[item.id];
 			if (slot === undefined) return [];
-			const p = pinAt(item, slots[slot], field, item.id);
+			const place = slots[slot];
+			const p = pinAt(item, place, field, item.id);
 			const delay = (delayOf[item.id] ?? 0).toFixed(2);
-			return [{ ...p, enterStyle: `${p.enterStyle};--edelay:${delay}s` }];
+			return [
+				{
+					...p,
+					enterStyle: `${p.enterStyle};--edelay:${delay}s`,
+					pose: `rotate: ${place.tilt.toFixed(2)}deg; scale: ${place.scale.toFixed(3)}`
+				}
+			];
 		});
 	});
 
@@ -318,25 +333,30 @@
 				<!-- Fly in once, from the edge the page faces (`/`'s entrance), then
 				     drift. The style is read once, on mount: a later change must never
 				     restart a page's entrance. -->
-				<div class="enter" style={untrack(() => p.enterStyle)}>
-					<div class="page drift" style={p.style}>
-						<CardSheet
-							title={p.item.artefact}
-							meta={[p.item.event, p.item.date && formatDate(p.item.date)]}
-							description={p.item.description}
-							lines={4}
-							tags={tagsFor(p.item)}
-						>
-							{#snippet media()}
-								{#if p.item.fileUrls.length > 0}
-									<ArtefactFilePreview
-										fileUrls={p.item.fileUrls}
-										artefactName={p.item.artefact}
-										sizes="{Math.ceil(layout.cardW)}px"
-									/>
-								{/if}
-							{/snippet}
-						</CardSheet>
+				<!-- How the page stands in its place: a lean, and a depth (drawn a
+				     little smaller further back). Outside the entrance, so the page
+				     flies in already leaning. -->
+				<div class="pose" style={p.pose}>
+					<div class="enter" style={untrack(() => p.enterStyle)}>
+						<div class="page drift" style={p.style}>
+							<CardSheet
+								title={p.item.artefact}
+								meta={[p.item.event, p.item.date && formatDate(p.item.date)]}
+								description={p.item.description}
+								lines={4}
+								tags={tagsFor(p.item)}
+							>
+								{#snippet media()}
+									{#if p.item.fileUrls.length > 0}
+										<ArtefactFilePreview
+											fileUrls={p.item.fileUrls}
+											artefactName={p.item.artefact}
+											sizes="{Math.ceil(layout.cardW)}px"
+										/>
+									{/if}
+								{/snippet}
+							</CardSheet>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -362,6 +382,14 @@
 			top 700ms cubic-bezier(0.22, 1, 0.36, 1);
 	}
 
+	/* A resize can deal a page a new lean and depth along with its new place;
+	   it eases into them as the anchor glides. */
+	.pose {
+		transition:
+			rotate 700ms cubic-bezier(0.22, 1, 0.36, 1),
+			scale 700ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
 	.enter {
 		animation: cloud-flyin 900ms cubic-bezier(0.16, 1, 0.3, 1) var(--edelay, 0s) both;
 		will-change: transform, opacity;
@@ -376,7 +404,8 @@
 		.drift {
 			animation: none;
 		}
-		.card-anchor {
+		.card-anchor,
+		.pose {
 			transition: none;
 		}
 	}
