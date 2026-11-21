@@ -36,7 +36,13 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql';
 import { loadSeedData, type EventSource } from '../db/seed-core';
 import { user } from '../db/schema';
-import { applyImport, planImport, type ImportEvent, type SkipReason } from './import-core';
+import {
+	applyImport,
+	planImport,
+	seedAdditions,
+	type ImportEvent,
+	type SkipReason
+} from './import-core';
 import { purgeArchiveCache, vercelProject } from './purge';
 import { DEFAULT_TIME_ZONE, formatDate } from './squarespace';
 import { loadRawEvents, verbatimMismatches } from './verbatim';
@@ -190,19 +196,19 @@ try {
 }
 
 /**
- * Append the file's entries the seed doesn't have yet (matched by URL) to the
- * end of the seed's events, so local dev mirrors the live archive. Appended,
+ * Append the file's entries the seed doesn't have yet to the end of the seed's
+ * events, so local dev mirrors the live archive. `seedAdditions` applies the
+ * import's own skip rules (URL, then title and date), so an event the database
+ * already holds under another URL isn't added to the seed twice. Appended,
  * never inserted by date: seed-core numbers events by position, and existing
  * ids must not shift.
  */
 async function writeSeed(entries: ImportEvent[], today: string) {
 	const seed = loadSeedData();
-	const seedUrls = new Set(seed.events.map((e) => e.url));
-	const additions = entries
-		.filter((e) => !seedUrls.has(e.url))
-		.filter((e) => args['include-upcoming'] || e.date <= today)
-		.filter((e, i, all) => all.findIndex((o) => o.url === e.url) === i)
-		.map(canonicalEvent);
+	const additions = seedAdditions(seed.events, entries, {
+		today,
+		includeUpcoming: args['include-upcoming']
+	}).map(canonicalEvent);
 	seed.events.push(...additions);
 	writeFileSync(SEED_PATH, await formatSeed(seed));
 	console.log(`Appended ${additions.length} events to ${SEED_PATH}.`);
