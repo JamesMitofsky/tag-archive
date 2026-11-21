@@ -49,6 +49,7 @@
 	import { reducedMotion } from '#lib/transitions.svelte.ts';
 	import { claimOpening } from '#lib/access/opening.svelte.ts';
 	import { shuffled } from '#lib/utils.ts';
+	import { dateWeightedOrder } from '#lib/browseOrder.ts';
 	import Drawing from '#lib/components/Drawing.svelte';
 
 	/** Makes every card a packet (see the header comment). */
@@ -104,6 +105,10 @@
 		// Optional route-specific mark drawn INSIDE the field, where the placeholder
 		// text would sit. Fades away as soon as the user types (see `.mark` below).
 		placeholderMark?: Snippet;
+		// An item's own date (a partial date, or null when undated). Given, the
+		// unsearched browse favors items dated near today (see #lib/browseOrder);
+		// without it, every item is equally likely to come first.
+		dateOf?: (item: T) => string | null;
 		ariaLabel?: string;
 		placeholder?: string;
 		packet?: Packet;
@@ -114,6 +119,7 @@
 		filter,
 		card,
 		placeholderMark,
+		dateOf,
 		ariaLabel = 'Search',
 		placeholder,
 		packet
@@ -145,7 +151,9 @@
 	 * The whole archive in a random order, drawn once per page load. With no query
 	 * this is what the cloud and the grid browse, so an untouched search shows a
 	 * different slice of the archive on every visit rather than always the same
-	 * first N by id. Shuffled once and kept: resizing (which changes `cap`) then
+	 * first N by id. With `dateOf` the draw leans toward items dated near today,
+	 * so what is current tends to be in the first handful, though any item can
+	 * be. Shuffled once and kept: resizing (which changes `cap`) then
 	 * takes a longer or shorter prefix of the SAME order instead of dealing a new
 	 * hand, and clearing a query returns to the sky the user started from.
 	 */
@@ -312,7 +320,7 @@
 	onMount(async () => {
 		try {
 			allItems = await load();
-			browseOrder = shuffled(allItems);
+			browseOrder = dateOf ? dateWeightedOrder(allItems, dateOf) : shuffled(allItems);
 		} finally {
 			loading = false;
 			runSearch(query); // apply any query typed while the dataset was loading
