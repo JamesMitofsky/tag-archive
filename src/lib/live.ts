@@ -1,5 +1,5 @@
 /**
- * The /live feed: the artefacts that most recently went public, newest first,
+ * The /keeper/live feed: the artefacts that most recently went public, newest first,
  * and the pure bookkeeping the page does with each poll of it. Shared by the
  * server (which builds the feed) and the browser (which diffs it), so it imports
  * nothing from either side.

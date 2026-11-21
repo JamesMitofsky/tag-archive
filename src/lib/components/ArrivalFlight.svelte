@@ -1,5 +1,5 @@
 <!--
-	A paper plane bringing a new artefact in to /live: it sweeps in from the
+	A paper plane bringing a new artefact in to /keeper/live: it sweeps in from the
 	bottom-left edge of the screen, flies one loop over the stage, and glides
 	down onto `target`, drawing a dashed contrail behind it. On touchdown it calls
 	`onlanded` (the page unfolds the artefact's sheet there), then fades itself

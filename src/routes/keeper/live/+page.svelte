@@ -1,12 +1,14 @@
 <!--
-	/live: the archive's arrivals board. The artefact that most recently went
+	/keeper/live: the archive's arrivals board, for admins (+page.server.ts turns
+	everyone else away). The artefact that most recently went
 	public sits on the stage, the ones before it in a row beneath, and when a new
 	one arrives a paper plane flies it in: the plane loops over the stage and
 	lands, the artefact's sheet unfolds where it touched down, ink sparks fly off
 	it, and the one it replaced slides down to head the row.
 
 	Arrivals come from polling /api/live (see that route for why it polls rather
-	than streams) every LIVE_POLL_MS while the page is on screen, and once more
+	than streams, and why it stays open to every pass holder while this page is
+	admin-only) every LIVE_POLL_MS while the page is on screen, and once more
 	the moment it comes back. Each poll is diffed against every id this page has
 	already shown (#lib/live), so only genuinely new artefacts are announced, in
 	the order they went public, one flight at a time. The same poll refreshes the
@@ -34,6 +36,7 @@
 	import { formatDate } from '#lib/formatDate.ts';
 	import { reducedMotion } from '#lib/transitions.svelte.ts';
 	import { A4 } from '#lib/cloudLayout.ts';
+	import BackButton from '#lib/components/BackButton.svelte';
 	import CardSheet from '#lib/components/CardSheet.svelte';
 	import ArtefactFilePreview from '#lib/components/ArtefactFilePreview.svelte';
 	import ArrivalFlight from '#lib/components/ArrivalFlight.svelte';
@@ -267,7 +270,7 @@
 </script>
 
 <svelte:head>
-	<title>Live · TAG Archive</title>
+	<title>Live · Cloud Keeper · TAG Archive</title>
 </svelte:head>
 
 {#snippet sheet(item: LiveArrival, sizes: string, lines: number)}
@@ -286,7 +289,8 @@
 	</CardSheet>
 {/snippet}
 
-<main class="flex min-h-dvh flex-col items-center gap-8 px-4 pt-chrome pb-12">
+<!-- No pt-chrome here: the keeper layout already reserves the home mark's band. -->
+<main class="flex min-h-dvh flex-col items-center gap-8 px-4 pb-12">
 	<header class="flex flex-col items-center gap-1 text-center" data-cloud-block>
 		<p
 			class="rounded-full bg-white/70 px-3 py-1 text-sm font-medium text-gray-800 shadow-xs ring-1 ring-black/5 backdrop-blur-xs"
@@ -302,6 +306,7 @@
 		</p>
 		<h1 class="text-2xl font-semibold text-gray-900">New in the Archive</h1>
 		<p class="text-sm text-gray-600">Artefacts appear here the moment they join the archive.</p>
+		<BackButton class="mt-1" />
 	</header>
 
 	<!-- The stage keeps its size while empty, so the plane always has somewhere
