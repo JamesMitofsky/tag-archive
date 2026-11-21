@@ -43,6 +43,7 @@
 					fileUrls={item.fileUrls}
 					artefactName={item.artefact}
 					sizes={isOpen ? '(max-width: 640px) 90vw, 576px' : '192px'}
+					paged={isOpen}
 				/>
 			{/if}
 		{/snippet}
