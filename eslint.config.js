@@ -36,10 +36,30 @@ export default defineConfig(
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
 		languageOptions: {
 			parserOptions: {
-				projectService: true,
 				extraFileExtensions: ['.svelte'],
 				parser: ts.parser
 			}
+		}
+	},
+	{
+		// Type information for every file, which `no-deprecated` needs: it reads
+		// the `@deprecated` tags of whatever a file uses, from SvelteKit, Svelte
+		// and every other dependency. Files sit in the root tsconfig, or in the
+		// ones under scripts/ and .storybook/. The root-level config files that no
+		// tsconfig covers fall back to a default project.
+		languageOptions: {
+			parserOptions: {
+				projectService: {
+					allowDefaultProject: ['eslint.config.js', 'prettier.config.js', 'vitest.shims.d.ts']
+				},
+				tsconfigRootDir: import.meta.dirname
+			}
+		},
+		rules: {
+			// Fails the lint, so a deprecation is replaced when it appears rather
+			// than found later in a sweep. Where an old API is kept on purpose,
+			// disable the rule on that line and say why.
+			'@typescript-eslint/no-deprecated': 'error'
 		}
 	},
 	{

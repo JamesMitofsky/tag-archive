@@ -91,6 +91,9 @@
 	function handleBeforeUnload(event: BeforeUnloadEvent) {
 		if (!isDirty()) return;
 		event.preventDefault();
+		// Chrome honors preventDefault() alone only from 119, and the build still
+		// targets 110 (vite.config.ts `cssTarget`).
+		// eslint-disable-next-line @typescript-eslint/no-deprecated
 		event.returnValue = '';
 	}
 </script>
