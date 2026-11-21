@@ -163,6 +163,34 @@ describe('createSim', () => {
 		expect(sim.mode).toBe('touch');
 	});
 
+	it('starts in the current with the lens at rest, since nobody has steered yet', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		run(sim, 0, 1, () => ({ x: 40, y: 0 }));
+		expect(sim.mode).toBe('current');
+		expect(sim.lens).toBe(0);
+	});
+
+	it('wakes the lens at a touch and keeps it awake until a minute alone', () => {
+		const sim = createSim({ x: 0, y: 0 });
+		run(sim, 0, 1);
+		sim.down(1);
+		let t = run(sim, 1, 0.5);
+		expect(sim.lens).toBeGreaterThan(0.8);
+		t = run(sim, t, 2);
+		expect(sim.lens).toBe(1);
+		sim.up(0, 0, t);
+		t = run(sim, t, TUNING.idleAfter - 1);
+		expect(sim.mode).not.toBe('current');
+		expect(sim.lens).toBe(1);
+		t = run(sim, t, 2);
+		expect(sim.mode).toBe('current');
+		// It rests gradually rather than snapping off.
+		expect(sim.lens).toBeGreaterThan(0);
+		expect(sim.lens).toBeLessThan(1);
+		run(sim, t, 15);
+		expect(sim.lens).toBe(0);
+	});
+
 	it('takes a drag without a down as a touch', () => {
 		const sim = createSim({ x: 0, y: 0 });
 		sim.drag(1, 0, 0);

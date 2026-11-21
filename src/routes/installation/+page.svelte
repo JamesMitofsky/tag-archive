@@ -1,7 +1,9 @@
 <!--
 	Archive Stream, the projector side. The whole public archive floats here as a
 	field on water. A fixed lens sits in the middle of the screen; the iPad moves
-	the water under it, and whatever drifts into the lens blooms.
+	the water under it, and whatever drifts into the lens blooms. A minute after
+	the last touch the lens rests, and the field goes back to a wash of the
+	archive floating by, with nothing drawn into focus.
 
 	The motion is decided in #lib/installation/physics and the layout in
 	#lib/installation/field. This page only draws them: every frame it places
@@ -133,7 +135,7 @@
 				world = laid;
 				// Start somewhere different each time the page loads.
 				const start = laid.placed[Math.floor(Math.random() * laid.placed.length)] ?? { x: 0, y: 0 };
-				sim = createSim({ x: start.x, y: start.y }, tuning, now());
+				sim = createSim({ x: start.x, y: start.y }, tuning);
 			})
 			.catch((error) => {
 				loadError = error instanceof Error ? error.message : String(error);
@@ -166,6 +168,8 @@
 			}
 
 			const calm = calmness(sim.speed);
+			// 0 while the field is left to the current: nothing comes into focus.
+			const lensAt = sim.lens;
 			const lensRadius = viewH * LENS;
 			const halfW = viewW / 2 + w.cell * MARGIN_CELLS;
 			const halfH = viewH / 2 + w.cell * MARGIN_CELLS;
@@ -176,7 +180,7 @@
 			for (const placed of w.placed) {
 				const offset = offsetFrom(sim.cam, placed, w);
 				if (Math.abs(offset.x) > halfW || Math.abs(offset.y) > halfH) continue;
-				const focus = focusAmount(Math.hypot(offset.x, offset.y), lensRadius);
+				const focus = focusAmount(Math.hypot(offset.x, offset.y), lensRadius) * lensAt;
 				const entry = { placed, x: offset.x, y: offset.y, focus };
 				near.push(entry);
 				if (focus > 0 && (!best || focus > best.focus)) best = entry;
@@ -234,7 +238,7 @@
 				element.style.zIndex = isBest ? '3' : entry.focus > 0 ? '2' : '1';
 			}
 
-			if (lens) lens.style.opacity = String(0.6 * (1 - Math.min(1, bloomAmount * 1.4)));
+			if (lens) lens.style.opacity = String(0.6 * lensAt * (1 - Math.min(1, bloomAmount * 1.4)));
 
 			// What's in focus, for the caption and the full-size picture.
 			const focused = best && best.focus > 0.5 ? best : null;
@@ -432,8 +436,9 @@
 		height: 36vh;
 		translate: -50% -50%;
 		border-radius: 50%;
-		border: 2px dashed oklch(0.55 0.09 75 / 0.55);
 		background: radial-gradient(circle, oklch(0.95 0.06 85 / 0.55), oklch(0.95 0.06 85 / 0) 70%);
+		/* Set every frame; hidden until the field is there to steer. */
+		opacity: 0;
 		pointer-events: none;
 		z-index: 0;
 	}
@@ -443,25 +448,12 @@
 		left: 0;
 		top: 0;
 		will-change: transform;
-		border-radius: 6px;
-		border: 3px solid rgb(var(--tint));
-		background-color: rgb(var(--tint) / 0.35);
+		/* No frame: a picture floats bare, with only its blurred stand-in
+		   behind it while the real one loads. */
 		background-size: cover;
 		background-position: center;
-		box-shadow: 0 6px 18px oklch(0.3 0.03 240 / 0.18);
 		overflow: hidden;
 		contain: layout paint;
-	}
-	.item.artefact {
-		--tint: 196 176 230;
-		/* A scan sits on paper, whole, rather than cropped to its frame. */
-		background-color: oklch(0.98 0.01 90);
-	}
-	.item.photo {
-		--tint: 176 222 190;
-	}
-	.item.event {
-		--tint: 168 210 240;
 	}
 
 	.item :global(.picture) {

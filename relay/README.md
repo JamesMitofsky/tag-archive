@@ -3,7 +3,8 @@
 An installation mode for the archive. A projector shows every public artefact page, photograph and
 event floating as a field on water, with a fixed lens in the middle of the screen. A frosted iPad,
 which shows nothing of the archive, is the only control. One finger moves the water under the lens,
-and whatever drifts into the lens blooms to full size, with its title and date below it.
+and whatever drifts into the lens blooms to full size, with its title and date below it. A minute
+after the last touch the lens rests, and the field goes back to a wash of the archive floating by.
 
 | Where                  | What                                                                  |
 | ---------------------- | --------------------------------------------------------------------- |
