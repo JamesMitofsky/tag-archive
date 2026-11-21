@@ -1,6 +1,9 @@
 <script lang="ts">
+	import PaperclipIcon from 'phosphor-svelte/lib/PaperclipIcon';
 	import BackButton from '#lib/components/BackButton.svelte';
+	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
 	import ReviewActions from '#lib/components/ReviewActions.svelte';
+	import { isImageUrl } from '#lib/fileType.ts';
 	import { formatArtefactDate } from '#lib/formatDate.ts';
 	import type { PageData } from './$types';
 
@@ -50,6 +53,37 @@
 								<p class="mt-2 text-sm break-words whitespace-pre-line text-gray-800">
 									{item.description}
 								</p>
+							{/if}
+							{#if item.fileUrls.length > 0}
+								<!-- The scans themselves, at the card's full width: what is being
+								     approved has to be legible here, without a trip to the artefact's
+								     page. Each opens its original for a closer look. -->
+								<div class="mt-3 space-y-3">
+									{#each item.fileUrls as url, index (url)}
+										{#if isImageUrl(url)}
+											<a href={url} target="_blank" rel="noopener" class="block">
+												<OptimizedImage
+													src={url}
+													alt={item.fileUrls.length > 1
+														? `${item.artefact} (${index + 1} of ${item.fileUrls.length})`
+														: item.artefact}
+													sizes="(min-width: 768px) 40rem, 100vw"
+													class="w-full rounded-sm bg-gray-100 ring-1 ring-black/5"
+												/>
+											</a>
+										{:else}
+											<a
+												href={url}
+												target="_blank"
+												rel="noopener"
+												class="inline-flex items-center gap-1 text-sm text-gray-600 underline-offset-2 hover:text-gray-900 hover:underline"
+											>
+												<PaperclipIcon size={14} />
+												Open file
+											</a>
+										{/if}
+									{/each}
+								</div>
 							{/if}
 							{#if item.provenance.length > 0}
 								<p class="mt-2 text-sm text-gray-500">{item.provenance.join(', ')}</p>
