@@ -9,6 +9,11 @@
 	from every year in date order; a bubble at each island's center names its
 	season ("Winter"), so the drift keeps a sense of when in the year you are.
 
+	An image set floats as a pile of its prints, as on /images. Drawn into the
+	lens, the pile fans out and lays every photograph of the set beside the top
+	one, in the set's order; out of the lens, they slide back under it (the
+	layout is in #lib/installation/fan).
+
 	A pinch on the iPad zooms the field about the lens. Zoomed out, things step
 	aside so the view stays legible: first the lens, then the event cards, and
 	then pictures thin out evenly while those left stop shrinking (the order is
@@ -57,11 +62,13 @@
 		thinningRoom,
 		thinningStarts,
 		widestZoom,
+		type FieldItem,
 		type Group,
 		type Placed,
 		type World
 	} from '#lib/installation/field.ts';
 	import { createGesture } from '#lib/installation/gesture.ts';
+	import { fanBounds, layoutFan, PILED, type Fan } from '#lib/installation/fan.ts';
 	import { buildFieldItems } from '#lib/installation/items.ts';
 	import {
 		defaultKnobs,
@@ -92,6 +99,22 @@
 
 	/** A bloom's share of the screen's width, for each share of its height. */
 	const BLOOM_WIDTH = 0.5 / 0.62;
+	/**
+	 * The same for a fanned image set, which lies wide: its prints side by
+	 * side, and the lens's neighbors parting to either side of them.
+	 */
+	const FAN_BLOOM_WIDTH = 1.4;
+	/** The widest share of the screen a fanned image set takes. */
+	const FAN_MAX_WIDTH = 0.9;
+	/**
+	 * How bloomed (0..1) an image set must be before it fans out, and how far
+	 * back it must fall before it folds again, so a set resting on the edge
+	 * doesn't flutter.
+	 */
+	const FAN_OPEN = 0.55;
+	const FAN_CLOSE = 0.35;
+	/** How quickly an image set fans out or folds, per second. */
+	const FAN_RATE = 3.5;
 	/**
 	 * How quickly an event card grows to hold its details, per second: about
 	 * as long as its details take to unfold (see `.details`).
@@ -125,6 +148,12 @@
 	let world = $state.raw<World | null>(null);
 	let visible = $state.raw<Placed[]>([]);
 	let bloomId = $state<string | null>(null);
+	/**
+	 * The image sets whose whole fan is drawn: the one nearest the lens's
+	 * center, ahead of fanning so its prints have loaded by then, and any on
+	 * their way out or back. Every other pile draws only the prints it shows.
+	 */
+	let fanning = $state.raw<string[]>([]);
 	/**
 	 * The focused item once the field has been still on it for `captionAfter`.
 	 * Then it says what it is: a picture by a caption under it, an event card by
@@ -185,6 +214,20 @@
 	 */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const openness = new Map<string, number>();
+	/**
+	 * How far each image set is through fanning out, 0..1: rising while it is
+	 * the one fanned (`fanOn`), falling once it isn't. Only sets on their way
+	 * out or back are in here.
+	 */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
+	const fans = new Map<string, number>();
+	/** The image set fanned out, or on its way. */
+	let fanOn: string | null = null;
+	/** The ids last handed to the template as `fanning`. */
+	let fanningKey = '';
+	/** Each image set's pile and fan (see #lib/installation/fan), laid out once. */
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a cache, never rendered
+	const fanLayouts = new Map<string, Fan>();
 	/** Each card's height when open, as a multiple of its width (see `needOf`). */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
 	const needs = new Map<string, number>();
@@ -225,6 +268,29 @@
 				bubbleState.delete(key);
 			};
 		};
+	}
+
+	/** An image set's pile and fan. */
+	function fanOf(item: FieldItem): Fan {
+		let fan = fanLayouts.get(item.id);
+		if (!fan) {
+			fan = layoutFan(item.prints?.map((print) => print.aspect) ?? [item.aspect]);
+			fanLayouts.set(item.id, fan);
+		}
+		return fan;
+	}
+
+	/** Whether an item is an image set of more than one photograph, so has a fan. */
+	const fannable = (item: FieldItem) => (item.prints?.length ?? 0) > 1;
+
+	/**
+	 * Which of a pile's prints to draw, deepest first, so the order on the page
+	 * is the order they lie in: all of them while it fans, else those the pile shows.
+	 */
+	function pileOrder(item: FieldItem, whole: boolean): number[] {
+		const count = fanOf(item).prints.length;
+		const drawn = whole ? count : Math.min(PILED, count);
+		return Array.from({ length: drawn }, (_, k) => drawn - 1 - k);
 	}
 
 	/** Eases a presence (0..1) for drawing, so a fade starts and lands gently. */
@@ -282,6 +348,8 @@
 		// thinning order before any card.
 		sizes.clear();
 		openness.clear();
+		fans.clear();
+		fanOn = null;
 		visibleKey = null;
 		room = thinningRoom(laid, (p) => (isPicture(p.item) ? 0 : 1));
 		wanted = new Uint8Array(laid.placed.length);
@@ -508,11 +576,68 @@
 
 			// The bloom: how much of the lens the focused item fills, and how far
 			// its neighbors must part to make room.
-			// The width's share keeps its proportion to the height's.
-			const bloomOf = (p: Placed) =>
-				bloomScale(p.w * grown, p.h * grown, viewW, viewH, view.bloom, view.bloom * BLOOM_WIDTH);
+			// The width's share keeps its proportion to the height's. An image set
+			// blooms to the size its fan will fill, so its prints come out from
+			// under the top one without growing or shrinking as they go.
+			const bloomOf = (p: Placed) => {
+				if (!fannable(p.item)) {
+					return bloomScale(
+						p.w * grown,
+						p.h * grown,
+						viewW,
+						viewH,
+						view.bloom,
+						view.bloom * BLOOM_WIDTH
+					);
+				}
+				const fan = fanOf(p.item);
+				const share = Math.min(FAN_MAX_WIDTH, view.bloom * FAN_BLOOM_WIDTH);
+				return bloomScale(
+					p.w * fan.width * grown,
+					p.h * fan.height * grown,
+					viewW,
+					viewH,
+					view.bloom,
+					share
+				);
+			};
 			const bestScale = best ? focusScale(best.focus, calm, bloomOf(best.placed)) : 1;
 			const bloomAmount = best ? best.focus * calm : 0;
+
+			// The image set in focus fans out once it has bloomed far enough, and
+			// any other folds back under its top print.
+			const bestSet = best && fannable(best.placed.item) ? best.placed.item.id : null;
+			const holding = fanOn !== null && fanOn === bestSet && bloomAmount > FAN_CLOSE;
+			if (!holding) fanOn = bestSet !== null && bloomAmount > FAN_OPEN ? bestSet : null;
+			if (fanOn !== null && !fans.has(fanOn)) fans.set(fanOn, 0);
+			const towardFan = 1 - Math.exp(-dt * FAN_RATE);
+			for (const [id, amount] of fans) {
+				const target = id === fanOn ? 1 : 0;
+				const next = amount + (target - amount) * towardFan;
+				// Set on the set's element, and from it every print places itself.
+				const element = elements.get(id);
+				if (target === 0 && next < 0.001) {
+					fans.delete(id);
+					element?.style.removeProperty('--fan');
+				} else {
+					fans.set(id, next);
+					// Written only when it moves, so a set lying fanned isn't restyled every frame.
+					const value = ease(next).toFixed(4);
+					if (element && element.style.getPropertyValue('--fan') !== value) {
+						element.style.setProperty('--fan', value);
+					}
+				}
+			}
+			// Drawn whole once the set nearest the center has any focus at all,
+			// well before it fans, so the prints beneath are loaded by then.
+			const reaching = best && best.focus > 0 && fannable(best.placed.item) ? bestSet : null;
+			const whole = [...fans.keys()];
+			if (reaching && !fans.has(reaching)) whole.push(reaching);
+			const wholeKey = whole.join(' ');
+			if (wholeKey !== fanningKey) {
+				fanningKey = wholeKey;
+				fanning = whole;
+			}
 
 			// The settled event card opens; any other on its way open closes again.
 			const settledItem = best?.placed.item.id === settledId ? best?.placed.item : null;
@@ -536,9 +661,21 @@
 				return { width, height: openHeight(width, height, needOf(placed.item.id), max, open) };
 			};
 			const bestSize = best ? sizeOf(best.placed, grown * bestScale) : null;
-			const reach = bestSize
-				? Math.max(bestSize.width, bestSize.height) / 2 + w.cell * grown * 0.35
-				: 0;
+			// How far the bloom reaches: round about anything else, but an image
+			// set fanning out reaches across and down as far as its fan does.
+			const bestFan = best && fannable(best.placed.item) ? fanOf(best.placed.item) : null;
+			const fanned = best ? ease(fans.get(best.placed.item.id) ?? 0) : 0;
+			const reach = { x: 0, y: 0 };
+			if (bestSize) {
+				const round = Math.max(bestSize.width, bestSize.height) / 2;
+				const margin = w.cell * grown * 0.35;
+				const across = bestFan ? (bestSize.width * bestFan.width) / 2 : round;
+				const down = bestFan ? (bestSize.height * bestFan.height) / 2 : round;
+				reach.x = round + (across - round) * fanned + margin;
+				reach.y = round + (down - round) * fanned + margin;
+			}
+			/** The bloom's reach, widened by `more` every way. */
+			const reachPlus = (more: number) => ({ x: reach.x + more, y: reach.y + more });
 			// Laid out afresh only once the size has drifted this far, while moving.
 			const tolerance = sim.zooming ? 0.35 : 0.002;
 
@@ -554,7 +691,7 @@
 				if (!isBest && best) {
 					const push = parting(
 						{ x: x - best.x, y: y - best.y },
-						reach + (Math.max(placed.w, placed.h) * grown) / 2,
+						reachPlus((Math.max(placed.w, placed.h) * grown) / 2),
 						bloomAmount
 					);
 					x += push.x;
@@ -617,7 +754,7 @@
 				if (best) {
 					const push = parting(
 						{ x: x - best.x, y: y - best.y },
-						reach + w.cell * zoom * 0.7,
+						reachPlus(w.cell * zoom * 0.7),
 						bloomAmount
 					);
 					x += push.x;
@@ -655,8 +792,10 @@
 			if (nextSettled !== settledId) settledId = nextSettled;
 			const nextBloom = focused && bloomAmount > 0.6 ? id : bloomId === id ? bloomId : null;
 			if (nextBloom !== bloomId) bloomId = nextBloom;
-			if (captionEl && focused) {
-				const bottom = viewH / 2 + focused.y + (focused.placed.h * grown * bestScale) / 2;
+			if (captionEl && focused && bestSize) {
+				// Under the fan, for an image set fanning out.
+				const tall = bestFan ? fanBounds(bestFan, fanned).height : 1;
+				const bottom = viewH / 2 + focused.y + (bestSize.height * tall) / 2;
 				captionEl.style.top = `${Math.min(bottom + 18, viewH - 90)}px`;
 			}
 		};
@@ -804,13 +943,57 @@
 		<div
 			class="item {item.kind}"
 			class:card={!item.src}
+			class:stack={!!item.prints}
 			style:width="{placed.w}px"
 			style:height="{placed.h}px"
 			style:opacity="0"
 			style:background-image={blur ? `url(${blur})` : undefined}
 			{@attach track(item.id)}
 		>
-			{#if item.src}
+			{#if item.prints}
+				<!-- An image set: a pile of prints. Each print lies in the pile or in
+				     the fan by `--fan`, which the frame loop sets on the set as it
+				     fans out, and eases between the two (see `.print`). -->
+				{@const prints = item.prints}
+				{@const fan = fanOf(item)}
+				{#each pileOrder(item, fanning.includes(item.id)) as k (k)}
+					{@const print = prints[k]}
+					{@const lie = fan.prints[k]}
+					{@const printBlur = placeholderUrl(print.placeholder)}
+					<div
+						class="print"
+						style:--w={lie.w}
+						style:--h={lie.h}
+						style:--px={lie.pile.x}
+						style:--py={lie.pile.y}
+						style:--pr={lie.pile.rotate}
+						style:--ps={lie.pile.scale}
+						style:--fx={lie.fan.x}
+						style:--fy={lie.fan.y}
+						style:--fr={lie.fan.rotate}
+						style:--delay={lie.delay}
+						style:--span={lie.span}
+						style:background-image={printBlur ? `url(${printBlur})` : undefined}
+					>
+						<OptimizedImage
+							src={print.src}
+							widths={[320]}
+							sizes="320px"
+							loading="eager"
+							class="picture"
+						/>
+						{#if bloomId === item.id}
+							<img
+								class="picture full"
+								src={print.src}
+								alt=""
+								decoding="async"
+								onload={(event) => event.currentTarget.classList.add('loaded')}
+							/>
+						{/if}
+					</div>
+				{/each}
+			{:else if item.src}
 				<OptimizedImage
 					src={item.src}
 					widths={[320]}
@@ -1051,6 +1234,40 @@
 	}
 	.item .full:global(.loaded) {
 		opacity: 1;
+	}
+
+	/* An image set's pile. Its box is the top print's; the prints beneath peek
+	   out past it, and fanned, they spill well beyond it, over the water its
+	   neighbors have parted from. So it clips nothing. Its prints are placed in
+	   its own units, as shares of it. */
+	.item.stack {
+		container-type: size;
+		overflow: visible;
+		contain: none;
+	}
+	/* A print: its own photograph's shape, centered on the pile, then moved
+	   from where it lies in the pile to where it lies in the fan, `--f` of the
+	   way. Each print waits its turn (`--delay`), so they come out one after
+	   another. Everything is set on the print by the page but `--fan`. */
+	.print {
+		--f: clamp(0, (var(--fan, 0) - var(--delay)) / var(--span), 1);
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: calc(var(--w) * 100%);
+		height: calc(var(--h) * 100%);
+		transform: translate(-50%, -50%)
+			translate(
+				calc((var(--px) + (var(--fx) - var(--px)) * var(--f)) * 100cqw),
+				calc((var(--py) + (var(--fy) - var(--py)) * var(--f)) * 100cqh)
+			)
+			rotate(calc((var(--pr) + (var(--fr) - var(--pr)) * var(--f)) * 1deg))
+			scale(calc(var(--ps) + (1 - var(--ps)) * var(--f)));
+		background-size: cover;
+		background-position: center;
+		border-radius: 0.8cqmin;
+		overflow: hidden;
+		box-shadow: 0 0.6cqmin 2.4cqmin oklch(0.25 0.03 250 / 0.3);
 	}
 
 	.item.card {

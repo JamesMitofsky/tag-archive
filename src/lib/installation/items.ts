@@ -1,6 +1,8 @@
 /**
  * Everything the Archive Stream shows, as field items: each page of each
- * artefact, each photograph of each image set, and every event. An event with
+ * artefact, each image set, and every event. An image set floats as one pile
+ * of its photographs, as on /images, which fans out in the lens (see ./fan).
+ * An event with
  * a feature image shows it; one without is drawn as a card bearing its title,
  * which opens to its date, hosts and description once it is in focus.
  *
@@ -23,7 +25,7 @@
 import type { EventItem } from '#lib/events.ts';
 import { fileExt } from '#lib/fileType.ts';
 import type { PublicImageSet } from '#lib/images/types.ts';
-import { A4_ASPECT, CARD_ASPECT, type FieldItem, type FieldKind } from './field.ts';
+import { A4_ASPECT, CARD_ASPECT, earliestDate, type FieldItem, type FieldKind } from './field.ts';
 
 /** What the field needs of an artefact (a slice of `ArtefactWithEvent`). */
 export type FieldArtefact = {
@@ -96,6 +98,7 @@ export function buildFieldItems(data: {
 				kind: 'artefact',
 				src: url,
 				aspect: A4_ASPECT,
+				prints: null,
 				placeholder: null,
 				title: artefact.artefact,
 				date: artefact.date,
@@ -106,21 +109,31 @@ export function buildFieldItems(data: {
 	}
 
 	for (const set of wants('photo') ? data.imageSets : []) {
+		if (!set.images.length) continue;
 		const cluster = clusterOf(set.event, set.date) ?? `set:${set.id}`;
-		for (const image of set.images) {
+		const prints = set.images.map((image) => {
 			shown.add(image.url);
-			items.push({
-				id: `p${image.id}`,
-				kind: 'photo',
+			return {
 				src: image.url,
 				aspect: image.width > 0 && image.height > 0 ? image.width / image.height : 1,
-				placeholder: image.placeholder,
-				title: set.event ?? set.description ?? '',
-				date: image.capturedDate ?? set.date,
-				details: null,
-				cluster
-			});
-		}
+				placeholder: image.placeholder
+			};
+		});
+		items.push({
+			id: `s${set.id}`,
+			kind: 'photo',
+			src: prints[0].src,
+			prints,
+			aspect: prints[0].aspect,
+			// Each print carries its own.
+			placeholder: null,
+			title: set.event ?? set.description ?? '',
+			// Dated as its photographs were, each by the day it was taken where
+			// known: a day the camera recorded is finer than a set filed under a year.
+			date: earliestDate(set.images.map((image) => image.capturedDate ?? set.date)),
+			details: null,
+			cluster
+		});
 	}
 
 	for (const event of wants('event') ? data.events : []) {
@@ -132,6 +145,7 @@ export function buildFieldItems(data: {
 			id: `e${event.id}`,
 			kind: 'event',
 			src,
+			prints: null,
 			aspect: !src
 				? CARD_ASPECT
 				: feature?.width && feature.height
