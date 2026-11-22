@@ -33,6 +33,7 @@ const item = (
 	id,
 	kind,
 	src: kind === 'event' ? null : `https://bucket.test/${id}.webp`,
+	prints: null,
 	aspect: 1.5,
 	placeholder: null,
 	title: id,
@@ -285,6 +286,17 @@ describe('focus', () => {
 		expect(parting({ x: 300, y: 0 }, 100, 1)).toEqual({ x: 0, y: 0 });
 		expect(parting({ x: 30, y: 0 }, 100, 0)).toEqual({ x: 0, y: 0 });
 	});
+
+	it('parts across and down apart, for something wider than tall', () => {
+		const reach = { x: 400, y: 100 };
+		// As far out as a circle of the larger reach would push it, across…
+		expect(parting({ x: 300, y: 0 }, reach, 1).x).toBeCloseTo(parting({ x: 300, y: 0 }, 400, 1).x);
+		// …but the same distance down is already clear of it.
+		expect(parting({ x: 0, y: 300 }, reach, 1)).toEqual({ x: 0, y: 0 });
+		// Pushed straight out from the center, as the circle does.
+		const push = parting({ x: 100, y: 50 }, reach, 1);
+		expect(push.y / push.x).toBeCloseTo(50 / 100);
+	});
 });
 
 describe('carryCamera', () => {
@@ -356,6 +368,14 @@ describe('buildFieldItems', () => {
 						height: 1200,
 						placeholder: 'abc',
 						capturedDate: null
+					},
+					{
+						id: 10,
+						url: 'https://bucket.test/10.webp',
+						width: 900,
+						height: 1200,
+						placeholder: null,
+						capturedDate: '2019-07-05'
 					}
 				]
 			}
@@ -408,7 +428,7 @@ describe('buildFieldItems', () => {
 	it('clusters an event with its artefacts and photographs', () => {
 		const cluster = byId.get('e3')!.cluster;
 		expect(byId.get('a1-0')!.cluster).toBe(cluster);
-		expect(byId.get('p9')!.cluster).toBe(cluster);
+		expect(byId.get('s5')!.cluster).toBe(cluster);
 		expect(byId.get('a2-0')!.cluster).not.toBe(cluster);
 	});
 
@@ -432,7 +452,7 @@ describe('buildFieldItems', () => {
 			hosts: ['Rae', 'The Alley Band']
 		});
 		expect(byId.get('a1-0')!.details).toBeNull();
-		expect(byId.get('p9')!.details).toBeNull();
+		expect(byId.get('s5')!.details).toBeNull();
 	});
 
 	it('leaves out the kinds that are not wanted', () => {
@@ -444,7 +464,7 @@ describe('buildFieldItems', () => {
 	it('still gathers artefacts by event when the events are hidden', () => {
 		const only = buildFieldItems({ ...data, kinds: new Set(['artefact', 'photo'] as const) });
 		const cluster = (id: string) => only.find((i) => i.id === id)!.cluster;
-		expect(cluster('a1-0')).toBe(cluster('p9'));
+		expect(cluster('a1-0')).toBe(cluster('s5'));
 		expect(cluster('a2-0')).not.toBe(cluster('a1-0'));
 	});
 
@@ -453,9 +473,32 @@ describe('buildFieldItems', () => {
 		expect(only.find((i) => i.id === 'e3')!.src).toBe('https://bucket.test/9.webp');
 	});
 
-	it('uses a photograph’s own shape and placeholder', () => {
-		expect(byId.get('p9')!.aspect).toBeCloseTo(4 / 3);
-		expect(byId.get('p9')!.placeholder).toBe('abc');
+	it('floats an image set as one pile of its photographs, in order', () => {
+		expect(items.filter((i) => i.kind === 'photo').map((i) => i.id)).toEqual(['s5']);
+		const set = byId.get('s5')!;
+		expect(set.prints).toEqual([
+			{ src: 'https://bucket.test/9.webp', aspect: 4 / 3, placeholder: 'abc' },
+			{ src: 'https://bucket.test/10.webp', aspect: 0.75, placeholder: null }
+		]);
+		// The pile has the shape of its top print, and shows it.
+		expect(set.src).toBe('https://bucket.test/9.webp');
+		expect(set.aspect).toBeCloseTo(4 / 3);
+	});
+
+	it('dates a set by the finest date its photographs have', () => {
+		expect(byId.get('s5')!.date).toBe('2019-07-05');
+	});
+
+	it('gives nothing but image sets prints', () => {
+		expect(items.filter((i) => i.prints).map((i) => i.id)).toEqual(['s5']);
+	});
+
+	it('leaves out an image set with no photographs', () => {
+		const empty = buildFieldItems({
+			...data,
+			imageSets: [{ id: 7, description: null, event: null, date: null, images: [] }]
+		});
+		expect(empty.some((i) => i.kind === 'photo')).toBe(false);
 	});
 });
 

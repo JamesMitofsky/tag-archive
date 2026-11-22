@@ -27,11 +27,28 @@ export type EventDetails = {
 	hosts: string[];
 };
 
+/** One photograph of an image set, as a print in its pile (see ./fan). */
+export type FieldPrint = {
+	src: string;
+	/** Width over height. */
+	aspect: number;
+	/** A ThumbHash (see #lib/images/placeholder) shown until the image loads. */
+	placeholder: string | null;
+};
+
 export type FieldItem = {
 	id: string;
 	kind: FieldKind;
-	/** The image to show, or null for an event drawn as a card with its title. */
+	/**
+	 * The image to show, or null for an event drawn as a card with its title.
+	 * An image set's is its first photograph, the print on top of its pile.
+	 */
 	src: string | null;
+	/**
+	 * An image set's photographs in its own order, drawn as a pile of prints
+	 * that fans out in the lens (see ./fan); null for anything else.
+	 */
+	prints: FieldPrint[] | null;
 	/** Width over height. */
 	aspect: number;
 	/** A ThumbHash (see #lib/images/placeholder) shown until the image loads. */
@@ -130,9 +147,14 @@ export type LayoutOptions = {
  * #lib/partialDate), so plain string comparison finds the earliest.
  */
 function clusterDate(items: readonly FieldItem[]): string | null {
+	return earliestDate(items.map((item) => item.date));
+}
+
+/** The earliest of `dates` known at least to the month, else the earliest year-only one (see `clusterDate`). */
+export function earliestDate(dates: Iterable<string | null>): string | null {
 	let fine: string | null = null;
 	let coarse: string | null = null;
-	for (const { date } of items) {
+	for (const date of dates) {
 		if (!date) continue;
 		if (date.length >= 7) {
 			if (!fine || date < fine) fine = date;
@@ -504,13 +526,20 @@ export function focusScale(focus: number, calm: number, bloom: number): number {
 /**
  * How far a neighbor at `offset` from the lens's center is pushed outward so
  * it doesn't sit under a bloomed item: water parting around it. `reach` is the
- * bloomed item's half-size plus a margin; `amount` is how bloomed it is.
+ * bloomed item's half-size plus a margin, the same every way (a circle) or
+ * across and down apart (an ellipse, for something much wider than tall, as a
+ * fanned image set is); `amount` is how bloomed it is. A neighbor inside the
+ * reach is pushed straight out from the center, toward its edge.
  */
-export function parting(offset: Vec, reach: number, amount: number): Vec {
-	const distance = Math.hypot(offset.x, offset.y);
-	if (distance === 0 || distance >= reach || amount <= 0) return { x: 0, y: 0 };
-	const push = (reach - distance) * amount * 0.75;
-	return { x: (offset.x / distance) * push, y: (offset.y / distance) * push };
+export function parting(offset: Vec, reach: number | Vec, amount: number): Vec {
+	const rx = typeof reach === 'number' ? reach : reach.x;
+	const ry = typeof reach === 'number' ? reach : reach.y;
+	if (amount <= 0 || rx <= 0 || ry <= 0) return { x: 0, y: 0 };
+	// How far out it is, as a share of the reach along its own direction.
+	const out = Math.hypot(offset.x / rx, offset.y / ry);
+	if (out === 0 || out >= 1) return { x: 0, y: 0 };
+	const push = (1 / out - 1) * amount * 0.75;
+	return { x: offset.x * push, y: offset.y * push };
 }
 
 /*
