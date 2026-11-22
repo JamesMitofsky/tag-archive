@@ -404,8 +404,37 @@ which touches only what is more than a day old:
 `original_url`, attached or not, matched by bucket key rather than full URL (so a
 change of `R2_PUBLIC_URL` never makes the archive look unused). Each sweep
 removes at most 500 rows or objects a run. The route answers `{ images,
-unattachedImages, orphanObjects, counters }` (`images` counts the abandoned
-submissions); a step that failed is `null`, and the answer a 500.
+unattachedImages, orphanObjects, counters, embeddings }` (`images` counts the
+abandoned submissions, `embeddings` the photographs the catch-up below
+embedded); a step that failed is `null`, and the answer a 500.
+
+#### Content search
+
+Searching `/images` finds sets by their own words (description, event, date),
+which float as piles, and photographs by what they show ("flower", "fire",
+"writing"), which float loose. A loose photograph opens as its whole set, with
+that photograph leading (`/images?photo=ID`).
+
+Each photograph is embedded by Google's EmbeddingGemma 2 on Cloudflare Workers
+AI (`@cf/google/embeddinggemma-2`), a model that puts images and text in one
+vector space, into the `image_embedding` table. A query is embedded the same way
+by `GET /api/images/search?q=`, which scores every embedded photograph of a
+vetted set and answers the ids that stand out (`MATCH_RULE` in
+`src/lib/server/imageEmbeddings.ts`). Answers are cached under the `archive` tag
+like the dataset.
+
+A photograph is embedded in the background as its upload is finalized. The
+daily sweep embeds anything missed, or made by an older model, for the rest of
+its five minutes. `pnpm images:embeddings` does the same without a time limit,
+for a backfill, and `--probe <query>` prints how a query scores across the
+archive, for tuning `MATCH_RULE`.
+
+| Env var                 | Prod                                                  | Local dev |
+| ----------------------- | ----------------------------------------------------- | --------- |
+| `CLOUDFLARE_AI_TOKEN`   | API token with the _Workers AI_ permission (Read)     | _(unset)_ |
+| `CLOUDFLARE_ACCOUNT_ID` | _(unset)_ → `R2_ACCOUNT_ID`, the bucket's own account | _(unset)_ |
+
+Unset, nothing is embedded and `/images` searches by words alone.
 
 #### CORS
 

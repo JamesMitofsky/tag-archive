@@ -33,6 +33,11 @@ export const variables = defineEnvVars({
 	S3_ENDPOINT: optional,
 	S3_REGION: optional,
 	S3_UPLOAD_PROXY: optional,
+	// Content search for photographs (src/lib/server/contentSearch.ts): a
+	// Cloudflare API token allowed to run Workers AI, and the account to run it
+	// in, which defaults to R2's, the account the photographs already live in.
+	CLOUDFLARE_AI_TOKEN: optional,
+	CLOUDFLARE_ACCOUNT_ID: optional,
 	// The Archive Stream relay (relay/), e.g. `wss://archive-stream-relay.<you>.workers.dev`.
 	// Public: the installation's pages read it in the browser. Only an address,
 	// never a secret; the relay's key travels in the pages' own URL instead.

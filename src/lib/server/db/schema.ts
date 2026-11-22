@@ -1,6 +1,7 @@
 import { relations, sql } from 'drizzle-orm';
 import {
 	check,
+	customType,
 	index,
 	integer,
 	primaryKey,
@@ -353,6 +354,46 @@ export const image = sqliteTable(
 		index('image_created_at_idx').on(t.createdAt)
 	]
 );
+
+/**
+ * The dimension of every stored photograph embedding (see
+ * #lib/server/imageEmbeddings). Part of the column's declared type, so a model
+ * of another size needs a migration as well as a re-embed.
+ */
+export const EMBEDDING_DIMENSIONS = 768;
+
+/**
+ * A libSQL vector column: little-endian float32s, which `vector_distance_cos`
+ * reads as they are. The declared length isn't enforced by libSQL, so writers
+ * check it (see `vectorBytes`).
+ */
+const f32Vector = customType<{ data: Uint8Array; driverData: Uint8Array }>({
+	dataType: () => `F32_BLOB(${EMBEDDING_DIMENSIONS})`
+});
+
+/**
+ * Where a photograph sits in the space its text queries are embedded into, so
+ * /images can find it by what it shows ("flower", "painting"), not only by the
+ * words its set was given (see #lib/server/imageEmbeddings). Derived from the
+ * display copy, and never published: search runs on the server and answers
+ * with image ids only.
+ *
+ * A table of its own rather than columns on `image`, so every read of an image
+ * row doesn't haul a 3 KB vector along, and a photograph that goes takes its
+ * vector with it (the cascade). `model` names what made the vector: one made by
+ * any other model than the current one is stale, is never compared with a
+ * query, and is replaced by the next catch-up.
+ */
+export const imageEmbedding = sqliteTable('image_embedding', {
+	imageId: integer('image_id')
+		.primaryKey()
+		.references(() => image.id, { onDelete: 'cascade' }),
+	model: text('model').notNull(),
+	vector: f32Vector('vector').notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+		.notNull()
+});
 
 /**
  * The one image an event features (see #lib/server/eventFeatures): either a

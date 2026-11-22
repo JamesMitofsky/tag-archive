@@ -19,6 +19,12 @@ const sweeps = vi.hoisted(() => ({
 const pruneRateLimits = vi.hoisted(() => vi.fn<(olderThanMs: number) => Promise<number>>());
 vi.mock('#lib/server/uploads.ts', () => sweeps);
 vi.mock('#lib/server/rateLimit.ts', () => ({ pruneRateLimits }));
+type CatchUp = { embedded: number; failed: number; remaining: boolean };
+const embedMissing = vi.hoisted(() => vi.fn<(budgetMs: number) => Promise<CatchUp | null>>());
+const purgeArchiveCache = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock('#lib/server/contentSearch.ts', () => ({ embedMissing }));
+vi.mock('#lib/server/cache.ts', () => ({ purgeArchiveCache }));
+vi.mock('#lib/server/imageUploads.ts', () => ({ readDisplayCopy: vi.fn() }));
 
 const { GET } = await import('./+server');
 const BEARER = 'Bearer test-cron-secret';
@@ -47,6 +53,11 @@ beforeEach(() => {
 	sweeps.sweepUnattachedImages.mockImplementation(recorded('unattachedImages', 1));
 	sweeps.sweepAbandonedSubmissions.mockImplementation(recorded('images', 2));
 	sweeps.sweepOrphanObjects.mockImplementation(recorded('orphanObjects', 3));
+	embedMissing.mockImplementation(async () => {
+		calls.push('embeddings');
+		return { embedded: 5, failed: 0, remaining: false };
+	});
+	purgeArchiveCache.mockClear();
 });
 
 describe('GET /api/cron/sweep-submissions', () => {
@@ -74,9 +85,18 @@ describe('GET /api/cron/sweep-submissions', () => {
 			images: 2,
 			unattachedImages: 1,
 			orphanObjects: 3,
-			counters: 4
+			counters: 4,
+			embeddings: 5
 		});
-		expect(calls).toEqual(['counters', 'unattachedImages', 'images', 'orphanObjects']);
+		expect(calls).toEqual([
+			'counters',
+			'unattachedImages',
+			'images',
+			'orphanObjects',
+			'embeddings'
+		]);
+		// New vectors change what a cached search would answer.
+		expect(purgeArchiveCache).toHaveBeenCalledOnce();
 	});
 
 	it('keeps going past a failing step, reporting it as null with a 500', async () => {
@@ -87,8 +107,33 @@ describe('GET /api/cron/sweep-submissions', () => {
 			images: 2,
 			unattachedImages: null,
 			orphanObjects: 3,
-			counters: 4
+			counters: 4,
+			embeddings: 5
 		});
-		expect(calls).toEqual(['counters', 'images', 'orphanObjects']);
+		expect(calls).toEqual(['counters', 'images', 'orphanObjects', 'embeddings']);
+	});
+
+	it('gives the embedding catch-up what is left of the run', async () => {
+		await call(BEARER);
+		const [budget] = embedMissing.mock.calls[0];
+		expect(budget).toBeGreaterThan(200_000);
+		expect(budget).toBeLessThanOrEqual(240_000);
+	});
+
+	it('reports photographs it could not embed without failing the run', async () => {
+		embedMissing.mockResolvedValueOnce({ embedded: 0, failed: 2, remaining: false });
+		const { response } = await call(BEARER);
+		expect(response?.status).toBe(200);
+		expect(await response?.json()).toMatchObject({ embeddings: 0 });
+		// Nothing new to show, so nothing to refresh.
+		expect(purgeArchiveCache).not.toHaveBeenCalled();
+	});
+
+	it('embeds nothing, and still succeeds, when content search is not set up', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		embedMissing.mockResolvedValueOnce(null);
+		const { response } = await call(BEARER);
+		expect(response?.status).toBe(200);
+		expect(await response?.json()).toMatchObject({ embeddings: 0 });
 	});
 });

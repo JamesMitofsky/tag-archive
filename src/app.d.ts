@@ -29,7 +29,10 @@ declare global {
 			immersive?: string;
 			/** Which of those entries this is, from 0. */
 			immersiveStep?: number;
-			/** On /images: the image set this entry was pushed to open (see that page). */
+			/**
+			 * On /images: the card this entry was pushed to open (see that page): a
+			 * set's id, or a loose photograph's card id (its id, negated).
+			 */
 			imageSet?: number;
 		}
 		// interface Platform {}

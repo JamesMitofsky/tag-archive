@@ -11,6 +11,7 @@ import type { ArtefactWithEvent } from '#lib/server/db/schema.ts';
 import type { EventItem } from '#lib/events.ts';
 import type { LiveArrival } from '#lib/live.ts';
 import type { PublicImageSet } from '#lib/images/types.ts';
+import { normalizeContentQuery } from '#lib/images/cards.ts';
 
 export type Dataset = {
 	artefacts: ArtefactWithEvent[];
@@ -28,11 +29,11 @@ const EMPTY: Dataset = { artefacts: [], events: [], people: [], images: [] };
  * does nothing for anyone else — so try once more, and if the archive really has
  * drifted shut, show the locked page and answer null.
  */
-async function gatedFetch(path: string): Promise<Response | null> {
-	let res = await fetch(path);
+async function gatedFetch(path: string, init?: RequestInit): Promise<Response | null> {
+	let res = await fetch(path, init);
 	if (res.status === 401) {
 		await sendBeat().catch(() => {});
-		res = await fetch(path);
+		res = await fetch(path, init);
 		if (res.status === 401) {
 			await goto(LOCKED_PATH);
 			return null;
@@ -80,4 +81,19 @@ export async function loadPeople(): Promise<string[]> {
 
 export async function loadImageSets(): Promise<PublicImageSet[]> {
 	return (await fetchDataset()).images ?? [];
+}
+
+/** A photograph that shows what a query names, and how near it is (see /api/images/search). */
+export type ContentMatch = { id: number; score: number };
+
+/**
+ * The photographs that show what `q` names, best first. Throws when the search
+ * fails, so the caller can fall back to words alone; empty when the archive
+ * has drifted shut and the page is on its way to the locked page.
+ */
+export async function loadContentMatches(q: string, signal?: AbortSignal): Promise<ContentMatch[]> {
+	const query = normalizeContentQuery(q);
+	if (!query) return [];
+	const res = await gatedFetch(`/api/images/search?q=${encodeURIComponent(query)}`, { signal });
+	return res ? res.json() : [];
 }
