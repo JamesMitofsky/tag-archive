@@ -43,6 +43,7 @@
 		"events:restore": "tsx src/lib/server/events-import/restore.ts",
 		"nfc:tap": "tsx --env-file-if-exists=.env scripts/nfc-tap-url.ts",
 		"images:placeholders": "tsx --env-file-if-exists=.env scripts/backfill-placeholders.ts",
+		"images:embeddings": "tsx --env-file-if-exists=.env scripts/backfill-embeddings.ts",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes"
 	},
 	"devDependencies": {

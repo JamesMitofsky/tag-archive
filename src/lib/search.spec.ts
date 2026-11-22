@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { EventItem } from '#lib/events.ts';
 import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
-import { filterAndSortEvents, filterImageSets } from './search';
+import { imageCards, type ImageCard } from '#lib/images/cards.ts';
+import { filterAndSortEvents, filterImageSets, searchImageCards } from './search';
 
 function photo(id: number): PublicImage {
 	return {
@@ -144,5 +145,68 @@ describe('filterAndSortEvents', () => {
 		expect(filterAndSortEvents(repeat, 'gala', '2020-01-01')).toEqual([
 			{ id: 9, name: 'Gala', date: '2020-01-01' }
 		]);
+	});
+});
+
+describe('searchImageCards', () => {
+	const garden = set(1, { description: 'Garden flowers', images: [photo(11), photo(12)] });
+	const mural = set(2, { description: 'The mural', images: [photo(21), photo(22)] });
+	const cards = imageCards([garden, mural]);
+	const signal = new AbortController().signal;
+	const ids = (found: ImageCard[]) =>
+		found.map((c) => `${c.kind}:${c.kind === 'set' ? c.id : c.photo.id}`);
+
+	it('lists sets matched by their words first, as piles, then photographs by what they show', async () => {
+		const found = await searchImageCards(
+			cards,
+			'flowers',
+			async () => [
+				{ id: 22, score: 0.4 },
+				{ id: 11, score: 0.3 }
+			],
+			signal
+		);
+		// Photograph 11 is in both: its set says "flowers", and it shows them.
+		expect(ids(found)).toEqual(['set:1', 'photo:22', 'photo:11']);
+	});
+
+	it('skips a match the dataset doesn’t hold', async () => {
+		const found = await searchImageCards(
+			cards,
+			'zebra',
+			async () => [{ id: 999, score: 0.5 }],
+			signal
+		);
+		expect(found).toEqual([]);
+	});
+
+	it('falls back to the words alone when content search fails', async () => {
+		const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const found = await searchImageCards(
+			cards,
+			'mural',
+			async () => {
+				throw new Error('502');
+			},
+			signal
+		);
+		expect(ids(found)).toEqual(['set:2']);
+		quiet.mockRestore();
+	});
+
+	it('gives up on a search the reader has moved past', async () => {
+		const controller = new AbortController();
+		controller.abort();
+		const aborted = new DOMException('Aborted', 'AbortError');
+		await expect(
+			searchImageCards(
+				cards,
+				'mural',
+				async () => {
+					throw aborted;
+				},
+				controller.signal
+			)
+		).rejects.toBe(aborted);
 	});
 });

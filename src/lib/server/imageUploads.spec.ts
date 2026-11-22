@@ -61,6 +61,10 @@ const PARSED = {
 };
 const parseImageMetadata = vi.hoisted(() => vi.fn());
 vi.mock('#lib/server/imageMetadata.ts', () => ({ parseImageMetadata }));
+// Embedding itself is #lib/server/imageEmbeddings.spec.ts's; here, only that
+// a recorded photograph is handed over for it.
+const embedInBackground = vi.hoisted(() => vi.fn());
+vi.mock('#lib/server/contentSearch.ts', () => ({ embedInBackground }));
 
 const { migrateTestDatabase } = await import('#lib/server/db/testing.ts');
 const { db } = await import('#lib/server/db/index.ts');
@@ -73,6 +77,7 @@ const {
 	ImageUploadError,
 	MAX_DISPLAY_BYTES,
 	MAX_ORIGINAL_BYTES,
+	readDisplayCopy,
 	readCapped,
 	requestOwner
 } = await import('./imageUploads');
@@ -267,12 +272,26 @@ describe('readCapped', () => {
 	});
 });
 
+// --- readDisplayCopy ----------------------------------------------------------
+
+describe('readDisplayCopy', () => {
+	it('reads a display copy back by its public URL, and answers null when it is gone or foreign', async () => {
+		const bytes = webp(10, 10);
+		store.put('images/display-test.webp', bytes);
+		expect(await readDisplayCopy('https://bucket.test/images/display-test.webp')).toEqual(bytes);
+		expect(await readDisplayCopy('https://bucket.test/images/missing.webp')).toBeNull();
+		expect(await readDisplayCopy('https://elsewhere.test/images/display-test.webp')).toBeNull();
+	});
+});
+
 // --- finalizeImage ----------------------------------------------------------
 
 describe('finalizeImage', () => {
 	it("records a keeper's photograph: unattached, attributed, sized from the WebP", async () => {
 		const original = jpeg(4096);
-		const keys = uploaded(KEEPER, { original, display: webp(2560, 1707) });
+		const display = webp(2560, 1707);
+		const keys = uploaded(KEEPER, { original, display });
+		embedInBackground.mockClear();
 
 		const result = await finalizeImage({ ...keys, name: '  IMG_0001.JPG\n' }, KEEPER);
 
@@ -306,6 +325,8 @@ describe('finalizeImage', () => {
 		// A small original arrives whole with its first ranged read: one read, not two.
 		expect(fetchObject.mock.calls.filter(([key]) => key === keys.originalKey)).toHaveLength(1);
 		expect(deleteScan).not.toHaveBeenCalled();
+		// Embedded from the display copy it has just checked, not read again.
+		expect(embedInBackground).toHaveBeenCalledExactlyOnceWith(row!.id, display);
 	});
 
 	it("records a contributor's photograph unattributed, reading a large original in full", async () => {
@@ -383,11 +404,14 @@ describe('finalizeImage', () => {
 		const keys = uploaded(owner);
 		const first = await finalizeImage(keys, owner);
 		fetchObject.mockClear();
+		embedInBackground.mockClear();
 
 		const again = await finalizeImage(keys, owner);
 
 		expect(again).toEqual(first);
 		expect(fetchObject).not.toHaveBeenCalled();
+		// The first call handed it over; a retry has nothing new to embed.
+		expect(embedInBackground).not.toHaveBeenCalled();
 		const rows = await db.select().from(image).where(eq(image.url, first.url));
 		expect(rows).toHaveLength(1);
 	});

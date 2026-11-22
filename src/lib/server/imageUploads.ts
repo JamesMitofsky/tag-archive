@@ -1,5 +1,6 @@
 import type { Cookies } from '@sveltejs/kit';
 import { and, eq, isNull } from 'drizzle-orm';
+import { embedInBackground } from './contentSearch';
 import { db } from './db';
 import { stampInsert } from './db/audit';
 import { image, type Image } from './db/schema';
@@ -270,6 +271,19 @@ async function readObject(key: string, cap: number): Promise<Uint8Array | 'missi
 	return (await readCapped(res, cap)) ?? 'too-large';
 }
 
+/**
+ * A recorded photograph's display copy, read back from the bucket by its public
+ * URL; null when it is gone, or the URL isn't one of the bucket's.
+ */
+export async function readDisplayCopy(url: string): Promise<Uint8Array | null> {
+	const key = keyFromUrl(url);
+	if (!key) return null;
+	const bytes = await readObject(key, MAX_DISPLAY_BYTES);
+	if (bytes === 'missing') return null;
+	if (bytes === 'too-large') throw new Error(`The display copy at ${url} is over the size cap`);
+	return bytes;
+}
+
 /** Why an original can't be kept, judged from its leading bytes and size; null when it can. */
 function originalProblem(
 	head: Uint8Array,
@@ -431,6 +445,9 @@ export async function finalizeImage(body: unknown, owner: UploadOwner): Promise<
 		.onConflictDoNothing({ target: image.originalUrl });
 	const row = await imageByOriginalUrl(originalUrl);
 	if (!row) throw new Error(`Image row for ${originalUrl} vanished after insert`);
+	// So it can be found by what it shows the moment its set is vetted. In the
+	// background: the uploader needn't wait, and a miss is caught up nightly.
+	embedInBackground(row.id, display);
 	return claim(row, owner);
 }
 

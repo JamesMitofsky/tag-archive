@@ -93,8 +93,17 @@
 	interface Props {
 		// Fetches the full list once (the cached dataset blob); searched in-memory after.
 		load: () => Promise<T[]>;
-		// Narrows the full list to the matches for the current query.
-		filter: (items: T[], q: string) => T[];
+		// Narrows the full list to the matches for the current query. In memory as
+		// a rule, so it answers at once; it may instead answer with a promise (a
+		// search that asks the server too), and an answer that arrives after the
+		// query has moved on is dropped. `signal` aborts when it has.
+		filter: (items: T[], q: string, signal: AbortSignal) => T[] | Promise<T[]>;
+		// How long typing must pause before the query runs, in ms. Raise it for a
+		// `filter` that goes to the network, so a word typed is one request.
+		searchDelay?: number;
+		// Whether an item is part of the unsearched browse; unset, every item is.
+		// For items that exist only to be found (see /images's loose photographs).
+		browsable?: (item: T) => boolean;
 		// Renders one card's contents (event/date/tags — whatever the data has). The
 		// second argument says whether this card is the OPEN one, which is a ~3x size
 		// difference — enough that images want a different `sizes` for each state.
@@ -122,7 +131,9 @@
 		dateOf,
 		ariaLabel = 'Search',
 		placeholder,
-		packet
+		packet,
+		searchDelay = 50,
+		browsable
 	}: Props = $props();
 
 	/**
@@ -145,7 +156,8 @@
 	});
 
 	// The whole dataset, fetched once; searches run against it in memory. `loading`
-	// is that one initial fetch — not a per-search state (local filtering is instant).
+	// is that one initial fetch. `pending` is a search whose `filter` answered with
+	// a promise that hasn't settled; the last results stay up meanwhile.
 	let allItems = $state<T[]>([]);
 	/**
 	 * The whole archive in a random order, drawn once per page load. With no query
@@ -161,6 +173,7 @@
 	let query = $state('');
 	let results = $state<T[]>([]);
 	let loading = $state(true);
+	let pending = $state(false);
 	let searched = $state(false);
 
 	// Click a floating page to open it: it glides to dead-center and grows to fill
@@ -292,27 +305,59 @@
 		selected = null;
 	}
 
-	// Filter the in-memory dataset for the current query. Synchronous — no network,
-	// so no out-of-order handling or per-search loading state is needed.
+	/** Aborted when the query it answers has moved on (see `Props.filter`). */
+	let searchController: AbortController | null = null;
+
+	// Filter the dataset for the current query. A `filter` that answers at once
+	// shows its results at once; one that answers with a promise leaves the last
+	// cloud in place until it settles, and is ignored if another search (or a
+	// cleared box) has started since.
 	function runSearch(q: string) {
+		// The load runs the query typed meanwhile once it lands; until then there
+		// is nothing to search, and an asynchronous `filter` would ask regardless.
+		if (loading) return;
 		const trimmed = q.trim();
+		searchController?.abort();
+		searchController = null;
+		pending = false;
+		if (!trimmed) {
+			show(null);
+			return;
+		}
+		const controller = new AbortController();
+		const answer = filter(allItems, trimmed, controller.signal);
+		if (!(answer instanceof Promise)) {
+			show(answer);
+			return;
+		}
+		searchController = controller;
+		pending = true;
+		answer
+			.catch((e) => {
+				if (!controller.signal.aborted) console.error('[search] failed', e);
+				return [];
+			})
+			.then((found) => {
+				if (controller.signal.aborted) return;
+				searchController = null;
+				pending = false;
+				show(found);
+			});
+	}
+
+	/** Put up a new cloud: a query's matches, or (null) the unsearched browse. */
+	function show(found: T[] | null) {
 		selected = null; // a new query resets any open page
 		morphId = null; // ...and a slot in the previous result set is nowhere to return to
 		spill = null; // ...and the packet put away last may not even be among the matches
 		rejoining = false; // ...and the cards about to arrive are a new cloud's
 		zOrder = {};
 		zTop = 0;
-		if (!trimmed) {
-			results = [];
-			searched = false;
-			// Clearing the box is a reveal too, now that it brings the random browse
-			// set back rather than emptying the field — the cards should fly in the
-			// same way they did on first load, not pop into place.
-			reveal();
-			return;
-		}
-		results = filter(allItems, trimmed);
-		searched = true;
+		results = found ?? [];
+		searched = found !== null;
+		// Clearing the box is a reveal too, now that it brings the random browse
+		// set back rather than emptying the field — the cards should fly in the
+		// same way they did on first load, not pop into place.
 		reveal();
 	}
 
@@ -320,7 +365,8 @@
 	onMount(async () => {
 		try {
 			allItems = await load();
-			browseOrder = dateOf ? dateWeightedOrder(allItems, dateOf) : shuffled(allItems);
+			const browsing = browsable ? allItems.filter(browsable) : allItems;
+			browseOrder = dateOf ? dateWeightedOrder(browsing, dateOf) : shuffled(browsing);
 		} finally {
 			loading = false;
 			runSearch(query); // apply any query typed while the dataset was loading
@@ -655,7 +701,7 @@
 	$effect(() => {
 		const q = query;
 		clearTimeout(debounce);
-		debounce = setTimeout(() => runSearch(q), 50);
+		debounce = setTimeout(() => runSearch(q), searchDelay);
 		return () => clearTimeout(debounce);
 	});
 
@@ -994,7 +1040,7 @@
 					class:load-fade={!leftPacket}
 					in:fade={{ duration: reducedMotion() ? 0 : 250 }}
 				>
-					{#if loading && query.trim().length > 0}
+					{#if (loading || pending) && query.trim().length > 0}
 						<svg
 							class="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 animate-spin text-gray-700"
 							xmlns="http://www.w3.org/2000/svg"

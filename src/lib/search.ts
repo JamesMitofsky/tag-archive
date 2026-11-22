@@ -7,6 +7,7 @@
 import type { ArtefactWithEvent } from '#lib/server/db/schema.ts';
 import type { EventItem } from '#lib/events.ts';
 import type { PublicImageSet } from '#lib/images/types.ts';
+import type { ImageCard, PhotoCard } from '#lib/images/cards.ts';
 import { imageSetLabel } from '#lib/images/label.ts';
 import { formatPartialDate, startOfPartialDate } from '#lib/partialDate.ts';
 
@@ -63,6 +64,46 @@ export function filterImageSets(rows: PublicImageSet[], q: string): PublicImageS
 		]);
 		return tokens.every((token) => fields.some((field) => field.includes(token)));
 	});
+}
+
+/**
+ * /images's search (see #lib/images/cards). Sets whose own words match, by
+ * `filterImageSets`'s rules, come first, as piles. Then the photographs that
+ * show what was asked for, best first, each loose, as `contentMatches` ranks
+ * them. A photograph can be in both: its set matched by its words, and the
+ * photograph by what it shows.
+ *
+ * Content search is a bonus on top of the words, never a condition for them:
+ * if it fails (offline, the model unreachable), the word matches stand alone.
+ * An aborted search throws, as the cloud expects of a query it has moved past.
+ */
+export async function searchImageCards(
+	cards: ImageCard[],
+	q: string,
+	contentMatches: (q: string, signal: AbortSignal) => Promise<{ id: number }[]>,
+	signal: AbortSignal
+): Promise<ImageCard[]> {
+	const setCards = cards.filter((card) => card.kind === 'set');
+	const bySet = new Map(setCards.map((card) => [card.set, card]));
+	const byWords = filterImageSets(
+		setCards.map((card) => card.set),
+		q
+	).map((set) => bySet.get(set)!);
+
+	let matches: { id: number }[];
+	try {
+		matches = await contentMatches(q, signal);
+	} catch (e) {
+		if (signal.aborted) throw e;
+		console.error('[search] content search failed; searching by words alone', e);
+		matches = [];
+	}
+	const photos = new Map<number, PhotoCard>();
+	for (const card of cards) if (card.kind === 'photo') photos.set(card.photo.id, card);
+	// An id the dataset doesn't hold (a photograph vetted or removed since the
+	// dataset was cached) is skipped: there is nothing to draw it with.
+	const loose = matches.flatMap((match) => photos.get(match.id) ?? []);
+	return [...byWords, ...loose];
 }
 
 /**

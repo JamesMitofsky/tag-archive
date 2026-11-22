@@ -2,10 +2,11 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
+	import { cardPhotos, imageCards, photoCardId, type ImageCard } from '#lib/images/cards.ts';
 	import { imageSetLabel, withoutTitleLine } from '#lib/images/label.ts';
 	import { formatPartialDate } from '#lib/partialDate.ts';
-	import { loadImageSets } from '#lib/dataset.ts';
-	import { filterImageSets } from '#lib/search.ts';
+	import { loadContentMatches, loadImageSets } from '#lib/dataset.ts';
+	import { searchImageCards } from '#lib/search.ts';
 	import CardCloud from '#lib/components/CardCloud.svelte';
 	import ImageStack, { PRINT_SIZES } from '#lib/components/ImageStack.svelte';
 	import Photograph from '#lib/components/Photograph.svelte';
@@ -13,27 +14,45 @@
 
 	/** The query parameter naming the open set, so a set can be linked to. */
 	const SET_PARAM = 'set';
+	/**
+	 * The query parameter naming a loose photograph opened from a search, so
+	 * its set opens with it leading wherever the link is followed, whatever the
+	 * search box holds there.
+	 */
+	const PHOTO_PARAM = 'photo';
 
 	/** One photograph as it floats in its open set, carrying its own alt text. */
 	type SetPhoto = PublicImage & { alt: string };
 
 	/**
-	 * The open set, read off the address. Opening one is a shallow navigation to
-	 * `?set=ID` (`goto` with `shallow`), so back puts it away again and the
-	 * address can be shared. `page.url` keeps the address the page was loaded
-	 * at, and `page.shallow` carries the shallow entry's own; a shared link or a
-	 * reload arrives with no shallow entry, but with the set in `page.url`.
+	 * The open card, read off the address. Opening one is a shallow navigation to
+	 * `?set=ID`, or `?photo=ID` for a loose photograph (`goto` with `shallow`), so
+	 * back puts it away again and the address can be shared. `page.url` keeps the
+	 * address the page was loaded at, and `page.shallow` carries the shallow
+	 * entry's own; a shared link or a reload arrives with no shallow entry, but
+	 * with the card in `page.url`.
 	 */
 	const openSet = $derived.by(() => {
-		const raw = (page.shallow?.url ?? page.url).searchParams.get(SET_PARAM);
+		const params = (page.shallow?.url ?? page.url).searchParams;
+		const photo = idParam(params.get(PHOTO_PARAM));
+		if (photo !== null && photo > 0) return photoCardId(photo);
+		const set = idParam(params.get(SET_PARAM));
+		return set !== null && set > 0 ? set : null;
+	});
+
+	function idParam(raw: string | null): number | null {
 		const id = raw === null ? NaN : Number(raw);
 		return Number.isSafeInteger(id) ? id : null;
-	});
+	}
 
 	function changeSet(id: number | null) {
 		const url = new URL(location.href);
+		url.searchParams.delete(SET_PARAM);
+		url.searchParams.delete(PHOTO_PARAM);
 		if (id !== null) {
-			url.searchParams.set(SET_PARAM, String(id));
+			// A card id below zero is a loose photograph's (see `photoCardId`).
+			if (id < 0) url.searchParams.set(PHOTO_PARAM, String(-id));
+			else url.searchParams.set(SET_PARAM, String(id));
 			void goto(url, { shallow: true, state: { ...page.state, imageSet: id } });
 		} else if (page.state.imageSet === openSet) {
 			// This entry was pushed by opening the set, so the one under it is the
@@ -42,7 +61,6 @@
 		} else {
 			// Opened from a link or a reload: nothing of ours underneath to step back
 			// to, so put it away where it stands.
-			url.searchParams.delete(SET_PARAM);
 			void goto(url, { shallow: true, replace: true, state: {} });
 		}
 	}
@@ -60,20 +78,31 @@
 		if (!warmed.some((s) => s.id === set.id)) warmed.push(set);
 	}
 
-	function photos(set: PublicImageSet): SetPhoto[] {
-		const label = imageSetLabel(set);
-		const n = set.images.length;
-		return set.images.map((image, i) => ({
+	/**
+	 * What a card spills when opened (see #lib/images/cards `cardPhotos`). Each
+	 * keeps its place in its set for its alt text, even when a loose photograph
+	 * has been moved to the front.
+	 */
+	function photos(card: ImageCard): SetPhoto[] {
+		const label = imageSetLabel(card.set);
+		const n = card.set.images.length;
+		return cardPhotos(card).map((image) => ({
 			...image,
-			alt: n === 1 ? label : `${label}, photograph ${i + 1} of ${n}`
+			alt: n === 1 ? label : `${label}, photograph ${card.set.images.indexOf(image) + 1} of ${n}`
 		}));
 	}
 </script>
 
+<!-- A search waits a little longer for typing to pause than the other clouds'
+     do: besides the sets' own words, it asks the server which photographs show
+     what was typed (#lib/search `searchImageCards`), and a word should be one
+     request rather than one per letter. -->
 <CardCloud
-	load={loadImageSets}
-	filter={filterImageSets}
-	dateOf={(set) => set.date}
+	load={async () => imageCards(await loadImageSets())}
+	filter={(cards, q, signal) => searchImageCards(cards, q, loadContentMatches, signal)}
+	searchDelay={300}
+	browsable={(card) => card.kind === 'set'}
+	dateOf={(card) => card.set.date}
 	ariaLabel="Search images"
 	card={stack}
 	{placeholderMark}
@@ -85,7 +114,7 @@
 		heading,
 		openRatio: (image) => image.height / image.width,
 		closeLabel: 'Back to all images',
-		warm
+		warm: (card) => warm(card.set)
 	}}
 />
 
@@ -125,13 +154,15 @@
      sky and every photograph floats on its own. While it is spilled (`spilled`)
      the pile's own card stays where it was, as its first photograph alone: the
      rest of the pile is out as cards of their own, and slides back under it
-     when the set is put away. -->
-{#snippet stack(item: PublicImageSet, _isOpen: boolean, spilled: boolean)}
+     when the set is put away. A loose photograph from a search is a pile of
+     one, and spills its set from under itself the same way. -->
+{#snippet stack(item: ImageCard, _isOpen: boolean, spilled: boolean)}
+	{@const face = photos(item)[0]}
 	<!-- Spilled, it is one of the open set's prints, and takes clicks only on
 	     the print like the rest of them (`hit`). -->
 	<ImageStack
-		images={spilled ? item.images.slice(0, 1) : item.images}
-		alt={spilled ? photos(item)[0].alt : imageSetLabel(item)}
+		images={spilled || item.kind === 'photo' ? [face] : item.set.images}
+		alt={spilled || item.kind === 'photo' ? face.alt : imageSetLabel(item.set)}
 		hit={spilled}
 	/>
 {/snippet}
@@ -161,7 +192,8 @@
 {/snippet}
 
 <!-- The plate naming the open set, where the searchbar was. -->
-{#snippet heading(set: PublicImageSet)}
+{#snippet heading(card: ImageCard)}
+	{@const set = card.set}
 	{@const label = imageSetLabel(set)}
 	{@const caption = withoutTitleLine(set.description, label)}
 	{@const count = set.images.length}
