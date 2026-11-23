@@ -26,6 +26,11 @@ export type View = {
 	 * to hold a long description. Past it, the description is cut short.
 	 */
 	cardMax: number;
+	/**
+	 * How far the sky's clouds move with the field, as parallax: the share of
+	 * its motion the nearest cloud moves by. Farther (smaller) clouds move less.
+	 */
+	clouds: number;
 };
 
 export const VIEW: View = {
@@ -33,7 +38,8 @@ export const VIEW: View = {
 	lens: 0.18,
 	bloom: 0.62,
 	captionAfter: 0.7,
-	cardMax: 0.9
+	cardMax: 0.9,
+	clouds: 0.3
 };
 
 type TunedKey =
@@ -73,7 +79,8 @@ export const KNOBS: readonly Knob[] = [
 	{ key: 'lens', label: 'lens radius', min: 0.05, max: 0.5, step: 0.01, unit: '× height' },
 	{ key: 'bloom', label: 'bloom size', min: 0.2, max: 0.95, step: 0.01, unit: '× height' },
 	{ key: 'captionAfter', label: 'caption after', min: 0, max: 3, step: 0.1, unit: 's' },
-	{ key: 'cardMax', label: 'card max', min: 0.3, max: 0.98, step: 0.01, unit: '× height' }
+	{ key: 'cardMax', label: 'card max', min: 0.3, max: 0.98, step: 0.01, unit: '× height' },
+	{ key: 'clouds', label: 'cloud parallax', min: 0, max: 1, step: 0.05, unit: '×' }
 ];
 
 export function defaultKnobs(): Knobs {

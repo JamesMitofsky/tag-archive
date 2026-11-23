@@ -1,10 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { flushSync, onMount } from 'svelte';
+	import {
+		CLOUDS as clouds,
+		phaseTime,
+		placeCloud,
+		restingPhase,
+		steerCloud,
+		type Steering,
+		type ViewMove
+	} from '#lib/sky/clouds.ts';
 	import { DC, frameDistance, paintSky, skyFrame, type SkyFrame } from '#lib/sky/engine.ts';
 	import { skyHeadScript, skyHeadStyle } from '#lib/sky/headScript.ts';
 	import { SKY_PALETTE } from '#lib/sky/palette.ts';
 	import { MAX_STEP_DE, nextRepaintDelay, skyClock } from '#lib/sky/schedule.ts';
 	import { SPARKLE_PATH, STARS, starCount } from '#lib/sky/stars.ts';
+	import { driveClouds } from '#lib/sky/steer.ts';
 
 	// Ambient sky shared across pages: a watercolor-paper backdrop coloured by the
 	// sun over Washington, DC (#lib/sky), glowing round the sun's place as it
@@ -12,6 +22,8 @@
 	// WebP images drifting very slowly left→right, forever. Negative delays
 	// pre-spread them across the viewport so the sky looks full at load instead
 	// of empty until the first cloud wanders in. Sits behind all page content.
+	// A page whose view moves (the Archive Stream) can take the clouds along
+	// with it, as parallax (#lib/sky/steer).
 	//
 	// The colour lives in CSS custom properties on <html> (the glow's colours,
 	// the sun's place, --sky-clouds and --sky-stars; see paintSky). The inline head
@@ -57,36 +69,17 @@
 		tick();
 		document.addEventListener('visibilitychange', onVisibility);
 		window.addEventListener('pageshow', onVisibility);
+		const undrive = driveClouds({
+			move: (move) => moveClouds(move, reducedMotion),
+			release: letGo
+		});
 		return () => {
+			undrive();
 			clearTimeout(timer);
 			clearTimeout(fadeTimer);
 			document.removeEventListener('visibilitychange', onVisibility);
 			window.removeEventListener('pageshow', onVisibility);
 		};
-	});
-
-	// Cloud widths (vw) are clamped to this range so no cloud dominates or vanishes.
-	const CLOUD_MIN_W = 9;
-	const CLOUD_MAX_W = 28;
-
-	const clampWidth = (w: number) => Math.min(Math.max(w, CLOUD_MIN_W), CLOUD_MAX_W);
-
-	// Larger clouds read as nearer the viewer, so they drift faster. Duration is
-	// inversely proportional to width, so the smallest (most distant) clouds nearly
-	// hang still while big ones sweep across. Duration (s) = DRIFT_SCALE / width(vw).
-	const DRIFT_SCALE = 10800;
-	function driftDuration(width: number): number {
-		return Math.round(DRIFT_SCALE / width);
-	}
-
-	const clouds = [
-		{ src: '/clouds/cloud-1.webp', top: 8, w: 12, delay: -284, op: 0.5 },
-		{ src: '/clouds/cloud-3.webp', top: 34, w: 28, delay: -65, op: 0.5 },
-		{ src: '/clouds/cloud-1.webp', top: 55, w: 9, delay: -790, op: 0.35 },
-		{ src: '/clouds/cloud-3.webp', top: 74, w: 15, delay: -398, op: 0.45 }
-	].map((c) => {
-		const w = clampWidth(c.w);
-		return { ...c, w, dur: driftDuration(w) };
 	});
 
 	// The whole sky is one glow round the sun's place (paintSky), out to the
@@ -115,6 +108,89 @@
 		if (node.complete) {
 			cachedMap[index] = true;
 			loadedMap[index] = true;
+		}
+	}
+
+	// Each cloud, and its cover among the stars, by index, for a page to steer.
+	const cloudEls: HTMLImageElement[] = [];
+	const coverEls: HTMLImageElement[] = [];
+	function register(list: HTMLImageElement[], index: number) {
+		return (node: HTMLImageElement) => {
+			list[index] = node;
+		};
+	}
+
+	// Steered by a page's view (#lib/sky/steer), the clouds leave their CSS
+	// drift and are placed here every frame instead: each starts where its
+	// animation had it, and moves on by its own drift and its share of the
+	// view's motion (#lib/sky/clouds). Let go, each animation is seeked to
+	// where its cloud has got to along the track, so the drift carries on from
+	// there. A cloud's height and the zoom's scale have no place in the drift,
+	// so those return to rest at once.
+	let steered = $state(false);
+	let steering: Steering[] | null = null;
+
+	function driftOf(node: HTMLImageElement | undefined): CSSAnimation | undefined {
+		// Svelte scopes the keyframes' name with a prefix of its own.
+		return node
+			?.getAnimations()
+			.find(
+				(a): a is CSSAnimation =>
+					a instanceof CSSAnimation && a.animationName.endsWith('cloud-drift')
+			);
+	}
+
+	/** A cloud image's height per width, once it has loaded; until then it isn't drawn. */
+	const aspectOf = (node: HTMLImageElement | undefined) =>
+		node && node.naturalWidth > 0 ? node.naturalHeight / node.naturalWidth : 1;
+
+	function moveClouds(move: ViewMove, reducedMotion: MediaQueryList) {
+		// A still sky stays still: no drift, and no parallax either.
+		if (reducedMotion.matches) return letGo();
+		// The box the clouds' vw and vh are of; unmeasured for a moment at mount.
+		const box = { width: starsWidth, height: starsHeight };
+		if (!box.width || !box.height) return;
+		if (!steering) {
+			// Read before `steered` takes the animations away.
+			steering = clouds.map((cloud, i) => ({
+				phase: driftOf(cloudEls[i])?.effect?.getComputedTiming().progress ?? restingPhase(cloud),
+				rise: 0
+			}));
+			steered = true;
+		}
+		for (let i = 0; i < clouds.length; i++) {
+			const aspect = aspectOf(cloudEls[i]);
+			steerCloud(clouds[i], steering[i], move, box, aspect);
+			const { x, y, scale } = placeCloud(
+				clouds[i],
+				steering[i],
+				move.zoom,
+				move.parallax,
+				box,
+				aspect
+			);
+			// The cover gets the same place, so it keeps to its cloud.
+			const transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+			for (const node of [cloudEls[i], coverEls[i]]) if (node) node.style.transform = transform;
+		}
+	}
+
+	function letGo() {
+		if (!steering) return;
+		const phases = steering.map((s) => s.phase);
+		steering = null;
+		steered = false;
+		// Bring the drift's animations back now, so they are seeked before they
+		// are ever drawn from the start of their track.
+		flushSync();
+		for (let i = 0; i < clouds.length; i++) {
+			for (const node of [cloudEls[i], coverEls[i]]) {
+				if (!node) continue;
+				node.style.transform = '';
+				// Seeked in the same task, so a cloud and its cover stay in step.
+				const drift = driftOf(node);
+				if (drift) drift.currentTime = phaseTime(clouds[i], phases[i]) * 1000;
+			}
 		}
 	}
 </script>
@@ -158,6 +234,7 @@
      Negative z, like the paper: see above. -->
 <div
 	class="stars pointer-events-none fixed top-0 left-0 -z-8 overflow-hidden"
+	class:steered
 	aria-hidden="true"
 	bind:clientWidth={starsWidth}
 	bind:clientHeight={starsHeight}
@@ -186,6 +263,7 @@
 	{#each clouds as c, i (i)}
 		<img
 			class="drift cover"
+			{@attach register(coverEls, i)}
 			src={c.src}
 			alt=""
 			loading="lazy"
@@ -204,12 +282,14 @@
      smooths that late decode. -->
 <div
 	class="cloud-layer load-fade pointer-events-none fixed inset-0 -z-5 overflow-hidden"
+	class:steered
 	aria-hidden="true"
 >
 	{#each clouds as c, i (i)}
 		{@const isLoaded = loadedMap[i]}
 		<img
 			use:checkLoad={i}
+			{@attach register(cloudEls, i)}
 			class="drift cloud"
 			class:loaded={isLoaded}
 			class:instant={cachedMap[i]}
@@ -250,6 +330,11 @@
 	/* Cached at mount: no fade, appear at target opacity instantly. */
 	.cloud.instant {
 		transition: none;
+	}
+
+	/* Steered by a page's view: placed every frame instead (moveClouds). */
+	.steered .drift {
+		animation: none;
 	}
 
 	@keyframes cloud-drift {
