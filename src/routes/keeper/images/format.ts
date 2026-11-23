@@ -36,15 +36,8 @@ export function formatCapturedAt(capturedAt: string, offset: string | null = nul
 	return `${day} at ${clock}${zone}`;
 }
 
-/** A byte count as people read file sizes: "812 bytes", "640 KB", "4.2 MB". */
-export function formatFileSize(bytes: number): string {
-	if (!Number.isFinite(bytes) || bytes < 0) return '';
-	if (bytes < 1024) return bytes === 1 ? '1 byte' : `${Math.round(bytes)} bytes`;
-	const kilobytes = Math.round(bytes / 1024);
-	// Checked after rounding, so 1023.6 KB reads "1.0 MB", never "1024 KB".
-	if (kilobytes < 1024) return `${kilobytes} KB`;
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+// Shared with the album pages, so it lives in #lib; re-exported for these pages.
+export { formatFileSize } from '#lib/fileSize.ts';
 
 const TYPE_NAMES: Record<string, string> = {
 	'image/jpeg': 'JPEG',

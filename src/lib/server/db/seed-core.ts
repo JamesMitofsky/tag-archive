@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import {
+	album,
 	artefact,
 	artefactProvenance,
 	event,
@@ -26,7 +27,8 @@ import {
 	image,
 	imageSet,
 	person,
-	series
+	series,
+	track
 } from './schema';
 
 /** Source row shape for an archive artefact (data still carries `event`/`provenance` as free text). */
@@ -195,9 +197,11 @@ export async function seedArchive<S extends Record<string, unknown>>(
 
 	// Clean slate. Children before parents: the join tables reference their two
 	// sides; artefact + event reference their parents (event → series, joins → person);
-	// image sets reference events, and their images reference them; a feature
-	// image references an event and a photograph or artefact.
+	// image sets and albums reference events, and their images and tracks
+	// reference them; a feature image references an event and a photograph or artefact.
 	await db.delete(eventFeatureImage);
+	await db.delete(track);
+	await db.delete(album);
 	await db.delete(image);
 	await db.delete(imageSet);
 	await db.delete(artefactProvenance);

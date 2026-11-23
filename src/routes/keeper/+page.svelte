@@ -13,6 +13,7 @@
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
 	import HeadphonesIcon from 'phosphor-svelte/lib/HeadphonesIcon';
+	import VinylRecordIcon from 'phosphor-svelte/lib/VinylRecordIcon';
 	import { createEmailSuite, parseEmailForm } from '#lib/validation/auth.ts';
 	import { createValidator } from '#lib/validation/client.svelte.ts';
 	import FieldError from '#lib/components/FieldError.svelte';
@@ -201,6 +202,12 @@
 			icon: ImagesIcon,
 			label: 'Images',
 			blurb: 'Photographs uploaded together, often from an event.'
+		},
+		{
+			href: '/keeper/albums',
+			icon: VinylRecordIcon,
+			label: 'Albums',
+			blurb: 'Recorded music, uploaded track by track.'
 		},
 		{
 			href: '/keeper/events',

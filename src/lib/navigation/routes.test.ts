@@ -79,6 +79,26 @@ describe('getParentRoute & getRouteTitle', () => {
 		expect(getRouteTitle('/keeper/images/12/edit')).toBe('Edit Image Set');
 	});
 
+	it('places the album pages beside the image pages', () => {
+		expect(getParentRoute('/albums')).toEqual({ href: '/', label: 'Home' });
+		expect(getParentRoute('/albums/4')).toEqual({ href: '/albums', label: 'Albums' });
+		expect(getParentRoute('/keeper/albums')).toEqual({ href: '/keeper', label: 'Cloud Keeper' });
+		expect(getParentRoute('/keeper/albums/new')).toEqual({
+			href: '/keeper/albums',
+			label: 'Albums'
+		});
+		expect(getParentRoute('/keeper/albums/4')).toEqual({ href: '/keeper/albums', label: 'Albums' });
+		expect(getParentRoute('/keeper/albums/4/edit')).toEqual({
+			href: '/keeper/albums/4',
+			label: 'Album'
+		});
+		expect(getParentRoute('/keeper/settings/review/albums')).toEqual({
+			href: '/keeper/settings/review',
+			label: 'Review Queue'
+		});
+		expect(getRouteTitle('/keeper/albums/4/edit')).toBe('Edit Album');
+	});
+
 	it('infers parent route and label for dynamic routes with IDs', () => {
 		expect(getParentRoute('/keeper/artefacts/item-123')).toEqual({
 			href: '/keeper/artefacts',

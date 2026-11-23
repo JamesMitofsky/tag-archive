@@ -14,7 +14,9 @@ const recorded = (name: string, result: number) =>
 const sweeps = vi.hoisted(() => ({
 	sweepUnattachedImages: vi.fn<() => Promise<number>>(),
 	sweepAbandonedSubmissions: vi.fn<() => Promise<number>>(),
-	sweepOrphanObjects: vi.fn<() => Promise<number>>()
+	sweepOrphanObjects: vi.fn<() => Promise<number>>(),
+	sweepUnattachedTracks: vi.fn<() => Promise<number>>(),
+	sweepOrphanTrackObjects: vi.fn<() => Promise<number>>()
 }));
 const pruneRateLimits = vi.hoisted(() => vi.fn<(olderThanMs: number) => Promise<number>>());
 vi.mock('#lib/server/uploads.ts', () => sweeps);
@@ -47,6 +49,8 @@ beforeEach(() => {
 	sweeps.sweepUnattachedImages.mockImplementation(recorded('unattachedImages', 1));
 	sweeps.sweepAbandonedSubmissions.mockImplementation(recorded('images', 2));
 	sweeps.sweepOrphanObjects.mockImplementation(recorded('orphanObjects', 3));
+	sweeps.sweepUnattachedTracks.mockImplementation(recorded('unattachedTracks', 5));
+	sweeps.sweepOrphanTrackObjects.mockImplementation(recorded('orphanTracks', 6));
 });
 
 describe('GET /api/cron/sweep-submissions', () => {
@@ -73,10 +77,19 @@ describe('GET /api/cron/sweep-submissions', () => {
 		expect(await response?.json()).toEqual({
 			images: 2,
 			unattachedImages: 1,
+			unattachedTracks: 5,
 			orphanObjects: 3,
+			orphanTracks: 6,
 			counters: 4
 		});
-		expect(calls).toEqual(['counters', 'unattachedImages', 'images', 'orphanObjects']);
+		expect(calls).toEqual([
+			'counters',
+			'unattachedImages',
+			'unattachedTracks',
+			'images',
+			'orphanObjects',
+			'orphanTracks'
+		]);
 	});
 
 	it('keeps going past a failing step, reporting it as null with a 500', async () => {
@@ -86,9 +99,17 @@ describe('GET /api/cron/sweep-submissions', () => {
 		expect(await response?.json()).toEqual({
 			images: 2,
 			unattachedImages: null,
+			unattachedTracks: 5,
 			orphanObjects: 3,
+			orphanTracks: 6,
 			counters: 4
 		});
-		expect(calls).toEqual(['counters', 'images', 'orphanObjects']);
+		expect(calls).toEqual([
+			'counters',
+			'unattachedTracks',
+			'images',
+			'orphanObjects',
+			'orphanTracks'
+		]);
 	});
 });

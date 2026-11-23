@@ -11,15 +11,17 @@ import type { ArtefactWithEvent } from '#lib/server/db/schema.ts';
 import type { EventItem } from '#lib/events.ts';
 import type { LiveArrival } from '#lib/live.ts';
 import type { PublicImageSet } from '#lib/images/types.ts';
+import type { PublicAlbum } from '#lib/albums/types.ts';
 
 export type Dataset = {
 	artefacts: ArtefactWithEvent[];
 	events: EventItem[];
 	people: string[];
 	images: PublicImageSet[];
+	albums: PublicAlbum[];
 };
 
-const EMPTY: Dataset = { artefacts: [], events: [], people: [], images: [] };
+const EMPTY: Dataset = { artefacts: [], events: [], people: [], images: [], albums: [] };
 
 /**
  * GET a gated archive path. A 401 means the gate turned us away: the pass lapsed
@@ -80,4 +82,8 @@ export async function loadPeople(): Promise<string[]> {
 
 export async function loadImageSets(): Promise<PublicImageSet[]> {
 	return (await fetchDataset()).images ?? [];
+}
+
+export async function loadAlbums(): Promise<PublicAlbum[]> {
+	return (await fetchDataset()).albums ?? [];
 }

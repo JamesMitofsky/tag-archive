@@ -83,16 +83,16 @@ Everything is configured through **environment variables** — no vendor SDK is 
 
 ---
 
-## 4. Cloudflare R2 — Object storage (scans and photographs)
+## 4. Cloudflare R2 — Object storage (scans, photographs and album tracks)
 
-**What it does.** Stores uploaded scan images and photographs. R2 is **S3-compatible**.
+**What it does.** Stores uploaded scan images, photographs and album tracks. R2 is **S3-compatible**.
 
 **Where the coupling lives.**
 
 - Accessed via `aws4fetch` (a generic S3 request signer), NOT a Cloudflare SDK. The code talks the **S3 API**, not an R2-specific one — presigned upload URLs included.
 - Config: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL`, `S3_REGION`, and `S3_ENDPOINT`. Local dev points the exact same code at a **RustFS** container (`pnpm dev:storage`) — again proving no R2-specific dependency.
 - **Bucket CORS rule.** Photographs upload from the browser straight to the bucket with presigned PUT URLs (originals can be far larger than a Vercel function body carries), so the bucket carries a CORS rule allowing `PUT` and `GET` from the site's origin(s) with the `Content-Type` header. It lives in `scripts/r2-cors.mjs` and is applied with `pnpm storage:cors` (`R2_BUCKET`, `R2_CORS_ORIGINS`), through wrangler — the one Cloudflare-specific tool here, used only from a developer's machine. It is bucket configuration, not data: a copy of the objects does not bring it along.
-- **What is stored where.** Scans sit at the bucket root (`<uuid>.<ext>`). Each photograph is two objects in two folders, the original exactly as uploaded and its WebP display copy: `images/<uuid>/original.<ext>` + `images/<display id>/display.webp` for a keeper's upload, where `<display id>` is an HMAC of `<uuid>` keyed from `BETTER_AUTH_SECRET` (so the public display URL doesn't reveal the original's). Anonymous contributions keep both kinds under their draft's own space, `submissions/<draft>/<uuid>.<ext>` and `submissions/<draft>/images/…`. The originals are the archive's masters (metadata intact); the display copies can be regenerated from them, but copy everything. Each `image` row stores both URLs, so a migration never has to recompute a display key; only a photograph whose upload is still in flight needs the same secret to finish.
+- **What is stored where.** Scans sit at the bucket root (`<uuid>.<ext>`). Each photograph is two objects in two folders, the original exactly as uploaded and its WebP display copy: `images/<uuid>/original.<ext>` + `images/<display id>/display.webp` for a keeper's upload, where `<display id>` is an HMAC of `<uuid>` keyed from `BETTER_AUTH_SECRET` (so the public display URL doesn't reveal the original's). Anonymous contributions keep both kinds under their draft's own space, `submissions/<draft>/<uuid>.<ext>` and `submissions/<draft>/images/…`. Album tracks are one object each, exactly as uploaded: `tracks/<uuid>.<ext>` (keepers only, so never under `submissions/`). The originals are the archive's masters (metadata intact); the display copies can be regenerated from them, but copy everything. Each `image` row stores both URLs, so a migration never has to recompute a display key; only a photograph whose upload is still in flight needs the same secret to finish.
 
 **Getting off safely.**
 
@@ -100,7 +100,7 @@ Everything is configured through **environment variables** — no vendor SDK is 
 2. Copy the objects: `rclone sync r2:tag-archive newremote:tag-archive` (rclone speaks S3 to both ends) or `aws s3 sync`. Keys must stay as they are: the app reads ownership and type from them (see `src/lib/server/imageKeys.ts`).
 3. Update the `R2_*` / `S3_ENDPOINT` / `R2_PUBLIC_URL` env vars to the new bucket. No code change — `aws4fetch` signs for whatever endpoint you give it.
 4. **Recreate the CORS rule** on the new bucket for the site's origins — or photograph uploads fail at their preflight while everything else looks fine. Most S3 stores take S3's `PutBucketCors` XML; `scripts/init-bucket.mjs` sends the (wide-open) local version of it, a template to narrow to the site's origins. `pnpm storage:cors` only speaks to R2.
-5. **Watch the public URL.** `R2_PUBLIC_URL` is stored/derived for serving images. After migration, confirm objects are publicly readable at the new host and that any URLs persisted in the DB still resolve — `artefact.file_urls` and `image.url` / `image.original_url` are stored absolute, so you may need a redirect or a DB update. (The daily sweeps match stored URLs to objects by key, not by full URL, so a changed base doesn't make the archive's objects look unused to them.) Also redeploy with the new `R2_PUBLIC_URL`: the build allows the image optimizer to fetch only from that host (`vite.config.ts`), so images served from the bucket stop loading on the site until it matches.
+5. **Watch the public URL.** `R2_PUBLIC_URL` is stored/derived for serving images. After migration, confirm objects are publicly readable at the new host and that any URLs persisted in the DB still resolve — `artefact.file_urls`, `image.url` / `image.original_url` and `track.url` are stored absolute, so you may need a redirect or a DB update. (The daily sweeps match stored URLs to objects by key, not by full URL, so a changed base doesn't make the archive's objects look unused to them.) Also redeploy with the new `R2_PUBLIC_URL`: the build allows the image optimizer to fetch only from that host (`vite.config.ts`), so images served from the bucket stop loading on the site until it matches.
 
 **Lock-in verdict:** Low. Standard S3 API + a portable object copy; the CORS rule is one small, re-creatable setting.
 

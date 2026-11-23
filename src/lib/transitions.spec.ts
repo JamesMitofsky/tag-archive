@@ -7,7 +7,8 @@ describe('morphNameForPair', () => {
 			['/keeper/artefacts', '/keeper/artefacts/7', 'artefact-7'],
 			['/keeper/events', '/keeper/events/7', 'event-7'],
 			['/keeper/series', '/keeper/series/7', 'series-7'],
-			['/keeper/images', '/keeper/images/7', 'image-7']
+			['/keeper/images', '/keeper/images/7', 'image-7'],
+			['/keeper/albums', '/keeper/albums/7', 'album-7']
 		] as const;
 		for (const [list, detail, name] of pairs) {
 			expect(morphNameForPair(list, detail)).toBe(name);
@@ -21,6 +22,8 @@ describe('morphNameForPair', () => {
 		expect(morphNameForPair('/keeper/images', '/keeper/images/add')).toBeNull();
 		expect(morphNameForPair('/keeper/images/add', '/keeper/images')).toBeNull();
 		expect(morphNameForPair('/keeper/images', '/keeper/images/new')).toBeNull();
+		expect(morphNameForPair('/keeper/albums', '/keeper/albums/new')).toBeNull();
+		expect(morphNameForPair('/keeper/albums', '/keeper/albums/7/edit')).toBeNull();
 		expect(morphNameForPair('/keeper/images/new', '/keeper/images')).toBeNull();
 		expect(morphNameForPair('/keeper/artefacts', '/keeper/artefacts/new')).toBeNull();
 		expect(morphNameForPair('/keeper/events', '/keeper/events/new')).toBeNull();

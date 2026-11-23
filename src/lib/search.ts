@@ -7,6 +7,7 @@
 import type { ArtefactWithEvent } from '#lib/server/db/schema.ts';
 import type { EventItem } from '#lib/events.ts';
 import type { PublicImageSet } from '#lib/images/types.ts';
+import type { PublicAlbum } from '#lib/albums/types.ts';
 import { imageSetLabel } from '#lib/images/label.ts';
 import { formatPartialDate, startOfPartialDate } from '#lib/partialDate.ts';
 
@@ -60,6 +61,30 @@ export function filterImageSets(rows: PublicImageSet[], q: string): PublicImageS
 			row.description,
 			row.date,
 			row.date && formatPartialDate(row.date)
+		]);
+		return tokens.every((token) => fields.some((field) => field.includes(token)));
+	});
+}
+
+/**
+ * Albums: tokenized AND, like artefacts, across the album's title, artist,
+ * event, description and track titles, so a search for a song finds the
+ * album it is on. The date is searched both as stored and as read, as for
+ * image sets, so `2024-06` and `June 2024` alike find an album from that month.
+ */
+export function filterAlbums(rows: PublicAlbum[], q: string): PublicAlbum[] {
+	const tokens = tokenize(q);
+	if (tokens.length === 0) return [];
+
+	return rows.filter((row) => {
+		const fields = haystack([
+			row.title,
+			row.artist,
+			row.event,
+			row.description,
+			row.date,
+			row.date && formatPartialDate(row.date),
+			...row.tracks.map((t) => t.title)
 		]);
 		return tokens.every((token) => fields.some((field) => field.includes(token)));
 	});

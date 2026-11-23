@@ -43,6 +43,8 @@ describe('accessDecision (no pass)', () => {
 		'/contribute',
 		'/contribute/images',
 		'/meditation-walk',
+		'/albums',
+		'/albums/3',
 		'/demo'
 	])('sends a page view of %s to the locked page', (path) => {
 		expect(page(path)).toBe('redirect');
@@ -52,6 +54,7 @@ describe('accessDecision (no pass)', () => {
 	it.each([
 		'/api/dataset',
 		'/api/scans',
+		'/api/tracks/upload-url',
 		'/api/presencex',
 		'/artefacts/TAG-001.jpg',
 		'/audio/meditation-walk/01%20-%20INTRODUCTION.mp3'

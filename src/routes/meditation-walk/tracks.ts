@@ -1,11 +1,13 @@
+import type { PlayerTrack } from '#lib/components/AlbumPlayer.svelte';
+
 /**
  * The chapters of the meditation walk, in playback order.
  *
  * `file` is the exact filename dropped into `static/audio/meditation-walk/`
  * (spaces and all — `trackUrl` encodes it). Spoken sections are `chapter`s;
  * the instrument-only sound-bath pieces between them are `interlude`s, which the
- * player sets in a lighter hand with a bird mark, so the spoken structure stays
- * legible at a glance.
+ * player (#lib/components/AlbumPlayer) sets in a lighter hand with a bird mark,
+ * so the spoken structure stays legible at a glance.
  */
 export interface Track {
 	number: number;
@@ -46,3 +48,12 @@ export const tracks: Track[] = [
 ];
 
 export const trackUrl = (track: Track) => `${AUDIO_BASE}/${encodeURIComponent(track.file)}`;
+
+/** The chapters as the shared player reads them, keyed by file so a saved place follows its chapter. */
+export const playerTracks: PlayerTrack[] = tracks.map((track) => ({
+	key: track.file,
+	number: track.number,
+	title: track.title,
+	url: trackUrl(track),
+	interlude: track.kind === 'interlude'
+}));

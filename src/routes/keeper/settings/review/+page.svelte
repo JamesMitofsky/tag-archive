@@ -4,6 +4,7 @@
 	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
 	import ImagesIcon from 'phosphor-svelte/lib/ImagesIcon';
 	import StackIcon from 'phosphor-svelte/lib/StackIcon';
+	import VinylRecordIcon from 'phosphor-svelte/lib/VinylRecordIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import type { Component } from 'svelte';
 	import type { PageData } from './$types';
@@ -23,6 +24,12 @@
 			label: 'Images',
 			icon: ImagesIcon,
 			count: data.pending.images
+		},
+		{
+			href: '/keeper/settings/review/albums',
+			label: 'Albums',
+			icon: VinylRecordIcon,
+			count: data.pending.albums
 		},
 		{
 			href: '/keeper/settings/review/events',

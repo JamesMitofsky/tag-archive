@@ -12,6 +12,7 @@ const STATIC_ROUTES: Record<string, RouteDefinition> = {
 	'/': { title: 'Home', parent: '/' },
 	'/events': { title: 'Events', parent: '/' },
 	'/images': { title: 'Images', parent: '/' },
+	'/albums': { title: 'Albums', parent: '/' },
 	'/contribute': { title: 'Contribute', parent: '/' },
 	// Photographs are one of the ways to contribute, so their form backs out there.
 	'/contribute/images': { title: 'Contribute', parent: '/contribute' },
@@ -20,6 +21,8 @@ const STATIC_ROUTES: Record<string, RouteDefinition> = {
 	'/keeper/artefacts/new': { title: 'Artefacts', parent: '/keeper/artefacts' },
 	'/keeper/images': { title: 'Images', parent: '/keeper' },
 	'/keeper/images/new': { title: 'Images', parent: '/keeper/images' },
+	'/keeper/albums': { title: 'Albums', parent: '/keeper' },
+	'/keeper/albums/new': { title: 'Albums', parent: '/keeper/albums' },
 	'/keeper/events': { title: 'Events', parent: '/keeper' },
 	'/keeper/events/new': { title: 'Events', parent: '/keeper/events' },
 	'/keeper/series': { title: 'Series', parent: '/keeper' },
@@ -31,6 +34,7 @@ const STATIC_ROUTES: Record<string, RouteDefinition> = {
 	'/keeper/settings/review/events': { title: 'Review Queue', parent: '/keeper/settings/review' },
 	'/keeper/settings/review/series': { title: 'Review Queue', parent: '/keeper/settings/review' },
 	'/keeper/settings/review/images': { title: 'Review Queue', parent: '/keeper/settings/review' },
+	'/keeper/settings/review/albums': { title: 'Review Queue', parent: '/keeper/settings/review' },
 	'/keeper/live': { title: 'Live Arrivals', parent: '/keeper/settings' },
 	'/keeper/contributors': { title: 'Contributors', parent: '/keeper/settings' },
 	'/keeper/contributors/merge': { title: 'Merge Contributors', parent: '/keeper/contributors' },
@@ -92,6 +96,24 @@ const DYNAMIC_ROUTE_PATTERNS: Array<{
 		pattern: /^\/keeper\/images\/([^/]+)$/,
 		title: 'Image Set',
 		getParent: () => ({ href: '/keeper/images', label: 'Images' })
+	},
+	{
+		// /keeper/albums/[id]/edit
+		pattern: /^\/keeper\/albums\/([^/]+)\/edit$/,
+		title: 'Edit Album',
+		getParent: (m) => ({ href: `/keeper/albums/${m[1]}`, label: 'Album' })
+	},
+	{
+		// /keeper/albums/[id]
+		pattern: /^\/keeper\/albums\/([^/]+)$/,
+		title: 'Album',
+		getParent: () => ({ href: '/keeper/albums', label: 'Albums' })
+	},
+	{
+		// /albums/[id]: the public player backs out to the cloud of albums.
+		pattern: /^\/albums\/([^/]+)$/,
+		title: 'Album',
+		getParent: () => ({ href: '/albums', label: 'Albums' })
 	}
 ];
 

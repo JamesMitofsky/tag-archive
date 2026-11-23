@@ -1,12 +1,12 @@
 // Shared-element "morph" page transitions for the keeper lists.
 //
-// When a card in the artefacts, events, series or images list is clicked, the
+// When a card in the artefacts, events, series, images or albums list is clicked, the
 // browser's View Transitions API morphs it into the detail page's hero card.
 // Coordination lives in the root layout's onNavigate; this module supplies the
 // naming/scoping helpers and a reactive flag the layout uses to stand down its
 // own cross-fade.
 
-type MorphKind = 'artefact' | 'event' | 'series' | 'image';
+type MorphKind = 'artefact' | 'event' | 'series' | 'image' | 'album';
 
 // A stable per-item view-transition-name. Both the source card and the
 // destination hero carry the same name so the browser pairs them.
@@ -50,6 +50,13 @@ function detailName(path: string): string | null {
 		return id === 'new' || id === 'add' ? null : morphName('image', id);
 	}
 
+	// Album detail: /keeper/albums/{id} (id ≠ new).
+	const album = p.match(/^\/keeper\/albums\/([^/]+)$/);
+	if (album) {
+		const id = album[1];
+		return id === 'new' ? null : morphName('album', id);
+	}
+
 	return null;
 }
 
@@ -57,6 +64,7 @@ const isArtefactsList = (p: string) => stripTrailingSlash(p) === '/keeper/artefa
 const isEventsList = (p: string) => stripTrailingSlash(p) === '/keeper/events';
 const isSeriesList = (p: string) => stripTrailingSlash(p) === '/keeper/series';
 const isImagesList = (p: string) => stripTrailingSlash(p) === '/keeper/images';
+const isAlbumsList = (p: string) => stripTrailingSlash(p) === '/keeper/albums';
 
 // Returns the morph name to run for a from→to navigation, or null if the pair is
 // not an in-scope list↔detail move (either direction).
@@ -70,6 +78,7 @@ export function morphNameForPair(from: string | undefined, to: string | undefine
 		if (toDetail.startsWith('event-') && isEventsList(from)) return toDetail;
 		if (toDetail.startsWith('series-') && isSeriesList(from)) return toDetail;
 		if (toDetail.startsWith('image-') && isImagesList(from)) return toDetail;
+		if (toDetail.startsWith('album-') && isAlbumsList(from)) return toDetail;
 		return null;
 	}
 
@@ -80,6 +89,7 @@ export function morphNameForPair(from: string | undefined, to: string | undefine
 		if (fromDetail.startsWith('event-') && isEventsList(to)) return fromDetail;
 		if (fromDetail.startsWith('series-') && isSeriesList(to)) return fromDetail;
 		if (fromDetail.startsWith('image-') && isImagesList(to)) return fromDetail;
+		if (fromDetail.startsWith('album-') && isAlbumsList(to)) return fromDetail;
 	}
 
 	return null;

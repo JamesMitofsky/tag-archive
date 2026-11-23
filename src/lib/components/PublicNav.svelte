@@ -16,7 +16,9 @@
 	const links: NavLink[] = [
 		{ href: '/', label: 'Artefacts', src: '/drawing/icons/artefacts.webp', text: 'Artefacts' },
 		{ href: '/events', label: 'Events', src: '/drawing/icons/events.webp', text: 'Events' },
-		{ href: '/images', label: 'Images', src: '/drawing/icons/images.webp', text: 'Images' }
+		{ href: '/images', label: 'Images', src: '/drawing/icons/images.webp', text: 'Images' },
+		// Typeset until its drawing is added at this path (see Drawing).
+		{ href: '/albums', label: 'Albums', src: '/drawing/icons/albums.webp', text: 'Albums' }
 		// Sign-in lives at /keeper, deliberately unlinked: only admins sign in, and
 		// they keep its door link (see #lib/access/door.server).
 	];
