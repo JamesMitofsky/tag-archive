@@ -20,6 +20,9 @@
 	the items near the screen (sixty to a couple of hundred of the archive's
 	~1,400, whatever the zoom) and leaves the rest unmounted.
 
+	The sky's clouds move with the field as though far behind it (see
+	#lib/sky/steer): by a share of its motion and its zoom, the nearer ones more.
+
 	Operator keys: `d` shows the overlay, `f` toggles fullscreen. The overlay
 	reports on the connection and holds the filter: artefacts, images and events
 	can each be left out of the field, which is then laid out again without them.
@@ -37,6 +40,7 @@
 	import OptimizedImage from '#lib/components/OptimizedImage.svelte';
 	import { loadDataset, type Dataset } from '#lib/dataset.ts';
 	import { placeholderUrl } from '#lib/images/placeholder.ts';
+	import { releaseClouds, steerClouds } from '#lib/sky/steer.ts';
 	import { formatPartialDate } from '#lib/partialDate.ts';
 	import {
 		bloomScale,
@@ -425,9 +429,21 @@
 			const w = world;
 			const t = ms / 1000;
 
+			const fromX = sim.cam.x;
+			const fromY = sim.cam.y;
 			sim.step(dt, t, (point) => nearestItem(w, point, w.cell * 1.5));
-			// Keep the numbers small over a long night; the view is the same.
 			const cam = sim.cam;
+			// The clouds follow the field's motion on screen this frame. Taken from
+			// the step alone, so a shift (below) or a new layout's rehome, which
+			// leave the view where it was or start it afresh, carry no cloud along.
+			steerClouds({
+				dx: -(cam.x - fromX) * sim.scale,
+				dy: -(cam.y - fromY) * sim.scale,
+				zoom: sim.scale,
+				dt,
+				parallax: view.clouds
+			});
+			// Keep the numbers small over a long night; the view is the same.
 			if (Math.abs(cam.x) > w.width * 4 || Math.abs(cam.y) > w.height * 4) {
 				sim.shift(-Math.round(cam.x / w.width) * w.width, -Math.round(cam.y / w.height) * w.height);
 			}
@@ -755,6 +771,7 @@
 
 		return () => {
 			disposed = true;
+			releaseClouds();
 			measurer?.remove();
 			measurer = null;
 			cancelAnimationFrame(frame);
