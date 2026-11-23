@@ -1,22 +1,26 @@
 import { and, inArray, isNull, like, lt, or, sql, type SQL } from 'drizzle-orm';
 import { db } from './db';
-import { artefact, image } from './db/schema';
+import { artefact, image, track } from './db/schema';
 import { deleteScan, isPlainKey, keyFromUrl, listScans } from './scans';
+import { isTrackKey } from './trackKeys';
 
 /**
- * Housekeeping for uploaded images that nothing uses. Sources of orphans:
+ * Housekeeping for uploaded files that nothing uses. Sources of orphans:
  *  - a rejected submission's images (cleaned up as the rejection happens);
  *  - uploads a visitor abandoned without submitting (swept daily);
  *  - photographs finalized but never saved into a set, and photographs whose
- *    upload never reached finalize (both swept daily).
+ *    upload never reached finalize (both swept daily);
+ *  - album tracks likewise: finalized but never saved into an album, or never
+ *    finalized at all (both swept daily).
  *
  * Everything here is best-effort: a storage hiccup must never fail the
  * rejection or sweep that triggered it — the next sweep picks up the rest.
  *
  * "In use" always means the same thing: listed in some artefact's
- * `file_urls`, or the display copy or original of some `image` row, attached
- * or not. An unattached image row still belongs to a form someone may be
- * filling in; `sweepUnattachedImages` is what retires it.
+ * `file_urls`, the display copy or original of some `image` row, or the file
+ * of some `track` row, attached or not. An unattached row still belongs to a
+ * form someone may be filling in; `sweepUnattachedImages` and
+ * `sweepUnattachedTracks` are what retire them.
  *
  * And it is judged by the object a stored URL names, not by the URL's full
  * text. A record written under an earlier public base (`R2_PUBLIC_URL` moved
@@ -27,7 +31,7 @@ import { deleteScan, isPlainKey, keyFromUrl, listScans } from './scans';
 
 /**
  * Stored URLs that `match` picks, from everywhere a URL is stored: artefacts'
- * `file_urls` and both URL columns of `image` — one query. `match` gets each
+ * `file_urls`, both URL columns of `image` and the URL of `track` — one query. `match` gets each
  * as an SQL expression, so one condition serves all three.
  */
 async function storedUrls(match: (url: SQL) => SQL | undefined) {
@@ -46,6 +50,12 @@ async function storedUrls(match: (url: SQL) => SQL | undefined) {
 				.select({ url: image.originalUrl })
 				.from(image)
 				.where(match(sql`${image.originalUrl}`))
+		)
+		.union(
+			db
+				.select({ url: track.url })
+				.from(track)
+				.where(match(sql`${track.url}`))
 		);
 	return rows.map((row) => row.url);
 }
@@ -191,21 +201,20 @@ const KEEPER_IMAGE_OBJECT_RE =
 	/^images\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(?:original\.(?:jpg|png|webp|gif|heic)|display\.webp)$/;
 
 /**
- * Delete keepers' photograph objects (`images/…`) older than a day that
- * nothing records — an upload that never reached finalize, or one whose
- * row was deleted while removing its objects failed. Contributors' are under
- * `submissions/`, which `sweepAbandonedSubmissions` covers. Returns how many
- * objects went.
+ * Delete objects under `folder` older than a day that `owned` recognizes as
+ * the archive's own layout and that nothing records. Returns how many went.
  */
-export async function sweepOrphanObjects(now = Date.now()): Promise<number> {
-	const stale = (await listScans('images/')).filter(
-		(object) =>
-			now - object.lastModified.getTime() > ABANDONED_AFTER_MS &&
-			KEEPER_IMAGE_OBJECT_RE.test(object.key)
+async function sweepOrphansUnder(
+	folder: string,
+	owned: (key: string) => boolean,
+	now: number
+): Promise<number> {
+	const stale = (await listScans(folder)).filter(
+		(object) => now - object.lastModified.getTime() > ABANDONED_AFTER_MS && owned(object.key)
 	);
 	if (stale.length === 0) return 0;
 
-	const inUse = await keysInUseUnder('images/');
+	const inUse = await keysInUseUnder(folder);
 
 	let deleted = 0;
 	for (const { key } of stale) {
@@ -215,4 +224,53 @@ export async function sweepOrphanObjects(now = Date.now()): Promise<number> {
 		deleted++;
 	}
 	return deleted;
+}
+
+/**
+ * Delete keepers' photograph objects (`images/…`) older than a day that
+ * nothing records — an upload that never reached finalize, or one whose
+ * row was deleted while removing its objects failed. Contributors' are under
+ * `submissions/`, which `sweepAbandonedSubmissions` covers. Returns how many
+ * objects went.
+ */
+export function sweepOrphanObjects(now = Date.now()): Promise<number> {
+	return sweepOrphansUnder('images/', (key) => KEEPER_IMAGE_OBJECT_RE.test(key), now);
+}
+
+/**
+ * Delete track files (`tracks/…`) older than a day that nothing records: an
+ * upload that never reached finalize (or was refused there and couldn't be
+ * removed), or one whose row was deleted while removing its file failed.
+ * Only keys in the layout ./trackKeys issues are touched.
+ */
+export function sweepOrphanTrackObjects(now = Date.now()): Promise<number> {
+	return sweepOrphansUnder('tracks/', isTrackKey, now);
+}
+
+/**
+ * Delete tracks finalized more than a day ago but never saved into an album
+ * — an uploader closed before its form was submitted — with their files.
+ * Returns how many rows went. Rows first, files after, re-checking
+ * `album_id IS NULL` in the delete, as `sweepUnattachedImages` does and for
+ * the same reasons; the cron runs this before `sweepOrphanTrackObjects`.
+ */
+export async function sweepUnattachedTracks(now = Date.now()): Promise<number> {
+	const cutoff = new Date(now - ABANDONED_AFTER_MS);
+	const stale = db
+		.select({ id: track.id })
+		.from(track)
+		.where(and(isNull(track.albumId), lt(track.createdAt, cutoff)))
+		.orderBy(track.createdAt)
+		.limit(MAX_DELETES_PER_SWEEP);
+	const deleted = await db
+		.delete(track)
+		.where(and(inArray(track.id, stale), isNull(track.albumId)))
+		.returning({ url: track.url });
+	if (deleted.length > 0) {
+		// Loaded here, as `sweepUnattachedImages` loads its cleanup: every route
+		// that reads ./db/queries imports this module.
+		const { deleteTrackObjects } = await import('./trackUploads');
+		await deleteTrackObjects(deleted);
+	}
+	return deleted.length;
 }

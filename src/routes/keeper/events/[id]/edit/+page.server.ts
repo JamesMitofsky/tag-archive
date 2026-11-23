@@ -2,7 +2,12 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { eq, getTableColumns } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { purgeArchiveCache } from '#lib/server/cache.ts';
-import { attachHosts, resolvePersonIds, resolveSeriesId } from '#lib/server/db/queries.ts';
+import {
+	attachHosts,
+	resolvePersonIds,
+	resolveSeriesId,
+	unlinkEvent
+} from '#lib/server/db/queries.ts';
 import { stampInsert, stampUpdate } from '#lib/server/db/audit.ts';
 import {
 	listFeatureCandidates,
@@ -10,7 +15,7 @@ import {
 	setFeatureImage
 } from '#lib/server/eventFeatures.ts';
 import { parseFeatureRef } from '#lib/featureImage.ts';
-import { artefact, event, eventHost, imageSet, person, series } from '#lib/server/db/schema.ts';
+import { event, eventHost, person, series } from '#lib/server/db/schema.ts';
 import { idSchema } from '#lib/schemas.ts';
 import { createEventSuite, parseEventForm } from '#lib/validation/event.ts';
 import { summary } from '#lib/validation/helpers.ts';
@@ -170,17 +175,10 @@ export const actions: Actions = {
 		const id = idSchema.safeParse(params.id);
 		if (!id.success) return fail(400, { eventError: 'Unknown event' });
 
-		// Artefacts and image sets reference this event (nullable, no cascade) —
-		// unlink them first so the delete doesn't trip the foreign key. Host links
-		// cascade on their own.
-		await db
-			.update(artefact)
-			.set({ eventId: null, ...stampUpdate(locals.user.id) })
-			.where(eq(artefact.eventId, id.data));
-		await db
-			.update(imageSet)
-			.set({ eventId: null, ...stampUpdate(locals.user.id) })
-			.where(eq(imageSet.eventId, id.data));
+		// Artefacts, image sets and albums reference this event (nullable, no
+		// cascade) — unlink them first so the delete doesn't trip the foreign key.
+		// Host links cascade on their own.
+		await unlinkEvent(id.data, locals.user.id);
 		await db.delete(event).where(eq(event.id, id.data));
 		await purgeArchiveCache();
 		// Nothing left to show here — back to the events list.

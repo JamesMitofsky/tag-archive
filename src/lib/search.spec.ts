@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { EventItem } from '#lib/events.ts';
 import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
-import { filterAndSortEvents, filterImageSets } from './search';
+import type { PublicAlbum } from '#lib/albums/types.ts';
+import { filterAlbums, filterAndSortEvents, filterImageSets } from './search';
 
 function photo(id: number): PublicImage {
 	return {
@@ -144,5 +145,51 @@ describe('filterAndSortEvents', () => {
 		expect(filterAndSortEvents(repeat, 'gala', '2020-01-01')).toEqual([
 			{ id: 9, name: 'Gala', date: '2020-01-01' }
 		]);
+	});
+});
+
+describe('filterAlbums', () => {
+	const album = (id: number, fields: Partial<Omit<PublicAlbum, 'id'>> = {}): PublicAlbum => ({
+		id,
+		title: `Album ${id}`,
+		artist: null,
+		description: null,
+		event: null,
+		date: null,
+		tracks: [],
+		...fields
+	});
+	const choir = album(1, {
+		title: 'Songs from the Garden',
+		artist: 'The Garden Choir',
+		date: '2024-06',
+		tracks: [
+			{ id: 11, title: 'Ocean Drum', url: 'https://example.test/a.mp3', duration: 90 },
+			{ id: 12, title: 'Gate Gong', url: 'https://example.test/b.mp3', duration: 60 }
+		]
+	});
+	const live = album(2, { title: 'Live at the Alley', event: 'Solstice Concert' });
+	const rows = [choir, live];
+	const found = (q: string) => filterAlbums(rows, q).map((row) => row.id);
+
+	it('finds nothing for a blank query', () => {
+		expect(found('  ')).toEqual([]);
+	});
+
+	it('finds an album by its title, artist, event, or a song on it', () => {
+		expect(found('garden')).toEqual([1]);
+		expect(found('choir')).toEqual([1]);
+		expect(found('solstice')).toEqual([2]);
+		expect(found('ocean drum')).toEqual([1]);
+	});
+
+	it('wants every word to match somewhere, as artefact search does', () => {
+		expect(found('choir gong')).toEqual([1]);
+		expect(found('choir solstice')).toEqual([]);
+	});
+
+	it('finds an album by its date as stored and as read', () => {
+		expect(found('2024-06')).toEqual([1]);
+		expect(found('june 2024')).toEqual([1]);
 	});
 });

@@ -6,7 +6,9 @@ import { pruneRateLimits } from '#lib/server/rateLimit.ts';
 import {
 	sweepAbandonedSubmissions,
 	sweepOrphanObjects,
-	sweepUnattachedImages
+	sweepOrphanTrackObjects,
+	sweepUnattachedImages,
+	sweepUnattachedTracks
 } from '#lib/server/uploads.ts';
 import type { RequestHandler } from './$types';
 
@@ -61,10 +63,19 @@ export const GET: RequestHandler = async ({ request }) => {
 		pruneRateLimits(2 * 24 * 60 * 60 * 1000)
 	);
 	const unattachedImages = await step('unattached images', () => sweepUnattachedImages());
+	const unattachedTracks = await step('unattached tracks', () => sweepUnattachedTracks());
 	const images = await step('abandoned submissions', () => sweepAbandonedSubmissions());
 	const orphanObjects = await step('orphan objects', () => sweepOrphanObjects());
+	const orphanTracks = await step('orphan tracks', () => sweepOrphanTrackObjects());
 
-	const report = { images, unattachedImages, orphanObjects, counters };
+	const report = {
+		images,
+		unattachedImages,
+		unattachedTracks,
+		orphanObjects,
+		orphanTracks,
+		counters
+	};
 	// A 500 shows up in the cron job's log; the body says which step.
 	const failed = Object.values(report).some((n) => n === null);
 	return Response.json(report, { status: failed ? 500 : 200 });

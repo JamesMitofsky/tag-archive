@@ -4,10 +4,12 @@ import {
 	index,
 	integer,
 	primaryKey,
+	real,
 	sqliteTable,
 	text,
 	uniqueIndex
 } from 'drizzle-orm/sqlite-core';
+import type { AudioType } from '../../audioType';
 import type { ImageType } from '../../imageType';
 import { user } from './auth.schema';
 
@@ -355,6 +357,74 @@ export const image = sqliteTable(
 );
 
 /**
+ * An album: recorded music uploaded as an ordered set of tracks, with a title,
+ * an optional artist, description and event, and a partial date. Its own kind
+ * of entry beside artefacts and image sets, with its own public section
+ * (/albums). Keepers upload albums (see #lib/server/albums); a contributor's
+ * lands as a proposed addition and waits in the review queue like the rest.
+ *
+ * `artist` is free text ("The Garden Choir", "Yaddiya & friends") rather than
+ * a link to `person`: who performed is credited as written on the recording,
+ * and is searched as text.
+ */
+export const album = sqliteTable(
+	'album',
+	{
+		id: autoIncrementId(),
+		title: text('title').notNull(),
+		artist: text('artist'),
+		description: text('description'),
+		// The event it was recorded at, or released for; nullable, no cascade (like artefact).
+		eventId: integer('event_id').references(() => event.id),
+		// A partial date (see #lib/partialDate), NULL when deliberately undated.
+		date: text('date'),
+		...proposalColumns(),
+		...auditColumns()
+	},
+	(t) => [
+		// Serves the list order `ORDER BY date DESC, id DESC`, as on artefact and image_set.
+		index('album_date_id_idx').on(t.date, t.id),
+		index('album_event_id_idx').on(t.eventId)
+	]
+);
+
+/**
+ * One track of an album: a single audio file, stored exactly as uploaded.
+ * Like a photograph (see `image`), a row is created by the upload's finalize
+ * step before any album exists, so `album_id` is NULL until a form attaches
+ * it; unattached rows older than a day are swept (see #lib/server/uploads).
+ */
+export const track = sqliteTable(
+	'track',
+	{
+		id: autoIncrementId(),
+		albumId: integer('album_id').references(() => album.id, { onDelete: 'cascade' }),
+		// Play order within the album, 0-based.
+		position: integer('position').notNull().default(0),
+		title: text('title').notNull(),
+		// Public URL of the audio file. Unique: finalize is idempotent on it.
+		url: text('url').notNull(),
+		// The type as sniffed from the file's bytes, never as the client declared it.
+		type: text('type').$type<AudioType>().notNull(),
+		bytes: integer('bytes').notNull(),
+		// Length in seconds, as the uploader's browser measured it, or NULL when it
+		// couldn't. Shown in track lists, never relied on: the player reads the
+		// file's own length once it loads.
+		duration: real('duration'),
+		// The file name the uploader's device gave it, if any.
+		originalName: text('original_name'),
+		...auditColumns()
+	},
+	(t) => [
+		uniqueIndex('track_url_idx').on(t.url),
+		// An album's tracks in play order.
+		index('track_album_position_idx').on(t.albumId, t.position),
+		// The unattached-track sweep scans by age.
+		index('track_created_at_idx').on(t.createdAt)
+	]
+);
+
+/**
  * The one image an event features (see #lib/server/eventFeatures): either a
  * photograph (`image_id`) or one page of an artefact's scans (`artefact_id`
  * plus the page's URL, since an artefact's pages are URLs in its `file_urls`
@@ -469,6 +539,7 @@ export const eventRelations = relations(event, ({ one, many }) => ({
 	hosts: many(eventHost),
 	artefacts: many(artefact),
 	imageSets: many(imageSet),
+	albums: many(album),
 	featureImage: one(eventFeatureImage, {
 		fields: [event.id],
 		references: [eventFeatureImage.eventId]
@@ -505,6 +576,14 @@ export const imageRelations = relations(image, ({ one }) => ({
 	set: one(imageSet, { fields: [image.setId], references: [imageSet.id] })
 }));
 
+export const albumRelations = relations(album, ({ one, many }) => ({
+	event: one(event, { fields: [album.eventId], references: [event.id] }),
+	tracks: many(track)
+}));
+export const trackRelations = relations(track, ({ one }) => ({
+	album: one(album, { fields: [track.albumId], references: [album.id] })
+}));
+
 export type Series = typeof series.$inferSelect;
 export type NewSeries = typeof series.$inferInsert;
 export type Event = typeof event.$inferSelect;
@@ -533,5 +612,15 @@ export type EventFeatureImage = typeof eventFeatureImage.$inferSelect;
  * when unlinked) and its images in display order.
  */
 export type ImageSetWithMeta = ImageSet & { event: string | null; images: Image[] };
+
+export type Album = typeof album.$inferSelect;
+export type NewAlbum = typeof album.$inferInsert;
+export type Track = typeof track.$inferSelect;
+export type NewTrack = typeof track.$inferInsert;
+/**
+ * Album as the keeper views read it: linked event title flattened in (null
+ * when unlinked) and its tracks in play order.
+ */
+export type AlbumWithMeta = Album & { event: string | null; tracks: Track[] };
 
 export * from './auth.schema';

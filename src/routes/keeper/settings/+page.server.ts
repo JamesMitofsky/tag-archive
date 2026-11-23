@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const isAdmin = locals.user?.role === 'admin';
 	const pending = isAdmin ? await countPendingReview() : null;
 	const pendingTotal = pending
-		? pending.artefacts + pending.events + pending.series + pending.images
+		? pending.artefacts + pending.events + pending.series + pending.images + pending.albums
 		: 0;
 
 	return {

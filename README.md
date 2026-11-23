@@ -48,9 +48,9 @@ The schema is `src/lib/server/db/schema.ts` (migrations in `drizzle/`); column
 names below are as SQLite and Drizzle Studio show them. Every archive table
 carries audit columns (`created_at` / `updated_at`, `created_by` / `updated_by`);
 only the bookkeeping tables `rate_limit`, `nfc_tag` and `remote_key` don't. `artefact`,
-`event`, `series` and `image_set` also carry `proposed_addition`: true on a row
+`event`, `series`, `image_set` and `album` also carry `proposed_addition`: true on a row
 anyone but an admin created, until an admin vets it in the review queue. A
-proposed artefact or image set is kept off the public site until then. A
+proposed artefact, image set or album is kept off the public site until then. A
 proposed event is public all the same, on `/events` and in every form's event
 field: its text is the source page's own, and the flag only asks a keeper to
 check it.
@@ -106,6 +106,37 @@ Image rows are written when an upload is _finalized_, before any set exists, so
 **unattached rows** (`set_id` NULL) are normal: they belong to a form someone is
 still filling in, until it attaches them on save. Ones left unattached for a day
 are swept with their objects.
+
+**Albums** are recorded music uploaded track by track (see [Albums](#albums)).
+Two tables:
+
+`album` — one row per album:
+
+| Column        | Notes                                                                     |
+| ------------- | ------------------------------------------------------------------------- |
+| `id`          | Integer PK                                                                |
+| `title`       | Required                                                                  |
+| `artist`      | Free text, as the recording credits it (not linked to `person`); nullable |
+| `description` | Nullable                                                                  |
+| `event_id`    | Event it was recorded at or released for (`event`); nullable              |
+| `date`        | Partial ISO date like `artefact.date`; NULL when deliberately undated     |
+
+`track` — one row per audio file:
+
+| Column          | Notes                                                                  |
+| --------------- | ---------------------------------------------------------------------- |
+| `id`            | Integer PK; what a form submits to attach the track                    |
+| `album_id`      | Its album; NULL until a form attaches it (deleted with the album)      |
+| `position`      | Play order within the album, from 0                                    |
+| `title`         | As the keeper named it; first guessed from the file name               |
+| `url`           | Public URL of the file, exactly as uploaded (unique)                   |
+| `type`          | Sniffed from its bytes: MP3, M4A, AAC, FLAC, WAV or Ogg                |
+| `bytes`         | Size, as the bucket reports it                                         |
+| `duration`      | Seconds, as the uploader's browser measured it; display only, nullable |
+| `original_name` | The device's file name                                                 |
+
+As with photographs, track rows are written at finalize, before any album
+exists, and ones left unattached for a day are swept with their files.
 
 **Feature images.** An event can feature one image the archive already holds,
 a photograph or one page of an artefact, chosen on the form that adds the event
@@ -382,6 +413,53 @@ was opened (another admin's save, an approval). Saving from an out-of-date page
 would otherwise overwrite fields nobody re-read and delete photographs added in
 the meantime.
 
+### Albums
+
+An **album** is recorded music: an ordered set of tracks with a title, an
+optional artist, description and event, and a date (exact, month, year, or
+"No date", as for an artefact). Only signed-in keepers upload albums, at
+`/keeper/albums/new`; there is no public submit. An admin's album lands vetted,
+a contributor's waits in the review queue (`/keeper/settings/review/albums`).
+Keepers browse albums at `/keeper/albums` (each album's page has a player and
+its files), where admins also edit and delete them.
+
+The public section is `/albums`: a cloud of albums like the other sections,
+searched across title, artist, event, description, date and **every track's
+title**, so a search for a song finds its album. Opening one lists its tracks
+and leads on to `/albums/<id>`, the album's player. That player is
+`src/lib/components/AlbumPlayer.svelte`, the garden meditation's player made
+general: `/meditation-walk` still plays its static chapters through it.
+
+**How a track uploads** (browser: `src/lib/albums/upload.ts`; server:
+`src/lib/server/trackUploads.ts`):
+
+1. **Sniff.** The browser reads the file's first bytes (and those after any ID3
+   tag, which can run to megabytes with cover art) and refuses anything but
+   MP3, AAC, M4A, FLAC, WAV or Ogg in that file's own row. AIFF is refused by
+   name: only Safari plays it.
+2. **Upload URL.** `POST /api/tracks/upload-url` (keepers only) answers with a
+   key, `tracks/<uuid>.<ext>`, a presigned PUT for the file's exact type and
+   size (up to 1 GB), and a ticket binding the key to this keeper.
+3. **PUT,** straight to the bucket, untouched, two tracks at a time. The
+   browser reads the track's length from the file meanwhile.
+4. **Finalize.** `POST /api/tracks/finalize` checks the ticket, then reads back
+   only the start of the stored file (ranged reads, never the whole file): it
+   must sniff as the type its key names. The bucket's own count is its size. It
+   records an unattached `track` row titled after the file name (`01 - Root.mp3`
+   → "Root"). A bad upload is deleted; one still landing is kept for a retry.
+5. **Save.** The form submits each uploaded track's id and title as two
+   parallel lists, written row by row by the uploader so they always pair up,
+   and `src/lib/server/albums.ts` attaches them in one atomic batch. Edits are
+   version-checked like an image set's.
+
+The bucket and its CORS rule are the photographs': nothing new to configure.
+`/api/dataset` publishes each track as `id`, `title`, `url` and `duration`
+only; who uploaded it and the device's file name stay with keepers.
+
+The nav's Albums button and the search field's mark are typeset until their
+drawings exist at `static/drawing/icons/albums.webp` and
+`static/drawing/text/albums.webp` (see `Drawing.svelte`).
+
 #### Sweeps
 
 Removing a photograph from the uploader before saving deletes it at once
@@ -399,13 +477,19 @@ which touches only what is more than a day old:
 - **Orphan objects** (`sweepOrphanObjects`): keepers' photograph objects under
   `images/` that no row records — an upload that never reached finalize, or
   objects whose delete failed.
+- **Album tracks** work the same way (`sweepUnattachedTracks`,
+  `sweepOrphanTrackObjects`): tracks finalized but never saved into an album,
+  and files under `tracks/` that no row records. A track removed in the uploader
+  is deleted at once (`DELETE /api/tracks/[id]`); one dropped from a saved album
+  goes when the album is saved; deleting or rejecting an album deletes its files.
 
-"Used" means named by an artefact's `file_urls` or by any `image` row's `url` or
-`original_url`, attached or not, matched by bucket key rather than full URL (so a
-change of `R2_PUBLIC_URL` never makes the archive look unused). Each sweep
-removes at most 500 rows or objects a run. The route answers `{ images,
-unattachedImages, orphanObjects, counters }` (`images` counts the abandoned
-submissions); a step that failed is `null`, and the answer a 500.
+"Used" means named by an artefact's `file_urls`, by any `image` row's `url` or
+`original_url`, or by any `track` row's `url`, attached or not, matched by bucket
+key rather than full URL (so a change of `R2_PUBLIC_URL` never makes the archive
+look unused). Each sweep removes at most 500 rows or objects a run. The route
+answers `{ images, unattachedImages, unattachedTracks, orphanObjects,
+orphanTracks, counters }` (`images` counts the abandoned submissions); a step
+that failed is `null`, and the answer a 500.
 
 #### CORS
 

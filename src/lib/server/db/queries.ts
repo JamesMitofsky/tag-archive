@@ -5,6 +5,7 @@ import { deleteUnreferencedImages } from '../uploads';
 import { featureImagesWhere, publicFeatureImage } from '../eventFeatures';
 import { stampInsert, stampUpdate } from './audit';
 import {
+	album,
 	artefact,
 	artefactProvenance,
 	event,
@@ -12,13 +13,15 @@ import {
 	image,
 	imageSet,
 	person,
-	series
+	series,
+	track
 } from './schema';
 import type { ArtefactWithEvent, EventWithMeta, Series } from './schema';
 import type { EventItem } from '#lib/events.ts';
 import type { LiveArrival } from '#lib/live.ts';
 import type { FeatureImage } from '#lib/featureImage.ts';
 import type { PublicImage, PublicImageSet } from '#lib/images/types.ts';
+import type { PublicAlbum, PublicTrack } from '#lib/albums/types.ts';
 import { isFullDate } from '#lib/partialDate.ts';
 
 /**
@@ -212,6 +215,8 @@ export type PublicDataset = {
 	people: string[];
 	/** Vetted image sets, newest first, each with its photographs in display order. */
 	images: PublicImageSet[];
+	/** Vetted albums, newest first, each with its tracks in play order. */
+	albums: PublicAlbum[];
 };
 
 /**
@@ -239,72 +244,77 @@ export type PublicDataset = {
  *    device details — so its columns are picked one by one, never spread;
  *  - an event's feature image: only while the photograph's set, or the
  *    artefact the page belongs to, is itself vetted, and only as the URL and
- *    size that render it — the photograph's display copy, never its original.
+ *    size that render it — the photograph's display copy, never its original;
+ *  - albums: vetted albums only, with their event title as for an artefact,
+ *    and each track as a whitelist of fields (see `PublicTrack`): who
+ *    uploaded it and the file name their device gave it stay with keepers.
  */
 export async function loadPublicDataset(): Promise<PublicDataset> {
-	const [artefactRows, eventRows, personRows, setRows, imageRows, features] = await Promise.all([
-		db
-			.select({ ...getTableColumns(artefact), event: event.title })
-			.from(artefact)
-			.leftJoin(event, eq(artefact.eventId, event.id))
-			.where(eq(artefact.proposedAddition, false)),
-		db.select(getTableColumns(event)).from(event),
-		db
-			.select({ name: person.name })
-			.from(person)
-			.where(
-				or(
-					exists(
-						db
-							.select({ one: sql`1` })
-							.from(artefactProvenance)
-							.innerJoin(artefact, eq(artefact.id, artefactProvenance.artefactId))
-							.where(
-								and(
-									eq(artefactProvenance.personId, person.id),
-									eq(artefact.proposedAddition, false)
+	const [artefactRows, eventRows, personRows, setRows, imageRows, features, albums] =
+		await Promise.all([
+			db
+				.select({ ...getTableColumns(artefact), event: event.title })
+				.from(artefact)
+				.leftJoin(event, eq(artefact.eventId, event.id))
+				.where(eq(artefact.proposedAddition, false)),
+			db.select(getTableColumns(event)).from(event),
+			db
+				.select({ name: person.name })
+				.from(person)
+				.where(
+					or(
+						exists(
+							db
+								.select({ one: sql`1` })
+								.from(artefactProvenance)
+								.innerJoin(artefact, eq(artefact.id, artefactProvenance.artefactId))
+								.where(
+									and(
+										eq(artefactProvenance.personId, person.id),
+										eq(artefact.proposedAddition, false)
+									)
 								)
-							)
-					),
-					exists(
-						db
-							.select({ one: sql`1` })
-							.from(eventHost)
-							.where(eq(eventHost.personId, person.id))
+						),
+						exists(
+							db
+								.select({ one: sql`1` })
+								.from(eventHost)
+								.where(eq(eventHost.personId, person.id))
+						)
 					)
-				)
-			),
-		db
-			.select({
-				id: imageSet.id,
-				description: imageSet.description,
-				event: event.title,
-				date: imageSet.date
-			})
-			.from(imageSet)
-			.leftJoin(event, eq(imageSet.eventId, event.id))
-			.where(eq(imageSet.proposedAddition, false))
-			.orderBy(desc(imageSet.date), desc(imageSet.id)),
-		// Every photograph of every vetted set in one query, grouped below (no
-		// N+1). The capture time is cut to its day: the hour and the camera's
-		// offset say more about the photographer than the archive needs to.
-		db
-			.select({
-				setId: image.setId,
-				id: image.id,
-				url: image.url,
-				width: image.width,
-				height: image.height,
-				placeholder: image.placeholder,
-				capturedDate: sql<string | null>`substr(${image.capturedAt}, 1, 10)`
-			})
-			.from(image)
-			.innerJoin(imageSet, eq(image.setId, imageSet.id))
-			.where(eq(imageSet.proposedAddition, false))
-			.orderBy(image.setId, image.position, image.id),
-		// Every event's feature image, each only while its own source is vetted.
-		featureImagesWhere(undefined, { vettedOnly: true })
-	]);
+				),
+			db
+				.select({
+					id: imageSet.id,
+					description: imageSet.description,
+					event: event.title,
+					date: imageSet.date
+				})
+				.from(imageSet)
+				.leftJoin(event, eq(imageSet.eventId, event.id))
+				.where(eq(imageSet.proposedAddition, false))
+				.orderBy(desc(imageSet.date), desc(imageSet.id)),
+			// Every photograph of every vetted set in one query, grouped below (no
+			// N+1). The capture time is cut to its day: the hour and the camera's
+			// offset say more about the photographer than the archive needs to.
+			db
+				.select({
+					setId: image.setId,
+					id: image.id,
+					url: image.url,
+					width: image.width,
+					height: image.height,
+					placeholder: image.placeholder,
+					capturedDate: sql<string | null>`substr(${image.capturedAt}, 1, 10)`
+				})
+				.from(image)
+				.innerJoin(imageSet, eq(image.setId, imageSet.id))
+				.where(eq(imageSet.proposedAddition, false))
+				.orderBy(image.setId, image.position, image.id),
+			// Every event's feature image, each only while its own source is vetted.
+			featureImagesWhere(undefined, { vettedOnly: true }),
+			loadPublicAlbums()
+		]);
 
 	const [artefacts, eventsWithHosts] = await Promise.all([
 		attachProvenance(artefactRows),
@@ -349,7 +359,55 @@ export async function loadPublicDataset(): Promise<PublicDataset> {
 		// A set with no photographs is a create that failed halfway; nothing to show.
 		.filter((set) => set.images.length > 0);
 
-	return { artefacts, events, people: personRows.map((p) => p.name), images };
+	return { artefacts, events, people: personRows.map((p) => p.name), images, albums };
+}
+
+/**
+ * The public dataset's albums slice (see `loadPublicDataset`): vetted albums,
+ * newest first, each with its tracks in play order, every column picked one
+ * by one. An album with no tracks is a create that failed halfway, and is
+ * left out.
+ */
+async function loadPublicAlbums(): Promise<PublicAlbum[]> {
+	const vetted = eq(album.proposedAddition, false);
+	const [albumRows, trackRows] = await Promise.all([
+		db
+			.select({
+				id: album.id,
+				title: album.title,
+				artist: album.artist,
+				description: album.description,
+				event: event.title,
+				date: album.date
+			})
+			.from(album)
+			.leftJoin(event, eq(album.eventId, event.id))
+			.where(vetted)
+			.orderBy(desc(album.date), desc(album.id)),
+		db
+			.select({
+				albumId: track.albumId,
+				id: track.id,
+				title: track.title,
+				url: track.url,
+				duration: track.duration
+			})
+			.from(track)
+			.innerJoin(album, eq(track.albumId, album.id))
+			.where(vetted)
+			.orderBy(track.albumId, track.position, track.id)
+	]);
+
+	const tracksByAlbum = new Map<number, PublicTrack[]>();
+	for (const row of trackRows) {
+		if (row.albumId === null) continue;
+		const list = tracksByAlbum.get(row.albumId) ?? [];
+		list.push({ id: row.id, title: row.title, url: row.url, duration: row.duration });
+		tracksByAlbum.set(row.albumId, list);
+	}
+	return albumRows
+		.map((row) => ({ ...row, tracks: tracksByAlbum.get(row.id) ?? [] }))
+		.filter((row) => row.tracks.length > 0);
 }
 
 /**
@@ -437,8 +495,9 @@ export async function countPendingReview(): Promise<{
 	events: number;
 	series: number;
 	images: number;
+	albums: number;
 }> {
-	const [[a], [e], [s], [i]] = await Promise.all([
+	const [[a], [e], [s], [i], [m]] = await Promise.all([
 		db
 			.select({ n: sql<number>`count(*)` })
 			.from(artefact)
@@ -454,9 +513,13 @@ export async function countPendingReview(): Promise<{
 		db
 			.select({ n: sql<number>`count(*)` })
 			.from(imageSet)
-			.where(eq(imageSet.proposedAddition, true))
+			.where(eq(imageSet.proposedAddition, true)),
+		db
+			.select({ n: sql<number>`count(*)` })
+			.from(album)
+			.where(eq(album.proposedAddition, true))
 	]);
-	return { artefacts: a.n, events: e.n, series: s.n, images: i.n };
+	return { artefacts: a.n, events: e.n, series: s.n, images: i.n, albums: m.n };
 }
 
 /** Proposed artefacts with their event title and provenance names, newest first. */
@@ -487,8 +550,8 @@ export async function listProposedSeries(): Promise<Series[]> {
 }
 
 /** The domain tables that carry a `proposed_addition` flag. */
-export type ReviewKind = 'artefact' | 'event' | 'series' | 'imageSet';
-const reviewTable = { artefact, event, series, imageSet } as const;
+export type ReviewKind = 'artefact' | 'event' | 'series' | 'imageSet' | 'album';
+const reviewTable = { artefact, event, series, imageSet, album } as const;
 
 /** Vet a proposed row: clear the flag so it joins the archive proper. No-op if
  *  the row is already vetted or gone. */
@@ -531,17 +594,18 @@ export async function rejectProposed(kind: ReviewKind, id: number, userId: strin
 		return;
 	}
 
+	if (kind === 'album') {
+		// Its tracks and their stored files go with it, as for an image set, and
+		// for the same reasons (see above). It refreshes the cache itself.
+		const { deleteAlbum } = await import('../albums');
+		await deleteAlbum(id, { proposedOnly: true });
+		return;
+	}
+
 	if (kind === 'event') {
-		// Artefacts and image sets reference this event (nullable, no cascade) —
-		// unlink them first, or the delete trips the foreign key.
-		await db
-			.update(artefact)
-			.set({ eventId: null, ...stampUpdate(userId) })
-			.where(eq(artefact.eventId, id));
-		await db
-			.update(imageSet)
-			.set({ eventId: null, ...stampUpdate(userId) })
-			.where(eq(imageSet.eventId, id));
+		// Artefacts, image sets and albums reference this event (nullable, no
+		// cascade) — unlink them first, or the delete trips the foreign key.
+		await unlinkEvent(id, userId);
 		await db.delete(event).where(eq(event.id, id));
 	} else if (kind === 'series') {
 		// Events reference this series (nullable) — detach them into one-offs first.
@@ -571,6 +635,26 @@ export async function rejectProposed(kind: ReviewKind, id: number, userId: strin
 	}
 	// A discarded row leaves the public blob — refresh it.
 	await purgeArchiveCache();
+}
+
+/**
+ * Clear every reference to event `id` that doesn't cascade: the artefacts,
+ * image sets and albums linked to it keep their place in the archive,
+ * unlinked. Run before deleting the event, or the delete trips the foreign key.
+ */
+export async function unlinkEvent(id: number, userId: string): Promise<void> {
+	await db
+		.update(artefact)
+		.set({ eventId: null, ...stampUpdate(userId) })
+		.where(eq(artefact.eventId, id));
+	await db
+		.update(imageSet)
+		.set({ eventId: null, ...stampUpdate(userId) })
+		.where(eq(imageSet.eventId, id));
+	await db
+		.update(album)
+		.set({ eventId: null, ...stampUpdate(userId) })
+		.where(eq(album.eventId, id));
 }
 
 /** Delete those of `ids` that no artefact or event links to any more. */
