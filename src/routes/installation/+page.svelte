@@ -5,9 +5,12 @@
 	the last touch the lens rests, and the field goes back to a wash of the
 	archive floating by, with nothing drawn into focus.
 
-	The archive floats as islands, one per season, each gathering that season
-	from every year in date order; a bubble at each island's center names its
-	season ("Winter"), so the drift keeps a sense of when in the year you are.
+	The archive floats as a calendar: a column for each year and, within it, a
+	row for each season, so drifting along a row is seeing what was happening at
+	that time of year, year after year (see #lib/installation/field). The year
+	in view is named along the top edge and the season down the left, each mark
+	held in view while any of its year or season is, and lit while the lens is
+	over it.
 
 	A pinch on the iPad zooms the field about the lens. Zoomed out, things step
 	aside so the view stays legible: first the lens, then the event cards, and
@@ -57,7 +60,8 @@
 		thinningRoom,
 		thinningStarts,
 		widestZoom,
-		type Group,
+		placeMark,
+		type Band,
 		type Placed,
 		type World
 	} from '#lib/installation/field.ts';
@@ -115,10 +119,12 @@
 	 * clear over this last stretch, once it has already shrunk to a speck.
 	 */
 	const LOD_CLEAR = 0.2;
-	/** A season bubble's type size, as a share of a layout cell at zoom 1. */
-	const BUBBLE_FONT = 0.17;
-	/** The smallest type (px) a season bubble keeps before it steps aside. */
-	const BUBBLE_MIN_FONT = 13;
+	/** How far the year and season marks sit in from the screen's edges (px). */
+	const MARK_EDGE = 16;
+	/** The least space kept between a mark and the screen's edge or the other axis's marks (px). */
+	const MARK_GAP = 12;
+	/** How quickly a mark lights up, or dims, as the lens comes over its band or leaves it, per second. */
+	const MARK_RATE = 4;
 	/** The farthest a trackpad's ctrl-wheel step may zoom at once (as wheel px). */
 	const WHEEL_STEP = 50;
 
@@ -196,12 +202,16 @@
 	 */
 	let measurer: HTMLElement | null = null;
 	const MEASURE_WIDTH = 1000;
-	/** Each season's bubble, by its group's key. */
+	/** Each year's and season's mark, by `markKey`. */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
-	const bubbles = new Map<string, HTMLElement>();
-	/** Each bubble's level of detail, as the items': wanted, how far in, and its type size. */
+	const marks = new Map<string, HTMLElement>();
+	/**
+	 * Each mark's size on screen, measured when first drawn (and again after a
+	 * resize, or once the fonts have loaded, since its type depends on both),
+	 * and how lit it is, 0..1.
+	 */
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- read by the frame loop, never rendered
-	const bubbleState = new Map<string, { wanted: boolean; presence: number; font: number }>();
+	const markState = new Map<string, { width: number; height: number; lit: number }>();
 	let lens: HTMLElement | undefined = $state();
 	let captionEl: HTMLElement | undefined = $state();
 
@@ -216,15 +226,23 @@
 		};
 	}
 
-	/** Registers a season's bubble for the frame loop to place. */
-	function trackBubble(key: string) {
+	/** A mark's key: a year and a season never share one, though their bands' keys might. */
+	const markKey = (axis: 'year' | 'season', band: Band) => `${axis} ${band.key}`;
+
+	/** Registers a year's or a season's mark for the frame loop to place. */
+	function trackMark(key: string) {
 		return (node: HTMLElement) => {
-			bubbles.set(key, node);
+			marks.set(key, node);
 			return () => {
-				bubbles.delete(key);
-				bubbleState.delete(key);
+				marks.delete(key);
+				markState.delete(key);
 			};
 		};
+	}
+
+	/** Forgets the marks' sizes, so they are measured again when next drawn. */
+	function remeasureMarks() {
+		for (const state of markState.values()) state.width = state.height = 0;
 	}
 
 	/** Eases a presence (0..1) for drawing, so a fade starts and lands gently. */
@@ -372,8 +390,6 @@
 		let fpsSince = last;
 
 		const now = () => performance.now() / 1000;
-		/** Where a bubble is in its bob, 0..1: fixed by its place, so bubbles don't bob in step. */
-		const bubblePhase = (group: Group) => ((group.x * 7 + group.y * 13) / (world?.cell ?? 1)) % 1;
 
 		const config = readRelayConfig(page.url.searchParams, PUBLIC_INSTALLATION_RELAY_URL);
 		relayConfig = config;
@@ -594,47 +610,76 @@
 				element.style.zIndex = isBest ? '3' : entry.focus > 0 ? '2' : '1';
 			}
 
-			// The season bubbles ride the water with the items, part around a bloom
-			// like them, and fade a little while one is open, so it holds the eye.
-			// A bubble is sized with the zoom, so it keeps to the clear water its
-			// island leaves for it, and steps aside (fading, like the items) once
-			// its name would be too small to read.
-			const bubbleFont = w.cell * BUBBLE_FONT * zoom;
-			for (const group of w.groups) {
-				const element = bubbles.get(group.key);
-				if (!element) continue;
-				const state = bubbleState.get(group.key) ?? { wanted: false, presence: 0, font: 0 };
-				bubbleState.set(group.key, state);
-				state.wanted = bubbleFont >= BUBBLE_MIN_FONT * (state.wanted ? 1 - HYSTERESIS : 1);
-				state.presence = step(state.presence, state.wanted);
-				const offset = offsetFrom(sim.cam, group, w);
-				let x = offset.x * zoom;
-				let y = offset.y * zoom;
-				if (state.presence === 0 || Math.abs(x) > halfW || Math.abs(y) > halfH) {
-					element.style.visibility = 'hidden';
-					continue;
+			// The calendar's marks: each year named along the top edge and each
+			// season down the left. Each is held in view while any of its band is
+			// (see placeMark), fades as the stretch of its band in view grows too
+			// short to hold it, and is lit while the lens is over its band. They are
+			// set in screen px rather than with the zoom, so however far out the
+			// field is, they can be read. They dim while a bloom holds the eye.
+			const measured = (key: string, element: HTMLElement) => {
+				let state = markState.get(key);
+				if (!state) {
+					state = { width: 0, height: 0, lit: 0 };
+					markState.set(key, state);
 				}
-				if (best) {
-					const push = parting(
-						{ x: x - best.x, y: y - best.y },
-						reach + w.cell * zoom * 0.7,
-						bloomAmount
-					);
-					x += push.x;
-					y += push.y;
+				if (!state.width) {
+					state.width = element.offsetWidth;
+					state.height = element.offsetHeight;
 				}
-				y += Math.sin((t / 8 + bubblePhase(group)) * Math.PI * 2) * 4;
-				// Set as type, not scaled, so the name stays crisp; only when it has
-				// changed enough to matter, as with the items' sizes.
-				if (Math.abs(bubbleFont / state.font - 1) > (sim.zooming ? 0.08 : 0.002)) {
-					state.font = bubbleFont;
-					element.style.fontSize = `${bubbleFont}px`;
-				}
-				const shown = ease(state.presence);
-				element.style.visibility = 'visible';
-				element.style.transform = `translate3d(${viewW / 2 + x}px, ${viewH / 2 + y}px, 0) scale(${(bubbleFont / state.font) * dwindle(shown)})`;
-				element.style.opacity = String(0.92 * (1 - 0.6 * bloomAmount) * solidity(state.presence));
+				return state;
+			};
+			// The top-left corner is shared: the years start right of the season
+			// marks, and the seasons below the year marks.
+			let seasonsWide = 0;
+			let yearsTall = 0;
+			for (const band of w.seasons) {
+				const element = marks.get(markKey('season', band));
+				if (element)
+					seasonsWide = Math.max(seasonsWide, measured(markKey('season', band), element).width);
 			}
+			for (const band of w.years) {
+				const element = marks.get(markKey('year', band));
+				if (element)
+					yearsTall = Math.max(yearsTall, measured(markKey('year', band), element).height);
+			}
+			const settle = 1 - Math.exp(-Math.max(dt, 0) * MARK_RATE);
+			const markDim = 1 - 0.5 * bloomAmount;
+			const markCam = sim.cam;
+			const drawMarks = (axis: 'year' | 'season') => {
+				const alongX = axis === 'year';
+				const span = alongX ? viewW : viewH;
+				const lo = -span / 2 + MARK_EDGE + (alongX ? seasonsWide : yearsTall) + MARK_GAP;
+				const hi = span / 2 - MARK_EDGE;
+				for (const band of alongX ? w.years : w.seasons) {
+					const key = markKey(axis, band);
+					const element = marks.get(key);
+					const state = markState.get(key);
+					if (!element || !state) continue;
+					const length = alongX ? state.width : state.height;
+					const place = placeMark(
+						band,
+						alongX ? markCam.x : markCam.y,
+						alongX ? w.width : w.height,
+						zoom,
+						lo,
+						hi,
+						length + MARK_GAP
+					);
+					state.lit += ((place?.current ? 1 : 0) - state.lit) * settle;
+					const fit = place ? smoothstep(0, length * 0.5, place.room) : 0;
+					if (!place || fit === 0) {
+						element.style.visibility = 'hidden';
+						continue;
+					}
+					const x = alongX ? viewW / 2 + place.at : MARK_EDGE + state.width / 2;
+					const y = alongX ? MARK_EDGE + state.height / 2 : viewH / 2 + place.at;
+					element.style.visibility = 'visible';
+					element.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+					element.style.opacity = String(fit * (0.5 + 0.5 * state.lit) * markDim);
+				}
+			};
+			drawMarks('year');
+			drawMarks('season');
 
 			if (lens) lens.style.opacity = String(0.6 * lensAt * (1 - Math.min(1, bloomAmount * 1.4)));
 
@@ -665,8 +710,14 @@
 		const onResize = () => {
 			viewW = window.innerWidth;
 			viewH = window.innerHeight;
+			remeasureMarks();
 			fitZoom();
 		};
+		// The marks' type is a webfont: measured before it loads, they'd be
+		// measured at the fallback's size.
+		void document.fonts?.ready.then(() => {
+			if (!disposed) remeasureMarks();
+		});
 
 		const onKey = (event: KeyboardEvent) => {
 			if (event.key === 'd') overlay = !overlay;
@@ -778,12 +829,7 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<div
-	class="stream"
-	class:operating={overlay || unconfigured}
-	aria-label="Archive Stream"
-	style:--cell={world ? `${world.cell}px` : undefined}
->
+<div class="stream" class:operating={overlay || unconfigured} aria-label="Archive Stream">
 	<div
 		class="lens"
 		bind:this={lens}
@@ -792,9 +838,14 @@
 		aria-hidden="true"
 	></div>
 
-	{#each world?.groups ?? [] as group (group.key)}
-		<div class="bubble" style:visibility="hidden" {@attach trackBubble(group.key)}>
-			{group.label}
+	{#each world?.years ?? [] as band (band.key)}
+		<div class="mark year" style:visibility="hidden" {@attach trackMark(markKey('year', band))}>
+			{band.label}
+		</div>
+	{/each}
+	{#each world?.seasons ?? [] as band (band.key)}
+		<div class="mark season" style:visibility="hidden" {@attach trackMark(markKey('season', band))}>
+			{band.label}
 		</div>
 	{/each}
 
@@ -1155,18 +1206,18 @@
 		mask-image: linear-gradient(to bottom, #000 calc(100% - 2.6em), transparent);
 	}
 
-	/* A season's name, at the center of its island. Sized by the layout's cell,
-	   so it fits the clear water the layout keeps for it (about three cells
-	   wide and one tall) on any projector. */
-	.bubble {
+	/* A year's name along the top edge, or a season's down the left (placed by
+	   the frame loop). Set in screen px, not with the zoom, so it can be read
+	   however far out the field is. */
+	.mark {
 		position: absolute;
 		left: 0;
 		top: 0;
 		translate: -50% -50%;
-		will-change: transform;
-		padding: 0.3em 0.8em;
+		will-change: transform, opacity;
+		padding: 0.25em 0.75em;
 		font-family: var(--font-friendly);
-		font-size: calc(var(--cell) * 0.17);
+		font-size: clamp(1rem, 2.6vh, 2.4rem);
 		line-height: 1.1;
 		white-space: nowrap;
 		color: oklch(0.32 0.04 250);
@@ -1175,6 +1226,9 @@
 		box-shadow: 0 0.1em 0.6em oklch(0.3 0.04 250 / 0.12);
 		pointer-events: none;
 		z-index: 2;
+	}
+	.mark.year {
+		font-variant-numeric: tabular-nums;
 	}
 
 	.caption {

@@ -4,18 +4,20 @@
  * ends and there is no edge to bump into.
  *
  * Things that belong together sit together. An event, its artefacts and its
- * photographs form a cluster; the clusters of each season, from every year,
- * form an island, labeled at its center with its season ("Winter"); and within
- * an island the clusters run in date order. So drifting through an island is
- * drifting through the years of one season, drifting nearby is finding related
- * things, and the bubbles say which season you are in.
+ * photographs form a cluster, and the clusters are laid out as a calendar (see
+ * ./season): a column for each year, oldest at the left, and a row for each
+ * season, winter at the top. Open water parts the columns and rows, and within
+ * a year's season the clusters run left to right in date order. So drifting
+ * sideways along a row is drifting through one time of year, year after year,
+ * and drifting up or down is drifting through the seasons of one year. The
+ * page names the year and the season in view at the screen's edges.
  *
  * Pure and free of the DOM: the projector page draws what this decides.
  * Positions are world pixels. `cam` is the world point at the screen's center.
  */
 
 import type { Vec } from './physics.ts';
-import { seasonOf, type Season } from './season.ts';
+import { seasonOf, yearOf, type Season, type Year } from './season.ts';
 
 export type FieldKind = 'artefact' | 'photo' | 'event';
 
@@ -61,13 +63,17 @@ export type Placed = {
 	phase: number;
 };
 
-/** A season's island, by the place its bubble sits: the island's center. */
-export type Group = {
+/**
+ * A year's column or a season's row of the calendar: where its items sit
+ * along its axis, in world px, from `start` to `end`. The open water around
+ * it is not part of it.
+ */
+export type Band = {
 	key: string;
-	/** What the bubble says: "Winter", "Season unknown". */
+	/** What its mark says: "2023", "Summer", "Season unknown". */
 	label: string;
-	x: number;
-	y: number;
+	start: number;
+	end: number;
 };
 
 export type World = {
@@ -76,8 +82,10 @@ export type World = {
 	/** The side of one layout cell, and so roughly the gap between neighbors. */
 	cell: number;
 	placed: Placed[];
-	/** One per season, winter to fall, then the unknown. */
-	groups: Group[];
+	/** The columns, along x: oldest first, then the undated. */
+	years: Band[];
+	/** The rows, along y: winter to fall, then the unknown. */
+	seasons: Band[];
 };
 
 /** An A4 page, portrait: what an artefact scan with no stored size is drawn as. */
@@ -111,12 +119,17 @@ export type LayoutOptions = {
 	/** The projector's size in CSS px: the world is shaped like it. */
 	viewW: number;
 	viewH: number;
-	/** About how many items one screen shows over an island (the water between shows fewer). */
+	/** About how many items one screen shows over a full season (the water between shows fewer). */
 	perScreen?: number;
-	/** The share of an island's cells left empty, so the water has room to breathe. */
+	/** The share of a season's places left empty, so the water has room to breathe. */
 	emptyShare?: number;
-	/** The open water between neighboring islands, in cells. */
+	/** The open water between neighboring years, and between seasons, in cells. */
 	channel?: number;
+	/**
+	 * The open water added where the newest year wraps round to the oldest, in
+	 * cells, so the jump back reads as one rather than as the next year.
+	 */
+	seam?: number;
 	seed?: number;
 };
 
@@ -168,236 +181,257 @@ export function orderByCluster(items: readonly FieldItem[]): FieldItem[] {
 	return orderedClusters(items).flatMap((cluster) => cluster.items);
 }
 
-export type SeasonGroup = Season & { items: FieldItem[] };
+/** A year's season: the items of one box of the calendar, by its column and row. */
+export type CalendarCell = { year: number; season: number; items: FieldItem[] };
+
+export type Calendar = {
+	/** The columns, oldest first, then the undated. Only years with something in them. */
+	years: Year[];
+	/** The rows, winter to fall, then the unknown. Only seasons with something in them. */
+	seasons: Season[];
+	/** The boxes with something in them, each one's clusters in date order. */
+	cells: CalendarCell[];
+};
 
 /**
- * The items gathered into seasons across the years (see
- * #lib/installation/season), winter to fall, each season's clusters in date
- * order. A cluster is never split: it joins the season of its date, so an
- * event's photographs sit with it even when one was taken the week after.
+ * The items gathered into a calendar (see ./season): by year, and within a
+ * year by season. A cluster is never split: it joins the year and season of
+ * its date, so an event's photographs sit with it even when one was taken the
+ * week after, or the next January.
  */
-export function groupBySeason(items: readonly FieldItem[]): SeasonGroup[] {
-	const groups = new Map<string, SeasonGroup>();
+export function groupByCalendar(items: readonly FieldItem[]): Calendar {
+	const years = new Map<string, Year>();
+	const seasons = new Map<string, Season>();
+	const cells = new Map<string, { year: Year; season: Season; items: FieldItem[] }>();
 	for (const cluster of orderedClusters(items)) {
+		const year = yearOf(cluster.date);
 		const season = seasonOf(cluster.date);
-		let group = groups.get(season.key);
-		if (!group) {
-			group = { ...season, items: [] };
-			groups.set(season.key, group);
+		years.set(year.key, year);
+		seasons.set(season.key, season);
+		const key = `${year.key} ${season.key}`;
+		let cell = cells.get(key);
+		if (!cell) {
+			cell = { year, season, items: [] };
+			cells.set(key, cell);
 		}
-		group.items.push(...cluster.items);
+		cell.items.push(...cluster.items);
 	}
-	return [...groups.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
-}
-
-/** A cell of an island, as whole-cell offsets from the island's center. */
-type Cell = { i: number; j: number };
-
-/**
- * An island's outline is a superellipse, |x/a|^n + |y/b|^n <= 1: rounder than
- * a rectangle, so it reads as an island, but squarer than an ellipse, so it
- * leaves less of its slot as open water.
- */
-const SHAPE = 3;
-/**
- * The share of its bounding box an island covers: the superellipse's own
- * share (about 0.88 at SHAPE 3) less what its coastline's inlets take.
- */
-const FILL = 0.76;
-/** Kept clear at every island's center for its bubble: the label is wider than tall. */
-const isBubble = (i: number, j: number) => j === 0 && Math.abs(i) <= 1;
-const BUBBLE_CELLS = 3;
-
-/**
- * The cells of an island `w` by `h` cells, with room for at least `needed`
- * items: those within its outline, less the bubble's. The coastline dips in
- * and out (inlets of up to a seventh of the way in), so islands aren't stamped
- * from one mold. When the box is too tight for `needed`, the outline grows a
- * little past it.
- *
- * The cells come in serpentine row order, the top row left to right and the
- * next back again, so neighbors in date order are neighbors in space.
- */
-function islandCells(needed: number, w: number, h: number, random: () => number): Cell[] {
-	const a = random() * Math.PI * 2;
-	const b = random() * Math.PI * 2;
-	const shore = (theta: number) =>
-		1 - 0.04 * (1 - Math.sin(3 * theta + a)) - 0.03 * (1 - Math.sin(5 * theta + b));
-	const outline = (rx: number, ry: number) => {
-		const cells: Cell[] = [];
-		const reachX = Math.ceil(rx);
-		const reachY = Math.ceil(ry);
-		for (let j = -reachY; j <= reachY; j++) {
-			const row: Cell[] = [];
-			for (let i = -reachX; i <= reachX; i++) {
-				if (isBubble(i, j)) continue;
-				const x = Math.abs(i / rx);
-				const y = Math.abs(j / ry);
-				const r = (x ** SHAPE + y ** SHAPE) ** (1 / SHAPE);
-				if (r <= shore(Math.atan2(y * Math.sign(j), x * Math.sign(i)))) row.push({ i, j });
-			}
-			if ((j + reachY) % 2 === 1) row.reverse();
-			cells.push(...row);
-		}
-		return cells;
+	const byKey = (a: { key: string }, b: { key: string }) =>
+		a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+	const yearList = [...years.values()].sort(byKey);
+	const seasonList = [...seasons.values()].sort(byKey);
+	const yearIndex = new Map(yearList.map((year, i) => [year.key, i]));
+	const seasonIndex = new Map(seasonList.map((season, i) => [season.key, i]));
+	return {
+		years: yearList,
+		seasons: seasonList,
+		cells: [...cells.values()].map((cell) => ({
+			year: yearIndex.get(cell.year.key)!,
+			season: seasonIndex.get(cell.season.key)!,
+			items: cell.items
+		}))
 	};
-	// Cell centers sit at whole offsets, so a box `w` wide reaches (w - 1) / 2
-	// from the center to its outer cells' centers.
-	for (let grow = 1; ; grow *= 1.03) {
-		const cells = outline(Math.max(1.5, (w - 1) / 2) * grow, Math.max(0.5, (h - 1) / 2) * grow);
-		if (cells.length >= needed) return cells;
-	}
 }
 
+/** The narrowest a year's column is, in cells, however little it holds. */
+const MIN_WIDTH = 2;
+/** The shortest a season's row is, in cells. */
+const MIN_HEIGHT = 1;
+
 /**
- * Splits `widths`, in order, into at most `rows` runs whose longest is as
- * short as it can be, so the rows come out about equally long.
+ * The places, `rows` by `cols`, that `count` items take in a box `w` by `h`
+ * cells: about as far apart across as down, so a box holding a few spreads
+ * them over itself rather than bunching them at its start, and never closer
+ * than a cell either way while the box has room for that (see `fitWidths`).
  */
-function balancedRows(widths: readonly number[], rows: number): number[][] {
-	const split = (cap: number) => {
-		const out: number[][] = [];
-		let sum = Infinity;
-		widths.forEach((width, index) => {
-			if (sum + width > cap) {
-				out.push([]);
-				sum = 0;
-			}
-			out[out.length - 1].push(index);
-			sum += width;
-		});
-		return out;
-	};
-	let low = Math.max(0, ...widths);
-	let high = widths.reduce((sum, width) => sum + width, 0);
-	for (let step = 0; step < 40 && high - low > 1e-6; step++) {
-		const mid = (low + high) / 2;
-		if (split(mid).length <= rows) high = mid;
-		else low = mid;
+function lattice(count: number, w: number, h: number): { rows: number; cols: number } {
+	const maxRows = Math.max(1, Math.floor(h));
+	const maxCols = Math.max(1, Math.floor(w));
+	const spacing = Math.sqrt((w * h) / count);
+	let rows = Math.min(maxRows, Math.max(1, Math.round(h / spacing)));
+	let cols = Math.ceil(count / rows);
+	if (cols > maxCols) {
+		rows = Math.min(maxRows, Math.ceil(count / maxCols));
+		cols = Math.ceil(count / rows);
 	}
-	return split(high);
+	return { rows, cols };
 }
 
 /**
- * Lay the items out as islands, one per season, each with its bubble's cells
- * kept clear at its center. Within an island the items sit on a grid of cells
- * in date order; some cells stay empty, and each item is nudged off its cell's
- * center and given its own size, so the result reads as things floating on
- * water rather than as a grid.
+ * Lay the items out as a calendar: a column for each year and a row for each
+ * season, parted by channels of open water, so the same time of year in
+ * neighboring years sits side by side. Each year's season is a box whose items
+ * sit on a grid of places in date order, filling each column of places top to
+ * bottom (and the next back up again, so neighbors in date order are neighbors
+ * in space) before moving right. So a season's row runs in date order from
+ * left to right across all the years. Some places stay empty, and each item is
+ * nudged off its place and given its own size, so the result reads as things
+ * floating on water rather than as a grid.
  *
- * The islands run winter to fall along rows of one height, a serpentine again
- * (left to right, then back), so drifting in one direction is drifting
- * through the year. A season too big to be round at that height stretches along
- * its row instead, and each row's islands widen to fill the world's width, so
- * the only open water is the channels between islands and around the small
- * ones. The world is shaped like the screen and never smaller than one, so no
- * item can be seen twice at once across the seam.
+ * A season's row is as tall, and a year's column as wide, as its fullest box
+ * needs. Of the shapes that allows, the one kept leaves the least open water
+ * while staying near the screen's shape. The world is never smaller than a
+ * screen, so no item can be seen twice at once across the seam.
  */
 export function layoutField(items: readonly FieldItem[], options: LayoutOptions): World {
-	const { viewW, viewH, perScreen = 37, emptyShare = 0.08, channel = 1, seed = 7 } = options;
+	const {
+		viewW,
+		viewH,
+		perScreen = 37,
+		emptyShare = 0.08,
+		channel = 1,
+		seam = 2,
+		seed = 7
+	} = options;
 	const random = seededRandom(seed);
 	const cell = Math.sqrt((viewW * viewH) / perScreen);
 	const aspect = viewW / viewH;
 	const minCols = viewW / cell + 1;
 	const minRows = viewH / cell + 1;
 
-	const islands = groupBySeason(items).map((group) => {
-		const needed = Math.ceil(group.items.length / (1 - emptyShare));
-		const area = (needed + BUBBLE_CELLS) / FILL;
-		// The size of its box when round, and never too small for its bubble.
-		return { group, needed, area, round: Math.max(3.5, Math.sqrt(area)) };
-	});
+	const calendar = groupByCalendar(items);
+	const columns = calendar.years.length;
+	const rowCount = calendar.seasons.length;
+	/** The open water across the world: a channel after each year, and the seam. */
+	const water = columns * channel + seam;
+	if (!calendar.cells.length) {
+		return {
+			width: minCols * cell,
+			height: minRows * cell,
+			cell,
+			placed: [],
+			years: [],
+			seasons: []
+		};
+	}
+	// The places each box needs, empty ones included.
+	const needs = calendar.cells.map((c) => Math.ceil(c.items.length / (1 - emptyShare)));
 
-	/** An island's box in a row `rowH` cells tall: round if it fits, else stretched along the row. */
-	const box = (island: (typeof islands)[number], rowH: number) => {
-		const h = Math.min(rowH - channel, island.round);
-		return { w: Math.max(island.round === h ? h : 0, island.area / h, 3.5), h };
+	// A box `w` by `h` has floor(w) by floor(h) places a cell apart, so these
+	// give each box room for its places, a cell apart, at the least size.
+	const fitWidths = (heights: readonly number[]) => {
+		const widths = new Array<number>(columns).fill(MIN_WIDTH);
+		calendar.cells.forEach((c, k) => {
+			const across = Math.ceil(needs[k] / Math.floor(heights[c.season]));
+			widths[c.year] = Math.max(widths[c.year], across);
+		});
+		return widths;
+	};
+	const sum = (values: readonly number[]) => values.reduce((total, v) => total + v, 0);
+	/** How much open water a calendar of these row heights leaves, and how far from the screen's shape it is. */
+	const score = (heights: readonly number[]) => {
+		const cols = Math.max(minCols, sum(fitWidths(heights)) + water);
+		const height = Math.max(minRows, sum(heights) + rowCount * channel);
+		return cols * height * (1 + Math.abs(Math.log(cols / height / aspect)));
 	};
 
-	// Try a range of row heights. For each, take the number of rows that gives
-	// the world the screen's shape, balance the islands across them, and keep
-	// whichever leaves the least open water, still near the screen's shape.
-	let best: { rowH: number; cols: number; rows: number[][]; score: number } | null = null;
-	const tallest = Math.max(4, ...islands.map((island) => island.round + channel));
-	for (let rowH = Math.min(4, tallest); rowH <= tallest + 1e-9; rowH += 0.25) {
-		const widths = islands.map((island) => box(island, rowH).w + channel);
-		const length = widths.reduce((sum, width) => sum + width, 0);
-		const target = Math.max(1, Math.round(Math.sqrt(length / (rowH * aspect))));
-		for (const count of [target - 1, target, target + 1]) {
-			if (count < 1) continue;
-			const rows = islands.length ? balancedRows(widths, count) : [];
-			const longest = Math.max(0, ...rows.map((row) => row.reduce((sum, k) => sum + widths[k], 0)));
-			const cols = Math.max(minCols, longest);
-			const height = Math.max(minRows, rows.length * rowH);
-			const score = cols * height * (1 + Math.abs(Math.log(cols / height / aspect)));
-			if (!best || score < best.score) best = { rowH, cols, rows, score };
+	// Try a range of heights for the whole calendar. For each, share it among
+	// the seasons by how much they hold, then let each season's row grow or
+	// shrink a cell at a time while that leaves less water: a busy winter in
+	// one year is better met by a taller winter row than by that year's column
+	// widening for every season. The years fit whatever the rows come to. Keep
+	// whichever leaves the least water, still near the screen's shape.
+	const seasonNeeds = new Array<number>(rowCount).fill(0);
+	calendar.cells.forEach((c, k) => (seasonNeeds[c.season] += needs[k]));
+	const totalNeed = sum(seasonNeeds);
+	let best: { heights: number[]; score: number } | null = null;
+	const tallest = Math.max(rowCount * MIN_HEIGHT, Math.sqrt(totalNeed / aspect) * 2);
+	for (let total = rowCount * MIN_HEIGHT; total <= tallest + 1e-9; total += 1) {
+		const heights = seasonNeeds.map((need) =>
+			Math.max(MIN_HEIGHT, Math.round((total * need) / totalNeed))
+		);
+		let current = score(heights);
+		for (let improved = true; improved;) {
+			improved = false;
+			for (let r = 0; r < rowCount; r++) {
+				for (const delta of [1, -1]) {
+					if (heights[r] + delta < MIN_HEIGHT) continue;
+					heights[r] += delta;
+					const next = score(heights);
+					if (next < current - 1e-9) {
+						current = next;
+						improved = true;
+					} else heights[r] -= delta;
+				}
+			}
 		}
+		if (!best || current < best.score) best = { heights: [...heights], score: current };
 	}
-	const { cols, rows } = best!;
-	const height = Math.max(minRows, rows.length * best!.rowH);
-	// A small archive's world is taller than its rows: share the rest between them.
-	const rowH = height / Math.max(1, rows.length);
+	let heights = best!.heights;
+	let widths = fitWidths(heights);
+	// A small archive's calendar is smaller than a screen: stretch it to one.
+	const across = sum(widths) + water;
+	if (across < minCols) widths = widths.map((w) => (w * (minCols - water)) / sum(widths));
+	const down = sum(heights) + rowCount * channel;
+	if (down < minRows) {
+		heights = heights.map((h) => (h * (minRows - rowCount * channel)) / sum(heights));
+	}
+
+	// Each band's start, in cells: half a channel in from its share of the world.
+	const starts = (sizes: readonly number[]) => {
+		let at = channel / 2;
+		return sizes.map((size) => {
+			const start = at;
+			at += size + channel;
+			return start;
+		});
+	};
+	const lefts = starts(widths);
+	const tops = starts(heights);
 
 	const placed: Placed[] = [];
-	const groups: Group[] = [];
-	rows.forEach((row, r) => {
-		const boxes = row.map((k) => {
-			const b = box(islands[k], best!.rowH);
-			// A full-height island takes the row's full height.
-			return b.h === best!.rowH - channel ? { w: b.w, h: rowH - channel } : b;
-		});
-		// Each island widens in step with the others, to fill the row.
-		const natural = boxes.reduce((sum, b) => sum + b.w, 0);
-		const stretch = (cols - row.length * channel) / natural;
-		let x = 0;
-		const slots = row.map((k, n) => {
-			const w = boxes[n].w * stretch;
-			const slot = { island: islands[k], w, h: boxes[n].h, left: x };
-			x += w + channel;
-			return slot;
-		});
+	calendar.cells.forEach((c, k) => {
+		const w = widths[c.year];
+		const h = heights[c.season];
+		const { rows, cols } = lattice(needs[k], w, h);
+		const dx = w / cols;
+		const dy = h / rows;
 
-		for (const slot of slots) {
-			// The serpentine: odd rows run right to left.
-			const cx =
-				r % 2 === 0
-					? slot.left + channel / 2 + slot.w / 2
-					: cols - slot.left - channel / 2 - slot.w / 2;
-			const cy = r * rowH + rowH / 2;
-			const { group, needed } = slot.island;
-			const cells = islandCells(needed, slot.w, slot.h, random);
-			groups.push({ key: group.key, label: group.label, x: cx * cell, y: cy * cell });
+		// Spread the empty places evenly, with a little randomness, rather than
+		// leaving them all at the end.
+		const total = rows * cols;
+		const count = c.items.length;
+		const empties = total - count;
+		const skip = new Set<number>();
+		for (let e = 0; e < empties; e++) {
+			skip.add(Math.min(total - 1, Math.floor(((e + random()) * total) / empties)));
+		}
 
-			// Spread the empty cells evenly, with a little randomness, rather than
-			// leaving them all at the end of the last row.
-			const total = cells.length;
-			const empties = total - group.items.length;
-			const skip = new Set<number>();
-			for (let k = 0; k < empties; k++) {
-				skip.add(Math.min(total - 1, Math.floor(((k + random()) * total) / empties)));
-			}
-
-			let next = 0;
-			for (let index = 0; index < total && next < group.items.length; index++) {
-				// Leave a cell empty only while there are still enough cells for the rest.
-				if (skip.has(index) && total - index > group.items.length - next) continue;
-				const item = group.items[next++];
-				const long =
-					cell * 0.6 * (0.8 + random() * 0.32) * (item.kind === 'event' && !item.src ? 0.82 : 1);
-				// Mirrored on odd rows, so the island's own date order runs with the row.
-				const i = r % 2 === 0 ? cells[index].i : -cells[index].i;
-				placed.push({
-					item,
-					x: (cx + i + (random() - 0.5) * 0.44) * cell,
-					y: (cy + cells[index].j + (random() - 0.5) * 0.44) * cell,
-					w: item.aspect >= 1 ? long : long * item.aspect,
-					h: item.aspect >= 1 ? long / item.aspect : long,
-					phase: random()
-				});
-			}
+		let next = 0;
+		for (let index = 0; index < total && next < count; index++) {
+			// Leave a place empty only while there are still enough places for the rest.
+			if (skip.has(index) && total - index > count - next) continue;
+			const item = c.items[next++];
+			const col = Math.floor(index / rows);
+			// Down one column of places, back up the next.
+			const row = col % 2 === 0 ? index % rows : rows - 1 - (index % rows);
+			const long =
+				cell * 0.6 * (0.8 + random() * 0.32) * (item.kind === 'event' && !item.src ? 0.82 : 1);
+			placed.push({
+				item,
+				x: (lefts[c.year] + (col + 0.5 + (random() - 0.5) * 0.44) * dx) * cell,
+				y: (tops[c.season] + (row + 0.5 + (random() - 0.5) * 0.44) * dy) * cell,
+				w: item.aspect >= 1 ? long : long * item.aspect,
+				h: item.aspect >= 1 ? long / item.aspect : long,
+				phase: random()
+			});
 		}
 	});
 
-	return { width: cols * cell, height: height * cell, cell, placed, groups };
+	const band = (of: Year | Season, start: number, size: number): Band => ({
+		key: of.key,
+		label: of.label,
+		start: start * cell,
+		end: (start + size) * cell
+	});
+	return {
+		width: (sum(widths) + water) * cell,
+		height: (sum(heights) + rowCount * channel) * cell,
+		cell,
+		placed,
+		years: calendar.years.map((year, i) => band(year, lefts[i], widths[i])),
+		seasons: calendar.seasons.map((season, i) => band(season, tops[i], heights[i]))
+	};
 }
 
 /**
@@ -627,4 +661,50 @@ export function thinningStarts(rooms: Iterable<number>, viewH: number): number {
 	let least = Infinity;
 	for (const r of rooms) if (r < least) least = r;
 	return Number.isFinite(least) && least > 0 ? roomNeeded(1, viewH) / least : 0;
+}
+
+/** Where a band's mark sits on screen (see `placeMark`). */
+export type MarkPlace = {
+	/** The mark's center along the band's axis, in screen px from the screen's center. */
+	at: number;
+	/** How much longer the band's stretch in view is than the mark (screen px); below 0 it doesn't fit. */
+	room: number;
+	/** Whether the lens, at the screen's center, is over the band. */
+	current: boolean;
+};
+
+/**
+ * Where a year's or a season's mark goes along the screen's edge: at the
+ * middle of the stretch of its band in view. So a band filling the screen is
+ * named at the middle of the edge, over the lens; two bands sharing the screen
+ * are each named over their own part; and a band leaving the screen takes its
+ * name with it, never beyond its end. Null when none of the band is in view.
+ *
+ * Along one axis: `cam` is the camera's coordinate on it and `size` the
+ * world's size along it (world px); `lo` and `hi` are the stretch of the screen
+ * the marks may use and `length` is the mark's own length (screen px, from the
+ * screen's center). A band may run over the seam, so of its copies the one
+ * most in view is taken.
+ */
+export function placeMark(
+	band: Band,
+	cam: number,
+	size: number,
+	zoom: number,
+	lo: number,
+	hi: number,
+	length: number
+): MarkPlace | null {
+	const center = wrapDelta((band.start + band.end) / 2 - cam, size);
+	const reach = (band.end - band.start) / 2;
+	let best: MarkPlace | null = null;
+	for (const copy of [center - size, center, center + size]) {
+		const start = Math.max(lo, (copy - reach) * zoom);
+		const end = Math.min(hi, (copy + reach) * zoom);
+		if (end <= start) continue;
+		const room = end - start - length;
+		if (best && room <= best.room) continue;
+		best = { at: (start + end) / 2, room, current: Math.abs(copy) <= reach };
+	}
+	return best;
 }

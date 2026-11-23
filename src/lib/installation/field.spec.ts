@@ -6,7 +6,7 @@ import {
 	floorZoom,
 	focusAmount,
 	focusScale,
-	groupBySeason,
+	groupByCalendar,
 	isPicture,
 	itemScale,
 	layoutField,
@@ -15,6 +15,7 @@ import {
 	openHeight,
 	orderByCluster,
 	parting,
+	placeMark,
 	roomNeeded,
 	thinningRoom,
 	thinningStarts,
@@ -88,23 +89,44 @@ describe('orderByCluster', () => {
 	});
 });
 
-describe('groupBySeason', () => {
-	it('gathers clusters into seasons across the years, never splitting a cluster', () => {
-		const groups = groupBySeason([
-			item('undated', 'u', null),
-			item('july', 'a', '2024-07-04'),
-			item('july-photo', 'a', '2024-09-02'),
-			item('december', 'b', '2023-12-10'),
-			item('february', 'c', '2024-02'),
-			item('year', 'd', '2024'),
-			item('old-summer', 'e', '2016-08-20'),
-			item('old-winter', 'f', '2017-01')
-		]);
-		expect(groups.map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
-			['Winter', ['old-winter', 'december', 'february']],
-			['Summer', ['old-summer', 'july', 'july-photo']],
-			['Season unknown', ['year', 'undated']]
-		]);
+describe('groupByCalendar', () => {
+	const calendar = groupByCalendar([
+		item('undated', 'u', null),
+		item('july', 'a', '2024-07-04'),
+		item('july-photo', 'a', '2024-09-02'),
+		item('december', 'b', '2023-12-10'),
+		item('february', 'c', '2024-02'),
+		item('year', 'd', '2024'),
+		item('old-summer', 'e', '2016-08-20'),
+		item('old-winter', 'f', '2017-01'),
+		item('late-summer', 'g', '2024-08-30')
+	]);
+	const box = (year: string, season: string) =>
+		calendar.cells
+			.find(
+				(c) => calendar.years[c.year].label === year && calendar.seasons[c.season].label === season
+			)
+			?.items.map((i) => i.id);
+
+	it('keeps only the years and seasons that hold something, in order', () => {
+		expect(calendar.years.map((y) => y.label)).toEqual(['2016', '2017', '2023', '2024', 'Undated']);
+		expect(calendar.seasons.map((s) => s.label)).toEqual(['Winter', 'Summer', 'Season unknown']);
+	});
+
+	it('gathers each year by season, in date order, never splitting a cluster', () => {
+		expect(box('2024', 'Summer')).toEqual(['july', 'july-photo', 'late-summer']);
+		expect(box('2016', 'Summer')).toEqual(['old-summer']);
+		expect(box('2024', 'Winter')).toEqual(['february']);
+	});
+
+	it('keeps a December in its own year', () => {
+		expect(box('2023', 'Winter')).toEqual(['december']);
+	});
+
+	it('puts a year-only date in its year, an undated one in a column of its own', () => {
+		expect(box('2024', 'Season unknown')).toEqual(['year']);
+		expect(box('Undated', 'Season unknown')).toEqual(['undated']);
+		expect(calendar.cells).toHaveLength(7);
 	});
 });
 
@@ -133,61 +155,143 @@ describe('layoutField', () => {
 		expect(small.height).toBeGreaterThan(viewH);
 	});
 
-	it('shows about the asked number of items per screen over an island, fewer on average', () => {
+	it('shows about the asked number of items per screen over a full season, fewer on average', () => {
 		const perScreen = (400 * viewW * viewH) / (world.width * world.height);
-		// The channels between islands are open water, so well under the default 37.
-		expect(perScreen).toBeGreaterThan(13);
+		// The channels between years and seasons are open water, so well under the
+		// default 37; the more so here, with fifteen years of about 27 things each.
+		expect(perScreen).toBeGreaterThan(8);
 		expect(perScreen).toBeLessThan(37);
-		// Around a bubble, a screen's worth of island holds about the asked number,
-		// a little under it for the empty cells.
+		// Within one full season, a screen holds about the asked number, a little
+		// under it for the empty places. Any one screen varies with which empty
+		// places and columns of places it catches, so take the average of a few.
 		const summer = layoutField(
 			Array.from({ length: 300 }, (_, i) => item(`s${i}`, `c${i}`, '2024-07-01')),
 			{ viewW, viewH }
 		);
-		const [group] = summer.groups;
-		const near = summer.placed.filter((p) => {
-			const o = offsetFrom(group, p, summer);
-			return Math.abs(o.x) < viewW / 2 && Math.abs(o.y) < viewH / 2;
-		});
-		expect(near.length).toBeGreaterThan(28);
-		expect(near.length).toBeLessThan(37);
+		const [{ start: left, end: right }] = summer.years;
+		const [{ start: top, end: bottom }] = summer.seasons;
+		const counts: number[] = [];
+		for (const fx of [0.25, 0.5, 0.75]) {
+			for (const fy of [0.25, 0.5, 0.75]) {
+				// Screens wholly inside the season, none of them over its edge.
+				const at = {
+					x: left + viewW / 2 + (right - left - viewW) * fx,
+					y: top + viewH / 2 + (bottom - top - viewH) * fy
+				};
+				counts.push(
+					summer.placed.filter((p) => {
+						const o = offsetFrom(at, p, summer);
+						return Math.abs(o.x) < viewW / 2 && Math.abs(o.y) < viewH / 2;
+					}).length
+				);
+			}
+		}
+		const mean = counts.reduce((sum, n) => sum + n, 0) / counts.length;
+		expect(mean).toBeGreaterThan(29);
+		expect(mean).toBeLessThan(37);
 	});
 
-	it('gives each season one bubble, winter to fall, then the unknown', () => {
-		expect(world.groups.map((g) => g.label)).toEqual([
+	const calendar = groupByCalendar(many(400));
+	const boxOf = new Map(
+		calendar.cells.flatMap((c) => c.items.map((i) => [i.id, { year: c.year, season: c.season }]))
+	);
+
+	it('has a column for each year, oldest first, and a row for each season, winter first', () => {
+		expect(world.years.map((b) => b.label)).toEqual(
+			Array.from({ length: 15 }, (_, i) => String(2010 + i))
+		);
+		expect(world.seasons.map((b) => b.label)).toEqual([
 			'Winter',
 			'Spring',
 			'Summer',
 			'Fall',
 			'Season unknown'
 		]);
+		for (const bands of [world.years, world.seasons]) {
+			bands.forEach((band, i) => {
+				expect(band.end).toBeGreaterThan(band.start);
+				if (i > 0) expect(band.start).toBeGreaterThan(bands[i - 1].end);
+			});
+		}
+		expect(world.years.at(-1)!.end).toBeLessThan(world.width);
+		expect(world.seasons.at(-1)!.end).toBeLessThan(world.height);
 	});
 
-	it('keeps the water clear at each bubble', () => {
-		for (const group of world.groups) {
-			for (const p of world.placed) {
-				const o = offsetFrom(group, p, world);
-				// The bubble's three cells, less how far an item may be nudged and its half-size.
-				const clear = Math.abs(o.y) < world.cell * 0.4 && Math.abs(o.x) < world.cell * 1.4;
-				expect(clear).toBe(false);
-			}
+	it('puts each item in its year’s column and its season’s row', () => {
+		for (const p of world.placed) {
+			const { year, season } = boxOf.get(p.item.id)!;
+			expect(p.x).toBeGreaterThan(world.years[year].start);
+			expect(p.x).toBeLessThan(world.years[year].end);
+			expect(p.y).toBeGreaterThan(world.seasons[season].start);
+			expect(p.y).toBeLessThan(world.seasons[season].end);
 		}
 	});
 
-	it('parts the seasons by open water, wider than the gaps within one', () => {
-		const seasonOf = new Map(
-			groupBySeason(many(400)).flatMap((g) => g.items.map((i) => [i.id, g.key]))
+	it('runs a year’s season left to right in date order', () => {
+		const summer = layoutField(
+			// June 1 to August 31, three or four things a day, in id order.
+			Array.from({ length: 300 }, (_, i) =>
+				item(
+					`s${i}`,
+					`c${i}`,
+					new Date(Date.UTC(2024, 5, 1 + Math.floor(i / 3.3))).toISOString().slice(0, 10)
+				)
+			),
+			{ viewW, viewH }
 		);
+		const x = new Map(summer.placed.map((p) => [p.item.id, p.x]));
+		// Items a few columns of places apart in date order are in order across.
+		let inOrder = 0;
+		let pairs = 0;
+		for (let i = 0; i + 40 < 300; i++) {
+			pairs++;
+			if (x.get(`s${i}`)! < x.get(`s${i + 40}`)!) inOrder++;
+		}
+		expect(inOrder / pairs).toBeGreaterThan(0.95);
+	});
+
+	it('parts the years and the seasons by open water, wider than the gaps within one', () => {
 		let closest = Infinity;
 		for (const p of world.placed) {
+			const a = boxOf.get(p.item.id)!;
 			for (const q of world.placed) {
-				if (seasonOf.get(p.item.id) === seasonOf.get(q.item.id)) continue;
+				const b = boxOf.get(q.item.id)!;
+				if (a.year === b.year && a.season === b.season) continue;
 				const o = offsetFrom(p, q, world);
 				closest = Math.min(closest, Math.hypot(o.x, o.y));
 			}
 		}
-		// Within an island, neighbors sit about a cell apart.
+		// Within a box, neighbors sit about a cell apart.
 		expect(closest).toBeGreaterThan(world.cell * 1.3);
+	});
+
+	it('never crowds a season, however busy it is beside quiet ones', () => {
+		// One year with a winter as busy as its summer.
+		const busy = layoutField(
+			[
+				...Array.from({ length: 120 }, (_, i) => item(`w${i}`, `w${i}`, '2022-01-10')),
+				...Array.from({ length: 120 }, (_, i) => item(`s${i}`, `s${i}`, '2022-07-10')),
+				...Array.from({ length: 120 }, (_, i) => item(`t${i}`, `t${i}`, '2023-07-10'))
+			],
+			{ viewW, viewH }
+		);
+		let closest = Infinity;
+		for (const p of busy.placed) {
+			for (const q of busy.placed) {
+				if (p === q) continue;
+				const o = offsetFrom(p, q, busy);
+				closest = Math.min(closest, Math.hypot(o.x, o.y));
+			}
+		}
+		// Places a cell apart, less how far two may be nudged toward each other.
+		expect(closest).toBeGreaterThan(busy.cell * 0.5);
+	});
+
+	it('leaves wider water where the newest year wraps round to the oldest', () => {
+		const gaps = world.years.slice(1).map((band, i) => band.start - world.years[i].end);
+		const wrap = world.width - world.years.at(-1)!.end + world.years[0].start;
+		for (const gap of gaps) expect(gap).toBeCloseTo(world.cell);
+		expect(wrap).toBeCloseTo(world.cell * 3);
 	});
 
 	it('is the same every time', () => {
@@ -460,8 +564,13 @@ describe('buildFieldItems', () => {
 });
 
 describe('thinningRoom', () => {
+	// Two summers, densely full, as most of the archive is.
 	const world = layoutField(
-		many(300).map((it, i) => (i % 5 === 0 ? { ...it, kind: 'event' as const, src: null } : it)),
+		many(300).map((it, i) => ({
+			...it,
+			date: `${2023 + (Math.floor(i / 4) % 2)}-07`,
+			...(i % 5 === 0 ? { kind: 'event' as const, src: null } : {})
+		})),
 		{ viewW: 1600, viewH: 900 }
 	);
 	const tierOf = (p: (typeof world.placed)[number]) => (isPicture(p.item) ? 0 : 1);
@@ -544,5 +653,46 @@ describe('zoom levels', () => {
 
 	it('zooms no farther out than one world fits the screen', () => {
 		expect(widestZoom({ width: 4000, height: 2000 }, 1000, 800, 100)).toBeCloseTo(0.5);
+	});
+});
+
+describe('placeMark', () => {
+	const band = { key: 'b', label: 'B', start: 1000, end: 3000 };
+	const size = 10_000;
+
+	it('names a band filling the screen at the middle, over the lens', () => {
+		const place = placeMark(band, 2000, size, 1, -500, 500, 100);
+		expect(place).toEqual({ at: 0, room: 900, current: true });
+	});
+
+	it('sits at the middle of the stretch of its band in view', () => {
+		// The band runs from 100 px left of center to well past the right edge.
+		const place = placeMark(band, 1100, size, 1, -500, 500, 100)!;
+		expect(place.at).toBe(200);
+		expect(place.current).toBe(true);
+	});
+
+	it('never leaves its band, and runs out of room as the band leaves', () => {
+		// Only the band's last 50 px are in view, at the screen's left edge.
+		const place = placeMark(band, 3450, size, 1, -500, 500, 100)!;
+		expect(place.at).toBe(-475);
+		expect(place.room).toBe(-50);
+		expect(place.current).toBe(false);
+		expect(placeMark(band, 4000, size, 1, -500, 500, 100)).toBeNull();
+	});
+
+	it('finds its band across the seam', () => {
+		// Its left end is 1,200 px ahead, past the seam: out of view at this zoom...
+		expect(placeMark(band, size - 200, size, 1, -500, 500, 100)).toBeNull();
+		// ...but in view at the right edge, zoomed out.
+		const out = placeMark(band, size - 200, size, 0.3, -500, 500, 100)!;
+		expect(out.at).toBeCloseTo(430);
+		expect(out.current).toBe(false);
+	});
+
+	it('keeps to the stretch of the screen it is given', () => {
+		// In view from -1,600 to 400, but the marks may only use from -300.
+		const place = placeMark(band, 2600, size, 1, -300, 500, 100)!;
+		expect(place.at).toBe(50);
 	});
 });

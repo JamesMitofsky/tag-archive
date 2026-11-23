@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { seasonOf } from './season';
+import { seasonOf, yearOf } from './season';
 
 describe('seasonOf', () => {
 	it('names the meteorological season', () => {
@@ -34,5 +34,20 @@ describe('seasonOf', () => {
 			'Fall',
 			'Season unknown'
 		]);
+	});
+});
+
+describe('yearOf', () => {
+	it('names the calendar year, so a December stays in its own', () => {
+		expect(yearOf('2023-12-20').label).toBe('2023');
+		expect(yearOf('2024-01').label).toBe('2024');
+		expect(yearOf('2019')).toEqual(yearOf('2019-07-04'));
+	});
+
+	it('gives the undated a column of their own, after every year', () => {
+		expect(yearOf(null).label).toBe('Undated');
+		expect(yearOf('not a date')).toEqual(yearOf(null));
+		expect(yearOf('2024').key < yearOf(null).key).toBe(true);
+		expect(yearOf('0999').key < yearOf('2024').key).toBe(true);
 	});
 });
